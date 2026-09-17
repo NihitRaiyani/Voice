@@ -156,6 +156,7 @@ def build_vobiz_client() -> VobizClient:
 
 def build_twilio_client():
     """Construct the official Twilio client at the outbound API boundary."""
+    from twilio.http.http_client import TwilioHttpClient
     from twilio.rest import Client
 
     from roma.config import get_settings
@@ -173,7 +174,8 @@ def build_twilio_client():
             "Add the missing values to .env; server startup and offline verification work "
             "without them."
         )
-    return Client(credentials[0][1], credentials[1][1])
+    http_client = TwilioHttpClient(timeout=DIAL_TIMEOUT_SECS)
+    return Client(credentials[0][1], credentials[1][1], http_client=http_client)
 
 
 __all__ = [

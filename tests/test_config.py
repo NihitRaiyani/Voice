@@ -108,6 +108,23 @@ def test_dialing_without_twilio_credentials_fails_with_a_useful_message(monkeypa
         get_settings.cache_clear()
 
 
+def test_twilio_client_uses_the_bounded_dial_timeout(monkeypatch):
+    from roma.config import Settings, get_settings
+    from roma.telephony.dialer import DIAL_TIMEOUT_SECS, build_twilio_client
+
+    _set_full_env(monkeypatch)
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "test-twilio-account-sid")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "0123456789abcdef0123456789abcdef")
+    monkeypatch.setenv("TWILIO_FROM_NUMBER", "+919876543210")
+    monkeypatch.setattr("roma.config.Settings", lambda **kw: Settings(_env_file=None, **kw))
+    get_settings.cache_clear()
+    try:
+        client = build_twilio_client()
+        assert client.http_client.timeout == DIAL_TIMEOUT_SECS
+    finally:
+        get_settings.cache_clear()
+
+
 # --- the base URL a carrier has to reach --------------------------------------------------
 
 
