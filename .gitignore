@@ -21,6 +21,9 @@ venv/
 .idea/
 .vscode/
 
+# Isolated implementation worktrees
+.worktrees/
+
 # Runtime data — call recordings and post-call spool. LEAD PII (docs/07): never commit.
 # This entry MUST stay in step with `Settings.roma_data_dir` (src/roma/config.py).
 var/
