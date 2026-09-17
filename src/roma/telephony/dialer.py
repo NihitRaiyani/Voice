@@ -154,4 +154,33 @@ def build_vobiz_client() -> VobizClient:
     return VobizClient(auth_id, auth_token)
 
 
-__all__ = ["place_call", "DialResult", "VobizClient", "build_vobiz_client", "VOBIZ_API_BASE"]
+def build_twilio_client():
+    """Construct the official Twilio client at the outbound API boundary."""
+    from twilio.rest import Client
+
+    from roma.config import get_settings
+
+    settings = get_settings()
+    credentials = (
+        ("TWILIO_ACCOUNT_SID", settings.twilio_account_sid.get_secret_value()),
+        ("TWILIO_AUTH_TOKEN", settings.twilio_auth_token.get_secret_value()),
+        ("TWILIO_FROM_NUMBER", settings.twilio_from_number.get_secret_value()),
+    )
+    missing = [name for name, value in credentials if not value]
+    if missing:
+        raise RuntimeError(
+            f"{', '.join(missing)} are required to place a Twilio call. "
+            "Add the missing values to .env; server startup and offline verification work "
+            "without them."
+        )
+    return Client(credentials[0][1], credentials[1][1])
+
+
+__all__ = [
+    "place_call",
+    "DialResult",
+    "VobizClient",
+    "build_vobiz_client",
+    "build_twilio_client",
+    "VOBIZ_API_BASE",
+]

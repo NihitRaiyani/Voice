@@ -100,23 +100,15 @@ class CallSidFilter(logging.Filter):
 
 
 def _secret_values(settings: Settings):
-    """Every value that must never appear in a log line (CLAUDE.md gate 2, docs/07).
-
-    The SIP password is here even though Roma never authenticates with it: Vobiz uses it on
-    its own trunk, but it is a live credential for this account, and a credential that leaks
-    through a log is leaked whether or not this process was the one that used it.
-    """
-    values = [
-        settings.vobiz_auth_id.get_secret_value(),
-        settings.vobiz_auth_token.get_secret_value(),
-        settings.vobiz_from_number.get_secret_value(),
+    """Every value that must never appear in a log line (CLAUDE.md gate 2, docs/07)."""
+    return [
+        settings.twilio_account_sid.get_secret_value(),
+        settings.twilio_auth_token.get_secret_value(),
+        settings.twilio_from_number.get_secret_value(),
         settings.sarvam_api_key.get_secret_value(),
         settings.openai_api_key.get_secret_value(),
         settings.redis_url.get_secret_value(),
     ]
-    if settings.vobiz_sip_password is not None:
-        values.append(settings.vobiz_sip_password.get_secret_value())
-    return values
 
 
 def _attach_to_uvicorn(*filters: logging.Filter) -> None:

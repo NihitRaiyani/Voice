@@ -6,17 +6,18 @@ from pydantic import ValidationError
 from roma.config import Settings
 
 REQUIRED = [
-    "VOBIZ_FROM_NUMBER",
     "SARVAM_API_KEY",
     "OPENAI_API_KEY",
     "REDIS_URL",
 ]
 
-# Needed ONLY to place an outbound call through the REST Call API. Answering, streaming and
-# the whole conversation need none of them: Vobiz authenticates its own SIP trunk and
-# connects to us. Requiring them would stop the media server booting for want of a credential
-# it never uses, and would block the entire offline verification path.
-OPTIONAL_API_CREDENTIALS = ["VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN"]
+# Needed only for carrier operations. Requiring them would stop the media server booting and
+# block the offline verification path when no outbound call is being placed.
+OPTIONAL_TWILIO_CREDENTIALS = [
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_FROM_NUMBER",
+]
 
 
 def _set_full_env(monkeypatch):
@@ -73,26 +74,22 @@ def test_blank_required_key_fails_fast(monkeypatch, blank):
         Settings(_env_file=None)
 
 
-@pytest.mark.parametrize("key", OPTIONAL_API_CREDENTIALS)
-def test_the_call_api_credentials_are_optional_at_startup(monkeypatch, key):
-    """The media server must boot without them. Vobiz authenticates its own SIP trunk and
-    connects to us, so answering, streaming and the whole conversation work with these blank
-    — only outbound dialing does not."""
+@pytest.mark.parametrize("key", OPTIONAL_TWILIO_CREDENTIALS)
+def test_twilio_credentials_are_optional_at_server_startup(monkeypatch, key):
     _set_full_env(monkeypatch)
     monkeypatch.delenv(key, raising=False)
     settings = Settings(_env_file=None)
-    assert settings.vobiz_auth_id.get_secret_value() == ""
+    assert getattr(settings, key.lower()).get_secret_value() == ""
 
 
-def test_dialing_without_the_call_api_credentials_fails_with_a_useful_message(monkeypatch):
-    """Optional at startup is only safe if the failure at the point of use names the fix. A
-    401 from the REST call would mention neither variable."""
+def test_dialing_without_twilio_credentials_fails_with_a_useful_message(monkeypatch):
     from roma.config import Settings, get_settings
-    from roma.telephony.dialer import build_vobiz_client
+    from roma.telephony.dialer import build_twilio_client
 
     _set_full_env(monkeypatch)
-    monkeypatch.delenv("VOBIZ_AUTH_ID", raising=False)
-    monkeypatch.delenv("VOBIZ_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
+    monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
+    monkeypatch.delenv("TWILIO_FROM_NUMBER", raising=False)
 
     # `_env_file=None` is load-bearing, not tidiness. `Settings` reads `.env`, so deleting the
     # variables from the environment does NOT make them absent — the file still supplies them.
@@ -102,8 +99,11 @@ def test_dialing_without_the_call_api_credentials_fails_with_a_useful_message(mo
     monkeypatch.setattr("roma.config.Settings", lambda **kw: Settings(_env_file=None, **kw))
     get_settings.cache_clear()
     try:
-        with pytest.raises(RuntimeError, match="VOBIZ_AUTH_ID"):
-            build_vobiz_client()
+        with pytest.raises(
+            RuntimeError,
+            match=r"TWILIO_ACCOUNT_SID.*TWILIO_AUTH_TOKEN.*TWILIO_FROM_NUMBER",
+        ):
+            build_twilio_client()
     finally:
         get_settings.cache_clear()
 
@@ -115,11 +115,7 @@ def test_dialing_without_the_call_api_credentials_fails_with_a_useful_message(mo
     "base", ["https://localhost:8020", "https://127.0.0.1:8020", "http://localhost"]
 )
 def test_an_unreachable_base_url_is_refused(monkeypatch, base):
-    """`/answer` mints `wss://<PUBLIC_BASE_URL>/ws` and hands it to Vobiz, which dials it from
-    ITS network. Left on the config default the XML is served happily with a clean 200, Vobiz
-    connects to its own loopback, and the call rings and goes nowhere — with nothing in our
-    log saying why, because from this side it answered correctly. Cheaper to refuse at boot
-    than to spend one of ~1.5 remaining calls discovering it."""
+    """Twilio must be able to reach both `/answer` and `/ws` from its own network."""
     from roma.config import get_settings, require_reachable_base_url
 
     _set_full_env(monkeypatch)

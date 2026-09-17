@@ -1,18 +1,19 @@
 import logging
 import sys
 
-from roma.logging_setup import RedactionFilter
+from roma.config import Settings
+from roma.logging_setup import RedactionFilter, configure_logging
 
 
 def test_redaction_filter_scrubs_secret_in_args():
-    secret = "vobiz-auth-abcdef"
+    secret = "0123456789abcdef0123456789abcdef"
     filt = RedactionFilter([secret])
     record = logging.LogRecord(
         name="test",
         level=logging.INFO,
         pathname=__file__,
         lineno=1,
-        msg="calling vobiz with token %s",
+        msg="calling Twilio with token %s",
         args=(secret,),
         exc_info=None,
     )
@@ -20,6 +21,35 @@ def test_redaction_filter_scrubs_secret_in_args():
     message = record.getMessage()
     assert secret not in message
     assert "***REDACTED***" in message
+
+
+def test_configured_logging_redacts_all_twilio_credentials(capsys):
+    account_sid = "test-twilio-account-sid"
+    auth_token = "0123456789abcdef0123456789abcdef"
+    from_number = "+919876543210"
+    settings = Settings(
+        _env_file=None,
+        sarvam_api_key="test-sarvam-api-key",
+        openai_api_key="test-openai-api-key",
+        redis_url="redis://localhost:6379/0",
+        twilio_account_sid=account_sid,
+        twilio_auth_token=auth_token,
+        twilio_from_number=from_number,
+    )
+
+    configure_logging(settings)
+    logging.getLogger("test").warning(
+        "Twilio account=%s token=%s caller=%s",
+        account_sid,
+        auth_token,
+        from_number,
+    )
+
+    output = capsys.readouterr().err
+    assert account_sid not in output
+    assert auth_token not in output
+    assert from_number not in output
+    assert output.count("***REDACTED***") == 3
 
 
 def test_redaction_filter_ignores_empty_secrets():

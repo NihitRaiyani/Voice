@@ -150,7 +150,7 @@ def test_uvicorns_real_access_formatter_still_renders_the_scrubbed_record():
 def test_the_redaction_filter_also_survives_the_access_record_shape():
     """RedactionFilter now shares the arity-preserving scrub; pin that it did not
     regress the five-tuple while gaining uvicorn coverage."""
-    secret = "vobiz-auth-abcdef123456"
+    secret = "test-twilio-account-sid"
     record = _record(
         '%s - "%s %s HTTP/%s" %d',
         ("127.0.0.1:52000", "GET", f"/answer?token={secret}", "1.1", 200),

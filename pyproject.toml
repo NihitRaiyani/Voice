@@ -17,6 +17,7 @@ telephony = [
     "fastapi>=0.139.2",
     "pipecat-ai[sarvam,silero,openai]>=1.6.0",
     "redis>=5.0",
+    "twilio>=9.10.9",
     "uvicorn[standard]>=0.51.0",
     "websockets>=16.1.1",
 ]

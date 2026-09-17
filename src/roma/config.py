@@ -20,31 +20,10 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
     )
 
-    # --- Vobiz -------------------------------------------------------------------------
-    # Account API credentials (console dashboard). Auth ID looks like `MA_XXXXXXXX`.
-    #
-    # Optional, deliberately, unlike every other credential here. They are needed ONLY to
-    # place an outbound call through the REST Call API. Answering, streaming and the entire
-    # conversation need none of them — Vobiz authenticates its own trunk and connects to us.
-    # Making them required would stop the media server booting for want of a credential it
-    # never uses, and would block the whole offline verification path. `build_vobiz_client`
-    # is where their absence is caught, loudly, at the moment they are actually needed.
-    vobiz_auth_id: SecretStr = SecretStr("")
-    vobiz_auth_token: SecretStr = SecretStr("")
-    # The Vobiz DID used as caller ID on every outbound call.
-    vobiz_from_number: SecretStr
-
-    # SIP trunk identity. Roma never speaks SIP — Vobiz carries the SIP leg itself and forks
-    # the audio to us over a WebSocket, which is the whole reason this integration needs no
-    # SIP stack (docs/decisions.md). These are here because the trunk is a real part of this
-    # deployment: it is what authenticates the outbound leg on Vobiz's side, it is what the
-    # console must be configured against, and it is how a call is identified in Vobiz's call
-    # logs when something goes wrong. Recording them in settings rather than a wiki keeps the
-    # account configuration reproducible.
-    vobiz_trunk_id: str = ""
-    vobiz_sip_domain: str = ""
-    vobiz_sip_username: str = ""
-    vobiz_sip_password: "SecretStr | None" = None
+    # --- Twilio -------------------------------------------------------------------------
+    twilio_account_sid: SecretStr = SecretStr("")
+    twilio_auth_token: SecretStr = SecretStr("")
+    twilio_from_number: SecretStr = SecretStr("")
 
     sarvam_api_key: SecretStr
     openai_api_key: SecretStr
@@ -56,9 +35,8 @@ class Settings(BaseSettings):
     app_env: str = "dev"
     log_level: str = "INFO"
 
-    # Where Vobiz reaches this process. ONE base, https — the answer URL and the websocket
-    # URL are both derived from it. Vobiz needs both (it POSTs the answer URL and then opens
-    # the socket), and two separate settings could disagree with each other.
+    # Where Twilio reaches this process. ONE base, https — the `/answer` URL and `/ws`
+    # websocket URL are both derived from it, so the two cannot disagree.
     public_base_url: str = "https://localhost:8020"
 
     enable_barge_in: bool = True
@@ -141,11 +119,9 @@ class Settings(BaseSettings):
 def require_reachable_base_url(settings: "Settings | None" = None) -> None:
     """Raise unless `PUBLIC_BASE_URL` names a host the carrier can actually reach.
 
-    `/answer` mints `wss://<PUBLIC_BASE_URL>/ws?t=…` and hands it to Vobiz, which dials that
-    URL from ITS network. Left on this module's default (`https://localhost:8020`) — i.e. the
-    tunnel URL was never passed at launch — the XML is served happily with a clean 200, Vobiz
-    connects to its own loopback, and the call rings and goes nowhere. Nothing in our logs
-    says why, because from this process's side it answered correctly.
+    Twilio fetches `/answer` and opens `/ws` from its own network. Left on this module's
+    default (`https://localhost:8020`) — i.e. the tunnel URL was never passed at launch —
+    those requests cannot reach Roma.
 
     Called by the SERVER entrypoint (`scripts/serve_media.py`), not by `build_media_app`: the
     offline tests construct the app directly and localhost is exactly right for them. What
@@ -157,9 +133,8 @@ def require_reachable_base_url(settings: "Settings | None" = None) -> None:
     base = settings.public_base_url
     if (urlparse(base).hostname or "").casefold() in {"localhost", "127.0.0.1", "::1", ""}:
         raise RuntimeError(
-            f"PUBLIC_BASE_URL is {base!r} — Vobiz cannot reach that. Every wss:// URL this "
-            "server mints would point at the carrier's own loopback and the call would "
-            "connect to nothing. Start the tunnel first and pass its URL:\n"
+            f"PUBLIC_BASE_URL is {base!r} — Twilio cannot reach `/answer` or `/ws` there. "
+            "Start the tunnel first and pass its URL:\n"
             "  PUBLIC_BASE_URL=https://<sub>.trycloudflare.com .venv/bin/uvicorn "
             "scripts.serve_media:create_app --factory --host 0.0.0.0 --port 8020"
         )
