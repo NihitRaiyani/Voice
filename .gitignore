@@ -1,0 +1,29 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+.claude
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Virtualenv / uv
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Runtime data — call recordings and post-call spool. LEAD PII (docs/07): never commit.
+# This entry MUST stay in step with `Settings.roma_data_dir` (src/roma/config.py).
+var/
+
+# Redis RDB snapshots — roma:lead/roma:opener keys hold lead PII (docs/07); never in git.
+dump.rdb

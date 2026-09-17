@@ -1,0 +1,17 @@
+# The P5 -> P6 -> P5 detour (docs/03 rule 3). A cost objection at the pivot routes to P6,
+# gets answered ONCE, and returns forward to P5 — never backward.
+{"name": "objection_detour", "description": "cost objection at P5 routes to P6, is answered once, returns to P5 and still locks", "lead_name": "ji", "branch": "Vadodara", "expect_slots": {"education": "12th pass", "passing_year": "2023", "current_status": "student", "city": "Ahmedabad"}, "expect_outcome": "locked", "expect_win": true}
+{"lead": "haan bolo", "expect_phase": "p2_discover", "roma": "Ji, abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "abhi padh raha hoon", "slot": "student", "expect_phase": "p2_discover", "roma": "Achha, toh aap abhi padh rahe hain. Kaunsa course chal raha hai?"}
+{"lead": "12th pass hoon", "slot": "12th pass", "expect_phase": "p2_discover", "roma": "Kaunse saal pass kiya ji?"}
+{"lead": "2023 mein", "slot": "2023", "expect_phase": "p2_discover", "roma": "Aap kis city se ho ji?"}
+{"lead": "Ahmedabad se", "slot": "Ahmedabad", "expect_phase": "p3_value", "roma": "Theek hai ji. Main aapko course ke baare mein bata deti hoon."}
+{"lead": "ye course kya hota hai exactly?", "expect_phase": "p3_value", "roma": "SEO, social media marketing aur Google Ads — teen module, AI tools ke saath."}
+{"lead": "kaun padhata hai?", "expect_phase": "p3_value", "roma": "Faculty saare working professionals hain, abhi industry mein kaam kar rahe hain."}
+{"lead": "aur kya kya cover hota hai?", "expect_phase": "p3_value", "roma": "Interview preparation, mock interview aur spoken English bhi saath mein. Live project se portfolio ban jaata hai."}
+{"lead": "hmm achha", "expect_phase": "p4_structure", "roma": "Teen mahine ka course hai ji, hafte mein teen din. Shaam ke batch hain toh aapki padhai disturb nahi hogi. Practical kaam zyada, theory kam."}
+{"lead": "theek hai", "expect_phase": "p5_pivot", "roma": "Toh ek baar branch aake dekh lijiye ji. Kal shaam paanch baje aa sakte ho?"}
+{"lead": "arre ye to bahut mehenga hoga", "expect_phase": "p6_objection", "roma": "Ji samajh sakti hoon. Isiliye keh rahi hoon ki visit pe counsellor aapki situation dekh ke sab detail bata denge. No-cost EMI available hai. Aap bas aake dekh lijiye, decide baad mein karna."}
+{"lead": "achha, samajh gaya", "expect_phase": "p5_pivot", "roma": "Toh kal shaam paanch baje rakh lun ji?"}
+{"lead": "haan chalega", "accept": true, "expect_phase": "p7_close", "roma": "Theek hai ji, kal shaam paanch baje Ahmedabad branch. Confirm kar dun?"}
+{"lead": "haan pakka", "confirm": true, "expect_phase": "p7_close", "roma": "Perfect ji. Kal shaam milte hain. Address bhej deti hoon. Dhanyavaad!"}

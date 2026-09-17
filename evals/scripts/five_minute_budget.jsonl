@@ -1,0 +1,23 @@
+# The five-minute call ceiling (roma.controller.pacing), asked for on 2026-07-26:
+# "make sure that design system according that the max timinig for a cal is 5 min".
+#
+# A chatty lead who answers every question but keeps the conversation going would, under
+# the plain phase machine, walk P2 -> P3 -> P4 -> P5 and reach the booking somewhere past
+# the six-minute mark. `elapsed` is seconds into the call, and once it crosses HURRY_SECS
+# (180) the machine stops taking the scenic route: discovery is cut short and the next
+# phase is the booking, whatever the transition table would otherwise have picked.
+#
+# Turn 5 is the one that matters. Two discovery slots are still empty, so the machine would
+# hold in p2_discover; at 185 seconds it lands on p5_pivot instead. Turn 4 at 170s is the
+# control — same shape, same unfilled slots, one band earlier, stays in discovery.
+#
+# The call still ends in a real lock: the ceiling is there to protect the booking, not to
+# replace it with a hangup.
+{"name": "five_minute_budget", "description": "a slow call is forced to the booking once it passes three minutes, and still locks", "lead_name": "ji", "branch": "Vadodara", "expect_outcome": "locked", "expect_win": true}
+{"lead": "haan ji boliye", "elapsed": 12, "expect_phase": "p2_discover", "roma": "Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "abhi job kar raha hoon", "elapsed": 55, "slot": "job", "expect_phase": "p2_discover", "roma": "Achha, toh aap abhi job kar rahe hain. Padhai kya ki hai?"}
+{"lead": "BCom kiya hai", "elapsed": 120, "slot": "BCom", "expect_phase": "p2_discover", "roma": "Kis saal complete hua?"}
+{"lead": "2022 mein", "elapsed": 170, "slot": "2022", "expect_phase": "p2_discover", "roma": "Aap rehte kahan ho?"}
+{"lead": "haan wo bhi batata hoon", "elapsed": 185, "expect_phase": "p5_pivot", "roma": "Ek kaam karte hain — counsellor aapka background dekh kar batayenge. Monday shaam paanch baje ya Tuesday subah gyaarah baje?"}
+{"lead": "Monday theek rahega", "elapsed": 205, "accept": true, "accept_hour": 5, "accept_period": "evening", "expect_phase": "p7_close", "roma": "Toh Monday, shaam ke time — Vadodara branch. Theek hai?"}
+{"lead": "haan bilkul theek hai", "elapsed": 230, "confirm": true, "expect_phase": "p7_close", "roma": "Perfect ji. Confirmation WhatsApp par bhej deti hoon. Milte hain!"}

@@ -1,0 +1,29 @@
+# The P2 safety valve (docs/03, machine.P2_MAX_TURNS). An evasive caller who answers nothing
+# must NOT trap the call in discovery forever: the bail is `phase_turn_count > P2_MAX_TURNS`,
+# and phase_turn_count resets to 0 on entering P2 — so it takes one turn MORE than the
+# budget to escape. The off-by-one is the whole reason this script is worth pinning.
+# The budget is `len(DISCOVERY_ORDER)` — one turn per slot — so it grew from four to five when
+# the name became the first slot (Roma is inbound; nobody tells us who rang), and the escape
+# moved one turn later with it. If DISCOVERY_ORDER changes again, this fixture is what notices.
+# lead_name is null here on purpose: this caller dodges the name too, which is the realistic
+# inbound version of "answers nothing" and exercises the attempt cap on the very first slot.
+# No lock at the end, and that is correct rather than a failure: the valve exists to stop
+# the call being stuck, not to rescue it.
+# The "dekhta hoon" turn lands in P6, not P5. That is the soft-no docs/02 names as the thing
+# a win is NOT, and it is now classified from P4 — objections used to be detected only in
+# P5/P6/P7, so a stall during the structure pitch went unanswered and the call carried on as
+# if the lead had agreed. It routes back to P5 on the next turn, which the last turn pins.
+{"name": "evasive_p2_valve", "description": "caller dodges every discovery question including their name; P2 bails to P3 with no slots filled", "lead_name": null, "branch": "Vadodara", "expect_slots": {"lead_name": null, "education": null, "passing_year": null, "current_status": null, "city": null}, "expect_outcome": "no_lock", "expect_win": false}
+{"lead": "haan bolo kya hai", "expect_phase": "p2_discover", "roma": "Ji, aapka naam kya hai?"}
+{"lead": "naam chhodo", "expect_phase": "p2_discover", "roma": "Theek hai ji. Abhi aap padh rahe hain ya job kar rahe hain?"}
+{"lead": "wo sab chhodo", "expect_phase": "p2_discover", "roma": "Koi baat nahi ji. Passing year bata denge?"}
+{"lead": "kyun poochh rahe ho", "expect_phase": "p2_discover", "roma": "Bas aapko sahi guide karne ke liye ji. Abhi kya kar rahe hain?"}
+{"lead": "kuch khaas nahi", "expect_phase": "p2_discover", "roma": "Theek hai ji. Aap rehte kahan ho?"}
+{"lead": "pehle detail do", "expect_phase": "p2_discover", "roma": "Bilkul ji. Ek minute mein bata deti hoon."}
+{"lead": "haan jaldi batao", "expect_phase": "p3_value", "roma": "Digital Marketing ka course hai ji — poora practical hai, theory nahi. Weltec ka certificate milta hai."}
+{"lead": "hmm", "expect_phase": "p3_value", "roma": "SEO, social media aur Google Ads — teen module, sab practical."}
+{"lead": "hmm theek hai", "expect_phase": "p3_value", "roma": "Das-baarah log hi hote hain batch mein. Recording bhi milti hai."}
+{"lead": "achha", "expect_phase": "p3_value", "roma": "Chaar se chhe mahine ka hai, zero se advance tak. Live project par kaam hota hai."}
+{"lead": "achha", "expect_phase": "p4_structure", "roma": "Teen mahine ka hai ji, hafte mein teen din, do ghante. Shaam ke batch bhi chalte hain."}
+{"lead": "dekhta hoon", "expect_phase": "p6_objection", "roma": "Samajh sakti hoon ji. Ek baar branch aake dekh lijiye, bina kisi commitment ke. Kal shaam theek rahega?"}
+{"lead": "abhi kuch nahi keh sakta", "expect_phase": "p5_pivot", "roma": "Koi dabaav nahi ji. Aap bas aake dekh lijiye, decide baad mein karna."}

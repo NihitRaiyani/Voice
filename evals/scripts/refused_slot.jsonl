@@ -1,0 +1,22 @@
+# The lead names a time the branch is shut for. Live regression from call CAfa2a011
+# (2026-07-26): the lead said "kal subah chhe baje", `resolve_time_slot` correctly refused
+# 06:00, `accepted_slot` stayed None and the teardown line read `won=False` — and Roma
+# still told them "aapki visit confirm ho gayi kal subah chhe baje" three times before
+# signing off. Every machine-side assertion in this harness passed on that call. None of
+# them looked at what Roma SAID, which is the only thing the lead experienced.
+#
+# So this script asserts BOTH halves: the machine refuses (no accepted_slot, no win, stays
+# in P5), and Roma's own lines never confirm it (check_no_phantom_confirmation).
+{"name": "refused_slot", "description": "a 6 AM request is refused by the resolver and never confirmed in Roma's line", "lead_name": "ji", "branch": "Vadodara", "expect_slots": {"accepted_slot": null, "locked_slot": null}, "expect_outcome": "no_lock", "expect_win": false}
+{"lead": "haan bolo", "expect_phase": "p2_discover", "roma": "Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "job dhoondh raha hoon", "slot": "job seeker", "expect_phase": "p2_discover", "roma": "Achha, toh aap abhi job dhoondh rahe hain. Padhai kya ki hai?"}
+{"lead": "BCom kiya hai", "slot": "BCom", "expect_phase": "p2_discover", "roma": "Achha, kis saal pass out hue?"}
+{"lead": "2024 mein", "slot": "2024", "expect_phase": "p2_discover", "roma": "Aap rehte kahan hain ji?"}
+{"lead": "Vadodara", "slot": "Vadodara", "expect_phase": "p3_value", "roma": "Theek hai ji. Main aapko course ke baare mein bata deti hoon."}
+{"lead": "course mein kya kya sikhaate ho?", "expect_phase": "p3_value", "roma": "SEO, social media aur Google Ads — teen module. Faculty saare working professionals hain."}
+{"lead": "kitne mahine ka hai?", "expect_phase": "p3_value", "roma": "Chaar se chhe mahine ka hai, basic se advance level tak."}
+{"lead": "SEO mein kya sikhate ho?", "expect_phase": "p3_value", "roma": "Keyword research, on-page, off-page aur technical SEO — Google Analytics aur Search Console par khud kaam karte hain."}
+{"lead": "haan practical achha lagta hai", "expect_phase": "p4_structure", "roma": "Batch structure simple hai ji — regular classes, monthly exams, aur recordings. Aap kaise plan karna chahenge?"}
+{"lead": "theek hai", "expect_phase": "p5_pivot", "roma": "Aap branch pe aake khud dekh lijiye. Monday shaam paanch baje ya Tuesday subah gyaarah baje?"}
+{"lead": "kal subah chhe baje aa jaunga", "accept": true, "accept_hour": 6, "accept_period": "morning", "expect_phase": "p5_pivot", "roma": "Us waqt branch band hoti hai ji — hum subah nau se shaam chhe tak khule hain. Nau baje ya gyaarah baje?"}
+{"lead": "achha theek hai", "expect_phase": "p5_pivot", "roma": "Toh subah nau baje ya gyaarah baje — kaunsa theek rahega?"}

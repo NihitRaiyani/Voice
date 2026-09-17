@@ -1,0 +1,25 @@
+# THE inbound fixture. Roma is inbound now: a stranger rings Weltec and nothing is known
+# about them — not their name, not why they called.
+#
+# Every other script in this corpus seeds `lead_name` in its header, which means the name
+# slot starts filled and the capture path is SKIPPED. A green corpus therefore proved nothing
+# about the change that introduced it. `"lead_name": null` is what makes this fixture the one
+# that walks the inbound opening end to end.
+#
+# What it pins: the caller states their reason in P1, P2 asks the name FIRST, the answer is
+# extracted into `lead_name` (asserted via expect_slots), and the remaining four slots follow
+# in the live-tuned order — status, education, passing year, city — one question per turn.
+{"name": "inbound_name_capture", "description": "inbound call with nothing known: the name is captured as the first discovery slot, then the call runs to a lock", "lead_name": null, "branch": "Vadodara", "expect_slots": {"lead_name": "Nikhil", "current_status": "job seeking", "education": "BCom", "passing_year": "2024", "city": "Vadodara"}, "expect_outcome": "locked", "expect_win": true}
+{"lead": "haan digital marketing course ke baare mein janna tha", "expect_phase": "p2_discover", "roma": "Ji bilkul. Aapka naam kya hai?"}
+{"lead": "Nikhil", "slot": "Nikhil", "expect_phase": "p2_discover", "roma": "Theek hai Nikhil. Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "abhi job dhoondh raha hoon", "slot": "job seeking", "expect_phase": "p2_discover", "roma": "Achha, toh aap abhi job dhoondh rahe hain. Aur padhai kya ki hai aapne?"}
+{"lead": "BCom kiya hai", "slot": "BCom", "expect_phase": "p2_discover", "roma": "Samjhi. Kis saal complete hua?"}
+{"lead": "2024 mein", "slot": "2024", "expect_phase": "p2_discover", "roma": "Sahi hai. Aap rehte kahan ho?"}
+{"lead": "Vadodara mein hi", "slot": "Vadodara", "expect_phase": "p3_value", "roma": "Digital Marketing ka course hai — poora practical hai, theory nahi. Faculty working professionals hain."}
+{"lead": "achha kya sikhaya jaata hai", "expect_phase": "p3_value", "roma": "SEO, social media marketing, Google Ads — teen module. AI tools ke saath sikhaya jaata hai."}
+{"lead": "kitne log hote hain batch mein", "expect_phase": "p3_value", "roma": "Batch mein das-baarah log hi, zyada nahi lete. Lecture ki recording bhi milti hai."}
+{"lead": "theek hai", "expect_phase": "p3_value", "roma": "Har mahine exam hota hai aur live project par kaam karenge."}
+{"lead": "hmm", "expect_phase": "p4_structure", "roma": "Hafte mein teen din, do ghante. Morning hai, evening hai, weekend batch bhi hai."}
+{"lead": "evening theek rahega", "expect_phase": "p5_pivot", "roma": "Badhiya. Ek baar branch aake counsellor se mil lijiye — Monday saanjhe paanch ya Tuesday sawaare gyaarah?"}
+{"lead": "Monday sahi rahega", "accept": true, "accept_hour": 5, "accept_period": "evening", "expect_phase": "p7_close", "roma": "Monday, paanch baje, Vadodara branch — confirm kar dun?"}
+{"lead": "haan bilkul confirm", "confirm": true, "expect_phase": "p7_close", "roma": "Theek hai Nikhil, Monday paanch baje milte hain. Address WhatsApp par bhej dungi."}

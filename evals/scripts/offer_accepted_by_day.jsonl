@@ -1,0 +1,28 @@
+# THE live failure, replayed (call CA1bf16a, 2026-07-26).
+#
+# Roma offered "Monday shaam paanch baje ya Tuesday subah gyaarah baje". The lead said
+# "મેં Tuesday કુ આઉંગા" — "I'll come Tuesday". The controller recorded NOTHING: no
+# acceptance, no refusal, no log, no checkpoint, `won=False`. Three things had to be true
+# at once for that to happen, and this script fails if any of them regresses:
+#
+#   1. `state.slots_offered` must actually be populated, or there is nothing for "Tuesday"
+#      to be resolved against. It was dead code for four steps.
+#   2. `extract_time_slot` must be TOLD the offers, or a day-only reply is unparseable by
+#      construction — no hour is named and `TimeSlot` had no field for "the second one".
+#   3. The P5 branch must write `slot_status` on every path. It had no `else`, so a
+#      non-acceptance vanished without trace.
+#
+# The lead never names a clock time anywhere in this script. That is the point.
+{"name": "offer_accepted_by_day", "description": "lead accepts an offered slot by naming only the day; the visit locks", "lead_name": "ji", "branch": "Vadodara", "expect_outcome": "locked", "expect_win": true}
+{"lead": "haan ji boliye", "expect_phase": "p2_discover", "roma": "Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "job dhoondh raha hoon", "slot": "job dhoondh raha hoon", "expect_phase": "p2_discover", "roma": "Achha, toh aap abhi job dhoondh rahe hain. Padhai kya ki hai?"}
+{"lead": "BCom kiya hai", "slot": "BCom", "expect_phase": "p2_discover", "roma": "Kis saal complete hua?"}
+{"lead": "2022 mein", "slot": "2022", "expect_phase": "p2_discover", "roma": "Aap rehte kahan ho?"}
+{"lead": "Vadodara mein hi", "slot": "Vadodara", "expect_phase": "p3_value", "roma": "Theek hai ji. Main aapko course ke baare mein bata deti hoon."}
+{"lead": "course kitne mahine ka hai?", "expect_phase": "p3_value", "roma": "Chaar se chhe mahine ka hai, basic se advance level tak. Sab practical hai."}
+{"lead": "kaun sikhata hai?", "expect_phase": "p3_value", "roma": "Faculty saare working professionals hain, abhi industry mein kaam kar rahe hain."}
+{"lead": "AI tools bhi sikhate ho?", "expect_phase": "p3_value", "roma": "Haan, har module AI tools ke saath sikhaya jaata hai — content, research aur analysis, jaise industry ab kaam kar rahi hai."}
+{"lead": "placement ke liye", "expect_phase": "p4_structure", "roma": "Subah ka batch hai, aath se baarah ke beech, roz ek se dedh ghanta. Aapko kaisa lagta hai?"}
+{"lead": "theek lagta hai", "expect_phase": "p5_pivot", "roma": "Counsellor aapka background dekh kar batayenge ki kaunsa batch sahi rahega. Kaunsa time theek rahega?"}
+{"lead": "મેં Tuesday કુ આઉંગા", "chose_offer": 2, "expect_phase": "p7_close", "roma": "Toh Tuesday, Vadodara branch. Theek hai?"}
+{"lead": "હા બરાબર", "confirm": true, "expect_phase": "p7_close", "roma": "Perfect ji. Confirmation WhatsApp par bhej deti hoon. Milte hain!"}

@@ -1,0 +1,29 @@
+# The caller will not give their name. This is the fixture that would have caught the stall.
+#
+# `next_discovery_slot()` drives EXTRACTION, not the question. Before `SLOT_ATTEMPT_CAP` it
+# returned the first unfilled slot forever, so a caller who declined to name themselves left
+# the pointer pinned on `lead_name` while Roma sensibly moved on — and every later answer was
+# extracted against a field nobody had been asked about, matched nothing, and filled nothing.
+# P2 would have burned its whole budget and reached P3 with an empty profile.
+#
+# Putting the name FIRST is what made that fatal rather than merely wasteful: a stuck last
+# slot costs one field, a stuck first slot costs all five.
+#
+# What it pins: two refusals are enough for the machine to give up on the name, the four
+# slots behind it still fill normally, and the call still reaches a lock. `lead_name` stays
+# null in expect_slots — given up on, never invented.
+{"name": "inbound_name_refused", "description": "caller declines to give a name twice; the machine moves past it and the other four slots still fill", "lead_name": null, "branch": "Vadodara", "expect_slots": {"lead_name": null, "current_status": "job", "education": "BCA", "passing_year": "2023", "city": "Anand"}, "expect_outcome": "locked", "expect_win": true}
+{"lead": "course ki information chahiye thi", "expect_phase": "p2_discover", "roma": "Ji bilkul. Aapka naam kya hai?"}
+{"lead": "naam kyun chahiye aapko", "expect_phase": "p2_discover", "roma": "Bas record ke liye ji, aur kuch nahi. Abhi aap padh rahe hain ya job kar rahe hain?"}
+{"lead": "naam rehne dijiye", "expect_phase": "p2_discover", "roma": "Koi baat nahi ji. Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "job karta hoon", "slot": "job", "expect_phase": "p2_discover", "roma": "Achha, toh aap job kar rahe hain. Aur padhai kya ki hai aapne?"}
+{"lead": "BCA kiya tha", "slot": "BCA", "expect_phase": "p2_discover", "roma": "Samjhi. Kis saal complete hua?"}
+{"lead": "2023 mein", "slot": "2023", "expect_phase": "p2_discover", "roma": "Theek hai. Aap rehte kahan ho?"}
+{"lead": "Anand se hoon", "slot": "Anand", "expect_phase": "p3_value", "roma": "Digital Marketing ka course hai ji — poora practical hai, theory nahi."}
+{"lead": "kya kya cover hota hai", "expect_phase": "p3_value", "roma": "SEO, social media marketing, Google Ads — teen module, sab practical."}
+{"lead": "achha", "expect_phase": "p3_value", "roma": "Faculty saare working professionals hain, abhi industry mein kaam kar rahe hain."}
+{"lead": "theek hai", "expect_phase": "p3_value", "roma": "Batch mein das-baarah log hi hote hain. Recording bhi milti hai."}
+{"lead": "hmm", "expect_phase": "p4_structure", "roma": "Hafte mein teen din, do ghante. Morning hai, evening hai, weekend bhi hai."}
+{"lead": "weekend better rahega", "expect_phase": "p5_pivot", "roma": "Badhiya ji. Ek baar branch aake dekh lijiye — Saturday sawaare gyaarah ya Monday saanjhe paanch?"}
+{"lead": "Saturday gyaarah theek hai", "accept": true, "accept_hour": 11, "accept_period": "morning", "expect_phase": "p7_close", "roma": "Saturday, gyaarah baje, Vadodara branch — confirm kar dun?"}
+{"lead": "haan ji confirm", "confirm": true, "expect_phase": "p7_close", "roma": "Theek hai ji, Saturday gyaarah baje milte hain. Address WhatsApp par bhej dungi."}

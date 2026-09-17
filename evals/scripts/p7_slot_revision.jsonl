@@ -1,0 +1,26 @@
+# A lead who changes their mind AT the readback.
+#
+# This satisfied neither arm of the old P7 branch: the elif required a confirm, so a lead
+# proposing a different time was ignored entirely — `accepted_slot` kept the old value and
+# `slot_status` still said "accepted" for the time they had just rejected. Roma would then
+# read that same time back again.
+#
+# The ordering trap is the reason this script exists. Turn 4's reply opens with "haan", and
+# `is_affirmation` fires on "haan" — so a confirm-first ordering LOCKS the old slot and
+# reports a win against a booking the lead declined. Revision must be checked first.
+#
+# The visit still locks at the end, on the REVISED slot. A revision is not a refusal.
+{"name": "p7_slot_revision", "description": "lead accepts one slot, switches to the other at the readback, then confirms", "lead_name": "ji", "branch": "Vadodara", "expect_outcome": "locked", "expect_win": true}
+{"lead": "haan boliye", "expect_phase": "p2_discover", "roma": "Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "job karta hoon", "slot": "job", "expect_phase": "p2_discover", "roma": "Achha, toh aap abhi job kar rahe hain. Padhai kya ki hai?"}
+{"lead": "BBA", "slot": "BBA", "expect_phase": "p2_discover", "roma": "Kis saal complete hua?"}
+{"lead": "2021", "slot": "2021", "expect_phase": "p2_discover", "roma": "Aap rehte kahan ho?"}
+{"lead": "Vadodara", "slot": "Vadodara", "expect_phase": "p3_value", "roma": "Theek hai ji. Main aapko course ke baare mein bata deti hoon."}
+{"lead": "kya kya cover hota hai?", "expect_phase": "p3_value", "roma": "SEO, social media marketing aur Google Ads — teen module, AI tools ke saath."}
+{"lead": "batch chhota hota hai kya?", "expect_phase": "p3_value", "roma": "Das-baarah log hi hote hain batch mein, zyada nahi lete."}
+{"lead": "Google Ads bhi hai kya?", "expect_phase": "p3_value", "roma": "Haan — paid campaigns, budget, bidding aur conversion tracking. Khud chalayenge, dekh kar nahi."}
+{"lead": "skills ke liye", "expect_phase": "p4_structure", "roma": "Shaam ka batch hai, saade paanch se saat ke beech. Theek rahega?"}
+{"lead": "haan theek hai", "expect_phase": "p5_pivot", "roma": "Lab aur live project khud dekh lenge. Kaunsa time theek rahega?"}
+{"lead": "doosra wala", "chose_offer": 2, "expect_phase": "p7_close", "roma": "Theek hai ji. Vadodara branch. Sahi hai?"}
+{"lead": "haan pehla wala better rahega", "chose_offer": 1, "expect_phase": "p7_close", "roma": "Bilkul ji, wahi rakhte hain. Theek hai?"}
+{"lead": "haan confirm", "confirm": true, "expect_phase": "p7_close", "roma": "Perfect ji. WhatsApp par confirmation bhej deti hoon. Milte hain!"}

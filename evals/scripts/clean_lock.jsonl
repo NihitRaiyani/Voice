@@ -1,0 +1,15 @@
+# The happy path: P1 -> P2 (all five slots) -> P3 -> P4 -> P5 -> P7, readback confirmed.
+# This is the win condition (docs/03 P7): a specific day+time, not a soft "dekhta hoon".
+{"name": "clean_lock", "description": "P1->P7 with every discovery slot filled and a confirmed readback", "lead_name": "ji", "branch": "Vadodara", "expect_slots": {"education": "BCom", "passing_year": "2024", "current_status": "job seeking", "city": "Vadodara"}, "expect_outcome": "locked", "expect_win": true}
+{"lead": "haan ji, maine hi inquiry kiya tha", "expect_phase": "p2_discover", "roma": "Achha ji. Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "abhi job dhoondh raha hoon", "slot": "job seeking", "expect_phase": "p2_discover", "roma": "Achha, toh aap abhi job dhoondh rahe hain. Aur padhai kya ki hai aapne?"}
+{"lead": "BCom kiya hai", "slot": "BCom", "expect_phase": "p2_discover", "roma": "Theek hai. Kis saal complete hua?"}
+{"lead": "2024 mein pass hua", "slot": "2024", "expect_phase": "p2_discover", "roma": "Aap rehte kahan ho ji?"}
+{"lead": "Vadodara mein hi rehta hoon", "slot": "Vadodara", "expect_phase": "p3_value", "roma": "Theek hai ji. Toh main aapko course ke baare mein bata deti hoon."}
+{"lead": "achha, ye course hai kis liye?", "expect_phase": "p3_value", "roma": "SEO, social media marketing aur Google Ads — teen module, AI tools ke saath. Poora practical hai."}
+{"lead": "kitne log hote hain batch mein?", "expect_phase": "p3_value", "roma": "Batch mein das-baarah log hi hote hain, zyada nahi lete. Faculty saare working professionals hain."}
+{"lead": "iske baad kya kar sakte hain?", "expect_phase": "p3_value", "roma": "Kisi bhi company mein digital marketing role, ya freelancing — apne client khud le sakte hain. Live project se portfolio bhi ban jaata hai."}
+{"lead": "achha, theek hai", "expect_phase": "p4_structure", "roma": "Course teen mahine ka hai ji. Hafte mein teen din, do ghante ki class. Shaam ke batch bhi chalte hain, toh aapki job search disturb nahi hogi. Sab kuch practical hai — theory kam, kaam zyada."}
+{"lead": "samajh gaya, aur batao", "expect_phase": "p5_pivot", "roma": "Toh ek kaam karte hain ji — aap branch pe aake khud dekh lijiye. Kal shaam paanch baje aa sakte ho?"}
+{"lead": "haan kal shaam aa jaunga", "accept": true, "expect_phase": "p7_close", "roma": "Theek hai ji, toh kal shaam paanch baje Vadodara branch. Confirm kar dun?"}
+{"lead": "haan bilkul, confirm kar do", "confirm": true, "expect_phase": "p7_close", "roma": "Perfect ji. Kal shaam milte hain. Address message kar deti hoon. Dhanyavaad!"}

@@ -1,0 +1,23 @@
+# The D3 fixture: the whole call in Gujarati script, because that is what Sarvam Saaras
+# actually returns (docs/01 gu-IN). Every lead-facing matcher on this path — affirmation
+# detection, the objection lexicon, the pre-TTS filter — has to survive it.
+#
+# The objection turn says `ફી બહુ વધારે છે` ("the fee is way too much"). That exact line
+# classified as None before the COST lexicon gained its money words, so the one objection
+# the whole flow exists to route to a visit never reached P6 when a lead raised it in
+# Gujarati. If this script stops landing on p6_objection, that regression is back.
+{"name": "gujarati_cost_objection", "description": "whole call in Gujarati script (D3) incl. the cost objection that used to classify as None", "lead_name": "ji", "branch": "Vadodara", "expect_slots": {"education": "બી.કોમ", "passing_year": "2022", "current_status": "નોકરી શોધું છું", "city": "વડોદરા"}, "expect_outcome": "locked", "expect_win": true}
+{"lead": "હા જી, મેં જ પૂછ્યું હતું", "expect_phase": "p2_discover", "roma": "Achha ji. Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"}
+{"lead": "અત્યારે નોકરી શોધું છું", "slot": "નોકરી શોધું છું", "expect_phase": "p2_discover", "roma": "Achha, toh aap abhi naukri dhoondh rahe hain. Padhai kya ki hai aapne?"}
+{"lead": "બી.કોમ કર્યું છે", "slot": "બી.કોમ", "expect_phase": "p2_discover", "roma": "Kis saal pass kiya ji?"}
+{"lead": "2022 માં પાસ થયો", "slot": "2022", "expect_phase": "p2_discover", "roma": "Aap rehte kahan ho ji?"}
+{"lead": "વડોદરા માં જ રહું છું", "slot": "વડોદરા", "expect_phase": "p3_value", "roma": "Theek hai ji. Course ke baare mein bata deti hoon aapko."}
+{"lead": "આ course માં શું શીખવો છો?", "expect_phase": "p3_value", "roma": "SEO, social media aur Google Ads — teen module, AI tools ke saath. Sab practical hai."}
+{"lead": "કેટલા મહિનાનો કોર્સ છે?", "expect_phase": "p3_value", "roma": "Chaar se chhe mahine ka hai, basic se advance level tak."}
+{"lead": "પછી શું કરી શકાય?", "expect_phase": "p3_value", "roma": "Company mein role, ya freelancing — apne client khud le sakte hain. Portfolio live project se ban jaata hai."}
+{"lead": "સારું", "expect_phase": "p4_structure", "roma": "ત્રણ મહિનાનો કોર્સ છે જી, અઠવાડિયે ત્રણ દિવસ, બે કલાક. સાંજની બેચ પણ ચાલે છે, એટલે તમારી નોકરીની શોધ ડિસ્ટર્બ નહીં થાય."}
+{"lead": "સમજ્યો", "expect_phase": "p5_pivot", "roma": "તો એક વાર બ્રાન્ચ પર આવીને જોઈ લો જી. કાલે સાંજે છ વાગે ફાવશે?"}
+{"lead": "અરે ફી બહુ વધારે છે", "expect_phase": "p6_objection", "roma": "જી સમજી શકું છું. એટલે જ કહું છું કે મુલાકાત વખતે કાઉન્સેલર તમારી પરિસ્થિતિ જોઈને બધું સમજાવશે. No-cost EMI available hai. તમે ફક્ત આવીને જોઈ લો."}
+{"lead": "સારું, સમજ્યો", "expect_phase": "p5_pivot", "roma": "તો કાલે સાંજે છ વાગે રાખું જી?"}
+{"lead": "હા, કાલે સાંજે આવીશ", "accept": true, "expect_phase": "p7_close", "roma": "બરાબર જી, કાલે સાંજે છ વાગે વડોદરા બ્રાન્ચ. કન્ફર્મ કરી દઉં?"}
+{"lead": "હા, ચોક્કસ", "confirm": true, "expect_phase": "p7_close", "roma": "પરફેક્ટ જી. કાલે સાંજે મળીએ. સરનામું મોકલી દઉં છું. આભાર!"}

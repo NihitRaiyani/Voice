@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v '^\\\\s*$')",
+      "Bash(python3 -c \"print\\(\\)\")"
+    ]
+  }
+}
