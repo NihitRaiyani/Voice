@@ -1,5 +1,11 @@
 # 06 — State & Cache (Redis)
 
+**Status:** Redis usage is implemented for transient operational state. PostgreSQL durable state is
+the recommended next major addition.
+
+**Learning objective:** Choose storage by lifetime and consistency needs. Redis is fast operational
+memory; it is not the future system of record for appointments, audit logs, or cost ledgers.
+
 Redis plays three roles: per-call state, cache, and the post-call job queue. Keep them in
 separate key namespaces.
 
@@ -40,3 +46,14 @@ The same lines are spoken on every single call. Cache them.
 - One writer per `call:{sid}` key (that call's task). No cross-call contention by design.
 - The queue is the only shared structure; Redis list/stream ops are atomic — safe for
   multiple workers.
+
+## Roadmap bridge: Redis versus PostgreSQL
+
+| Keep in Redis | Move/add in PostgreSQL |
+|---|---|
+| Active-call context and TTL checkpoints | Callers, calls, turns, and appointments |
+| Cached audio and grounded facts | Safety events and audit logs |
+| Short-lived counters and rate limits | Provider usage and normalized costs |
+| Distributed locks and job delivery state | Recording metadata and retention state |
+
+See `docs/14-data-and-concurrency.md` for the target schema and transaction exercises.

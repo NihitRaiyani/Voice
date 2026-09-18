@@ -1,5 +1,8 @@
 # Decisions and operational lessons
 
+This file records decisions that still constrain the current or target system. Historical build
+detail belongs in `LOG.md` or `docs/superpowers/`. Roadmap entries are not implementation claims.
+
 ## Locked architecture
 
 - Telephony is Twilio Programmable Voice with bidirectional Media Streams.
@@ -36,3 +39,14 @@
 - Recording remains gated by approved consent wording and retention controls.
 - Claims about course guarantees, money, certification, and outcomes stay behind the
   existing deterministic guardrails.
+
+## Backend learning direction
+
+- Evolve the repository as a modular monolith; split deployment units only for a demonstrated
+  scaling or ownership reason.
+- PostgreSQL will be the durable system of record; Redis remains transient operational state.
+- Appointment booking is the primary transactions-and-concurrency teaching module.
+- Slow post-call work belongs in idempotent background jobs, never the realtime audio path.
+- Observability starts with named events and metrics, then tooling; dashboards are not evidence by
+  themselves.
+- Every roadmap feature must be labelled as implemented, next, planned, optional, or historical.

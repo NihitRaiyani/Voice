@@ -1,24 +1,41 @@
-# Current handoff
+# Current Handoff
 
-Roma now uses Twilio Programmable Voice end to end.
+## Current system
 
-- Outbound calls use the official Twilio Calls API and point to `/answer` with POST.
-- `/answer` validates `X-Twilio-Signature` and returns bidirectional
-  `<Connect><Stream>` TwiML.
-- `/ws` validates the Twilio signature before accepting, verifies the Account SID from the
-  start event, reads lead metadata from `customParameters`, and uses Pipecat's native
-  `TwilioFrameSerializer`.
-- The backend call and status APIs remain bearer-protected with the existing safety gates.
-- The React/Vite frontend and browser CORS support were removed.
-- Offline verification does not place a live call.
+Roma is a backend-only Twilio voice agent. Outbound calls use the Twilio Calls API; signed
+`/answer` and `/ws` callbacks establish the bidirectional media stream. The Pipecat pipeline uses
+Silero, Sarvam Saaras/Bulbul, OpenAI, a software-owned seven-stage controller, deterministic
+pre-TTS safety filtering, Redis operational state, and a post-call recording workflow.
 
-Required carrier settings are `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and
-`TWILIO_FROM_NUMBER`. Configure the Twilio number's Voice webhook to
-`POST <PUBLIC_BASE_URL>/answer`.
+The former web frontend and VoBiz runtime integration are not part of the active system.
 
-Before any live test, confirm the public `/health` endpoint, API token, calling window,
-denylist, spend budget, hourly limit, Redis, and signed Twilio webhook configuration. Use a
-test handset only and obtain explicit operator approval. Never commit that destination.
+## Current documentation state
 
-The Auth Token previously shared in chat must be rotated in the Twilio Console and updated
-only in the ignored local `.env`.
+Documentation now has two connected tracks:
+
+- `docs/01`–`docs/12`: current operational behavior and the concepts it demonstrates;
+- `docs/13`–`docs/17`: mentor-aligned backend roadmap and tutorial material.
+
+Use `docs/README.md` as the map and `CLAUDE.md` as the engineering constitution. Historical build
+records remain in `LOG.md` and `docs/superpowers/`.
+
+## Recommended next engineering milestone
+
+Level 1 begins with PostgreSQL, SQLAlchemy 2.x, and Alembic, followed by durable call/lead records
+and transaction-safe appointment booking. This is **not implemented yet**. Write and approve a
+focused design before changing runtime code.
+
+## Before any work
+
+1. Check the roadmap status; do not treat planned features as current behavior.
+2. Preserve pre-call gates, pre-TTS filtering, Twilio signature validation, PII redaction,
+   per-call isolation, and the no-live-call automated-test rule.
+3. Keep slow persistence and worker tasks outside the realtime path.
+4. Define the business invariant, failure cases, and verification evidence.
+
+## Live testing boundary
+
+Before a manual live call, confirm `/health`, signed callbacks, API token, calling window,
+denylist, spend budget, hourly limit, Redis, and an approved test handset. Never commit the
+destination number. Any credential previously shared in chat must be rotated and stored only in
+the ignored local environment.

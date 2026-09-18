@@ -2,7 +2,11 @@
 .env
 .env.*
 !.env.example
-.claude
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/roma-backend-roadmap/
+!.claude/skills/roma-backend-roadmap/SKILL.md
 # Python
 __pycache__/
 *.py[cod]

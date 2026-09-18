@@ -1,5 +1,11 @@
 # 08 — Concurrency
 
+**Status:** Per-call async isolation and post-call queueing are implemented. Database transaction
+locking, idempotent webhook effects, and quantitative load tests are planned.
+
+**Learning objective:** Identify shared state, races, cancellation boundaries, atomic operations,
+backpressure, and the difference between async concurrency and horizontal scalability.
+
 Roma runs many calls at once. The model is: **one call = one isolated async task; shared work
 is pushed to queues.**
 
@@ -36,3 +42,10 @@ and TTS run concurrently, and barge-in cancels across all of them mid-flight. Re
 - Drain: stop the dialer, let in-flight calls finish, flush the post-call queue, then exit.
 - A recording must never be lost because a worker was killed mid-job — jobs are ack'd only
   after the recording is durably stored.
+
+## Roadmap bridge
+
+Appointment booking becomes the main database-concurrency exercise: 100 clients may observe one
+slot, but a database uniqueness constraint and transaction must allow exactly one winner. The
+expected loser response is a domain conflict, not corrupted state. See
+`docs/14-data-and-concurrency.md`.

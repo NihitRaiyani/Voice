@@ -1,5 +1,11 @@
 # 04 — Guardrails (GATE-ZERO)
 
+**Status:** Implemented and covered by deterministic multilingual tests. Structured database audit
+records and safety analytics are planned.
+
+**Learning objective:** Treat AI safety as an enforceable backend policy with fail-safe behavior,
+not as a sentence in a prompt.
+
 The pre-TTS filter is the single component that never ships without. No call goes out without
 it. It is a **router**, not a censor: on a catch it **substitutes** a safe line, it does not
 delete-and-leave-dead-air.
@@ -60,3 +66,9 @@ Claim ONLY the Weltec certificate. Block/soften any Google/Meta/IBM/government c
 ## Fail-safe
 If the filter errors or is unavailable, the pipeline must **hard-fail the turn to a safe
 canned line**, never pass raw LLM output. Absence of the filter = absence of a callable build.
+
+## Roadmap bridge
+
+The next step is to emit a structured `SafetyEvent` for every block or substitution and store it
+durably without retaining unnecessary PII. That creates an auditable governance feature and a
+real analytics dataset while the runtime guard remains deterministic.

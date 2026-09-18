@@ -1,32 +1,38 @@
-# Skills — which, why, and the wiring rule
+# Project Skills and Invocation Rules
 
-Only skills that touch THIS build (a Python real-time voice pipeline) are included. Web/TS/
-cloud skills (cloudflare, supabase, typescript-lsp, frontend-design, figma, playwright) are
-deliberately excluded — wrong stack. github/docker are deferred until containerization.
+Skills exist to protect a real project boundary or make a repeated workflow more reliable. Do not
+collect skills for technologies that are only mentioned in the roadmap.
 
-Per-skill invocation prompts (the exact WHEN + paste-ready text) live in `sync-prompts.md`.
+## Active project-local skills
 
-## Chosen
-| Skill | Role in Roma |
-|---|---|
-| **skill-creator** | Turn the `docs/` specs (filter rules, phase contract, objection bank) into auto-loading skills so they are ENFORCED every session, not remembered. |
-| **context7** | Pull CURRENT Pipecat / Twilio / Sarvam / OpenAI docs before coding any API. The Pipecat turn-taking API changes fast — never code against stale memory. |
-| **code-review** | Run on every change to the barge-in / cancellation / filter path — where concurrency bugs live. |
-| **code-simplifier** | Run after any module outgrows its job. Enforces the "justify every layer" discipline. |
-| **superpowers** | Multi-step build planning within a phase. |
-| **andrej-karpathy-skills** | The build-discipline lens (simple, first-principles, no cargo-cult). Load it, transcribe its rules into `CLAUDE.md`, then hold the build to them. |
+| Skill | Load when | Protects |
+|---|---|---|
+| `roma-guardrail` | Spoken output, LLM-to-TTS, safety lexicons, sentence flushing, cancellation | No generated speech bypasses deterministic safety |
+| `roma-backend-roadmap` | Architecture, persistence, APIs, booking, jobs, security, observability, testing, delivery | One staged backend increment; current/planned truth remains accurate |
 
-## Debated — resolved: HOLD
-- **context-mode:** the "two context managers risk drift" worry is miscategorized —
-  CLAUDE.md + memory manage *decisions*; context-mode manages *byte volume* (runs a
-  command/fetch in a sandbox, indexes the raw output, surfaces only the derived answer). It
-  can't drift against CLAUDE.md because it doesn't hold decisions. But by the wiring rule it
-  still earns nothing yet: this repo is docs-only, so there is no large output to keep out of
-  context. **Verdict: HOLD.** Wire it in only when the running pipeline emits high-volume
-  artifacts you'd otherwise read into context — Pipecat frame/latency traces, Twilio μ-law
-  media dumps, multi-call soak-test output. Not before. See `sync-prompts.md`.
+Project-local skills live under `.claude/skills/`. Their instructions are versioned with the
+repository and must be updated when the corresponding contract changes.
 
-## The wiring rule
-A skill earns a slot only if it changes what gets built or how. Don't collect skills. Each
-entry in `sync-prompts.md` says exactly WHEN Claude Code should invoke it — invocation is
-tied to a build step, not left ambient.
+## Supporting workflow skills
+
+Use available workflow skills only when their trigger matches the task:
+
+- **brainstorming / writing-plans:** before a meaningful behavior or architecture change;
+- **systematic-debugging:** when behavior is broken and the cause is unknown;
+- **test-driven development:** for a requested test-first implementation;
+- **code review:** for a diff review, especially cancellation, shared state, transactions, and auth;
+- **verification-before-completion:** before claiming a change works;
+- **skill-creator:** when adding or materially revising a project-local skill;
+- **current official documentation lookup:** before coding against fast-changing provider APIs.
+
+## Wiring rule
+
+A skill earns a place only if it changes a decision or prevents a demonstrated failure. Invocation
+must be tied to the task, not ambient. Roadmap technologies do not each need their own skill.
+
+## Skills deliberately not added
+
+- Frontend/design skills: this is a backend-only learning project.
+- Microservice/Kafka/Kubernetes skills: no demonstrated need yet.
+- Generic context or abstraction frameworks: use only when a concrete repository problem appears.
+- A separate skill for every provider: prefer narrow adapters and authoritative provider docs.

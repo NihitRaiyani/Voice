@@ -1,5 +1,11 @@
 # 03 — Conversation Phase Machine
 
+**Status:** Implemented in the controller with Redis-backed live state. Durable recovery through
+PostgreSQL is planned.
+
+**Learning objective:** Model business flow as explicit states, events, transitions, and
+invariants. The LLM can phrase a response but cannot authorize a transition.
+
 Plain Python. The machine decides **what happens next**; the LLM only decides **how to say
 it**. It never picks the phase, the slot, or "objection handled." That is what makes it fixed.
 
@@ -101,3 +107,9 @@ own state.
 - Resolve relative→absolute in code, Asia/Kolkata, with today's date injected. Never let the
   model do date arithmetic.
 - `confidence < threshold` → re-ask, do not guess. A confidently-wrong slot burns the lead.
+
+## Roadmap bridge
+
+Persist stage transitions and booking progress as durable events/checkpoints, then test invalid
+transitions and resume behavior. The key interview distinction is **probabilistic language inside
+deterministic business control**.

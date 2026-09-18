@@ -1,5 +1,11 @@
 # 11 — Prompts
 
+**Status:** Implemented runtime prompt contract. These Markdown files are executable product
+behavior, not general documentation.
+
+**Learning objective:** Separate deterministic business control from probabilistic language,
+structure prompts for caching, and defend important output rules with code-level guardrails.
+
 The prompt text is **runtime data, not documentation**. It lives in `src/roma/prompts/` and is
 loaded at startup. This doc is the contract for how it is structured and assembled.
 

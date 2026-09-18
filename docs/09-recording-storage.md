@@ -1,5 +1,11 @@
 # 09 — Recording Storage
 
+**Status:** Local capture, queued post-call processing, spooling, and retention settings are
+implemented. Durable metadata, signed access, and deletion/anonymization workflows are planned.
+
+**Learning objective:** Design an at-least-once background workflow whose acknowledgement happens
+only after durable storage, while treating recordings as sensitive data.
+
 Scope is deliberately simple (per the v1 decision): **when a call ends, store the recording.
 That's it.** No transcription pipeline, no analytics, no dashboards in v1.
 
@@ -33,3 +39,9 @@ faster to ship. Decide explicitly; don't leave it implicit.
 ## Explicitly out of v1
 - Auto-transcription, WER scoring, scorecard generation, sentiment, search. These are v2 and
   build on the stored recordings — the point of storing simply now is to not block on them.
+
+## Roadmap bridge
+
+The future worker should record job status and idempotency keys in durable storage. A repeated
+delivery may repeat processing, but it must not create a second business effect. Recording access
+should use short-lived authorization and a documented retention/deletion path.

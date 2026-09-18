@@ -1,5 +1,11 @@
 # 02 — Pipeline & Latency
 
+**Status:** Implemented realtime pipeline and tuning baseline. Full metrics and distributed traces
+are planned.
+
+**Learning objective:** Build a latency budget, distinguish serial from parallel work, and measure
+each stage instead of treating "the AI" as one unexplained delay.
+
 ## Pipecat processor order (per call)
 ```
 TwilioTransport(in)
@@ -131,3 +137,9 @@ Two separate jobs, two mechanisms — don't reach for one tool to do both.
 - OpenAI model per turn: quality vs TTFT. Measure real TTFT before committing.
 - OpenAI prompt-caching mechanics (prefix rules, minimum cacheable length) — confirm current
   behavior with context7 before structuring the prompts around it.
+
+## Roadmap bridge
+
+Turn existing timing logs into named metrics for endpointing, STT, LLM first token, safety, TTS
+first audio, and total turn latency. Add OpenTelemetry/Prometheus only after the metric contract is
+defined; the tools are planned, not currently installed. See `docs/16-observability-testing-and-delivery.md`.

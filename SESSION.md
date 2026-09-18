@@ -1,13 +1,41 @@
 # SESSION — <date>
 
-## Goal this session
-<one line>
+## Learning outcome
+
+What backend concept should be understood and demonstrated by the end of this session?
+
+## Product outcome
+
+What observable Roma behavior or engineering capability will change?
+
+## Starting status
+
+- Implemented:
+- Next:
+- Planned but out of scope:
+
+## Invariant and failure cases
+
+- Invariant:
+- Race/timeout/duplicate/crash/privacy cases:
+- Evidence that will prove the result:
 
 ## Building now
-<what's actively in progress>
 
-## Decisions made this session
-- <decision> → (also added to docs/decisions.md? y/n)
+-
+
+## Decisions made
+
+- Decision:
+- Alternative rejected:
+- Reason/evidence:
+
+## Verification
+
+- Automated:
+- Manual (only if approved):
+- Cost/external effects:
 
 ## Half-done / careful
-<anything left mid-flight the next session must not break>
+
+-

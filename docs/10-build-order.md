@@ -1,74 +1,123 @@
-# 10 — Build Order
+# 10 — Backend Engineering Build Order
 
-Build in this order. The early steps are gates: do not proceed past one that isn't done.
-Do NOT start with the LLM or the "fun" parts.
+**Status:** Curriculum authority. The realtime voice baseline is implemented; the backend platform
+levels below are future increments unless marked otherwise.
 
-## Gate 0 — Security & guardrail scaffold (before anything callable)
-- Secret store + env wiring (`docs/07`). No keys in code.
-- Pre-TTS filter as a standalone, unit-tested module (`docs/04`) — with the four block
-  categories, the allow-case, the substitution lines, and the fail-safe.
-- Consent line + DND/calling-window check stubbed into the dialer path. **[DONE]** —
-  `src/roma/dialer/` (`precall_check` gate: allowlist-only DND, 09:00–21:00 IST window,
-  placeholder consent line, fail-safe BLOCK). The Step-1 dialer MUST call it and dial only on
-  `may_dial=True`. Twilio API wiring is deferred to Step 1 (pull context7 Twilio docs there).
-**A build that can place a call without the filter is not allowed to exist.**
+Build one vertical slice at a time. Each slice must include behavior, persistence or state rules,
+failure handling, tests, documentation, and an explanation a student can give in an interview.
 
-## Step 1 — Telephony spine
-- Twilio number + outbound call + signed bidirectional Media Stream into Pipecat.
-- Verify RTT Vadodara → Twilio Mumbai edge here (it gates the latency budget).
-- Prove audio in/out end-to-end with a hardcoded canned line (still behind the filter).
+## Level 0 — Realtime voice baseline (implemented)
 
-## Step 2 — STT + VAD in
-- Silero VAD (`docs/05`), Saaras STT streaming, endpoint-on-final at 850ms default.
-- Verify transcripts arrive; measure real Saaras behavior on 8kHz (feeds the WER test).
+- Twilio outbound calls, signed answer webhook, and bidirectional media stream.
+- Pipecat pipeline with Silero VAD, Sarvam STT/TTS, and OpenAI.
+- Seven-stage software-owned conversation machine.
+- Deterministic pre-call and pre-TTS safety gates.
+- Redis live state, caches, status, spend controls, and post-call queue.
+- Barge-in, per-call isolation, recording workflow, and offline regression coverage.
 
-## Step 3 — LLM + filter + TTS out
-- OpenAI streaming → sentence chunk → **filter** → Bulbul **v2** (persistent socket).
-- **Prompt loading (`docs/11`):** load `src/roma/prompts/persona.md` + `hard_rules.md` at
-  startup. Assemble in the fixed order persona → hard_rules → (phase) → call-state — that order
-  is load-bearing for prompt caching, do not reorder. A single hardcoded phase is fine here;
-  the per-phase switch lands in Step 4.
-- Filler-token cache + fixed-phrase TTS cache (`docs/06`).
-- **Set the OpenAI dashboard hard spend limit (₹100)** and log `response.usage` per call from
-  this step on — the ₹100 testing cap must be enforced before real call volume (`docs/02`).
-- Now you have a full turn. Test the filter catches the four categories on real output.
+Before extending the platform, a student should be able to trace one turn, name every trust
+boundary, and explain why slow work stays outside the audio path.
 
-## Step 4 — Phase machine
-- The 7-phase controller (`docs/03`) + call-state in Redis + resume-on-drop.
-- **Wire the phase fragments (`docs/11`):** controller loads exactly ONE of
-  `src/roma/prompts/phases/p1_open.md … p7_close.md` per turn, and sets `max_tokens` from that
-  phase's word cap. The controller picks the phase; the model never does.
-- Slot extraction via structured output; readback-confirm loop (the win condition).
+## Level 1 — Strong backend foundation (next)
 
-## Step 5 — Barge-in & concurrency hardening
-- Full interruption lifecycle (`docs/05` L3) + cancellation-through-filter.
-- Multi-call isolation (`docs/08`). Run code-review on this path.
+### Milestone 1A: PostgreSQL foundation
 
-## Step 6 — Post-call
-- Queue + worker: store the recording (`docs/09`). CRM/calendar write async (later).
+- Introduce PostgreSQL, SQLAlchemy 2.x, and Alembic.
+- Model callers, calls, call turns/events, branches, and appointment slots.
+- Keep Redis for active-call state and caches.
+- Add migrations, constraints, indexes, seed data, repository boundaries, and integration tests.
 
-## Step 7 — Eval & tuning
-- Replay harness against the transcripts: phase hits, word caps, slot extracted, **filter
-  never leaks**. **[DONE]** — `src/roma/eval/` + `scripts/run_eval.py`, corpus in
-  `evals/scripts/`. Offline is the default and makes zero network calls; `--live` replays
-  the same scripts through the real model, metered against `Settings.openai_budget_inr`.
-  - It replays **fixtures, not captured calls**: nothing persists a transcript today
-    (`PostcallJob` deliberately carries none — it is lead PII). Real-call replay lands with
-    consent sign-off, which is the same gate that makes the post-call worker discard
-    recordings today. A fixture also states its EXPECTATION, which a captured transcript
-    cannot — that is what makes it a regression suite rather than a log.
-  - The filter canaries carry Devanagari and Gujarati spellings and run unconditionally.
-    Romanized-only canaries would have been green for the whole period the pre-TTS filter
-    was failing open on Indic script.
-- Tuning scaffold **[DONE]** — docs/05's five thresholds are `Settings` fields
-  (`VAD_STOP_SECS`, `ENDPOINT_*`, `BACKCHANNEL_MAX_SECS`), so re-tuning on the production origin
-  is an env change rather than a code edit, and teardown logs an `endpoint timing:` line
-  carrying the knobs in effect plus the measured VAD-stop → final-transcript latency.
-  That latency is the half of turn-final delay the 850ms knob CANNOT fix; measure it before
-  moving anything, or the tuning session optimizes the wrong number.
-- **Still to do:** place the tuning calls. Needs a cloudflared tunnel and burns Sarvam
-  credits; Sarvam STT connect is flaky (2 of 4 calls failed). Move ONE threshold per call.
+### Milestone 1B: Versioned REST resources
 
-## Runs alongside (not blocking the build)
-- **Saaras WER test** (`docs/decisions.md`) — run early, it can invalidate assumptions.
-- **D1 cert answer** from Weltec — unblocks the cert line in the filter.
+- Add `/api/v1` call, lead, and appointment resources with Pydantic schemas.
+- Standardize pagination, filtering, sorting, success envelopes, and domain error codes.
+- Keep route handlers thin; business invariants belong in services/domain code.
+
+### Milestone 1C: Appointment engine
+
+- Book, reschedule, and cancel visits through database transactions.
+- Enforce `UNIQUE(branch_id, appointment_date, start_time)` or an equivalent slot invariant.
+- Re-check availability while holding the chosen locking strategy.
+- Return HTTP `409` for a valid request that loses a booking race.
+- Prove that 100 simultaneous attempts yield one appointment.
+
+**Exit evidence:** migrations run from zero, API integration tests use PostgreSQL, and the
+appointment concurrency test has exactly one winner.
+
+## Level 2 — Professional backend
+
+### Milestone 2A: Authentication and authorization
+
+- Add password hashing, access/refresh token policy, and logout/revocation design.
+- Model users, roles, and permissions for Admin, Counsellor, and Viewer.
+- Protect recordings, appointments, analytics, safety controls, and user management by role.
+
+### Milestone 2B: Durable work and auditability
+
+- Move recording, summary, analytics, and follow-up work to explicit background jobs.
+- Define retry, dead-letter, job-status, and idempotency behavior.
+- Store safety events, audit logs, provider usage, and normalized cost entries.
+- Add PII masking, retention, deletion/anonymization, and signed recording access.
+
+### Milestone 2C: Analytics API
+
+- Compute call outcomes, conversion funnel, duration, turns, languages, safety hits, latency, and
+  cost through SQL aggregation.
+- Expose backend metrics through versioned endpoints; a frontend is not required.
+
+**Exit evidence:** role tests prove forbidden operations fail, duplicate jobs/webhooks create one
+business effect, and analytics totals reconcile with source rows.
+
+## Level 3 — Advanced backend
+
+- Validate every provider callback and reject invalid/stale/replayed requests.
+- Add Redis-backed rate limits for login, admin, analytics, callbacks, and expensive test routes.
+- Introduce narrow provider interfaces where fake implementations remove paid calls from tests.
+- Define timeout budgets, safe retries with backoff, domain error mapping, fallbacks, and graceful
+  degradation for STT, LLM, TTS, Twilio, Redis, and PostgreSQL.
+- Add structured JSON logs with request, call, turn, stage, and job correlation identifiers.
+- Optionally add a supervisor event channel using WebSockets and Redis Pub/Sub after the event
+  contract is stable; a visual dashboard is not required.
+
+**Exit evidence:** replay and duplicate-delivery tests pass, failure injection produces expected
+domain behavior, and logs correlate one call without exposing PII.
+
+## Level 4 — Production engineering
+
+- Unit, API, PostgreSQL/Redis integration, worker, concurrency, and load tests.
+- P50/P95/P99 metrics for endpointing, STT, LLM first token, TTS first audio, total turn, Redis,
+  database, and HTTP operations.
+- OpenTelemetry traces, Prometheus metrics, and Grafana dashboards when the measurement contract is
+  ready.
+- Docker and Docker Compose for FastAPI, PostgreSQL, Redis, worker, and observability services.
+- CI/CD gates for Ruff, type checking, tests, security checks, migrations, and image build.
+- Measured load stages at 1, 10, 25, 50, and 100 sessions with error rate and resource usage.
+
+**Exit evidence:** a clean machine can start the environment reproducibly, CI enforces the quality
+gate, and the load report names the first measured bottleneck.
+
+## Five mandatory additions
+
+If time is limited, prioritize these in order because they create the strongest backend depth
+without weakening the realtime path:
+
+1. **Appointment concurrency:** transactions, uniqueness, locking, rollback, and conflict handling.
+2. **Persistent conversation state:** durable call, turn, stage, and booking checkpoints.
+3. **Asynchronous jobs:** recording, summaries, analytics, and follow-up outside the live path.
+4. **Security and auditability:** auth/RBAC, webhook validation, PII-safe logs, safety/audit events.
+5. **Observability and testing:** metrics, traces, structured logs, integration/concurrency/load tests.
+
+## Deliberately not on the default roadmap
+
+Do not add Kafka, Kubernetes, microservices, a vector database, a large RAG pipeline, LangGraph, or
+multiple databases for appearance. Reconsider only when a measured scaling, retrieval, deployment,
+or team-ownership problem makes the current modular monolith insufficient.
+
+## How to choose the next task
+
+1. Select the earliest incomplete milestone that unlocks a concrete behavior.
+2. State its business invariant and failure cases before choosing tools.
+3. Write a small design and test plan.
+4. Implement one vertical slice, not an entire technical layer.
+5. Verify offline and update the status map in `docs/13-backend-roadmap.md`.
+6. Record a reusable decision in `docs/decisions.md`.

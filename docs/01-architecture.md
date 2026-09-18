@@ -1,5 +1,12 @@
 # 01 — Architecture
 
+**Status:** Implemented current architecture. PostgreSQL and the expanded service boundaries are
+planned, not present.
+
+**Learning objective:** Trace one call across transport, realtime processing, business control,
+state, safety, and asynchronous work. Explain why latency-sensitive and durable work need
+different boundaries.
+
 ## Runtime (one call)
 ```
  ┌──────────┐   dial     ┌─────────────────────────────────────────────┐
@@ -53,3 +60,9 @@
 - CRM / calendar writes → post-call queue.
 - Recording persistence → post-call worker.
 - Any network call that would add latency inside a turn → moved out or cached.
+
+## Roadmap bridge
+
+The next architectural step is a **modular monolith**, not microservices: keep one deployable
+backend while introducing explicit API, service, repository, provider, and worker boundaries only
+where they improve testing or enforce a transaction. See `docs/13-backend-roadmap.md`.

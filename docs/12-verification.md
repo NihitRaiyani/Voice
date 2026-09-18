@@ -1,5 +1,11 @@
 # 12 — Full verification & fixing prompt (Gate 0 → Step 7)
 
+**Status:** Implemented baseline verification runbook. Future database, API, worker, concurrency,
+and load-test gates must be added as those roadmap levels are built.
+
+**Learning objective:** Replace "it should work" with reproducible evidence, isolate root causes,
+and keep paid/live-provider checks behind an explicit manual gate.
+
 Paste everything below the line into a fresh session. It is written to be run start to
 finish without asking questions, and to fail loudly rather than report a green it did not
 earn.

@@ -1,5 +1,11 @@
 # 05 — Endpointing, VAD & Barge-in
 
+**Status:** Implemented and tuned from recorded/live evidence. Continuous production telemetry is
+planned.
+
+**Learning objective:** Understand streaming state, cancellation, backpressure, timing budgets,
+and why a realtime conversation cannot be designed like an ordinary request/response endpoint.
+
 Thresholds derived from acoustic analysis of the 8 source-call recordings (403 pooled pauses).
 Treat every number as a **starting value to re-tune on real Twilio audio** — the recordings
 are WhatsApp-codec, not 8kHz μ-law.
@@ -89,3 +95,9 @@ Sarvam's finalize latency (not). If the measured finalize time dominates, loweri
 cannot improve perceived response and the effort belongs elsewhere. `vad_stop_secs` is also
 not a free dial: it does triple duty as endpoint floor, Sarvam flush trigger, and the
 `effective_stt_wait` subtraction in pipecat's stop strategy.
+
+## Roadmap bridge
+
+Create repeatable latency experiments and concurrency/load scenarios before adding infrastructure.
+Any retry must respect the turn deadline; retrying a stale speech operation can be worse than
+failing fast with a safe fallback.

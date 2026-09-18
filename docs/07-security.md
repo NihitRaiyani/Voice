@@ -1,5 +1,12 @@
 # 07 — Security (GATE-ZERO)
 
+**Status:** Secret handling, bearer protection, Twilio signature validation, PII-aware logging, and
+fail-safe call gates are implemented. User authentication, RBAC, audit trails, rate-limit coverage,
+and formal retention workflows are planned.
+
+**Learning objective:** Draw trust boundaries and apply controls at ingress, authorization,
+storage, logs, provider callbacks, and destructive data-lifecycle operations.
+
 Security is a build gate, not a later hardening pass. The scaffold below goes in before the
 first callable build.
 
@@ -49,3 +56,9 @@ first callable build.
 ## Fail-safe posture
 - If any guardrail or secret dependency is unavailable, the safe action is to **not place /
   hard-fail the call**, never to proceed unguarded.
+
+## Roadmap bridge
+
+Add JWT/OAuth2-style authentication and role checks only with the future admin API. Twilio
+callbacks continue using provider signature validation rather than human-user JWTs. See
+`docs/15-api-security-and-jobs.md` for the planned trust model and role matrix.

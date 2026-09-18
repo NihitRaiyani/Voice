@@ -17,7 +17,7 @@ between the LLM (post sentence-chunk) and Bulbul TTS. It is a **router, not a ce
 on a catch it substitutes a safe line — it never deletes-and-leaves-dead-air. Sub-10ms,
 lexicon + compiled regex, **no model call**.
 
-The behavior is already built and verified in `src/roma/guardrails/` (65 tests green).
+The behavior is already built and verified in `src/roma/guardrails/`.
 **Do not re-implement it.** Use the module. The rules below are the contract it enforces;
 the exhaustive, authoritative source is `docs/04-guardrails.md` and
 `src/roma/guardrails/lexicon.py`.
