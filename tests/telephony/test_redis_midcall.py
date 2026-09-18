@@ -12,7 +12,7 @@ The audit also found the two writes with no guard at all, both fixed and pinned 
     the call).
   * `RedisLeadStore.put` failing aborted the dial (correctly — Roma must not answer a call
     knowing nothing) but surfaced as `502 carrier refused (ConnectionError)`, sending the
-    operator to the Vobiz dashboard for a Redis outage. Now a typed `DialPrereqError` → 503
+    operator to the Twilio dashboard for a Redis outage. Now a typed `DialPrereqError` → 503
     naming the store.
 """
 
@@ -116,7 +116,7 @@ def test_the_status_write_guard_swallows_a_dead_store():
 
 
 def test_a_dead_lead_store_fails_the_dial_closed_before_the_carrier_is_touched():
-    """Fail-closed AND in order: the lead record write precedes the Vobiz POST, so when it
+    """Fail-closed AND in order: the lead record write precedes the Twilio POST, so when it
     fails the carrier must never have been asked to do anything."""
     from roma.dialer.leadstore import OutboundLead, RedisLeadStore
     from roma.dialer.trigger import DialPrereqError, trigger_outbound_call
@@ -139,7 +139,7 @@ def test_a_dead_lead_store_fails_the_dial_closed_before_the_carrier_is_touched()
                 OutboundLead(phone="+919876543210", branch="Vadodara"),
                 store=RedisLeadStore(client=client),
                 client=_WatchingTwilio(),
-                from_number="+917971543192",
+                from_number="+16295550100",
                 base_url="https://example.test",
             )
         )
@@ -148,8 +148,8 @@ def test_a_dead_lead_store_fails_the_dial_closed_before_the_carrier_is_touched()
 
 def test_a_redis_outage_surfaces_as_503_not_carrier_refused(monkeypatch):
     """End-to-end through the endpoint: Redis unreachable at dial time is OUR outage, and
-    the response must say so — not blame Vobiz. `REDIS_URL` points at a closed port and the
-    Vobiz credentials are present, so the first thing to fail is the lead-record write."""
+    the response must say so — not blame Twilio. `REDIS_URL` points at a closed port and the
+    Twilio credentials are present, so the first thing to fail is the lead-record write."""
     from roma.config import Settings, get_settings
 
     monkeypatch.setitem(Settings.model_config, "env_file", None)
@@ -164,7 +164,6 @@ def test_a_redis_outage_surfaces_as_503_not_carrier_refused(monkeypatch):
         "OPENAI_API_KEY": "sk-test",
         "REDIS_URL": "redis://127.0.0.1:1/0",
         "PUBLIC_BASE_URL": "https://example.test",
-        "WEB_ORIGIN": "http://localhost:3030",
         "ROMA_DATA_DIR": tempfile.mkdtemp(prefix="roma-midcall-"),
         "OPENAI_BUDGET_INR": "1000000",
         "API_TOKEN": "test-token-abc",

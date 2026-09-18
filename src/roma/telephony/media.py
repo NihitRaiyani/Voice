@@ -157,7 +157,7 @@ DEFAULT_LEAD = {
 
 
 def _call_status_store(app):
-    """The web UI's status store, or None when there is no Redis (docs/13).
+    """The backend API's status store, or None when there is no Redis.
 
     Built lazily per use rather than held on `app.state`: these two writes happen twice per
     call at most, and a connection kept open for the life of the process to serve a browser
@@ -181,7 +181,7 @@ async def _mark_call_connected(app, lead_token: "str | None") -> None:
         if store is not None:
             await store.mark_connected(lead_token)
     except Exception:  # noqa: BLE001 — cosmetic state must never reach the media path
-        _log.warning("could not record call-connected for the web UI")
+        _log.warning("could not record call-connected status")
 
 
 async def _mark_call_ended(app, lead_token: "str | None", reason: str = "") -> None:
@@ -192,7 +192,7 @@ async def _mark_call_ended(app, lead_token: "str | None", reason: str = "") -> N
         if store is not None:
             await store.mark_ended(lead_token, reason)
     except Exception:  # noqa: BLE001
-        _log.warning("could not record call-ended for the web UI")
+        _log.warning("could not record call-ended status")
 
 
 async def _load_prerendered_opener(app, lead_token: "str | None"):
@@ -1161,7 +1161,7 @@ def build_media_app(
         app.state.lead_store = None
         _log.exception("no lead store: outbound dynamic variables will not be available")
 
-    # Read back by `_call_status_store` for the web UI's two status writes (docs/13). Stored
+    # Read back by `_call_status_store` for the backend API's two status writes. Stored
     # rather than re-read via `get_settings()` so those helpers stay testable with a stub app.
     app.state.settings = settings
 

@@ -46,7 +46,7 @@ from starlette.websockets import WebSocketState
 RATE = 8000
 STREAM_ID = "MZ_bargein"
 # 20ms of PCM16 @8k = 160 samples = 320 bytes, which mu-law encodes to the 160 bytes
-# docs.vobiz.ai lists for a 20ms mono chunk. A constant non-zero sample so every byte of
+# Twilio uses for a 20ms mono chunk. A constant non-zero sample so every byte of
 # Roma's audio is distinguishable from the transport's silence padding.
 CHUNK_PCM = b"\x11\x00" * 160
 # ~0.5s of speech, long enough that a mid-point cut is unambiguous. EVEN on purpose: the
@@ -229,7 +229,7 @@ def test_the_same_utterance_uninterrupted_plays_through():
 
     This is the half that makes the assertion above mean "the interruption cut it" rather
     than "nothing ever reaches the wire" -- the failure mode that let the missing
-    `keepCallAlive` and the never-opened `OpeningTurnGuard` both look healthy.
+the old stream-lifecycle bug and the never-opened `OpeningTurnGuard` both look healthy.
     """
     ws, _serializer = _run_utterance(interrupt=False)
     events = _events(ws)

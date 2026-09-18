@@ -16,7 +16,7 @@
 # That handoff was manual, and it broke the dial button twice in two days. A quick tunnel
 # is not durable — the process survives, its hostname leaves DNS, and nothing in the system
 # notices because nothing re-reads it. `.env` then points at a host that no longer exists,
-# Vobiz 400s on the answer URL, and the operator sees `carrier refused`, which sends them
+# Twilio 400s on the answer URL, and the operator sees `carrier refused`, which sends them
 # looking at the carrier. On 2026-08-05 the tunnel had been retrying a dead control stream
 # for five hours while `.env` still named it.
 #
@@ -80,7 +80,7 @@ sleep 1
 
 # --- 2. the tunnel, its hostname, and an edge on the right continent ----------------------
 #
-# Both calls in this hop are India-to-India: Vobiz's Mumbai edge to a laptop in Vadodara. The
+# Both calls in this hop are India-to-India: Twilio's Mumbai edge to a laptop in Vadodara. The
 # Cloudflare edge sits in the middle of every single audio frame, so WHICH edge is picked is
 # a latency decision, not a detail — a European one adds a continent of round trip to a
 # conversation already fighting for sub-1.5s turns.
@@ -169,7 +169,7 @@ ok "server up locally"
 
 # --- 4. the check that actually matters --------------------------------------------------
 # Everything above can succeed while the carrier still cannot reach us. This is the only
-# step that tests the full path Vobiz will take: DNS, the edge, the tunnel, this server.
+# step that tests the full path Twilio will take: DNS, the edge, the tunnel, this server.
 # A quick tunnel's hostname takes a few seconds to propagate, hence the retries.
 log "verifying the carrier can reach us"
 REACHED=""

@@ -1,7 +1,7 @@
 # 05 — Endpointing, VAD & Barge-in
 
 Thresholds derived from acoustic analysis of the 8 source-call recordings (403 pooled pauses).
-Treat every number as a **starting value to re-tune on real Vobiz audio** — the recordings
+Treat every number as a **starting value to re-tune on real Twilio audio** — the recordings
 are WhatsApp-codec, not 8kHz μ-law.
 
 ## Three layers (separate jobs — do not collapse into one silence timeout)
@@ -14,16 +14,16 @@ Layer 3  Barge-in     → did user talk over Roma?            (interrupt + flush
 ## Layer 1 — VAD
 **Model-based (Silero), never an energy/dB gate.** Forced by the recordings: the lead's audio
 is quiet and sits over a continuous noise floor (~1% true silence in the noisiest file). An
-energy gate misses the quiet lead or triggers on hiss. Frame = 20ms (Vobiz native). Don't
-pre-AGC before VAD; Vobiz's per-leg audio is cleaner than the mono mixes.
+energy gate misses the quiet lead or triggers on hiss. Frame = 20ms (Twilio native). Don't
+pre-AGC before VAD; Twilio's per-leg audio is cleaner than the mono mixes.
 
 **Noise suppression / AEC (acoustic echo cancellation).** The source audio showed a continuous
 noise floor and a quiet far-end, so the front-end matters. Two concerns: (a) background noise on
 the lead's side degrading STT, (b) Roma's own TTS echoing back into the input and false-
-triggering barge-in. Vobiz applies some noise suppression / echo control at the carrier level —
+triggering barge-in. Twilio applies some noise suppression / echo control at the carrier level —
 **verify what's already handled before adding our own**, so we don't double-process and distort
 the quiet lead further. If added, it sits before VAD in the input path. Do not over-engineer
-this until real Vobiz audio shows a measured problem.
+this until real Twilio audio shows a measured problem.
 
 **Resolved (2026-08):** concern (b) is measured absent on this stack. Across 20 recorded
 calls the lead-channel RMS while Roma speaks never exceeds 0.78x its RMS while she is
@@ -50,14 +50,14 @@ the backchannel lexicon AND (c) Roma is mid-utterance → log it, keep talking. 
 On genuine user speech during Roma's turn:
 1. Cancel in-flight LLM generation.
 2. Flush Bulbul output buffer.
-3. Send Vobiz Media Stream `clear` to drop already-buffered audio (else Roma overtalks ~1s).
+3. Send Twilio Media Stream `clear` to drop already-buffered audio (else Roma overtalks ~1s).
 4. Cancellation routes THROUGH the pre-TTS filter, not around it.
 
 ## Hiding the 850ms — filler token
 The instant endpointing fires, play a 200–300ms **cached** filler ("achha…", "haan ji…") from
 an audio cache (not a live TTS call), then stream the real sentence behind it.
 
-## Config summary (current values, re-tuned on live Vobiz audio)
+## Config summary (current values, re-tuned on live Twilio audio)
 | Param | Current | Env var | Source |
 |---|---|---|---|
 | VAD | Silero, 20ms | — | noise-floor finding |

@@ -143,7 +143,7 @@ def mount_web_api(app, *, reachable_fn=None) -> None:
         # burn an hour's dial quota discovering itself.
         #
         # Without this the operator's error is `502 carrier refused (HTTPStatusError)`, which
-        # blames Vobiz for a stale line in `.env`. A dead `cloudflared` quick tunnel did
+        # blames Twilio for a stale line in `.env`. A dead `cloudflared` quick tunnel did
         # exactly that on 2026-08-04 AND again on 2026-08-05; the second one cost a live
         # session to rediagnose. `preflight.py` has the full account.
         reachable, why = await base_url_reachable(s.public_base_url)
@@ -184,13 +184,13 @@ def mount_web_api(app, *, reachable_fn=None) -> None:
             )
         except DialPrereqError as exc:
             # Our own store failed BEFORE the carrier was asked to do anything. 503, not
-            # 502: blaming Vobiz for a Redis outage sent the operator to the wrong dashboard.
+            # 502: blaming Twilio for a Redis outage sent the operator to the wrong dashboard.
             _log_api("dial refused: %s", exc)
             raise HTTPException(
                 status_code=503, detail={"status": "blocked", "reason": str(exc)}
             ) from exc
         except Exception as exc:
-            # Vobiz answers a number it will not dial with a 400, which `create_call` raises.
+            # Twilio answers a number it will not dial with a 400, which `create_call` raises.
             # Unhandled, that reached the operator as a bare 500 and told them nothing — 502
             # says the upstream refused, which is both true and actionable. The exception type
             # is safe to show; its message is not (it carries the account path).

@@ -37,12 +37,8 @@ def create_app() -> FastAPI:
     """
     configure_logging()
     require_reachable_base_url()
-    # `keepCallAlive="true"` in the answer XML is required — without it Vobiz never opens the
-    # stream (see telephony/answer.py). The cost of holding the line open is that teardown is
-    # now OURS: when Roma stops talking the call does not end by itself, and Twilio's version
-    # of that cost 185 seconds of billed dead air on CA3e7f4c58. So the REST hang-up is on.
-    # It degrades to a warning if the account credentials are absent (telephony/vobiz.py), so
-    # this stays safe on a machine that has none.
+    # `<Connect><Stream>` keeps Twilio attached to the bidirectional stream. Production turns
+    # on Pipecat's REST hang-up so a finished pipeline cannot leave billed dead air behind.
     app = build_media_app(auto_hang_up=True)
 
     @app.get("/debug/last-counter")

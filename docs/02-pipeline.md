@@ -2,7 +2,7 @@
 
 ## Pipecat processor order (per call)
 ```
-VobizTransport(in)
+TwilioTransport(in)
   → SileroVAD
   → SaarasSTT (streaming, endpoint-on-final)
   → UserContextAggregator
@@ -11,7 +11,7 @@ VobizTransport(in)
   → SentenceChunker (flush on sentence boundary)
   → PreTTSFilter        ← GATE-ZERO, sub-10ms, deterministic
   → BulbulTTS (persistent socket)
-  → VobizTransport(out)
+  → TwilioTransport(out)
 ```
 Interruption/barge-in is a cross-cutting lifecycle Pipecat manages; the filter must sit
 INSIDE that cancellation path (see `docs/04`).
@@ -20,7 +20,7 @@ INSIDE that cancellation path (see `docs/04`).
 | Stage | Budget | Notes |
 |---|---|---|
 | Endpoint decision | ~850ms wait | not counted as "compute"; it's the turn-end wait |
-| Vobiz RTT | ~100ms | verify from Vadodara → Mumbai edge |
+| Twilio RTT | ~100ms | verify from Vadodara → Mumbai edge |
 | Saaras STT finalize | ~200–300ms | on real 8kHz; measure |
 | OpenAI TTFT | ~300–500ms | biggest lever; model choice matters |
 | Filter | <10ms | deterministic, no model call |
@@ -100,7 +100,7 @@ the burden is to show what changed — not to add it because it's on a generic c
 
 Noise suppression and acoustic echo cancellation matter here because the source audio showed a
 continuous noise floor and a quiet far-end, and because Roma's own TTS can echo into the input
-and false-trigger barge-in. Vobiz handles some at the carrier level — verify what's covered
+and false-trigger barge-in. Twilio handles some at the carrier level — verify what's covered
 before adding our own. Detail lives in `docs/05` (VAD/endpointing), since it feeds that layer.
 
 ## Observability & cost monitoring
@@ -124,7 +124,7 @@ Two separate jobs, two mechanisms — don't reach for one tool to do both.
 - Log per-call token counts from the first callable build so real ₹/call is known after ~10
   calls and can be extrapolated against the cap.
 - The real test-run limiter is **Sarvam credits** (₹4.50/call on v2), not OpenAI. Skip live
-  Vobiz early (feed recorded audio through the pipeline) to stretch both.
+  Twilio early (feed recorded audio through the pipeline) to stretch both.
 
 ## Verify before wiring
 - Pipecat's current turn-taking / smart-endpointing API (moves fast — use context7).

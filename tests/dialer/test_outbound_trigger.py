@@ -57,7 +57,7 @@ class _FakeTwilio:
 
 
 LEAD = OutboundLead(
-    phone="+919327858018",
+    phone="+919876543210",
     lead_name="Nihit",
     city="Vadodara",
     segment="working_professional",
@@ -70,7 +70,7 @@ def _trigger(store, client, base_url="https://host.example"):
             LEAD,
             store=store,
             client=client,
-            from_number="+917971543192",
+            from_number="+16295550100",
             base_url=base_url,
         )
     )
@@ -80,7 +80,7 @@ def _trigger(store, client, base_url="https://host.example"):
 
 
 def test_the_lead_lands_in_redis_before_the_call_is_fired():
-    """Order is load-bearing: Vobiz fetches the answer URL the moment the callee picks up.
+    """Order is load-bearing: Twilio fetches the answer URL the moment the callee picks up.
 
     A record written after the POST races the carrier, and Roma answers a call she triggered
     herself knowing nothing about the person on the other end.
@@ -137,7 +137,7 @@ def test_the_call_payload_matches_twilio_calls_api():
     assert client.created == [
         {
             "to": LEAD.phone,
-            "from_": "+917971543192",
+            "from_": "+16295550100",
             "url": result.answer_url,
             "method": "POST",
         }

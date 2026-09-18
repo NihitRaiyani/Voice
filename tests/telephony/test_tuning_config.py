@@ -12,7 +12,7 @@ import pytest
 from roma.telephony import backchannel
 
 REQUIRED_ENV = {
-    "VOBIZ_FROM_NUMBER": "+917971543192",
+    "TWILIO_FROM_NUMBER": "+16295550100",
     "SARVAM_API_KEY": "sarvam_test",
     "OPENAI_API_KEY": "openai_test",
     "REDIS_URL": "redis://localhost:6379/0",

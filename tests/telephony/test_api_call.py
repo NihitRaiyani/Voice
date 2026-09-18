@@ -1,4 +1,4 @@
-"""The web UI's dial endpoint (docs/13) — what stands between a form and a phone bill.
+"""The backend dial endpoint — what stands between a request and a phone bill.
 
 Rewritten 2026-08-04 when the consent ALLOWLIST was removed (decisions.md). The old test
 `test_a_well_formed_number_nobody_consented_to_is_refused` no longer describes the system:
@@ -257,7 +257,7 @@ def test_an_unreachable_base_url_refuses_the_dial_instead_of_calling_the_carrier
     `PUBLIC_BASE_URL` pointing at a `cloudflared` quick tunnel that has since died took down
     the dial button twice in two days (2026-08-04, 2026-08-05). Nothing noticed: the server
     boots (the URL is not localhost, which is all `require_reachable_base_url` checks), every
-    gate passes (none of them read the base URL), and Vobiz 400s on an answer URL it cannot
+    gate passes (none of them read the base URL), and Twilio 400s on an answer URL it cannot
     resolve. The operator's error was `502 carrier refused (HTTPStatusError)` — which blames
     the carrier for a stale line in `.env`.
     """

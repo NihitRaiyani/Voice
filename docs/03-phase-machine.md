@@ -3,7 +3,7 @@
 Plain Python. The machine decides **what happens next**; the LLM only decides **how to say
 it**. It never picks the phase, the slot, or "objection handled." That is what makes it fixed.
 
-## Call-state object (keyed by Vobiz Call SID in Redis)
+## Call-state object (keyed by Twilio Call SID in Redis)
 ```
 lead_name = None at call start — CAPTURED IN P2, never preloaded
 course = "digital_marketing" (fixed)

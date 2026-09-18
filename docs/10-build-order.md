@@ -10,12 +10,12 @@ Do NOT start with the LLM or the "fun" parts.
 - Consent line + DND/calling-window check stubbed into the dialer path. **[DONE]** —
   `src/roma/dialer/` (`precall_check` gate: allowlist-only DND, 09:00–21:00 IST window,
   placeholder consent line, fail-safe BLOCK). The Step-1 dialer MUST call it and dial only on
-  `may_dial=True`. Vobiz API wiring is deferred to Step 1 (pull context7 Vobiz docs there).
+  `may_dial=True`. Twilio API wiring is deferred to Step 1 (pull context7 Twilio docs there).
 **A build that can place a call without the filter is not allowed to exist.**
 
 ## Step 1 — Telephony spine
-- Vobiz number + outbound call + `<Stream>` WebSocket WebSocket into a bare Pipecat transport.
-- Verify RTT Vadodara → Vobiz Mumbai edge here (it gates the latency budget).
+- Twilio number + outbound call + signed bidirectional Media Stream into Pipecat.
+- Verify RTT Vadodara → Twilio Mumbai edge here (it gates the latency budget).
 - Prove audio in/out end-to-end with a hardcoded canned line (still behind the filter).
 
 ## Step 2 — STT + VAD in

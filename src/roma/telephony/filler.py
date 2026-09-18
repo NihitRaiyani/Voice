@@ -171,7 +171,7 @@ def intent_for(text: "str | None", phase: "str | None" = None) -> FillerIntent:
 # the silence. These say "I am still here, still working" and nothing else.
 #
 # Live calls acf8e78f and c5672a23 (2026-08-01) stalled 57s and 28s on one OpenAI request,
-# with `keepCallAlive="true"` holding the line open the whole time. The lead heard a live
+# while the carrier held the live stream open. The lead heard a live
 # channel with nobody on it and hung up. Both times.
 HOLDING_LINES: dict[str, str] = {
     "ek_second": "Ek second…",

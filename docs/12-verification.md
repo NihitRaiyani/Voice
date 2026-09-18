@@ -11,7 +11,7 @@ which call or command proved it.
 
 ## ROLE
 
-You are a senior voice-assistant engineer working on **Roma** (`/Users/nihitraiyani/Weltec`),
+You are a senior voice-assistant engineer working on **Roma** (`/Users/nihitraiyani/Voice_Agent`),
 an outbound code-mix (Gujarati/Hindi/English) agent whose ONLY job is to book a specific
 day+time counselling visit for Weltec. A soft "dekhta hoon" is not a win.
 
@@ -68,8 +68,8 @@ promised; this is how you prove it.
 | **G0** | The pre-TTS filter is on **every** path that can emit audio, including teardown. A build that can place a call without it must not exist. | `tests/guardrails/` + the filter canaries inside `run_eval.py` (they carry Devanagari and Gujarati — romanized-only canaries were green for the whole period the filter was failing open on Indic script). Confirm `PreTTSFilterProcessor` sits between `sentence_agg` and `tts` in `media.py`. | verified offline |
 | **G0** | No secret in code or logs. | `git log -p` the wave for key-shaped strings; confirm the redacting logger is installed at startup; confirm `gcal` never logs its request URL (the URL carries the API key). | verify |
 | **G0** | Consent + DND + calling window gate the dialer; fail-safe is BLOCK. | `tests/dialer/`. Confirm `place_call` still enforces the window — `--ignore-window` in `place_test_call.py` must substitute a `now` for the check and **not** touch `dialer/window.py`. | verified offline |
-| **1** | Audio in and out end-to-end over Vobiz `<Stream>` WebSocket. | A live call in which you hear Roma. | verified live |
-| **1** | RTT origin → Vobiz Mumbai edge measured; it gates the latency budget. | `uv run python scripts/rtt_mumbai.py` from the production origin, not a laptop. **BLOCKED: no origin exists** (docs/decisions.md, Deploy: UNDECIDED). This row said "from the Vadodara host" for two weeks and there has never been such a machine — it made an unprovisioned box look like a step someone could take. | **BLOCKED — needs an origin** |
+| **1** | Audio in and out end-to-end over Twilio `<Stream>` WebSocket. | A live call in which you hear Roma. | verified live |
+| **1** | RTT origin → Twilio Mumbai edge measured; it gates the latency budget. | `uv run python scripts/rtt_mumbai.py` from the production origin, not a laptop. **BLOCKED: no origin exists** (docs/decisions.md, Deploy: UNDECIDED). This row said "from the Vadodara host" for two weeks and there has never been such a machine — it made an unprovisioned box look like a step someone could take. | **BLOCKED — needs an origin** |
 | **2** | The VAD is a pipeline **stage**, not a transport param. | `tests/telephony/test_vad_stage.py` (it pins `"vad_analyzer" not in FastAPIWebsocketParams.model_fields`, so a future pipecat adding it back fails loudly). Live: teardown must show `vad_starts=N vad_stops=N` with N>0. | verified live |
 | **2** | Sarvam flushes on the VAD stop frame — `vad_signals` must stay `None`, or `flush_signal="true"` is never sent. | pinned by test. Do not "fix" it by setting `vad_signals`. | verified offline |
 | **2** | Saaras WER measured on real 8kHz μ-law. | Not built. It can invalidate assumptions (`docs/decisions.md`) — flag it, do not silently skip it. | **UNVERIFIED** |
@@ -95,7 +95,7 @@ Redis is not running in dev — `call-state checkpoint failed` once per turn is 
 by design**. Do not chase it.
 
 ```
-# 1. tunnel — Vobiz needs a public HTTPS/WSS origin and the dev laptop has none. This is
+# 1. tunnel — Twilio needs a public HTTPS/WSS origin and the dev laptop has none. This is
 #    the ONLY path today: no production origin has been provisioned (docs/decisions.md).
 #    Both flags are load-bearing, diagnosed 2026-08-01 after five tunnel deaths in one day:
 #      * 127.0.0.1, NEVER localhost — uvicorn binds IPv4 only while `localhost` resolves to
@@ -113,7 +113,7 @@ uv run python scripts/serve_media.py > <scratchpad>/logs/mediaN.log 2>&1 &
 curl -s -o /dev/null -w "%{http_code}\n" https://<sub>.trycloudflare.com/health
 
 # 4. dial. Test handsets ONLY — never a real lead.
-uv run python scripts/place_test_call.py +919327858018 \
+uv run python scripts/place_test_call.py +91XXXXXXXXXX \
     --base-url https://<sub>.trycloudflare.com [--ignore-window]
 ```
 

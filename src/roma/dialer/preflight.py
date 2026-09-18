@@ -2,14 +2,14 @@
 
 ## The failure this exists to stop
 
-`/answer` mints `wss://<PUBLIC_BASE_URL>/ws?t=…` and Vobiz dials that URL from ITS network.
+`/answer` returns `wss://<PUBLIC_BASE_URL>/ws` and Twilio connects from its network.
 When `PUBLIC_BASE_URL` names a host that no longer exists, every layer reports success right
 up to the point where nothing happens:
 
   * the server boots fine — `require_reachable_base_url` only rejects *localhost*, and a dead
     tunnel hostname is not localhost;
   * `/api/call` passes every gate, because none of them look at the base URL;
-  * Vobiz refuses the call with a 400, which surfaces as `502 carrier refused
+  * Twilio refuses the call with a 400, which surfaces as `502 carrier refused
     (HTTPStatusError)` — technically true, and it points the operator at the CARRIER when the
     fault is one line in `.env`.
 
@@ -34,7 +34,7 @@ import logging
 _log = logging.getLogger("roma.dialer")
 
 # Long enough for a cold tunnel hop to Mumbai and back (measured 0.75-0.89s on a healthy
-# bom09 edge), short enough that a dead host does not hold the browser's request open. A DNS
+# bom09 edge), short enough that a dead host does not hold the backend request open. A DNS
 # failure — the actual symptom both times — returns in milliseconds and never waits this out.
 REACHABILITY_TIMEOUT_SECS = 5.0
 
@@ -44,7 +44,7 @@ async def base_url_reachable(base_url: str, *, timeout_secs: float = REACHABILIT
 
     `/health` and not `/`: it is the one route guaranteed to exist, to need no auth, and to
     be cheap. A 200 proves DNS resolved, the tunnel edge accepted the connection, the tunnel
-    process is alive, and this server answered — the entire path Vobiz is about to take.
+    process is alive, and this server answered — the entire path Twilio is about to take.
 
     Any non-200 is a failure. A tunnel that resolves but returns 502 (edge up, origin down)
     is exactly as unusable as one that does not resolve at all, and telling the operator

@@ -2,22 +2,18 @@
 
 ## Why a store at all
 
-Vobiz's Call API accepts exactly four fields — `from`, `to`, `answer_url`, `answer_method`
-(docs/call/make-call, quoted verbatim in `dialer.trigger`). There is no metadata field, no
-custom header, nothing that rides along to the answer webhook. So a triggered call cannot
-hand Roma the lead's name, city or segment through the API itself.
+Roma supplies Twilio with a per-call answer URL. The Calls API does not forward Roma's lead
+record into the later Media Streams start event, so the full record cannot ride through the
+carrier request itself.
 
 What we DO control is the `answer_url`, per call. So the trigger mints a token, writes the
-lead record under it, and dials with `…/answer?lead=<token>`. Vobiz echoes that URL back at
-us when the callee picks up, and the record is read from the token.
+lead record under it, and dials with `…/answer?lead=<token>`. `/answer` copies that opaque
+token into a Twilio Stream custom parameter; `/ws` reads it from `start.customParameters`.
 
 ## Why Redis and not a dict
 
-`PendingStreams` (the `/answer` -> `/ws` token) is an in-process dict, and that is already
-one reason this process cannot be replicated. A second in-process map would double down on
-a constraint we are trying to shed, and this one is worse: the stream token lives ~2 seconds
-between two hops of the same request, while a lead record has to survive from trigger until
-the callee picks up — through ringing, through a retry, through a redeploy mid-campaign.
+The lead record must survive from trigger until pickup—through ringing, webhook retries, or
+a redeploy mid-campaign. Redis provides that durability and supports multiple app processes.
 
 Reads are NOT destructive. A carrier that retries the answer webhook must get the same lead
 back, not a call that has forgotten who it rang; the TTL is what bounds the record instead.

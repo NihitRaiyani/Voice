@@ -1,14 +1,14 @@
-"""Where a dialled call got to, so the web UI can say something true (docs/13).
+"""Where a dialled call got to, so the backend status API can report it accurately.
 
 ## Why this exists at all
 
-`request_uuid` is Vobiz's handle for a fired call, and until this module it lived for three
+`request_uuid` is Twilio's handle for a fired call, and until this module it lived for three
 lines in `trigger.py` — read off the response, logged, returned — and correlated with
 nothing. `/answer` receives only `?lead=<token>`; `/ws` knows `stream_sid` and `call_sid`.
 Nothing joined them, and `_registered_call`'s `finally:` pops the call from `app.state.calls`
 the moment it ends, so a FINISHED call left no trace in the process at all.
 
-So the chain the UI needs — `request_uuid -> lead_token -> live call` — is built here, in
+So the chain the backend status API needs—`request_uuid -> lead_token -> live call`—is built here, in
 Redis rather than in memory, for a reason that is not merely tidiness: the dialer and the
 media server are **different processes**. `place_test_call.py` runs `trigger_outbound_call`
 under its own `asyncio.run`. An in-process dict would be written by one and read by neither.
@@ -19,10 +19,10 @@ under its own `asyncio.run`. An in-process dict would be written by one and read
     dialing -> connected -> ended
             \\-> no_answer
 
-`no_answer` is DERIVED, never written, and that is the important design point. Vobiz is sent
-no status callback (`dialer.create_call` posts four fields: from, to, answer_url,
-answer_method), so when a callee simply does not pick up, **nothing in this system ever hears
-about it** — Vobiz never fetches `/answer` and no socket opens. This session produced two such
+`no_answer` is DERIVED, never written, and that is the important design point. Twilio is sent
+no status callback is currently configured, so when a callee simply does not pick up,
+**nothing in this system ever hears
+about it** — Twilio never fetches `/answer` and no socket opens. This session produced two such
 calls by accident, and a UI that waited for a writer would sit on "dialing" for ever.
 
 Age is the only honest signal available, so age is what is used.
@@ -30,8 +30,8 @@ Age is the only honest signal available, so age is what is used.
 ## What is stored and what is returned are not the same
 
 The callee's number is written (an operator needs to know which call a row is) and is NEVER
-returned by `get()`. It is the lead's PII (docs/07), and the browser has no need of a number
-the operator just typed. The lead token is likewise an authority and never leaves this module.
+returned by `get()`. It is the lead's PII and the API client already supplied it. The lead
+token is likewise an authority and never leaves this module.
 """
 
 import json
@@ -45,8 +45,8 @@ CONNECTED = "connected"
 ENDED = "ended"
 NO_ANSWER = "no_answer"
 
-# How long a record may sit at `dialing` before it reads as nobody having picked up. Vobiz
-# rings for roughly 30-45s before giving up; 60 clears that without leaving the UI guessing.
+# How long a record may sit at `dialing` before it reads as nobody having picked up. Twilio
+# rings for roughly 30-45s before giving up; 60 clears that without stale status.
 NO_ANSWER_AFTER_SECS = 60
 
 
@@ -96,7 +96,7 @@ class CallStatusStore:
         await self._client.set(status_key(uuid), json.dumps(record), ex=self._ttl)
 
     async def mark_connected(self, lead_token: "str | None") -> None:
-        """The callee picked up — Vobiz fetched `/answer` for this token."""
+        """The callee picked up — Twilio fetched `/answer` for this token."""
         if not lead_token:
             return
         try:

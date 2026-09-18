@@ -4,12 +4,20 @@ Security is a build gate, not a later hardening pass. The scaffold below goes in
 first callable build.
 
 ## Secrets
-- Vobiz, Sarvam, OpenAI keys, Redis auth → **environment / secret store only.** Never in
+- Twilio, Sarvam, OpenAI keys, Redis auth → **environment / secret store only.** Never in
   code, never committed, never logged.
 - No secret in error messages, stack traces, or call logs.
-- Rotate keys on a schedule; least-privilege API tokens (e.g. Vobiz subaccount scoped to the
+- Rotate keys on a schedule; least-privilege API tokens (e.g. Twilio subaccount scoped to the
   numbers Roma uses).
 - `.env` is gitignored; provide `.env.example` with key names only, no values.
+
+## Twilio callback authentication
+
+- Validate `X-Twilio-Signature` for both `/answer` and `/ws` using the exact external URL.
+- Verify the `accountSid` in the WebSocket start event matches `TWILIO_ACCOUNT_SID`.
+- Twilio Stream URLs do not carry query parameters; pass the opaque lead token through a
+  nested TwiML `<Parameter>` and read it from `start.customParameters`.
+- Reject callbacks before constructing the voice pipeline when authentication fails.
 
 ## PII (leads' data)
 - A lead's name, phone number, and transcript are PII. Treat accordingly.

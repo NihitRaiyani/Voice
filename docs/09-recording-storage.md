@@ -10,10 +10,10 @@ call ends → pipeline pushes {call_sid, recording_ref} to queue:postcall
 ```
 
 ## Two ways to get the recording (pick one at build time)
-1. **Vobiz call recording** — enable recording on the call; Vobiz stores it and gives a
+1. **Twilio call recording** — enable recording on the call; Twilio stores it and gives a
    recording URL/SID. The worker downloads it to your store. Simplest; recording lives on
-   Vobiz first (mind retention + PII there).
-2. **Local capture from the media stream** — Pipecat/Vobiz media frames are written to a file
+   Twilio first (mind retention + PII there).
+2. **Local capture from the media stream** — Pipecat/Twilio media frames are written to a file
    as the call runs; the worker finalizes it on call end. Keeps audio on your infra (fits the
    Vadodara self-host choice), no third-party copy.
 

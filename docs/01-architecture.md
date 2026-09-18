@@ -3,8 +3,8 @@
 ## Runtime (one call)
 ```
  ┌──────────┐   dial     ┌─────────────────────────────────────────────┐
- │  Dialer  │──────────▶ │            Vobiz (per-call)                 │
- │ (worker) │            │  outbound call → `<Stream>` WebSocket WebSocket     │
+ │  Dialer  │──────────▶ │            Twilio (per-call)                 │
+ │ (worker) │            │  Calls API → `/answer` → bidirectional `/ws`        │
  └──────────┘            └───────────────┬──────────────────────────────┘
         ▲                                │ 8kHz μ-law, 20ms frames, 2 legs
         │ pulls leads                    ▼
@@ -14,7 +14,7 @@
  │ cache /  │  state     │  → OpenAI (stream) → PRE-TTS FILTER → Bulbul │
  │ queue    │            │  ↑ barge-in / interruption lifecycle         │
  └────┬─────┘            └───────────────┬──────────────────────────────┘
-      │ post-call job                    │ audio back to Vobiz
+      │ post-call job                    │ audio back to Twilio
       ▼                                  ▼
  ┌──────────┐                     lead hears Roma
  │ post-call│
@@ -35,18 +35,18 @@
 - **Post-call worker** — consumes the queue: stores the recording; later, CRM/calendar write.
 
 ## Data flow, one turn
-1. Vobiz streams caller audio → Silero VAD marks speech.
+1. Twilio streams caller audio → Silero VAD marks speech.
 2. Endpointing decides the turn ended (`docs/05`, 850ms default) → Saaras finalizes.
 3. Controller updates call-state, picks the current phase's prompt fragment.
 4. OpenAI streams a response; sentences flush as they complete.
 5. **Filter inspects each sentence** before TTS. Clean → speak. Blocked → substitute a safe
    line. This step is non-skippable.
-6. Bulbul speaks; audio returns to Vobiz.
+6. Bulbul speaks; audio returns to Twilio.
 7. Barge-in at any point cancels 4–6 and flushes buffers (through the filter, not around it).
 
 ## Concurrency model (summary; full detail in `docs/08`)
 - N concurrent calls = N async pipeline tasks in a process, scaled by process/replica.
-- Nothing call-specific is global. All per-call state is keyed by Vobiz Call SID in Redis.
+- Nothing call-specific is global. All per-call state is keyed by Twilio Call SID in Redis.
 - The post-call queue decouples slow work (storage, CRM) from the real-time loop.
 
 ## What is NOT in the hot path (by design)

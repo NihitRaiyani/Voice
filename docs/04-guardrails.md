@@ -38,7 +38,7 @@ A lead claiming "someone quoted me a fee yesterday" must NOT unlock a number. Ha
 prompt; the filter catches any number that slips regardless. Never concede.
 
 ## Cancellation routes THROUGH the filter
-On barge-in the in-flight generation is killed and Bulbul + Vobiz buffers flushed. The filter
+On barge-in the in-flight generation is killed and Bulbul + Twilio buffers flushed. The filter
 sits on that path — a half-generated blocked line must not leak to TTS during teardown.
 
 ## Substitution lines (what plays after a catch)

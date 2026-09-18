@@ -1,8 +1,8 @@
 """Offline Sarvam TTS: text -> 8kHz PCM16, for clips rendered outside a call.
 
-Moved out of `scripts/make_filler_clips.py` on 2026-08-04 so the SERVER can use it too. The
-web UI places calls from inside the FastAPI process, and that process cannot import from
-`scripts/`; the alternative was a second rendering path for the pre-rendered opener.
+Moved out of `scripts/make_filler_clips.py` so the FastAPI call endpoint can use it too.
+Application code cannot import reliably from `scripts/`; the alternative was a second
+rendering path for the pre-rendered opener.
 
 A second path is exactly the wrong thing here. `VOICE`, `PACE` and `MODEL` below are what
 make Roma sound like one person — a clip rendered by a different code path with a drifted

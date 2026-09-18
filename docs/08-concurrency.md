@@ -5,7 +5,7 @@ is pushed to queues.**
 
 ## The three pools
 1. **Dialer pool** — places outbound calls at a controlled rate. Bounded concurrency (respect
-   Vobiz limits + calling-window/DND rules). Backpressure: don't dial faster than pipeline
+   Twilio limits + calling-window/DND rules). Backpressure: don't dial faster than pipeline
    capacity.
 2. **Pipeline tasks** — one async task per active call, each an isolated Pipecat instance.
    No call-specific global state. All per-call data keyed by Call SID in Redis.
@@ -21,7 +21,7 @@ is pushed to queues.**
 This is where concurrency bugs hide. Within a single call, endpointing, LLM streaming, filter,
 and TTS run concurrently, and barge-in cancels across all of them mid-flight. Requirements:
 - Cancellation is **idempotent** — a double barge-in must not double-flush or deadlock.
-- Cancellation propagates **in order**: stop LLM → flush filter → flush Bulbul → Vobiz
+- Cancellation propagates **in order**: stop LLM → flush filter → flush Bulbul → Twilio
   `clear`. Out-of-order flushing causes overtalk or leaked audio.
 - The filter stage must be cancellation-aware (see `docs/04`).
 - **Run code-review on every change to this path.** (Skill wiring in `skills/`.)

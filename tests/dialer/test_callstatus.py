@@ -1,4 +1,4 @@
-"""Call status for the web UI (docs/13): what `GET /api/call/{uuid}` can honestly say.
+"""Call status for the backend API: what `GET /api/call/{uuid}` can honestly say.
 
 fakeredis is constructed fresh INSIDE each test and injected via `client=`, matching
 `tests/postcall/test_queue_and_store.py`. Async via `asyncio.run` — there is no
@@ -73,7 +73,7 @@ def test_connected_then_ended_moves_the_record():
 def test_an_unanswered_call_reads_as_no_answer_without_anyone_writing_it():
     """The case this session hit twice, and the reason `no_answer` is DERIVED.
 
-    Vobiz is sent no status callback, so when a callee does not pick up, nothing in this
+    Twilio is sent no status callback, so when a callee does not pick up, nothing in this
     system ever hears about it — `/answer` is never fetched and no socket opens. A UI that
     waited for a writer would sit on "dialing" for ever. Age is the only signal available.
     """

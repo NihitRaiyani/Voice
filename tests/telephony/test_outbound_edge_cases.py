@@ -3,7 +3,7 @@
 The pivot moved Roma from answering to dialling, and the first eight seconds invert with it.
 Every case here is one where the call still CONNECTS and still sounds plausible while being
 wrong — which is the failure shape this repo produces over and over (`vad_analyzer` dropped
-silently, `keepCallAlive` removed by reasoning, `OpeningTurnGuard` never opening, the flat
+silently, stream lifecycle mishandled, `OpeningTurnGuard` never opening, the flat
 `VAD_STOP_SECS` after a flag flip). A green suite and a working call are not the same thing.
 """
 
