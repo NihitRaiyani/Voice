@@ -43,12 +43,6 @@ class Settings(BaseSettings):
 
     enable_filler: bool = True
 
-    # --- web UI (docs/13) -----------------------------------------------------------------
-    # The ONE browser origin CORS admits. Never "*": this app has an endpoint that rings real
-    # phones and spends real money, so a wildcard would let any page a browser loads dial on
-    # the operator's behalf.
-    web_origin: str = "http://localhost:3030"
-
     # Gate 0's DENYLIST for the web endpoint, comma-separated. Was an allowlist
     # (`CONSENTED_NUMBERS`) until 2026-08-04; see `decisions.md`. Any valid Indian mobile now
     # dials unless it is listed here.
@@ -62,9 +56,7 @@ class Settings(BaseSettings):
     # unconfigured lock must never read as "no lock needed". The dial path rings real phones
     # and spends real budget, so it fails closed.
     #
-    # Note what this is NOT: the browser sends it from `VITE_API_TOKEN`, which Vite inlines
-    # into the JS bundle, so it is not secret from anyone who can load the page. It guards
-    # the NETWORK boundary — another machine reaching :8020 — and nothing more.
+    # Programmatic backend clients send this in `Authorization: Bearer ...`.
     api_token: "SecretStr | None" = None
 
     # Bounds the failure the spend cap cannot: a stuck UI retry or a fat-fingered loop costs

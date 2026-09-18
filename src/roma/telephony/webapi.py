@@ -1,4 +1,4 @@
-"""The browser UI's two endpoints, mounted onto the media app (docs/13).
+"""Protected backend endpoints for starting and observing outbound calls.
 
 Lives in `src/` and not in `scripts/serve_media.py` where it was first written: an
 endpoint that rings real phones and spends real money needs to be import-testable, and
@@ -29,7 +29,7 @@ async def _put_dialing_guarded(status_store, request_uuid, lead_token, to_number
 
 
 def mount_web_api(app, *, reachable_fn=None) -> None:
-    """The two endpoints the browser UI calls, plus CORS (docs/13).
+    """Mount the protected backend call and status endpoints.
 
     `reachable_fn` is the carrier-reachability preflight, injected so the offline suite can
     exercise the dial path without a DNS lookup. Defaults to the real
@@ -55,15 +55,11 @@ def mount_web_api(app, *, reachable_fn=None) -> None:
       * **`BIND_HOST` defaults to 127.0.0.1**, so binding wide is a deliberate config act.
       * An hourly dial cap bounds a stuck retry loop, which the spend cap cannot see coming.
 
-    What the token is NOT: the browser sends it from `VITE_API_TOKEN`, which Vite inlines
-    into the bundle, so it is not secret from anyone who can load the page. It guards the
-    NETWORK boundary. A public deploy needs a session, not a bundled constant.
     """
     import secrets
     from datetime import datetime
 
     from fastapi import HTTPException, Request
-    from fastapi.middleware.cors import CORSMiddleware
 
     from roma.config import get_settings
     from roma.dialer.callstatus import CallStatusStore, HourlyDialCap
@@ -81,15 +77,6 @@ def mount_web_api(app, *, reachable_fn=None) -> None:
 
     s = get_settings()
     base_url_reachable = reachable_fn or _real_reachable
-
-    # ONE origin, from config. Never "*" — a wildcard would let any page a browser happens to
-    # load POST to this and dial on the operator's behalf.
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[s.web_origin],
-        allow_methods=["GET", "POST"],
-        allow_headers=["content-type", "authorization"],
-    )
 
     def _require_auth(request: Request) -> None:
         """Bearer token, or nothing happens. FAILS CLOSED.

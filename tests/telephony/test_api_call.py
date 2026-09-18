@@ -39,7 +39,6 @@ BASE_ENV = {
     "OPENAI_API_KEY": "sk-test",
     "REDIS_URL": "redis://localhost:6379/0",
     "PUBLIC_BASE_URL": "https://example.test",
-    "WEB_ORIGIN": "http://localhost:3030",
     "ROMA_DATA_DIR": _DATA_DIR,
     "OPENAI_BUDGET_INR": "1000000",
 }
@@ -241,21 +240,12 @@ def test_a_non_json_body_is_a_400_not_a_500(client):
 # --- CORS --------------------------------------------------------------------------------
 
 
-def test_cors_admits_the_configured_origin_and_nothing_else(client):
-    allowed = client.options(
+def test_call_api_does_not_emit_browser_cors_headers(client):
+    response = client.options(
         "/api/call",
         headers={"Origin": "http://localhost:3030", "Access-Control-Request-Method": "POST"},
     )
-    assert allowed.headers.get("access-control-allow-origin") == "http://localhost:3030"
-
-    other = client.options(
-        "/api/call",
-        headers={"Origin": "http://evil.example", "Access-Control-Request-Method": "POST"},
-    )
-    assert other.headers.get("access-control-allow-origin") != "http://evil.example"
-    assert other.headers.get("access-control-allow-origin") != "*", (
-        "a wildcard origin would let any page a browser loads dial on the operator's behalf"
-    )
+    assert "access-control-allow-origin" not in response.headers
 
 
 # --- carrier reachability preflight ------------------------------------------------------

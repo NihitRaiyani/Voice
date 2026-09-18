@@ -3,12 +3,12 @@
 # Bring the whole live-call stack up with one command, and make the tunnel URL nobody's
 # problem.
 #
-#   ./scripts/start_roma.sh          # start everything, print the UI URL
+#   ./scripts/start_roma.sh          # start the backend and print its health URL
 #   ./scripts/start_roma.sh --stop   # stop everything
 #
 # ## Why this exists
 #
-# The stack is four processes (redis, cloudflared, uvicorn, vite) and exactly one piece of
+# The stack is three processes (redis, cloudflared, uvicorn) and exactly one piece of
 # state that has to travel between two of them: the ephemeral hostname `cloudflared` mints
 # at startup, which `PUBLIC_BASE_URL` must carry to uvicorn so `/answer` can hand the
 # carrier a `wss://` URL it can actually dial.
@@ -33,7 +33,6 @@ mkdir -p "$RUN_DIR"
 
 TUNNEL_LOG="$RUN_DIR/cloudflared.log"
 SERVER_LOG="$RUN_DIR/uvicorn.log"
-WEB_LOG="$RUN_DIR/vite.log"
 
 log()  { printf '\033[36m>>\033[0m %s\n' "$*"; }
 ok()   { printf '\033[32m ✓\033[0m %s\n' "$*"; }
@@ -41,7 +40,7 @@ die()  { printf '\033[31m ✗\033[0m %s\n' "$*" >&2; exit 1; }
 
 stop_all() {
   log "stopping Roma"
-  for name in "cloudflared tunnel" "uvicorn scripts.serve_media" "vite --port 3030"; do
+  for name in "cloudflared tunnel" "uvicorn scripts.serve_media"; do
     pkill -f "$name" 2>/dev/null && ok "stopped: $name" || true
   done
 }
@@ -71,15 +70,9 @@ if ! redis-cli ping >/dev/null 2>&1; then
 fi
 ok "redis"
 
-# API_TOKEN gates the dial endpoint and FAILS CLOSED (503) when unset, so catch it here
-# rather than letting the operator find out by pressing the button.
+# API_TOKEN gates the dial endpoint and FAILS CLOSED (503) when unset.
 grep -qE '^API_TOKEN=.+' .env || die "API_TOKEN is not set in .env — the dial endpoint would return 503"
-if [[ -f web/.env ]]; then
-  back="$(grep -E '^API_TOKEN=' .env | cut -d= -f2-)"
-  front="$(grep -E '^VITE_API_TOKEN=' web/.env | cut -d= -f2- || true)"
-  [[ "$back" == "$front" ]] || die "API_TOKEN in .env and VITE_API_TOKEN in web/.env differ — every dial would be a 401"
-fi
-ok "api token present and matching"
+ok "api token present"
 
 # --- 1. clear anything already running ---------------------------------------------------
 stop_all
@@ -188,19 +181,5 @@ done
 [[ -n "$REACHED" ]] || die "$BASE_URL/health is not answering 200 — the carrier could not reach us either, so a call would ring and connect to nothing. See $TUNNEL_LOG"
 ok "carrier path verified end to end"
 
-# --- 5. the browser UI -------------------------------------------------------------------
-if [[ -d web/node_modules ]]; then
-  log "starting the web UI on 3030"
-  (cd web && nohup npm run dev >>"$WEB_LOG" 2>&1 </dev/null &)
-  for _ in $(seq 1 40); do
-    curl -fsS --max-time 2 http://localhost:3030 >/dev/null 2>&1 && break
-    sleep 0.5
-  done
-  curl -fsS --max-time 2 http://localhost:3030 >/dev/null 2>&1 \
-    && ok "web UI up" || printf '\033[33m ! \033[0m web UI did not answer — see %s\n' "$WEB_LOG"
-else
-  printf '\033[33m ! \033[0m web/node_modules missing — run: cd web && npm install\n'
-fi
-
-printf '\n\033[32mRoma is up.\033[0m  Open \033[1mhttp://localhost:3030\033[0m and dial.\n'
-printf '  tunnel  %s\n  logs    %s\n  stop    ./scripts/start_roma.sh --stop\n\n' "$BASE_URL" "$RUN_DIR"
+printf '\n\033[32mRoma backend is up.\033[0m\n'
+printf '  health  %s/health\n  logs    %s\n  stop    ./scripts/start_roma.sh --stop\n\n' "$BASE_URL" "$RUN_DIR"
