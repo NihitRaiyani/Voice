@@ -13,11 +13,11 @@ serializer would have been a tautology that passed on a broken pipeline -- which
 how the flat `VAD_STOP_SECS` and the dropped `vad_analyzer` survived their own test suites.
 
 What must hold, from docs/05 Layer 3:
-  1. `clearAudio` reaches the wire, carrying the live `streamId` (step 3).
-  2. Audio queued behind the interruption never becomes `playAudio` (steps 1-2).
+  1. `clear` reaches the wire, carrying the live `streamSid` (step 3).
+  2. Audio queued behind the interruption never becomes `media` (steps 1-2).
   3. The cut lands MID-utterance -- strictly less of Roma's audio out than went in.
 
-**Count Roma's audio, never raw `playAudio` bytes.** The output transport streams
+**Count Roma's audio, never raw `media` bytes.** The output transport streams
 CONTINUOUSLY, padding the gaps with silence, so the wire carries ~5x more bytes than Roma
 ever generated and keeps carrying them after a barge-in. A byte-total assertion reads that
 padding as speech and a "did playback stop?" test passes on a pipeline that never stopped.
@@ -36,16 +36,15 @@ from pipecat.frames.frames import (
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineTask
+from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
     FastAPIWebsocketTransport,
 )
 from starlette.websockets import WebSocketState
 
-from roma.telephony.vobiz import VobizFrameSerializer
-
 RATE = 8000
-STREAM_ID = "ST_bargein"
+STREAM_ID = "MZ_bargein"
 # 20ms of PCM16 @8k = 160 samples = 320 bytes, which mu-law encodes to the 160 bytes
 # docs.vobiz.ai lists for a 20ms mono chunk. A constant non-zero sample so every byte of
 # Roma's audio is distinguishable from the transport's silence padding.
@@ -60,7 +59,7 @@ CUT_AFTER_BYTES = 480  # ~60ms on the wire: unambiguously mid-sentence
 
 
 class _FakeWebSocket:
-    """Records what Vobiz would have received, in order."""
+    """Records what Twilio would have received, in order."""
 
     def __init__(self) -> None:
         self.sent: list[str] = []
@@ -84,7 +83,10 @@ class _FakeWebSocket:
 
 def _ulaw_byte(pcm: bytes) -> int:
     """Encode a constant-valued PCM block through the REAL serializer and return its byte."""
-    s = VobizFrameSerializer(stream_id="ST_probe")
+    s = TwilioFrameSerializer(
+        stream_sid="MZ_probe",
+        params=TwilioFrameSerializer.InputParams(auto_hang_up=False),
+    )
 
     async def go():
         from pipecat.frames.frames import StartFrame
@@ -121,7 +123,7 @@ def _roma_bytes(events) -> int:
     """Bytes of ROMA's audio on the wire, excluding the transport's silence padding."""
     total = 0
     for e in events:
-        if e.get("event") != "playAudio":
+        if e.get("event") != "media":
             continue
         payload = base64.b64decode(e["media"]["payload"])
         total += payload.count(ROMA_BYTE)
@@ -151,7 +153,10 @@ def _audio(n: int) -> list[OutputAudioRawFrame]:
 def _run_utterance(*, interrupt: bool):
     """Push one utterance through the real output transport, optionally cutting it."""
     ws = _FakeWebSocket()
-    serializer = VobizFrameSerializer(stream_id=STREAM_ID)
+    serializer = TwilioFrameSerializer(
+        stream_sid=STREAM_ID,
+        params=TwilioFrameSerializer.InputParams(auto_hang_up=False),
+    )
     transport = FastAPIWebsocketTransport(
         websocket=ws,
         params=FastAPIWebsocketParams(
@@ -195,24 +200,23 @@ def _run_utterance(*, interrupt: bool):
 
 
 def test_barge_in_clears_the_carrier_and_stops_playback_short():
-    """Audio in flight -> InterruptionFrame -> clearAudio on the wire, playback truncated."""
-    ws, serializer = _run_utterance(interrupt=True)
+    """Audio in flight -> InterruptionFrame -> clear on the wire, playback truncated."""
+    ws, _serializer = _run_utterance(interrupt=True)
     events = _events(ws)
     kinds = [e.get("event") for e in events]
 
-    # 1. clearAudio reached the wire, with the live streamId (docs/05 Layer 3 step 3).
-    assert "clearAudio" in kinds, f"barge-in never reached Vobiz; wire was {set(kinds)}"
-    clears = [e for e in events if e.get("event") == "clearAudio"]
-    assert all(e["streamId"] == STREAM_ID for e in clears)
-    assert serializer.clear_events == len(clears)
+    # 1. clear reached the wire, with the live streamSid (docs/05 Layer 3 step 3).
+    assert "clear" in kinds, f"barge-in never reached Twilio; wire was {set(kinds)}"
+    clears = [e for e in events if e.get("event") == "clear"]
+    assert all(e["streamSid"] == STREAM_ID for e in clears)
 
-    cut = kinds.index("clearAudio")
+    cut = kinds.index("clear")
 
     # 2. Roma was speaking when it landed -- otherwise this proves nothing about a CUT.
     assert _roma_bytes(events[:cut]) > 0, "nothing was in flight; not a mid-sentence cut"
 
     # 3. Nothing queued behind the interruption reached the carrier. Silence padding still
-    #    flows after the cut, which is why this counts Roma's bytes and not `playAudio`s.
+    #    flows after the cut, which is why this counts Roma's bytes and not `media` events.
     leaked = _roma_bytes(events[cut + 1 :])
     assert leaked == 0, f"{leaked} bytes of Roma's audio leaked past the barge-in"
 
@@ -227,11 +231,10 @@ def test_the_same_utterance_uninterrupted_plays_through():
     than "nothing ever reaches the wire" -- the failure mode that let the missing
     `keepCallAlive` and the never-opened `OpeningTurnGuard` both look healthy.
     """
-    ws, serializer = _run_utterance(interrupt=False)
+    ws, _serializer = _run_utterance(interrupt=False)
     events = _events(ws)
 
-    assert "clearAudio" not in [e.get("event") for e in events]
-    assert serializer.clear_events == 0
+    assert "clear" not in [e.get("event") for e in events]
     assert _roma_bytes(events) == UTTERANCE_ULAW_BYTES
 
     interrupted_ws, _ = _run_utterance(interrupt=True)

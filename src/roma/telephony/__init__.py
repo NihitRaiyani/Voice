@@ -1,19 +1,9 @@
-"""Roma telephony spine (docs/10 Step 1).
+"""Roma's Twilio voice and bidirectional Media Streams spine."""
 
-Outbound Vobiz call + a bidirectional `<Stream>` websocket into a bare Pipecat transport,
-gated by the Gate-0 pre-dial check and speaking only filter-approved canned audio.
-
-Vobiz carries the SIP leg to the PSTN itself and forks the call audio to us over a WebSocket,
-so nothing here speaks SIP — see `docs/decisions.md` for why that decided the whole shape.
-
-`build_media_app` pulls in the Pipecat/FastAPI stack, so it is imported lazily —
-`roma.telephony.dialer` / `answer` / `canned` stay usable without spinning that up.
-"""
-
-from roma.telephony.answer import answer_xml
 from roma.telephony.dialer import DialResult, place_call
+from roma.telephony.twiml import connect_stream_twiml
 
-__all__ = ["place_call", "DialResult", "answer_xml", "build_media_app"]
+__all__ = ["place_call", "DialResult", "connect_stream_twiml", "build_media_app"]
 
 
 def __getattr__(name: str):
