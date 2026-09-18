@@ -76,7 +76,7 @@ def mount_web_api(app, *, reachable_fn=None) -> None:
     from roma.dialer.window import CALL_TIMEZONE
     from roma.postcall.paths import spend_ledger_path
     from roma.spend import SpendLedger
-    from roma.telephony.dialer import build_vobiz_client
+    from roma.telephony.dialer import build_twilio_client
     from roma.telephony.render import render_trimmed
 
     s = get_settings()
@@ -178,7 +178,7 @@ def mount_web_api(app, *, reachable_fn=None) -> None:
             )
 
         try:
-            client = build_vobiz_client()
+            client = build_twilio_client()
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=f"cannot dial: {exc}") from exc
 
@@ -190,7 +190,7 @@ def mount_web_api(app, *, reachable_fn=None) -> None:
                 OutboundLead(phone=to_number, branch="Vadodara"),
                 store=RedisLeadStore(s.redis_url.get_secret_value()),
                 client=client,
-                from_number=s.vobiz_from_number.get_secret_value(),
+                from_number=s.twilio_from_number.get_secret_value(),
                 base_url=s.public_base_url.rstrip("/"),
                 opener_store=OpenerStore(s.redis_url.get_secret_value()),
                 render=lambda text: render_trimmed(s.sarvam_api_key.get_secret_value(), text),

@@ -125,17 +125,20 @@ def test_a_dead_lead_store_fails_the_dial_closed_before_the_carrier_is_touched()
     client.kill()
     fired = []
 
-    class _WatchingVobiz:
-        def create_call(self, **kw):
+    class _WatchingCalls:
+        def create(self, **kw):
             fired.append(kw)
-            return {"request_uuid": "u-1"}
+            return SimpleNamespace(sid="CA" + "1" * 32)
+
+    class _WatchingTwilio:
+        calls = _WatchingCalls()
 
     with pytest.raises(DialPrereqError):
         asyncio.run(
             trigger_outbound_call(
                 OutboundLead(phone="+919876543210", branch="Vadodara"),
                 store=RedisLeadStore(client=client),
-                client=_WatchingVobiz(),
+                client=_WatchingTwilio(),
                 from_number="+917971543192",
                 base_url="https://example.test",
             )
@@ -154,9 +157,9 @@ def test_a_redis_outage_surfaces_as_503_not_carrier_refused(monkeypatch):
     # outside 09:00-21:00 IST before the Redis failure under test is ever reached.
     monkeypatch.setattr("roma.dialer.precall.in_calling_window", lambda now: True)
     env = {
-        "VOBIZ_FROM_NUMBER": "+917971543192",
-        "VOBIZ_AUTH_ID": "MA_TEST",
-        "VOBIZ_AUTH_TOKEN": "tok_test",
+        "TWILIO_FROM_NUMBER": "+16295550100",
+        "TWILIO_ACCOUNT_SID": "AC" + "1" * 32,
+        "TWILIO_AUTH_TOKEN": "tok_test",
         "SARVAM_API_KEY": "sk-test",
         "OPENAI_API_KEY": "sk-test",
         "REDIS_URL": "redis://127.0.0.1:1/0",

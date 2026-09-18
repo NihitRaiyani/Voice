@@ -1,37 +1,4 @@
-"""Trigger one outbound call: store the lead, mint a per-call answer URL, POST to Vobiz.
-
-## The request shape is COPIED, not derived
-
-From `docs.vobiz.ai/docs/call/make-call`, verbatim:
-
-    POST /api/v1/Account/{auth_id}/Call/
-    {
-      "from": "14155551234",
-      "to": "+919876543210",
-      "answer_url": "https://example.com/answer",
-      "answer_method": "POST"
-    }
-    -> 200 {"api_id": ..., "request_uuid": ..., "message": "Call fired"}
-
-Four fields, exactly those spellings. `telephony.dialer.VobizClient.create_call` already
-sends precisely this and is reused unchanged rather than reimplemented here.
-
-This is deliberate and the reason is scar tissue: `keepCallAlive="true"` was REMOVED from the
-answer XML once because the omission was reasoned out from how the protocol ought to behave.
-Vobiz answered the call, fetched the XML, never opened the WebSocket, and hung up two seconds
-later. The docs had said it was required. Do not reason about Vobiz's field names — read them.
-
-## Why the answer URL is per call
-
-Vobiz accepts no metadata field, so the lead record cannot ride the API call. The token in
-`?lead=` is the only channel from trigger to conversation; see `dialer.leadstore`.
-
-## What this does NOT do
-
-No DNC check, no calling-window check, no spend gate. Those live in `dialer.precall` and this
-function does not call them — `place_call` in `telephony.dialer` is the gated entry point.
-Nothing here is clearance to dial a real lead (docs/decisions.md, LOCKED).
-"""
+"""Store an outbound lead before asking Twilio to place the call."""
 
 import logging
 import secrets
@@ -49,7 +16,7 @@ LEAD_TOKEN_BYTES = 32
 class DialPrereqError(RuntimeError):
     """A prerequisite of the dial failed BEFORE the carrier was asked to do anything.
 
-    Exists so the API layer can tell "our own store is down" apart from "Vobiz refused the
+    Exists so the API layer can tell "our own store is down" apart from "Twilio refused the
     call". Both used to surface as `502 carrier refused (<type>)`, which sent the operator
     to the carrier dashboard for a Redis outage.
     """
@@ -57,7 +24,7 @@ class DialPrereqError(RuntimeError):
 
 @dataclass(frozen=True)
 class TriggeredCall:
-    """What the trigger returns. `request_uuid` is Vobiz's handle for the fired call."""
+    """What the trigger returns. `request_uuid` is Twilio's Call SID."""
 
     lead_token: str
     answer_url: str
@@ -87,7 +54,7 @@ async def trigger_outbound_call(
 ) -> TriggeredCall:
     """Store the lead under a fresh token, then fire the call at its own answer URL.
 
-    Order matters: the record is written BEFORE the call is placed. Vobiz fetches the answer
+    Order matters: the record is written BEFORE the call is placed. Twilio fetches the answer
     URL the instant the callee picks up, which on a fast pickup is well under a second — a
     write that happened after the POST would race the carrier and Roma would answer a call
     knowing nothing about the person she dialled.
@@ -101,7 +68,12 @@ async def trigger_outbound_call(
         raise DialPrereqError("call store (redis) unavailable") from exc
 
     answer_url = build_answer_url(base_url, lead_token)
-    payload = client.create_call(to=lead.phone, from_=from_number, answer_url=answer_url)
+    call = client.calls.create(
+        to=lead.phone,
+        from_=from_number,
+        url=answer_url,
+        method="POST",
+    )
 
     # Render the opener into the RING, after the POST rather than before it. The clip is a
     # latency optimisation and the call is the product: a slow or failed render must delay
@@ -120,7 +92,7 @@ async def trigger_outbound_call(
             # render to this and the log could not say why.
             _log.exception("opener pre-render failed; the greeting will be synthesized live")
 
-    request_uuid = (payload or {}).get("request_uuid")
+    request_uuid = str(call.sid)
     # The lead's number is PII (docs/07) and the token is an authority: neither is logged.
     _log.info(
         "outbound call fired: request_uuid=%s segment=%s named=%s",

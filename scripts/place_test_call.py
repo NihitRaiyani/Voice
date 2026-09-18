@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Place ONE live Vobiz test call into the `<Stream>` /ws spine (docs/10 Step 1).
+"""Place ONE live Twilio test call into the `<Stream>` /ws spine (docs/10 Step 1).
 
 The callee must be on the StubRegistry consented allowlist. Test numbers ONLY — never a
 real lead (HANDOFF landmine).
 
-Vobiz fetches `<base>/answer` when the callee picks up and Roma returns XML pointing at
+Twilio fetches `<base>/answer` when the callee picks up and Roma returns XML pointing at
 `<base>/ws`, so the base must be publicly reachable over HTTPS — a cloudflared tunnel in dev,
 a publicly reachable origin in prod.
 
@@ -18,7 +18,7 @@ herself, because from her side nobody dialled anybody. That is not a bug in the 
 it is this script being pointed at the wrong path. Call e7671f22 was lost to it.
 
 Pass any lead detail and the call goes out through `trigger_outbound_call`, which writes
-the record to Redis under a fresh token BEFORE dialling and hands Vobiz `/answer?lead=…`.
+the record to Redis under a fresh token BEFORE dialling and hands Twilio `/answer?lead=…`.
 """
 
 import argparse
@@ -36,7 +36,7 @@ from roma.dialer.window import (
 )
 from roma.postcall.paths import spend_ledger_path
 from roma.spend import SpendLedger
-from roma.telephony.dialer import build_vobiz_client, place_call, precall_check
+from roma.telephony.dialer import build_twilio_client, place_call, precall_check
 
 
 def main() -> int:
@@ -82,7 +82,7 @@ def main() -> int:
     # that as a missing capability, not as a crash — the media server and the whole inbound
     # path run fine without them, and a traceback here reads like a broken build.
     try:
-        client = build_vobiz_client()
+        client = build_twilio_client()
     except RuntimeError as exc:
         print(f"cannot dial: {exc}", file=sys.stderr)
         return 2
@@ -139,7 +139,7 @@ def main() -> int:
                 lead,
                 store=store,
                 client=client,
-                from_number=s.vobiz_from_number.get_secret_value(),
+                from_number=s.twilio_from_number.get_secret_value(),
                 base_url=base,
                 opener_store=opener_store,
                 render=_render,
@@ -164,7 +164,7 @@ def main() -> int:
         now,
         registry,
         client,
-        s.vobiz_from_number.get_secret_value(),
+        s.twilio_from_number.get_secret_value(),
         answer_url,
         spend=ledger,
         budget_inr=s.openai_budget_inr,

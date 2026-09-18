@@ -32,7 +32,9 @@ from fastapi.testclient import TestClient
 _DATA_DIR = tempfile.mkdtemp(prefix="roma-api-tests-")
 
 BASE_ENV = {
-    "VOBIZ_FROM_NUMBER": "+917971543192",
+    "TWILIO_ACCOUNT_SID": "AC" + "1" * 32,
+    "TWILIO_AUTH_TOKEN": "test-auth-token",
+    "TWILIO_FROM_NUMBER": "+16295550100",
     "SARVAM_API_KEY": "sk-test",
     "OPENAI_API_KEY": "sk-test",
     "REDIS_URL": "redis://localhost:6379/0",
@@ -361,7 +363,7 @@ def test_a_non_200_from_the_base_url_is_treated_as_unreachable():
 
 
 def test_a_carrier_rejection_is_502_not_an_unhandled_500(client, monkeypatch):
-    """Vobiz answers a number it will not dial with a 400, which `create_call` raises.
+    """A Twilio rejection must surface as an actionable upstream failure.
 
     Unhandled that reached the operator as a bare 500, which says "we crashed" when the truth
     is "the carrier refused" — different problem, different fix, and only one of them is ours.
@@ -369,7 +371,7 @@ def test_a_carrier_rejection_is_502_not_an_unhandled_500(client, monkeypatch):
     """
 
     async def _boom(*a, **kw):
-        raise RuntimeError("Vobiz said 400")
+        raise RuntimeError("Twilio said 400")
 
     monkeypatch.setattr("roma.telephony.webapi.trigger_outbound_call", _boom, raising=False)
     res = client.post("/api/call", json={"to_number": ALLOWED}, headers=AUTH)

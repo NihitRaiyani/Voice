@@ -1,13 +1,8 @@
-"""The outbound trigger: lead record in Redis, per-call answer URL, Vobiz's exact shape.
-
-The request-shape tests are the point of this file. `keepCallAlive="true"` was once removed
-from the answer XML by reasoning about how the protocol ought to behave; Vobiz answered,
-fetched the XML, never opened the socket, and hung up. These pin the four field names against
-the documented example so the same class of mistake fails offline instead of on a live call.
-"""
+"""The outbound trigger: lead record in Redis and Twilio Calls API request shape."""
 
 import asyncio
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -40,24 +35,25 @@ class _FakeRedis:
         return self.data.get(key)
 
 
-class _FakeVobiz:
+class _FakeTwilio:
     """Records exactly what would go on the wire."""
 
-    def __init__(self, payload=None):
+    def __init__(self, sid="CA" + "1" * 32):
         self.calls = []
-        self._payload = (
-            payload
-            if payload is not None
-            else {
-                "api_id": "a-1",
-                "request_uuid": "r-1",
-                "message": "Call fired",
-            }
-        )
+        self.sid = sid
+        self.calls_api = self
 
-    def create_call(self, *, to, from_, answer_url):
-        self.calls.append({"to": to, "from_": from_, "answer_url": answer_url})
-        return self._payload
+    @property
+    def calls(self):
+        return self.calls_api
+
+    @calls.setter
+    def calls(self, value):
+        self.created = value
+
+    def create(self, **kwargs):
+        self.created.append(kwargs)
+        return SimpleNamespace(sid=self.sid)
 
 
 LEAD = OutboundLead(
@@ -91,22 +87,22 @@ def test_the_lead_lands_in_redis_before_the_call_is_fired():
     """
     redis, seen = _FakeRedis(), []
 
-    class _WatchingVobiz(_FakeVobiz):
-        def create_call(self, **kw):
+    class _WatchingTwilio(_FakeTwilio):
+        def create(self, **kw):
             seen.append(dict(redis.data))  # snapshot Redis AT dial time
-            return super().create_call(**kw)
+            return super().create(**kw)
 
     store = RedisLeadStore(client=redis)
-    result = _trigger(store, _WatchingVobiz())
+    result = _trigger(store, _WatchingTwilio())
 
-    assert seen, "create_call was never invoked"
+    assert seen, "calls.create was never invoked"
     assert lead_key(result.lead_token) in seen[0], "lead was not stored before dialling"
 
 
 def test_the_record_round_trips_and_carries_a_ttl():
     redis = _FakeRedis()
     store = RedisLeadStore(client=redis)
-    result = _trigger(store, _FakeVobiz())
+    result = _trigger(store, _FakeTwilio())
 
     got = asyncio.run(store.get(result.lead_token))
     assert got == LEAD
@@ -116,7 +112,7 @@ def test_the_record_round_trips_and_carries_a_ttl():
 def test_reading_the_record_is_not_destructive():
     """A carrier retry of the answer webhook must not get an amnesiac call."""
     store = RedisLeadStore(client=_FakeRedis())
-    result = _trigger(store, _FakeVobiz())
+    result = _trigger(store, _FakeTwilio())
     assert asyncio.run(store.get(result.lead_token)) is not None
     assert asyncio.run(store.get(result.lead_token)) is not None
 
@@ -134,61 +130,30 @@ def test_an_unknown_or_corrupt_token_degrades_instead_of_raising():
 # --- the request shape, copied from docs/call/make-call -----------------------
 
 
-def test_the_call_payload_matches_vobizs_documented_fields_exactly(monkeypatch):
-    """Verbatim from docs.vobiz.ai/docs/call/make-call:
-
-        {"from": ..., "to": ..., "answer_url": ..., "answer_method": "POST"}
-
-    Exactly four keys, exactly those spellings. An EXTRA key is a failure too: Vobiz was
-    reasoned about once already and it cost a live call.
-    """
-    import httpx
-
-    from roma.telephony.dialer import VobizClient
-
-    sent = {}
-
-    class _R:
-        status_code = 200
-        content = b"{}"
-
-        @staticmethod
-        def raise_for_status():
-            return None
-
-        @staticmethod
-        def json():
-            return {"request_uuid": "r-1", "message": "Call fired"}
-
-    def _post(url, headers=None, json=None, timeout=None):
-        sent["url"], sent["json"], sent["headers"] = url, json, headers
-        return _R()
-
-    monkeypatch.setattr(httpx, "post", _post)
-
-    VobizClient(auth_id="AID", auth_token="TOK").create_call(
-        to="+919876543210", from_="14155551234", answer_url="https://x/answer"
-    )
-
-    assert sent["url"].endswith("/Account/AID/Call/")
-    assert set(sent["json"]) == {"from", "to", "answer_url", "answer_method"}
-    assert sent["json"]["answer_method"] == "POST"
-    assert sent["json"]["from"] == "14155551234"
-    assert sent["json"]["to"] == "+919876543210"
-    assert sent["json"]["answer_url"] == "https://x/answer"
-    assert set(sent["headers"]) == {"X-Auth-ID", "X-Auth-Token"}
+def test_the_call_payload_matches_twilio_calls_api():
+    store = RedisLeadStore(client=_FakeRedis())
+    client = _FakeTwilio()
+    result = _trigger(store, client)
+    assert client.created == [
+        {
+            "to": LEAD.phone,
+            "from_": "+917971543192",
+            "url": result.answer_url,
+            "method": "POST",
+        }
+    ]
 
 
 def test_every_call_gets_its_own_answer_url_carrying_its_own_token():
     store = RedisLeadStore(client=_FakeRedis())
-    client = _FakeVobiz()
+    client = _FakeTwilio()
     a, b = _trigger(store, client), _trigger(store, client)
 
     assert a.lead_token != b.lead_token
-    assert client.calls[0]["answer_url"] != client.calls[1]["answer_url"]
-    assert client.calls[0]["answer_url"] == a.answer_url
+    assert client.created[0]["url"] != client.created[1]["url"]
+    assert client.created[0]["url"] == a.answer_url
     assert a.answer_url.startswith("https://host.example/answer?lead=")
-    assert a.request_uuid == "r-1"
+    assert a.request_uuid == "CA" + "1" * 32
 
 
 def test_the_answer_url_survives_a_base_url_with_a_trailing_slash():
@@ -199,7 +164,7 @@ def test_the_token_round_trips_through_the_query_string():
     from urllib.parse import parse_qs, urlparse
 
     store = RedisLeadStore(client=_FakeRedis())
-    result = _trigger(store, _FakeVobiz())
+    result = _trigger(store, _FakeTwilio())
     q = parse_qs(urlparse(result.answer_url).query)
     assert lead_token_from_query({"lead": q["lead"][0]}) == result.lead_token
     assert lead_token_from_query({}) is None

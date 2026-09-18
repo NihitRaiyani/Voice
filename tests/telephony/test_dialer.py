@@ -1,4 +1,5 @@
 from datetime import datetime
+from types import SimpleNamespace
 
 from roma.dialer import CONSENT_LINE
 from roma.dialer.dnd import StubRegistry
@@ -14,14 +15,13 @@ def _ist(hour):
 
 
 class _RecordingClient:
-    """Mock Vobiz client: records create_call(...) invocations, never touches the network."""
-
     def __init__(self):
         self.created = []
+        self.calls = self
 
-    def create_call(self, **kwargs):
+    def create(self, **kwargs):
         self.created.append(kwargs)
-        return {"call_uuid": "CA_fake_uuid"}
+        return SimpleNamespace(sid="CA_fake_uuid")
 
 
 def test_blocked_verdict_never_dials():
@@ -60,8 +60,6 @@ def test_a_spent_budget_never_dials(tmp_path):
 
 
 def test_may_dial_places_one_call_pointing_at_the_answer_url():
-    """Vobiz takes an answer_url and fetches the XML when the callee picks up — Twilio took
-    its TwiML inline, which is why this argument changed shape rather than name."""
     client = _RecordingClient()
     registry = StubRegistry(consented={PHONE})
     result = place_call(PHONE, _ist(14), registry, client, FROM, ANSWER)
@@ -70,19 +68,14 @@ def test_may_dial_places_one_call_pointing_at_the_answer_url():
     assert result.call_sid == "CA_fake_uuid"
     assert result.consent_line == CONSENT_LINE
 
-    assert len(client.created) == 1
-    kwargs = client.created[0]
-    assert kwargs["to"] == PHONE
-    assert kwargs["from_"] == FROM
-    assert kwargs["answer_url"] == ANSWER
+    assert client.created == [
+        {"to": PHONE, "from_": FROM, "url": ANSWER, "method": "POST"}
+    ]
 
 
-def test_the_call_id_survives_an_unfamiliar_response_key():
-    """The exact key Vobiz returns is not pinned down in the docs we have. It is used for
-    logging and as a filename/Redis key, and `media.py` learns the authoritative id from the
-    stream's `start` event regardless — so an unknown shape must degrade, never raise."""
-    from roma.telephony.dialer import _call_id_from
+def test_the_call_sid_degrades_when_the_sdk_response_has_none():
+    from roma.telephony.dialer import _created_call_sid
 
-    assert _call_id_from({"request_uuid": "RQ_1"}) == "RQ_1"
-    assert _call_id_from({"something_else": "x"}) is None
-    assert _call_id_from(None) is None
+    assert _created_call_sid(SimpleNamespace(sid="CA_1")) == "CA_1"
+    assert _created_call_sid(SimpleNamespace(sid=None)) is None
+    assert _created_call_sid(None) is None
