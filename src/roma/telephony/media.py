@@ -33,10 +33,10 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl
 
 import httpx
-from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from openai import AsyncOpenAI
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
@@ -59,6 +59,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.processors.audio.vad_processor import VADProcessor
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.sarvam.stt import SarvamSTTService
 from pipecat.services.sarvam.tts import SarvamTTSService
@@ -93,7 +94,6 @@ from roma.postcall.queue import RedisPostcallQueue
 from roma.postcall.spool import JobSpool, SpoolFallbackQueue
 from roma.spend import SpendLedger, Usage
 from roma.telephony import canned
-from roma.telephony.answer import answer_xml
 from roma.telephony.backchannel import (
     BACKCHANNEL_MAX_SECS,
     ENDPOINT_CONTINUATION_SECS,
@@ -120,7 +120,6 @@ from roma.telephony.recorder import (
 )
 from roma.telephony.sentences import InterruptibleSentenceAggregator
 from roma.telephony.silence import SilenceWatchdog
-from roma.telephony.streamauth import PendingStreams
 from roma.telephony.transcript import TranscriptionLogger
 from roma.telephony.tts import TTSAudioSanitizer
 from roma.telephony.turnflight import TurnFlight
@@ -128,7 +127,8 @@ from roma.telephony.turntaking import (
     AdaptiveEndpointStopStrategy,
     BackchannelAwareUserTurnStartStrategy,
 )
-from roma.telephony.vobiz import VobizFrameSerializer
+from roma.telephony.twilio_auth import external_url, valid_twilio_signature
+from roma.telephony.twiml import connect_stream_twiml
 
 _log = logging.getLogger("roma.telephony")
 
@@ -384,21 +384,18 @@ _PRELUDE_TIMEOUT_SECS = 10.0
 
 @dataclass(frozen=True)
 class StreamStart:
-    """What Vobiz's `start` event tells us about the call it is about to stream.
-
-    `media_format` is not decoration: Vobiz declares the inbound encoding and rate per
-    connection and supports L16 as well as μ-law, so the serializer decodes what was
-    announced rather than what we assumed (see `telephony/vobiz.py`).
-    """
+    """Identity and format announced by Twilio's Media Streams start event."""
 
     stream_id: str
-    call_id: "str | None"
-    encoding: "str | None"
-    sample_rate: "int | None"
+    account_id: str | None
+    call_id: str | None
+    encoding: str | None
+    sample_rate: int | None
+    custom_parameters: dict[str, str]
 
 
 async def _read_start(websocket: WebSocket) -> StreamStart:
-    """Consume Vobiz's leading events until `start`; return the stream identity.
+    """Consume Twilio's leading events until `start`; return the stream identity.
 
     Raises ValueError on a malformed, missing or absent start so the caller can reject the
     connection instead of crashing on a KeyError.
@@ -421,17 +418,20 @@ async def _read_start(websocket: WebSocket) -> StreamStart:
             continue
         if isinstance(message, dict) and message.get("event") == "start":
             start = message.get("start") or {}
-            stream_id = start.get("streamId")
+            stream_id = start.get("streamSid") or message.get("streamSid")
             if not stream_id:
-                raise ValueError("Vobiz start event missing streamId")
+                raise ValueError("Twilio start event missing streamSid")
             fmt = start.get("mediaFormat") or {}
+            custom = start.get("customParameters") or {}
             return StreamStart(
-                stream_id=stream_id,
-                call_id=start.get("callId"),
+                stream_id=str(stream_id),
+                account_id=start.get("accountSid"),
+                call_id=start.get("callSid"),
                 encoding=fmt.get("encoding"),
                 sample_rate=fmt.get("sampleRate"),
+                custom_parameters={str(k): str(v) for k, v in custom.items()},
             )
-    raise ValueError("no well-formed start event within prelude bound")
+    raise ValueError("no well-formed Twilio start event within prelude bound")
 
 
 def build_vad(settings) -> SileroVADAnalyzer:
@@ -1076,16 +1076,10 @@ def build_media_app(
     build_queue_fn=build_postcall_queue,
     build_calendar_fn=build_calendar,
 ) -> FastAPI:
-    """FastAPI app exposing the Vobiz `<Stream>` routes: `/answer`, `/ws`, `/health`.
+    """FastAPI app exposing Twilio's `/answer`, `/ws`, and `/health` routes.
 
-    `auto_hang_up` (default False) would make the serializer hang up via REST on end. It
-    defaulted to True while this was Twilio, where the REST hang-up was needed because TwiML
-    left the call up after the stream. That default is wrong for Vobiz and dangerous as a
-    leftover: the `<Stream>` element deliberately omits `keepCallAlive`, so the call already
-    ends when the socket closes, and `VobizFrameSerializer` REFUSES to construct with
-    `auto_hang_up=True` unless REST credentials are present — which would have failed every
-    call on a host that has none. Off is both correct and the only working setting today; the
-    REST hang-up endpoint itself is unverified (`telephony/vobiz.py`).
+    `auto_hang_up` controls whether Pipecat ends the Twilio call through the REST API when
+    the pipeline finishes. Production enables it; offline tests leave it disabled.
     `build_stt_fn` builds the STT stage per connection (injected so offline tests /
     verify_media can pass a stub instead of opening a live Sarvam socket).
     `build_vad_fn` builds the input VAD per connection; it returns an analyzer or
@@ -1150,10 +1144,6 @@ def build_media_app(
     # (a live silent channel reads as a dropped agent, whatever the filler policy).
     app.state.holding = load_holding()
 
-    # Tokens minted at /answer and redeemed at /ws — see telephony/streamauth.py for why
-    # this replaced the Twilio account-SID check rather than correlating on `callId`.
-    app.state.pending_streams = PendingStreams()
-
     # Where a triggered outbound call's dynamic variables live between the dial and the
     # pickup. Redis rather than a dict, deliberately: `PendingStreams` above is already an
     # in-process map and already the reason this process cannot be replicated, and a lead
@@ -1191,67 +1181,53 @@ def build_media_app(
 
     @app.post("/answer")
     async def answer(request: Request) -> Response:
-        """Vobiz fetches this when the callee picks up; the XML points it at `/ws`.
+        """Validate Twilio and return bidirectional Media Streams TwiML."""
+        params = dict(parse_qsl((await request.body()).decode("utf-8"), keep_blank_values=True))
+        signature_url = external_url(
+            settings.public_base_url, request.url.path, request.url.query
+        )
+        if not valid_twilio_signature(
+            signature_url,
+            params,
+            request.headers.get("x-twilio-signature", ""),
+            settings.twilio_auth_token.get_secret_value(),
+        ):
+            raise HTTPException(status_code=403, detail="invalid Twilio signature")
 
-        New surface. Twilio took its TwiML inline in the REST call, so it never made an HTTP
-        request to this host — with Vobiz the answer is fetched, which is what makes the
-        minted token possible in the first place.
-        """
-        call_id = None
-        with contextlib.suppress(Exception):
-            # Vobiz posts form-encoded call parameters. Accept the spellings it is documented
-            # to use for status callbacks; a miss costs observability, never the call, because
-            # the token is what authorises the socket.
-            form = await request.form()
-            for key in ("CallUUID", "callUUID", "call_uuid", "CallId", "callId"):
-                if form.get(key):
-                    call_id = str(form.get(key))
-                    break
-
-        # Outbound only: the trigger dialled with `…/answer?lead=<token>` because Vobiz's
-        # Call API carries no metadata field (dialer/trigger.py). Vobiz echoes the whole URL
-        # back here, so this is the one place the lead record can be picked up. Carried
-        # through to `/ws` in the stream URL rather than held in a dict — the record itself
-        # lives in Redis, and this process must not grow a second in-memory call map.
+        call_id = params.get("CallSid")
         lead_token = lead_token_from_query(request.query_params)
-
-        token = app.state.pending_streams.mint(call_id)
-        wss_url = f"{settings.public_base_url.rstrip('/').replace('https://', 'wss://', 1)}/ws?t={token}"
-        if lead_token:
-            wss_url += f"&{urlencode({'lead': lead_token})}"
+        wss_url = external_url(settings.public_base_url, "/ws", websocket=True)
         _log.info(
             "answer: streaming call_id=%s lead=%s",
             call_id or "-",
             "yes" if lead_token else "-",  # never the token itself: it is an authority
         )
-        # Vobiz only fetches this URL once the callee has actually PICKED UP, which makes
+        # Twilio only fetches this URL once the callee has actually PICKED UP, which makes
         # this the one honest "connected" signal in the system (docs/13). Fail-open: the web
         # UI showing a stale state is cosmetic, an exception here would cost the call.
         await _mark_call_connected(app, lead_token)
-        return Response(content=answer_xml(wss_url), media_type="application/xml")
+        return Response(
+            content=connect_stream_twiml(wss_url, lead_token=lead_token),
+            media_type="application/xml",
+        )
 
     @app.websocket("/ws")
     async def media_stream(websocket: WebSocket) -> None:
-        await websocket.accept()
-
-        # WHICH DIRECTION IS THIS CALL? Everything about the first eight seconds turns on it.
-        #
-        # Keyed on the PRESENCE of the lead token, not on whether its record resolves. We put
-        # that token in the answer URL ourselves, so it is proof we dialled — while the record
-        # behind it can be missing (Redis down, TTL expired) on a call that is still outbound.
-        # Deciding by the record would make a Redis outage silently turn an outbound call into
-        # an inbound-shaped one: Roma would open with "Hello, Weltec Institute" at t=0, over
-        # the top of a stranger's "hello?", on a call she placed.
-        lead_token = websocket.query_params.get("lead")
-        is_outbound = bool(lead_token)
-
-        # Authorise BEFORE reading the prelude: an unauthorised peer should not be able to
-        # hold a socket open for the full prelude timeout.
-        ok, expected_call_id = app.state.pending_streams.redeem(websocket.query_params.get("t"))
-        if not ok:
-            _log.warning("rejecting media stream: missing or spent connection token")
+        signature_url = external_url(
+            settings.public_base_url,
+            websocket.url.path,
+            websocket.url.query,
+            websocket=True,
+        )
+        if not valid_twilio_signature(
+            signature_url,
+            {},
+            websocket.headers.get("x-twilio-signature", ""),
+            settings.twilio_auth_token.get_secret_value(),
+        ):
             await websocket.close(code=1008)
             return
+        await websocket.accept()
 
         try:
             start = await _read_start(websocket)
@@ -1262,16 +1238,12 @@ def build_media_app(
 
         stream_sid = start.stream_id
         call_sid = start.call_id
-        if expected_call_id and call_sid and expected_call_id != call_sid:
-            # Not a rejection — the token already authorised this socket. Logged because a
-            # mismatch means our idea of which call this is has drifted from Vobiz's, and
-            # every downstream identifier (recording filename, Redis key, spend row) is
-            # keyed on it.
-            _log.warning(
-                "stream call id differs from the answered call (%s != %s)",
-                call_sid,
-                expected_call_id,
-            )
+        if start.account_id != settings.twilio_account_sid.get_secret_value():
+            _log.warning("rejecting media stream: Twilio account SID mismatch")
+            await websocket.close(code=1008)
+            return
+        lead_token = start.custom_parameters.get("lead")
+        is_outbound = bool(lead_token)
 
         current_call_sid.set(call_sid)
 
@@ -1299,15 +1271,13 @@ def build_media_app(
         # see `PickupGreeter._remaining_wait`.
         connected_at = time.monotonic()
 
-        serializer = VobizFrameSerializer(
-            stream_id=stream_sid,
-            call_id=call_sid,
-            auth_id=settings.vobiz_auth_id.get_secret_value(),
-            auth_token=settings.vobiz_auth_token.get_secret_value(),
-            params=VobizFrameSerializer.InputParams(auto_hang_up=auto_hang_up),
+        serializer = TwilioFrameSerializer(
+            stream_sid=stream_sid,
+            call_sid=call_sid,
+            account_sid=settings.twilio_account_sid.get_secret_value(),
+            auth_token=settings.twilio_auth_token.get_secret_value(),
+            params=TwilioFrameSerializer.InputParams(auto_hang_up=auto_hang_up),
         )
-        # Decode what Vobiz said it is sending, not what we assumed.
-        serializer.set_media_format(start.encoding, start.sample_rate)
         vad = build_vad_fn(settings)
         transport = FastAPIWebsocketTransport(
             websocket=websocket,
@@ -1332,7 +1302,7 @@ def build_media_app(
         # fires on the lead's first sound, and a Redis round trip at that moment would sit in
         # front of the audio it exists to make instant.
         opener_pcm = (
-            await _load_prerendered_opener(app, websocket.query_params.get("lead"))
+            await _load_prerendered_opener(app, lead_token)
             if is_outbound
             else None
         )
@@ -1382,7 +1352,7 @@ def build_media_app(
             # a FRESH state: a resumed call already carries what it learned, and re-seeding
             # would overwrite a name the lead corrected mid-call with the one the CRM had.
             seed = dict(DEFAULT_LEAD)
-            lead = await _load_triggered_lead(app, websocket.query_params.get("lead"))
+            lead = await _load_triggered_lead(app, lead_token)
             if lead is not None:
                 seed.update(lead.as_state_seed())
                 _log.info(
@@ -1590,9 +1560,9 @@ def build_media_app(
                     stream_sid,
                     counter.frame_count,
                     counter.byte_count,
-                    serializer.play_frames,
-                    serializer.play_bytes,
-                    serializer.clear_events,
+                    getattr(serializer, "play_frames", 0),
+                    getattr(serializer, "play_bytes", 0),
+                    getattr(serializer, "clear_events", 0),
                     state.phase,
                     phase_ctrl.won,
                     recorder.bytes_written if recorder is not None else 0,

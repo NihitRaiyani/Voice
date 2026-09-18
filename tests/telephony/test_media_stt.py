@@ -11,7 +11,9 @@ import pytest
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 
 REQUIRED_ENV = {
-    "VOBIZ_FROM_NUMBER": "+917971543192",
+    "TWILIO_ACCOUNT_SID": "AC" + "1" * 32,
+    "TWILIO_AUTH_TOKEN": "test-auth-token",
+    "TWILIO_FROM_NUMBER": "+16295550100",
     "SARVAM_API_KEY": "sarvam_test",
     "OPENAI_API_KEY": "openai_test",
     "REDIS_URL": "redis://localhost:6379/0",
@@ -393,7 +395,7 @@ def test_the_conversational_llm_caps_its_first_attempt_and_retries():
             sarvam_api_key="x",
             openai_api_key="x",
             redis_url="redis://localhost:6379",
-            vobiz_from_number="+910000000000",
+            twilio_from_number="+16295550100",
         )
     )
     assert llm._retry_on_timeout is True, "a stalled completion would hang the call again"
@@ -423,7 +425,7 @@ def test_stt_connect_does_not_block_the_pipeline_start():
             sarvam_api_key="x",
             openai_api_key="x",
             redis_url="redis://localhost:6379",
-            vobiz_from_number="+910000000000",
+            twilio_from_number="+16295550100",
         )
     )
     assert isinstance(stt, NonBlockingStartSarvamSTT)
@@ -503,7 +505,7 @@ def test_the_tts_connect_does_not_block_the_pipeline_start_either():
             sarvam_api_key="x",
             openai_api_key="x",
             redis_url="redis://localhost:6379",
-            vobiz_from_number="+910000000000",
+            twilio_from_number="+16295550100",
         )
     )
     assert isinstance(tts, NonBlockingStartSarvamTTS)
@@ -541,7 +543,7 @@ def test_the_tts_still_sets_the_sample_rate_its_config_message_needs():
             sarvam_api_key="x",
             openai_api_key="x",
             redis_url="redis://localhost:6379",
-            vobiz_from_number="+910000000000",
+            twilio_from_number="+16295550100",
         )
     )
     tts._connect = lambda: asyncio.sleep(0)
@@ -569,7 +571,7 @@ def test_a_failed_tts_prewarm_does_not_take_down_pipeline_start():
             sarvam_api_key="x",
             openai_api_key="x",
             redis_url="redis://localhost:6379",
-            vobiz_from_number="+910000000000",
+            twilio_from_number="+16295550100",
         )
     )
 
@@ -601,7 +603,7 @@ def test_a_concurrent_connect_does_not_open_a_second_socket():
             sarvam_api_key="x",
             openai_api_key="x",
             redis_url="redis://localhost:6379",
-            vobiz_from_number="+910000000000",
+            twilio_from_number="+16295550100",
         )
     )
 
@@ -647,7 +649,7 @@ def test_a_closed_socket_is_still_reconnected():
             sarvam_api_key="x",
             openai_api_key="x",
             redis_url="redis://localhost:6379",
-            vobiz_from_number="+910000000000",
+            twilio_from_number="+16295550100",
         )
     )
 

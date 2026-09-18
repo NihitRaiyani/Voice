@@ -33,7 +33,7 @@ def test_a_nameless_lead_still_gets_asked_for_a_name():
 
 
 def test_direction_is_decided_by_the_token_not_by_the_record(monkeypatch):
-    monkeypatch.setenv("VOBIZ_FROM_NUMBER", "+917971543192")
+    monkeypatch.setenv("TWILIO_FROM_NUMBER", "+16295550100")
     monkeypatch.setenv("SARVAM_API_KEY", "s")
     monkeypatch.setenv("OPENAI_API_KEY", "o")
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://host.example")

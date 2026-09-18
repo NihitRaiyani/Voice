@@ -12,7 +12,9 @@ import pytest
 from roma.telephony.media import CallHandles, _registered_call, active_calls, sole_call
 
 REQUIRED_ENV = {
-    "VOBIZ_FROM_NUMBER": "+917971543192",
+    "TWILIO_ACCOUNT_SID": "AC" + "1" * 32,
+    "TWILIO_AUTH_TOKEN": "test-auth-token",
+    "TWILIO_FROM_NUMBER": "+16295550100",
     "SARVAM_API_KEY": "sarvam_test",
     "OPENAI_API_KEY": "openai_test",
     "REDIS_URL": "redis://localhost:6379/0",
