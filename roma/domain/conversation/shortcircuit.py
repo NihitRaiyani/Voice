@@ -47,16 +47,16 @@ anyone noticed, and a compliance sentence must not fork on whether the router fi
 
 import logging
 
-from roma.controller.confirmguard import (
+from roma.domain.conversation.confirmguard import (
     SAFE_READBACK_HOLD_LINE,
     SAFE_SIGNOFF_LINE,
     lead_wants_out,
 )
-from roma.controller.state import spoken_slot
-from roma.guardrails.lexicon import SUBSTITUTIONS, BlockCategory
-from roma.guardrails.normalize import tokens
+from roma.domain.conversation.state import spoken_slot
+from roma.domain.safety.lexicon import SUBSTITUTIONS, BlockCategory
+from roma.domain.safety.normalize import tokens
 
-_log = logging.getLogger("roma.controller")
+_log = logging.getLogger("roma.domain.conversation")
 
 # "How much / what number" — the cue that turns a topic question into one docs/04 answers.
 QUANTITY_CUES = frozenset(

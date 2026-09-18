@@ -7,9 +7,8 @@ literal `{{...}}` in what reaches the model.
 import re
 
 import pytest
-
-from roma.controller.state import CallState
-from roma.llm.prompts import assemble_system_prompt, phase_max_tokens
+from roma.domain.conversation.prompts import assemble_system_prompt, phase_max_tokens
+from roma.domain.conversation.state import CallState
 
 CALL_STATE = CallState(branch="Vadodara", lead_name="Test Lead").as_prompt_vars()
 
@@ -42,7 +41,7 @@ def test_phase_max_tokens_is_a_positive_ceiling():
 
 
 def test_the_persona_states_roma_is_a_woman():
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md").lower()
     assert "you are a woman" in persona
@@ -53,7 +52,7 @@ def test_the_persona_states_roma_is_a_woman():
 def test_the_persona_forbids_re_asking_and_apologising():
     """Both were live failures: she re-asked education and city after answering noise, and
     opened turns with "mujhe maaf kijiye", which burns the turn and highlights the line."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md").lower()
     assert "never repeat yourself" in persona
@@ -67,7 +66,7 @@ def test_the_no_repeat_rule_covers_facts_not_only_questions():
     professionals hain jo abhi industry mein kaam kar rahe hain", then one turn later
     "faculty jo sikhate hain wo khud industry professionals hain", and the placement-guarantee
     answer twice in twenty seconds. Restating a fact in fresh words is still restating it."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md").lower()
     assert "applies to facts" in persona
@@ -110,7 +109,7 @@ def _lintable_lines(text: str):
 def test_no_prompt_fragment_uses_a_masculine_self_form_or_singular_address():
     """The persona can name the wrong forms (it is teaching them); the fragments must never
     MODEL them outside a ban, because the model copies register from what it is given."""
-    from roma.llm.prompts import _PROMPTS_DIR
+    from roma.domain.conversation.prompts import _PROMPTS_DIR
 
     fragments = [
         *sorted((_PROMPTS_DIR / "phases").glob("*.md")),
@@ -127,9 +126,9 @@ def test_no_runtime_canned_line_breaks_register():
     """Every FIXED string Roma can speak — substitutions, safe lines, fillers, status
     lines — must hold both rules. These bypass the LLM entirely, so no prompt can save
     them; the string itself is the behaviour."""
-    from roma.controller import confirmguard, offtopic, state
-    from roma.guardrails import lexicon
-    from roma.telephony import filler
+    from roma.domain.conversation import confirmguard, offtopic, state
+    from roma.domain.safety import lexicon
+    from roma.realtime import filler
 
     lines = [
         *[line for bank in offtopic.DEFLECTIONS.values() for line in bank],
@@ -160,7 +159,7 @@ def test_eval_reference_lines_use_the_respectful_plural():
     import json
     from pathlib import Path
 
-    root = Path(__file__).resolve().parents[2] / "evals" / "scripts"
+    root = Path(__file__).resolve().parents[3] / "evals" / "scripts"
     scripts = sorted(root.glob("*.jsonl"))
     assert scripts, "eval scripts directory went missing"
     for path in scripts:
@@ -173,7 +172,7 @@ def test_eval_reference_lines_use_the_respectful_plural():
 
 
 def _fragment(name: str) -> str:
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     return _read(f"phases/{name}.md")
 
@@ -212,7 +211,7 @@ def test_the_discovery_fragment_forbids_speaking_the_field_names():
 def test_every_discovery_slot_has_a_spoken_question_not_just_a_label():
     """Naming the field is exactly what produced "aapka passing year kya hai" — the
     fragment has to SHOW the sentence."""
-    from roma.controller.state import DISCOVERY_ORDER
+    from roma.domain.conversation.state import DISCOVERY_ORDER
 
     text = _fragment("p2_discover")
     for slot in DISCOVERY_ORDER:
@@ -240,7 +239,7 @@ def test_the_discovery_echo_offers_several_openers_not_one_to_copy():
 def test_branch_timings_are_a_hard_rule_not_only_a_phase_hint():
     """Roma offered "subah chaar baje" — 4 AM — with the window stated only in the P5
     fragment. Anything she must never do in ANY phase belongs in hard_rules."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     rules = _read("hard_rules.md")
     assert "das baje" in rules and "chhe baje" in rules
@@ -250,7 +249,7 @@ def test_branch_timings_are_a_hard_rule_not_only_a_phase_hint():
 def test_no_fragment_offers_a_slot_the_resolver_would_refuse():
     """`VISIT_HOUR_END` is 18, so "shaam chhe baje" (18:00) is closing time and gets
     refused. A fragment that models it teaches Roma to offer slots she cannot book."""
-    from roma.controller.state import PHASES
+    from roma.domain.conversation.state import PHASES
 
     for phase in PHASES:
         text = _fragment(phase)
@@ -261,7 +260,7 @@ def test_no_fragment_offers_a_slot_the_resolver_would_refuse():
 def test_the_persona_bans_the_mishearing_stall():
     """She said "Aapne thoda peeche kuch bola, mujhe samajh nahi aaya" and re-asked a
     question already answered — two rules broken in one turn."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "samajh nahi aaya" in persona
@@ -271,7 +270,7 @@ def test_the_persona_bans_the_mishearing_stall():
 def test_the_persona_bans_an_exclamation_on_every_turn():
     """ "Bohot accha!", "Great!", "Samajh gayi!", "Acha!" opened nearly every turn of the
     live call. Used every turn it stops carrying meaning and reads as a form."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "Bohot accha!" in persona and "EXCLAIM" in persona
@@ -291,15 +290,15 @@ def test_a_fresh_call_carries_no_time_instruction():
 def test_every_phase_fragment_carries_the_pacing_variable():
     """A phase that silently drops it is a phase where the clock stops existing — which is
     exactly where a call would overrun."""
-    from roma.controller.state import PHASES
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
+    from roma.domain.conversation.state import PHASES
 
     for phase in PHASES:
         assert "{{pacing}}" in _read(f"phases/{phase}.md"), phase
 
 
 def test_the_urgency_instruction_appears_once_the_call_runs_long():
-    from roma.controller.pacing import CLOSE_SECS, HURRY_SECS, PACING_LINES
+    from roma.domain.conversation.pacing import CLOSE_SECS, HURRY_SECS, PACING_LINES
 
     assert PACING_LINES["hurry"] in _prompt_at(HURRY_SECS, "p2_discover")
     assert PACING_LINES["close"] in _prompt_at(CLOSE_SECS, "p5_pivot")
@@ -324,7 +323,7 @@ def test_the_cached_prefix_stays_within_its_token_budget():
     without a ceiling the saving evaporates silently. If a rule genuinely needs more words,
     raise the ceiling in the same commit and say why — do not delete the test.
     """
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     # Raised twice on 2026-08-01, both times deliberately and in the same commit as the spend:
     #
@@ -353,8 +352,8 @@ def test_the_cached_prefix_stays_within_its_token_budget():
 def test_the_pacing_line_never_lands_in_the_cached_prefix():
     """persona -> hard_rules must stay byte-identical across a call's turns or OpenAI
     prefix caching stops hitting (docs/11). Only the phase fragment may vary."""
-    from roma.controller.pacing import OVER_SECS
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.pacing import OVER_SECS
+    from roma.domain.conversation.prompts import _read
 
     for name in ("persona.md", "hard_rules.md"):
         assert "{{pacing}}" not in _read(name), name
@@ -367,7 +366,7 @@ def test_the_pacing_line_never_lands_in_the_cached_prefix():
 def test_the_persona_tells_roma_the_call_is_short():
     """The bands handle the tail of the call; the persona has to stop her opening a
     counselling session in the first minute, when no band has fired yet."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "five minutes" in persona
@@ -375,7 +374,7 @@ def test_the_persona_tells_roma_the_call_is_short():
 
 
 def test_the_persona_prefers_a_concrete_detail_over_an_adjective():
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "CONCRETE, NOT ENTHUSIASTIC" in persona
@@ -398,7 +397,7 @@ def test_the_persona_understands_gujarati_without_speaking_it():
     survives from the transcripts is the half that IS free: she understands every word of
     the Gujarati, so nobody is ever asked to repeat themselves.
     """
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "UNDERSTAND EVERYTHING, ANSWER IN HINDI" in persona
@@ -430,7 +429,7 @@ def test_the_value_fragment_still_refuses_to_quote_outcomes():
 
 
 def test_the_pivot_and_close_fragments_carry_the_offer():
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     for phase in ("p5_pivot", "p7_close"):
         assert "{{offered_slots}}" in _read(f"phases/{phase}.md"), phase
@@ -441,7 +440,7 @@ def test_the_objection_fragment_carries_the_offer_it_reoffers():
     fragment did not RECEIVE that line: no `{{offered_slots}}`, no `{{slot_status}}`. The
     model was told to re-offer times it could not see, which is an invitation to invent
     them — the exact literal-copying failure the booking fragments are tested against."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     p6 = _read("phases/p6_objection.md")
     assert "{{offered_slots}}" in p6
@@ -454,7 +453,7 @@ def test_p2_and_p6_can_answer_a_structure_question_from_the_prompt_they_hold():
     model was not holding, and `{{known}}`/`{{said}}` are purely negative. Both fragments
     now carry the compact approved list, so the question is answered in one line and the
     phase machine still owns every transition."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     for phase in ("p2_discover", "p6_objection"):
         text = _read(f"phases/{phase}.md")
@@ -499,7 +498,7 @@ def test_the_offer_reaches_the_assembled_pivot_prompt():
 def test_the_phases_that_must_not_re_ask_carry_the_known_line():
     """Discovery, the pivot and the close all forbid re-asking something answered. The ban
     is only enforceable if the fragment is told what WAS answered."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     for phase in ("p2_discover", "p5_pivot", "p7_close"):
         assert "{{known}}" in _read(f"phases/{phase}.md"), phase
@@ -509,7 +508,7 @@ def test_hard_rules_separate_the_offer_times_from_the_opening_hours():
     """Roma told a live lead the branch runs "gyaarah se paanch" — the two OFFER times read
     as opening hours — and then refused a noon visit as outside them, with the branch open
     nine to six. Both facts now have to be in the rule that governs every phase."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     rules = _read("hard_rules.md")
     assert "SUGGESTION" in rules
@@ -521,7 +520,7 @@ _GUJARATI_RANGE = range(0x0A80, 0x0B00)
 
 
 def _all_prompt_text() -> dict:
-    from roma.llm.prompts import _PROMPTS_DIR
+    from roma.domain.conversation.prompts import _PROMPTS_DIR
 
     return {p.name: p.read_text(encoding="utf-8") for p in _PROMPTS_DIR.rglob("*.md")}
 
@@ -535,7 +534,7 @@ def test_no_fragment_tells_roma_to_switch_language():
 
 
 def test_the_persona_says_answer_in_hindi():
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "ANSWER IN HINDI" in persona
@@ -545,7 +544,7 @@ def test_the_persona_says_answer_in_hindi():
 def test_answering_in_hindi_is_a_hard_rule_not_only_a_persona_hint():
     """Persona-level register guidance is what the model overrode here, so the rule that
     governs every phase carries it too — same treatment as the branch timings."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     rules = _read("hard_rules.md")
     assert "ALWAYS ANSWER IN HINDI" in rules
@@ -565,7 +564,7 @@ def test_no_fragment_models_a_gujarati_sentence_for_roma_to_copy():
 def test_the_persona_bans_apologising_outright():
     """On CA1652a5e Roma said "Maaf kijiye" four times in five turns and never got back to
     the booking. The ban existed but named only the longer "mujhe maaf kijiye"."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "NEVER APOLOGISE" in persona
@@ -577,7 +576,7 @@ def test_the_persona_bans_every_form_of_apology():
     """Two calls, two different apologies, both through a ban that named only the first.
     CA1652a5e: "Maaf kijiye" four times in five turns. CA0460d52: "Mujhe khed hai, lekin
     three PM ka slot available nahi hai" — and three PM WAS available."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "NEVER APOLOGISE, IN ANY WORDS" in persona
@@ -599,9 +598,9 @@ def test_the_visiting_window_is_ten_to_six_everywhere_it_is_stated():
     corrected in the resolver but not in the prompt is a Roma who refuses times the machine
     accepts — which is exactly what happened when the two OFFER times leaked into her
     description of the opening hours (CA9933275)."""
-    from roma.controller.state import SLOT_STATUS_LINES
-    from roma.controller.timeresolve import VISIT_HOUR_END, VISIT_HOUR_START
-    from roma.llm.prompts import _read
+    from roma.domain.appointments.timeresolve import VISIT_HOUR_END, VISIT_HOUR_START
+    from roma.domain.conversation.prompts import _read
+    from roma.domain.conversation.state import SLOT_STATUS_LINES
 
     assert (VISIT_HOUR_START, VISIT_HOUR_END) == (10, 18)
     assert "das" in _read("hard_rules.md")
@@ -613,7 +612,7 @@ def test_the_hard_rules_say_any_time_in_the_window_is_bookable():
     """Roma told a live lead "slot Monday ko sirf subah 11 baje ya shaam paanch baje ka
     hai". Counselling runs 10-6 and a lead may walk in at any point inside it; the two
     OFFER times exist only so the lead is not asked to pick out of thin air."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     rules = _read("hard_rules.md")
     assert "no fixed slots" in rules.lower() or "There are no fixed slots" in rules
@@ -624,7 +623,7 @@ def test_the_hard_rules_ban_volunteering_the_recording():
     """She said "call bhi record ho raha hai" unasked, mid-answer, to a lead who had asked
     what topic they were discussing. Recording disclosure is a compliance line played at
     the start of the call or not at all — it is not hers to make."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     rules = _read("hard_rules.md")
     assert "NEVER VOLUNTEER THAT THE CALL IS RECORDED" in rules
@@ -634,7 +633,7 @@ def test_the_hard_rules_give_one_answer_for_the_location_question():
     """The lead asked where the branch is three times. She said the location would be
     explained AT the visit — which is not an answer — before eventually offering WhatsApp.
     A lead who does not know where to come will not come."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     rules = _read("hard_rules.md")
     assert "address comes on WhatsApp" in rules
@@ -677,7 +676,7 @@ def test_the_discovery_fragment_echoes_the_leads_own_word_back():
 def test_the_status_slot_is_asked_first():
     """The fragment's order and DISCOVERY_ORDER must agree, or Roma asks one question while
     the machine records the answer against another."""
-    from roma.controller.state import DISCOVERY_ORDER
+    from roma.domain.conversation.state import DISCOVERY_ORDER
 
     assert DISCOVERY_ORDER[0] == "lead_name"
     assert DISCOVERY_ORDER[1] == "current_status"
@@ -721,9 +720,9 @@ def test_no_prompt_tells_roma_to_say_something_the_filter_blocks():
 
     The prompt was changed, never the filter: docs/04's rules are the safety net and are not
     loosened to fit a phrase."""
-    from roma.controller.state import SLOT_STATUS_LINES
-    from roma.guardrails import screen
-    from roma.llm.prompts import _PROMPTS_DIR
+    from roma.domain.conversation.prompts import _PROMPTS_DIR
+    from roma.domain.conversation.state import SLOT_STATUS_LINES
+    from roma.domain.safety import screen
 
     example = re.compile(r'^-\s+(?:[^:]{0,40}:\s*)?"([^"]+)"\.?$')
     checked = 0
@@ -748,7 +747,7 @@ def test_the_persona_addresses_the_lead_in_the_gender_neutral_plural():
     Hindi's respectful plural ("aap kar rahe hain") carries no gender, so it is right for
     everyone and there is nothing to decide. The singular "kar rahe ho" / "kar rahi ho"
     forces a guess on every single turn."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "THE LEAD'S GENDER IS NOT YOURS TO GUESS" in persona
@@ -761,7 +760,7 @@ def test_no_fragment_models_a_gendered_singular_for_the_lead():
     plural, or she copies the singular and has to guess."""
     import re as _re
 
-    from roma.llm.prompts import _PROMPTS_DIR
+    from roma.domain.conversation.prompts import _PROMPTS_DIR
 
     singular = _re.compile(r"\b(rahe ho|rahi ho|rehte ho|rehti ho|karoge|chahoge|kahan ho)\b")
     for path in sorted((_PROMPTS_DIR / "phases").glob("*.md")):
@@ -773,7 +772,7 @@ def test_no_offer_line_means_no_time_talk_is_a_hard_rule():
     """P3's own ban lost to the persona's "YOUR ONE JOB: fix a specific visit day AND
     time". The rule the model can apply mechanically is the presence of the OFFER line,
     which `as_prompt_vars` renders only in the booking phases."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     rules = _read("hard_rules.md")
     assert "NO OFFER LINE, NO TIME TALK" in rules
@@ -808,8 +807,8 @@ def test_the_value_fragment_sells_placement_support_without_promising_it():
 def test_the_value_phase_has_room_for_a_real_explanation():
     """A 70-word cap bought one thin sentence. The phase where the lead decides needs
     enough to say something worth deciding on."""
-    from roma.controller.machine import P3_MAX_TURNS
-    from roma.llm.prompts import PHASE_WORD_CAPS
+    from roma.domain.conversation.machine import P3_MAX_TURNS
+    from roma.domain.conversation.prompts import PHASE_WORD_CAPS
 
     assert PHASE_WORD_CAPS["p3_value"] >= 100
     assert P3_MAX_TURNS >= 4
@@ -862,7 +861,7 @@ def test_the_discovery_fragment_asks_the_name_first_and_only_once():
 def test_the_persona_says_we_dialled_them():
     """The persona used to end 'You already know their name, city, and course interest from
     their WhatsApp chat.' On an inbound call every clause of that is false."""
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     persona = _read("persona.md")
     assert "YOU RANG THEM" in persona
@@ -878,8 +877,8 @@ def test_an_empty_variable_does_not_leave_a_doubled_space_in_the_example():
     The Shape line is an example the model copies verbatim, so whitespace damage in it is
     whitespace damage in what Bulbul is asked to speak.
     """
-    from roma.controller.state import CallState
-    from roma.llm.prompts import assemble_system_prompt
+    from roma.domain.conversation.prompts import assemble_system_prompt
+    from roma.domain.conversation.state import CallState
 
     nameless = assemble_system_prompt(CallState(branch="Vadodara").as_prompt_vars(), "p1_open")
     assert "Hello ji" in nameless
@@ -900,7 +899,12 @@ def test_the_spoken_opener_matches_the_p1_fragment_word_for_word():
     FIRST completion stalling — 64s and 18.6s. That turn's text is fully determined, so it
     must not wait on a network round trip to be produced.
     """
-    from roma.llm.prompts import OPENING_LINE_NAMED, OPENING_LINE_NAMELESS, _read, opening_line
+    from roma.domain.conversation.prompts import (
+        OPENING_LINE_NAMED,
+        OPENING_LINE_NAMELESS,
+        _read,
+        opening_line,
+    )
 
     fragment = _read("phases/p1_open.md")
     assert OPENING_LINE_NAMED.format(name="{{lead_name}}") in fragment, (
@@ -931,7 +935,7 @@ def test_p2_never_tells_roma_to_move_to_the_course_herself():
     `machine.next_phase` owns the P2 -> P3 transition and always has. Telling the model to
     move phases is not merely redundant, it is an invitation to skip discovery entirely.
     """
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     p2 = _read("phases/p2_discover.md").casefold()
     # The IMPERATIVE is what the model obeyed, so that is what is banned — a sentence

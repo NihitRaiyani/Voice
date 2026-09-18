@@ -10,13 +10,12 @@ import asyncio
 from datetime import UTC, datetime
 
 import pytest
-
-from roma.controller.state import CallState
-from roma.controller.store import InMemoryCallStateStore
-from roma.postcall.job import OUTCOME_LOCKED, OUTCOME_NO_LOCK, PostcallJob
-from roma.postcall.spool import JobSpool, SpoolFallbackQueue
-from roma.telephony.media import CallHandles, finalize_call
-from roma.telephony.recorder import CallRecorder
+from roma.domain.conversation.state import CallState
+from roma.realtime.pipeline import CallHandles, finalize_call
+from roma.realtime.recorder import CallRecorder
+from roma.repositories.redis.conversation_state import InMemoryCallStateStore
+from roma.workers.postcall.job import OUTCOME_LOCKED, OUTCOME_NO_LOCK, PostcallJob
+from roma.workers.postcall.spool import JobSpool, SpoolFallbackQueue
 
 NOW = datetime(2026, 7, 26, 10, 6, tzinfo=UTC)
 STARTED = datetime(2026, 7, 26, 10, 0, tzinfo=UTC)
@@ -232,7 +231,7 @@ def test_the_capture_processor_sits_after_the_output_transport():
     compliance artifact, and wrong in a way no other test would catch."""
     import inspect
 
-    from roma.telephony import media
+    from roma.realtime import pipeline as media
 
     src = inspect.getsource(media)
     out_idx = src.index("transport.output(),")
@@ -242,7 +241,7 @@ def test_the_capture_processor_sits_after_the_output_transport():
 
 
 def test_recording_can_be_switched_off_entirely():
-    from roma.config import Settings
+    from roma.core.config import Settings
 
     assert Settings.model_fields["recording_enabled"].default is True
     assert Settings.model_fields["recording_retention_days"].default == 90

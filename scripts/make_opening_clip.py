@@ -23,7 +23,7 @@ import asyncio
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import aiohttp
@@ -31,13 +31,12 @@ import aiohttp
 # Reused rather than reimplemented: same endpoint, same voice, same trim. Two renderers that
 # drift apart would put Roma's opener in a subtly different voice from her fillers.
 from make_filler_clips import RATE, render, trim_silence
+from roma.core.config import get_settings
+from roma.domain.safety import safe_output
+from roma.realtime.canned import OPENING_LINE
+from roma.realtime.ulaw import pcm16_to_ulaw
 
-from roma.config import get_settings
-from roma.guardrails import safe_output
-from roma.telephony.canned import OPENING_LINE
-from roma.telephony.ulaw import pcm16_to_ulaw
-
-ASSET = Path(__file__).resolve().parents[1] / "src/roma/telephony/assets/opening.ulaw"
+ASSET = Path(__file__).resolve().parents[1] / "roma/realtime/assets/opening.ulaw"
 
 # The whole point is that it is short. "Hello, Weltec Institute" is about a second; anything
 # much past that is Roma talking over a caller who rang to speak.

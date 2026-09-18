@@ -1,6 +1,6 @@
 """The `queue:postcall` reliable queue (docs/06 §3, docs/09, docs/08).
 
-Mirrors `roma.controller.store`'s seam exactly — a Protocol, an in-memory implementation
+Mirrors `roma.repositories.redis.conversation_state`'s seam exactly — a Protocol, an in-memory implementation
 for tests, and a Redis one whose `__init__` takes a URL (prod) or an injected client
 (tests use fakeredis) — with the `redis` import kept lazy so this package imports on a box
 that has no redis installed.
@@ -34,9 +34,9 @@ import contextlib
 import logging
 from typing import Protocol, runtime_checkable
 
-from roma.postcall.job import PostcallJob
+from roma.workers.postcall.job import PostcallJob
 
-_log = logging.getLogger("roma.postcall")
+_log = logging.getLogger("roma.workers.postcall")
 
 QUEUE_KEY = "queue:postcall"
 INFLIGHT_KEY = "queue:postcall:inflight"

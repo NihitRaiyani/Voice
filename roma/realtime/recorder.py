@@ -1,4 +1,4 @@
-"""Local call capture — the pipecat adapter for `roma.postcall` (docs/09 option 2).
+"""Local call capture — the pipecat adapter for `roma.workers.postcall` (docs/09 option 2).
 
 docs/09 offers two capture methods and insists one be chosen explicitly. We capture
 locally: the audio never leaves our infrastructure, which is what the Vadodara self-host
@@ -55,9 +55,9 @@ from pathlib import Path
 
 from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 
-from roma.postcall.paths import media_dir, open_private
+from roma.workers.postcall.paths import media_dir, open_private
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 RECORDING_SAMPLE_RATE = 8000
 RECORDING_CHANNELS = 2

@@ -43,7 +43,7 @@ from dataclasses import dataclass, field
 
 from pipecat.services.stt_service import STTService
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 
 @dataclass

@@ -18,7 +18,7 @@ is today's behaviour. That asymmetry is the right way round, because the failure
 is saying too much, not too little.
 """
 
-from roma.guardrails.normalize import tokens
+from roma.domain.safety.normalize import tokens
 
 # fact key -> the token sets that identify it. A fact matches when ANY of its token sets is
 # fully present in the line. Multi-token sets, so "batch" alone never matches BATCH_SIZE.

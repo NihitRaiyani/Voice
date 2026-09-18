@@ -4,7 +4,7 @@ One `CallState` per call, keyed by Twilio Call SID in Redis (`store.py`). It car
 the discovery slots, the phase-machine bookkeeping, and the win-condition fields. It is
 a plain dataclass — the phase is *state*, not an agent (the LangGraph rejection, docs/11).
 
-`as_prompt_vars()` is the bridge to `roma.llm.prompts.assemble_system_prompt`, which
+`as_prompt_vars()` is the bridge to `roma.domain.conversation.prompts.assemble_system_prompt`, which
 reads its `call_state` via `__contains__`/`__getitem__` — so the prompt layer needs zero
 changes; the controller just hands it this view.
 """
@@ -12,8 +12,8 @@ changes; the controller just hands it this view.
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from roma.controller.facts import already_said_line
-from roma.controller.pacing import pacing_line
+from roma.domain.conversation.facts import already_said_line
+from roma.domain.conversation.pacing import pacing_line
 
 PHASES: tuple[str, ...] = (
     "p1_open",

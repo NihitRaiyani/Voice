@@ -2,15 +2,14 @@
 
 Each test pins one behavior offline (no Sarvam socket, no credits): the header strip,
 raw-PCM passthrough, odd-byte carry across chunks, carry reset at stream boundaries, and
-that non-audio frames are untouched. Rationale for the fix lives in `roma.telephony.tts`.
+that non-audio frames are untouched. Rationale for the fix lives in `roma.realtime.tts`.
 """
 
 import asyncio
 
 from pipecat.frames.frames import TextFrame, TTSAudioRawFrame
 from pipecat.tests.utils import run_test
-
-from roma.telephony.tts import TTSAudioSanitizer
+from roma.realtime.tts import TTSAudioSanitizer
 
 _HEADER = b"RIFF" + bytes(40)
 

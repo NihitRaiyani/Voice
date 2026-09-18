@@ -1,5 +1,5 @@
-from roma.guardrails import lexicon as lex
-from roma.guardrails.lexicon import BlockCategory
+from roma.domain.safety import lexicon as lex
+from roma.domain.safety.lexicon import BlockCategory
 
 
 def test_every_category_has_a_substitution_line():

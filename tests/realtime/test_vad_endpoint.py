@@ -34,10 +34,9 @@ than a worry. Whether real code-mix pauses fall inside it is the live call's job
 import asyncio
 
 from pipecat.audio.vad.vad_analyzer import VADAnalyzer, VADParams, VADState
-
-from roma.config import Settings
-from roma.telephony.backchannel import vad_span_secs
-from roma.telephony.media import VAD_STOP_SECS, build_vad
+from roma.core.config import Settings
+from roma.realtime.backchannel import vad_span_secs
+from roma.realtime.pipeline import VAD_STOP_SECS, build_vad
 
 RATE = 8000
 CHUNK = 256

@@ -27,10 +27,10 @@ REQUIRED_ENV = {
 def app(monkeypatch):
     for key, value in REQUIRED_ENV.items():
         monkeypatch.setenv(key, value)
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
-    from roma.telephony.media import build_media_app
+    from roma.realtime.pipeline import build_media_app
 
     yield build_media_app(auto_hang_up=False)
     get_settings.cache_clear()

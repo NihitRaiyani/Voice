@@ -10,9 +10,8 @@ import asyncio
 from pipecat.frames.frames import TextFrame, TranscriptionFrame
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.tests.utils import run_test
-
-from roma.guardrails import safe_output
-from roma.telephony.pretts import PreTTSFilterProcessor
+from roma.domain.safety import safe_output
+from roma.realtime.pretts import PreTTSFilterProcessor
 
 BLOCKED = "Fees pachaas hazaar hai."
 CLEAN = "Aap kab visit kar sakte ho?"
@@ -99,7 +98,7 @@ def test_the_hold_budget_is_per_call_and_eventually_releases():
     """Hard rule six: a lead who will not book still gets a polite close. The counter lives
     on the processor, which is built per websocket connect, so two concurrent calls cannot
     spend each other's budget (docs/08)."""
-    from roma.controller.confirmguard import SIGNOFF_ATTEMPT_CAP
+    from roma.domain.conversation.confirmguard import SIGNOFF_ATTEMPT_CAP
 
     proc = PreTTSFilterProcessor(lambda: "none")
     for attempt in range(SIGNOFF_ATTEMPT_CAP):
@@ -167,7 +166,7 @@ def test_the_same_substitution_is_never_spoken_twice_in_one_turn():
     Three sentences of one response each tripped a gate; two got the identical canned line.
     The lead's report was that she repeats herself — and this time it was the guards doing
     it, not the model."""
-    from roma.controller.confirmguard import SAFE_COURSE_LINE
+    from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE
 
     proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p3_value")
     _start_turn(proc)
@@ -188,7 +187,7 @@ def test_two_different_canned_lines_in_one_turn_are_not_both_spoken():
     Two DIFFERENT stock lines that make the same point, so the lead heard it twice. The
     previous version of this guard only caught byte-identical repeats and duly reported
     `dupe_drops=0` on that call while the duplicate was audible."""
-    from roma.controller.confirmguard import reoffer_line
+    from roma.domain.conversation.confirmguard import reoffer_line
 
     proc = PreTTSFilterProcessor(lambda: "in_past", lambda: "p5_pivot")
     _start_turn(proc)
@@ -214,7 +213,7 @@ def test_the_next_turn_may_say_it_again():
     """The duplicate is only a duplicate WITHIN a turn. Two minutes later the same steer is
     the right thing to say, and suppressing it for the whole call would leave the second
     catch unguarded."""
-    from roma.controller.confirmguard import SAFE_COURSE_LINE
+    from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE
 
     proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p3_value")
     _start_turn(proc)
@@ -228,7 +227,7 @@ def test_the_steer_reads_spent_facts_off_the_live_call_state():
     """The confirmguard unit tests prove `steer_line` picks the right sentence. This proves
     the processor actually HANDS it the fact list — the wiring is where an inert feature
     comes from, and this repo has had four."""
-    from roma.controller.confirmguard import SAFE_COURSE_LINE
+    from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE
 
     said: list[str] = []
     proc = PreTTSFilterProcessor(
@@ -259,7 +258,7 @@ def test_two_steers_after_the_fact_is_spent_are_not_the_same_sentence():
 
 
 def test_an_exploding_facts_reader_falls_back_to_the_old_steer():
-    from roma.controller.confirmguard import SAFE_COURSE_LINE
+    from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE
 
     def _boom():
         raise RuntimeError("redis gone")
@@ -314,7 +313,7 @@ def test_the_processor_hands_the_accepted_slot_to_the_hold():
 
 
 def test_an_exploding_slot_reader_falls_back_to_the_plain_hold():
-    from roma.controller.confirmguard import SAFE_HOLD_LINE
+    from roma.domain.conversation.confirmguard import SAFE_HOLD_LINE
 
     def _boom():
         raise RuntimeError("state gone")
@@ -332,7 +331,7 @@ def test_the_duplicate_baje_is_stripped():
     Bulbul runs with enable_preprocessing=True, so it reads "11:00" as "gyaarah baje" and
     then speaks the literal "baje" after it. The lead heard "gyaarah baje baje" and asked
     "बजे बजे दो बार क्यों बोला आपने"."""
-    from roma.telephony.pretts import strip_duplicate_baje
+    from roma.realtime.pretts import strip_duplicate_baje
 
     assert strip_duplicate_baje("subah 11:00 baje") == "subah 11 baje"
     assert strip_duplicate_baje("shaam 5:00 baje aayenge") == "shaam 5 baje aayenge"
@@ -343,7 +342,7 @@ def test_the_duplicate_baje_is_stripped():
 
 def test_ordinary_time_wordings_are_untouched():
     """ "11 baje" is correct Hindi and already reads right — only the colon form doubles."""
-    from roma.telephony.pretts import strip_duplicate_baje
+    from roma.realtime.pretts import strip_duplicate_baje
 
     for line in (
         "subah gyaarah baje",
@@ -385,7 +384,7 @@ def test_a_trailing_statement_substitution_is_dropped_not_spoken():
 def test_a_first_sentence_substitution_is_still_spoken():
     """The drop is only for a statement landing AFTER she has spoken. If the blocked line is
     the turn's first sentence, dropping it WOULD be dead air."""
-    from roma.controller.confirmguard import reoffer_line
+    from roma.domain.conversation.confirmguard import reoffer_line
 
     proc = PreTTSFilterProcessor(lambda: "none", lambda: "p5_pivot")
     _start_turn(proc)

@@ -20,10 +20,10 @@ import logging
 import os
 from pathlib import Path
 
-from roma.postcall.job import PostcallJob
-from roma.postcall.paths import ensure_private_dir, open_private
+from roma.workers.postcall.job import PostcallJob
+from roma.workers.postcall.paths import ensure_private_dir, open_private
 
-_log = logging.getLogger("roma.postcall")
+_log = logging.getLogger("roma.workers.postcall")
 
 _TMP_SUFFIX = ".tmp"
 _JOB_SUFFIX = ".json"

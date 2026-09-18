@@ -8,8 +8,7 @@ honest hardcoded value: the env var lies, and the tuning session produces nothin
 """
 
 import pytest
-
-from roma.telephony import backchannel
+from roma.realtime import backchannel
 
 REQUIRED_ENV = {
     "TWILIO_FROM_NUMBER": "+16295550100",
@@ -23,7 +22,7 @@ REQUIRED_ENV = {
 def settings(monkeypatch):
     for k, v in REQUIRED_ENV.items():
         monkeypatch.setenv(k, v)
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
     yield get_settings()
@@ -71,7 +70,7 @@ def test_every_knob_is_settable_from_the_environment(monkeypatch):
     monkeypatch.setenv("ENDPOINT_DEFAULT_SECS", "0.75")
     monkeypatch.setenv("ENDPOINT_CONTINUATION_SECS", "1.10")
     monkeypatch.setenv("BACKCHANNEL_MAX_SECS", "0.55")
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
     try:
@@ -87,7 +86,7 @@ def test_every_knob_is_settable_from_the_environment(monkeypatch):
 
 def test_barge_in_strategies_receive_the_tuned_values(settings):
     """`build_user_params` must pass settings down, not construct with bare defaults."""
-    from roma.telephony.media import build_user_params
+    from roma.realtime.pipeline import build_user_params
 
     settings.backchannel_max_secs = 0.42
     settings.endpoint_default_secs = 0.77
@@ -106,7 +105,7 @@ def test_barge_in_strategies_receive_the_tuned_values(settings):
 
 def test_without_settings_the_strategies_keep_the_docs05_defaults():
     """The OFF branch ships without settings, and the strategies must still be coherent."""
-    from roma.telephony.media import build_user_params
+    from roma.realtime.pipeline import build_user_params
 
     stop = build_user_params(enable_barge_in=True).user_turn_strategies.stop[0]
     assert stop._default_user_speech_timeout == backchannel.ENDPOINT_DEFAULT_SECS

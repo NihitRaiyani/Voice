@@ -1,8 +1,8 @@
 import logging
 import sys
 
-from roma.config import Settings
-from roma.logging_setup import RedactionFilter, configure_logging
+from roma.core.config import Settings
+from roma.core.logging import RedactionFilter, configure_logging
 
 
 def test_redaction_filter_scrubs_secret_in_args():

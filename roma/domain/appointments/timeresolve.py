@@ -16,9 +16,9 @@ from zoneinfo import ZoneInfo
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-from roma.controller.slots import TimeSlot
+from roma.domain.appointments.slots import TimeSlot
 
-_log = logging.getLogger("roma.controller")
+_log = logging.getLogger("roma.domain.conversation")
 
 IST = ZoneInfo("Asia/Kolkata")
 CONFIDENCE_THRESHOLD = 0.7
@@ -125,7 +125,7 @@ def resolve_time_slot_reason(slot: TimeSlot, now: datetime) -> "tuple[str, datet
 
     So the rejection needs a *reason*, not just a None: "outside branch hours" needs Roma to
     say the branch is shut then and offer alternatives, while "I could not parse a time"
-    needs her to simply re-ask. `roma.controller.turn` puts the reason into call state and
+    needs her to simply re-ask. `roma.domain.conversation.turn` puts the reason into call state and
     `state.as_prompt_vars()` renders it into the phase prompt.
 
     Reasons: `ok` | `out_of_hours` | `in_past` | `unclear`.

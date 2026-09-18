@@ -12,10 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 import fakeredis.aioredis
 import pytest
-
-from roma.postcall.job import OUTCOME_LOCKED, PostcallJob
-from roma.postcall.paths import DIR_MODE, FILE_MODE
-from roma.postcall.queue import (
+from roma.repositories.redis.postcall_queue import (
     DEAD_KEY,
     INFLIGHT_KEY,
     QUEUE_KEY,
@@ -23,8 +20,10 @@ from roma.postcall.queue import (
     RedisPostcallQueue,
     SpoolPostcallQueue,
 )
-from roma.postcall.spool import JobSpool
-from roma.postcall.store import LocalRecordingStore, prune
+from roma.workers.postcall.job import OUTCOME_LOCKED, PostcallJob
+from roma.workers.postcall.paths import DIR_MODE, FILE_MODE
+from roma.workers.postcall.spool import JobSpool
+from roma.workers.postcall.store import LocalRecordingStore, prune
 
 
 def _job(call_sid="CA_q", **kw) -> PostcallJob:

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from roma.dialer.window import (
+from roma.domain.calls.window import (
     CALL_TIMEZONE,
     in_calling_window,
 )

@@ -40,7 +40,7 @@ die()  { printf '\033[31m ✗\033[0m %s\n' "$*" >&2; exit 1; }
 
 stop_all() {
   log "stopping Roma"
-  for name in "cloudflared tunnel" "uvicorn scripts.serve_media"; do
+  for name in "cloudflared tunnel" "uvicorn roma.main"; do
     pkill -f "$name" 2>/dev/null && ok "stopped: $name" || true
   done
 }
@@ -156,7 +156,7 @@ ok "PUBLIC_BASE_URL written to .env"
 # so the two cannot drift — an inline value that disagreed with .env is how the first of the
 # two outages happened.
 log "starting the media server on 127.0.0.1:8020"
-nohup .venv/bin/uvicorn scripts.serve_media:create_app --factory \
+nohup .venv/bin/uvicorn roma.main:create_app --factory \
   --host 127.0.0.1 --port 8020 >>"$SERVER_LOG" 2>&1 </dev/null &
 
 for _ in $(seq 1 60); do

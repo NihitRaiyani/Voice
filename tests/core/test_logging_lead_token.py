@@ -7,12 +7,12 @@ RedactionFilter — which scrubs a fixed list of configured values — cannot se
 
 import logging
 
-from roma.dialer.trigger import build_answer_url
-from roma.logging_setup import (
+from roma.core.logging import (
     LeadTokenFilter,
     RedactionFilter,
     configure_logging,
 )
+from roma.services.call_service import build_answer_url
 
 
 def _record(msg, args=()):

@@ -8,9 +8,8 @@ import asyncio
 
 import fakeredis.aioredis
 import pytest
-
-from roma.controller.state import DISCOVERY_ORDER, CallState
-from roma.controller.store import (
+from roma.domain.conversation.state import DISCOVERY_ORDER, CallState
+from roma.repositories.redis.conversation_state import (
     STATE_TTL_SECONDS,
     InMemoryCallStateStore,
     RedisCallStateStore,

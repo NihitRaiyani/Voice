@@ -8,13 +8,12 @@ import asyncio
 from datetime import datetime
 
 import pytest
-
-from roma.controller.machine import P2_MAX_TURNS
-from roma.controller.pacing import CLOSE_SECS, HURRY_SECS, OVER_SECS
-from roma.controller.slots import DiscoveryValue, TimeSlot
-from roma.controller.state import DISCOVERY_ORDER, CallState
-from roma.controller.timeresolve import IST
-from roma.controller.turn import advance_turn, is_affirmation
+from roma.domain.appointments.slots import DiscoveryValue, TimeSlot
+from roma.domain.appointments.timeresolve import IST
+from roma.domain.conversation.machine import P2_MAX_TURNS
+from roma.domain.conversation.pacing import CLOSE_SECS, HURRY_SECS, OVER_SECS
+from roma.domain.conversation.state import DISCOVERY_ORDER, CallState
+from roma.domain.conversation.turn import advance_turn, is_affirmation
 
 NOW = datetime(2026, 7, 25, 8, 0, tzinfo=IST)
 CLIENT = object()
@@ -147,7 +146,7 @@ def test_a_caller_who_asks_who_picked_up_stays_in_p1():
 
 def test_naming_us_back_is_a_question_not_a_confirmation():
     """ "Weltec hai?" is someone checking they reached the right number."""
-    from roma.controller.turn import asks_who_we_are
+    from roma.domain.conversation.turn import asks_who_we_are
 
     assert asks_who_we_are("Weltec hai")
     assert asks_who_we_are("kaun bol raha hai")
@@ -160,7 +159,7 @@ def test_naming_us_back_is_a_question_not_a_confirmation():
 def test_naming_us_inside_a_real_enquiry_is_not_an_identity_question():
     """The false positive that would strand every caller who mentions us by name: "Weltec ke
     digital marketing course ke baare mein poochhna tha" is business, not "who is this?"."""
-    from roma.controller.turn import asks_who_we_are
+    from roma.domain.conversation.turn import asks_who_we_are
 
     assert not asks_who_we_are("Weltec ke digital marketing course ke baare mein poochhna tha")
     s = CallState(call_sid="CA_biz", phase="p1_open")
@@ -245,7 +244,7 @@ def test_a_six_am_request_does_not_accept_a_slot_and_says_why():
 def test_the_refusal_is_visible_in_the_prompt_the_model_will_read():
     """The state field is only half the fix; the value of it is that it renders into the
     phase prompt. Assert on what the model actually sees."""
-    from roma.llm.prompts import assemble_system_prompt
+    from roma.domain.conversation.prompts import assemble_system_prompt
 
     s = CallState(call_sid="CA_6am", phase="p5_pivot")
     _advance(s, "kal subah chhe baje aa jaunga", extract_time=_six_am)
@@ -255,7 +254,7 @@ def test_the_refusal_is_visible_in_the_prompt_the_model_will_read():
 
 
 def test_an_accepted_slot_reaches_the_close_prompt_as_a_readable_day_and_time():
-    from roma.llm.prompts import assemble_system_prompt
+    from roma.domain.conversation.prompts import assemble_system_prompt
 
     s = CallState(call_sid="CA_ok", phase="p5_pivot")
     _advance(s, "haan Monday accept hai")
@@ -502,7 +501,7 @@ def test_every_p5_turn_logs_a_verdict(caplog):
     import logging
 
     s = _at_pivot_with_offers()
-    with caplog.at_level(logging.INFO, logger="roma.controller"):
+    with caplog.at_level(logging.INFO, logger="roma.domain.conversation"):
         _advance(s, "hmm pata nahi")
     assert any("slot verdict:" in r.message for r in caplog.records)
 
@@ -512,7 +511,7 @@ def test_the_lead_s_words_never_reach_an_info_log(caplog):
     import logging
 
     s = _at_pivot_with_offers()
-    with caplog.at_level(logging.INFO, logger="roma.controller"):
+    with caplog.at_level(logging.INFO, logger="roma.domain.conversation"):
         _advance(s, "mera naam Nihit hai aur main Vadodara se hoon")
     for r in caplog.records:
         assert "Nihit" not in r.getMessage()
@@ -724,7 +723,7 @@ def test_the_floor_is_logged(caplog):
     import logging
 
     s = _at_pivot_with_offers()
-    with caplog.at_level(logging.INFO, logger="roma.controller"):
+    with caplog.at_level(logging.INFO, logger="roma.domain.conversation"):
         _advance(s, "4 બજે", extract_time=_bare_four_lowconf)
     assert any("confidence floored" in r.getMessage() for r in caplog.records)
 
@@ -801,7 +800,7 @@ def test_a_caller_who_states_their_business_leaves_p1():
     needed a real yes. An inbound caller says why they rang — "course ki information chahiye
     thi" — which carries no affirmation cue at all, so the call sat in P1 for its whole
     length while Roma re-greeted a person who had already explained themselves."""
-    from roma.controller.turn import opened_the_conversation
+    from roma.domain.conversation.turn import opened_the_conversation
 
     for opener in (
         "course ki information chahiye thi",
@@ -814,7 +813,7 @@ def test_a_caller_who_states_their_business_leaves_p1():
 def test_an_affirmation_still_opens_the_conversation():
     """The outbound path is not broken by the inbound one — the seven pre-inbound fixtures
     all open with 'haan ji'."""
-    from roma.controller.turn import opened_the_conversation
+    from roma.domain.conversation.turn import opened_the_conversation
 
     assert opened_the_conversation("haan ji, maine hi inquiry kiya tha")
 
@@ -822,7 +821,7 @@ def test_an_affirmation_still_opens_the_conversation():
 def test_a_wrong_number_does_not_get_walked_into_discovery():
     """A short bare negation is someone who dialled the wrong place, not an enquiry. Advancing
     them to P2 would have Roma asking a stranger's name for no reason."""
-    from roma.controller.turn import opened_the_conversation
+    from roma.domain.conversation.turn import opened_the_conversation
 
     for wrong in ("nahi", "nahi ji", "ના જી", "जी नहीं"):
         assert not opened_the_conversation(wrong), wrong
@@ -836,7 +835,7 @@ def test_a_wrong_number_does_not_get_walked_into_discovery():
 def test_a_negation_inside_a_real_sentence_still_opens():
     """ "nahi, mujhe course ke baare mein poochhna tha" is an enquiry that happens to start
     with a no. Only the SHORT bare negation is a wrong number."""
-    from roma.controller.turn import opened_the_conversation
+    from roma.domain.conversation.turn import opened_the_conversation
 
     assert opened_the_conversation("nahi, mujhe course ke baare mein poochhna tha")
 
@@ -851,7 +850,7 @@ def test_the_name_is_captured_as_the_first_discovery_slot():
 def test_a_refused_name_does_not_swallow_the_slots_behind_it():
     """Without the attempt cap the pointer stayed on lead_name and every later answer was
     extracted against it, so P2 finished with an entirely empty profile."""
-    from roma.controller.state import SLOT_ATTEMPT_CAP
+    from roma.domain.conversation.state import SLOT_ATTEMPT_CAP
 
     s = CallState(call_sid="CA_no_name", phase="p2_discover")
     for _ in range(SLOT_ATTEMPT_CAP):
@@ -867,8 +866,8 @@ def test_advance_turn_flags_a_dismissal_in_any_phase_and_never_clears_it():
     pushing on the next turn."""
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
 
     s = CallState(branch="Vadodara")
     s.phase = "p3_value"
@@ -888,8 +887,8 @@ def test_a_course_question_moves_p2_to_p3_immediately():
     The lead asking what the course is IS the cue to go explain it."""
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
 
     s = CallState(branch="Vadodara")
     s.phase = "p2_discover"
@@ -903,8 +902,8 @@ def test_answering_the_status_question_with_the_word_course_does_not_skip_discov
     that would skip discovery for a lead who never asked anything."""
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
 
     s = CallState(branch="Vadodara")
     s.phase = "p2_discover"
@@ -922,8 +921,8 @@ def test_roma_is_told_what_day_it_is_from_the_same_clock_the_resolver_uses():
     the machine's "today" cannot drift apart."""
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
 
     s = CallState(branch="Vadodara")
     asyncio.run(advance_turn(s, "haan ji", client=None, now=NOW))
@@ -935,7 +934,7 @@ def test_roma_is_told_what_day_it_is_from_the_same_clock_the_resolver_uses():
 
 def test_an_unknown_date_renders_empty_rather_than_a_guess():
     """A missing day is survivable; a wrong one refuses real bookings."""
-    from roma.controller.state import CallState
+    from roma.domain.conversation.state import CallState
 
     assert CallState(branch="Vadodara").as_prompt_vars()["today"] == ""
     s = CallState(branch="Vadodara")
@@ -944,7 +943,7 @@ def test_an_unknown_date_renders_empty_rather_than_a_guess():
 
 
 def test_the_lead_raising_a_time_is_detected_from_their_side():
-    from roma.controller.turn import raises_the_visit_time
+    from roma.domain.conversation.turn import raises_the_visit_time
 
     for line in (
         "toh main kab aa sakta hoon?",
@@ -964,8 +963,8 @@ def test_insistence_is_counted_consecutively_and_resets():
     three turns, then mentions a time again is not pushing to book."""
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
 
     state = CallState(phase="p3_value")
 
@@ -980,8 +979,8 @@ def test_two_consecutive_time_turns_pivot_out_of_p3():
     """The end-to-end path: detector -> counter -> signal -> transition."""
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
 
     state = CallState(phase="p3_value")
     asyncio.run(advance_turn(state, "toh main kab aa sakta hoon?", client=None, now=NOW))
@@ -993,7 +992,7 @@ def test_two_consecutive_time_turns_pivot_out_of_p3():
 def test_asking_to_book_in_words_is_detected_without_any_clock_word():
     """THE gap behind ca529641. TIME_CUES holds only times of day, so a lead asking to
     schedule in plain words matched nothing and the pivot never fired."""
-    from roma.controller.turn import raises_the_visit_time, wants_to_book
+    from roma.domain.conversation.turn import raises_the_visit_time, wants_to_book
 
     for line in (
         "mujhe visit schedule karni hai",
@@ -1016,8 +1015,8 @@ def test_asking_to_book_in_words_is_detected_without_any_clock_word():
 def test_one_explicit_ask_is_enough_no_second_turn_needed():
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
 
     state = CallState(phase="p3_value")
     asyncio.run(advance_turn(state, "mujhe visit schedule karni hai", client=None, now=NOW))
@@ -1029,8 +1028,8 @@ def test_a_lead_saying_goodbye_is_not_offered_a_slot():
     a slot is exactly the push hard rule 6 forbids."""
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
 
     state = CallState(phase="p3_value")
     asyncio.run(advance_turn(state, "baad mein milte hain", client=None, now=NOW))
@@ -1049,8 +1048,8 @@ def test_the_exact_line_that_was_refused_on_call_56504a23():
     another course suggestion."""
     import asyncio
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import advance_turn, defers_the_call, wants_to_book
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn, defers_the_call, wants_to_book
 
     line = (
         "मैंने आपके course के बारे में देखा था और मुझे आपके course के बारे में "
@@ -1066,7 +1065,7 @@ def test_the_exact_line_that_was_refused_on_call_56504a23():
 
 def test_meeting_alone_is_still_a_deferral_not_a_booking():
     """The whole reason "meeting" was ambiguous. Without a booking verb it means busy."""
-    from roma.controller.turn import wants_to_book
+    from roma.domain.conversation.turn import wants_to_book
 
     assert not wants_to_book("abhi meeting mein hoon")
     assert not wants_to_book("मैं अभी मीटिंग में हूँ")
@@ -1075,7 +1074,7 @@ def test_meeting_alone_is_still_a_deferral_not_a_booking():
 
 
 def test_unambiguous_booking_words_need_no_verb():
-    from roma.controller.turn import wants_to_book
+    from roma.domain.conversation.turn import wants_to_book
 
     assert wants_to_book("visit karni hai mujhe")
     assert wants_to_book("appointment chahiye")
@@ -1091,8 +1090,8 @@ def test_an_unresolvable_revision_at_the_readback_never_locks_the_old_slot():
     same sentence contains "ठीक है", `is_affirmation` fired, and Tuesday got locked."""
     from types import SimpleNamespace
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import _close_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import _close_turn
 
     state = CallState(phase="p7_close")
     state.accepted_slot = "2026-08-04T11:00:00+05:30"
@@ -1121,8 +1120,8 @@ def test_a_plain_affirmation_still_locks():
     and must still close the call — this is the turn the whole call exists to reach."""
     from types import SimpleNamespace
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import _close_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import _close_turn
 
     state = CallState(phase="p7_close")
     state.accepted_slot = "2026-08-04T11:00:00+05:30"
@@ -1146,8 +1145,8 @@ def test_a_plain_affirmation_still_locks():
 def test_a_resolvable_revision_still_moves_the_slot():
     from types import SimpleNamespace
 
-    from roma.controller.state import CallState
-    from roma.controller.turn import _close_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import _close_turn
 
     state = CallState(phase="p7_close")
     state.accepted_slot = "2026-08-04T11:00:00+05:30"

@@ -40,9 +40,9 @@ the cost of a miss is a lead who drives to a branch that is not expecting them.
 
 import logging
 
-from roma.guardrails.normalize import tokens
+from roma.domain.safety.normalize import tokens
 
-_log = logging.getLogger("roma.controller")
+_log = logging.getLogger("roma.domain.conversation")
 # this all are used to extract entities and gets the confitmation by seeing the word from list and confirmation detected
 CONFIRMATION_CUES = frozenset(
     {

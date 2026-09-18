@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from roma.dialer.consent import CONSENT_LINE
-from roma.dialer.dnd import StubRegistry
-from roma.dialer.precall import precall_check
-from roma.spend import SpendLedger, Usage
+from roma.domain.calls.consent import CONSENT_LINE
+from roma.domain.calls.dnd import StubRegistry
+from roma.domain.calls.precall import precall_check
+from roma.domain.costs.spend import SpendLedger, Usage
 
 PHONE = "+919876543210"
 

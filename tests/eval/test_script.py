@@ -5,7 +5,6 @@ worse than no harness — it reports a confident green over a check that never r
 """
 
 import pytest
-
 from roma.eval import script as script_mod
 
 HEADER = '{"name": "t"}'

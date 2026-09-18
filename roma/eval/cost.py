@@ -7,7 +7,7 @@ that. This module lets one eval run refuse to start and halt mid-run, so a runaw
 reports a partial result instead of discovering the ceiling by having the account reject a
 call.
 
-**Pricing now lives in `roma.spend`, not here.** It used to be a module-level table of
+**Pricing now lives in `roma.domain.costs.spend`, not here.** It used to be a module-level table of
 three constants — gpt-4o-mini's rates — with nothing tying them to the model actually
 configured. That was survivable while everything ran on mini, and became a 16.7x
 under-report the moment `LLM_MODEL` moved to gpt-4o. Worse, the same three constants had
@@ -24,13 +24,13 @@ Two consequences of being a second belt, both deliberate:
    extractors, which are easy to forget because they are small — must go through `record`.
 
 `Meter` is per-RUN and per-PROCESS by design; it is the within-run halt. What holds a cap
-across runs and restarts is `roma.spend.SpendLedger`, which is on disk.
+across runs and restarts is `roma.domain.costs.spend.SpendLedger`, which is on disk.
 """
 
 import logging
 from dataclasses import dataclass
 
-from roma.spend import PRICES, USD_TO_INR, Usage, inr_for
+from roma.domain.costs.spend import PRICES, USD_TO_INR, Usage, inr_for
 
 _log = logging.getLogger("roma.eval")
 
@@ -52,7 +52,7 @@ class Meter:
 
     Not persisted between runs, and that is a real limitation worth stating rather than
     papering over: this meter knows what THIS process spent, not what the account has spent
-    all week. `roma.spend.SpendLedger` is what carries the total across processes; the
+    all week. `roma.domain.costs.spend.SpendLedger` is what carries the total across processes; the
     dashboard limit is what makes the cap hold at all.
     """
 

@@ -2,7 +2,7 @@
 
 The Step-1 dialer MUST call `precall_check` and dial ONLY on `may_dial=True`,
 speaking `consent_line` first. This mirrors how the TTS path must go through the
-pre-TTS filter (src/roma/guardrails/filter.py): a standalone, deterministic gate
+pre-TTS filter (roma/domain/safety/filter.py): a standalone, deterministic gate
 that never raises and, on any internal error, fail-safe BLOCKs the call rather
 than proceeding unguarded (docs/07 fail-safe posture).
 
@@ -14,11 +14,11 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
-from roma.dialer.consent import CONSENT_LINE
-from roma.dialer.dnd import DoNotCallRegistry
-from roma.dialer.window import in_calling_window
+from roma.domain.calls.consent import CONSENT_LINE
+from roma.domain.calls.dnd import DoNotCallRegistry
+from roma.domain.calls.window import in_calling_window
 
-_log = logging.getLogger("roma.dialer")
+_log = logging.getLogger("roma.domain.calls")
 
 
 @dataclass(frozen=True)
@@ -45,14 +45,14 @@ def precall_check(
     Order: calling-window → DND/allowlist → budget. Any internal error fail-safe BLOCKs
     (never proceeds unguarded). Never raises.
 
-    `spend` is a `roma.spend.SpendLedger` and `budget_inr` the testing-phase cap; when
+    `spend` is a `roma.domain.costs.spend.SpendLedger` and `budget_inr` the testing-phase cap; when
     either is omitted the money gate is simply not applied, which is right for the unit
     tests and for any caller that has already decided the call is paid for. The gate runs
     LAST on purpose: a DND block must never be masked by a budget block, because topping
     up the budget must not turn a non-dialable number into a dialable one.
 
     Why there is a money gate here at all: gpt-4o costs ~16.7x gpt-4o-mini
-    (`roma.spend.PRICES`), which makes a five-minute call roughly ₹8 against a ₹100
+    (`roma.domain.costs.spend.PRICES`), which makes a five-minute call roughly ₹8 against a ₹100
     testing phase. The pre-dial gate is the only place that can refuse cleanly — a budget
     check inside the call would have to hang up on a lead mid-sentence.
     """

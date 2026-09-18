@@ -2,8 +2,7 @@ import asyncio
 
 from pipecat.frames.frames import InterimTranscriptionFrame, TranscriptionFrame
 from pipecat.tests.utils import run_test
-
-from roma.telephony.transcript import TranscriptionLogger
+from roma.realtime.transcript import TranscriptionLogger
 
 
 def test_records_final_and_interim_and_passes_them_through():

@@ -22,10 +22,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from roma.postcall.job import PostcallJob
-from roma.postcall.paths import DIR_MODE, FILE_MODE, ensure_private_dir
+from roma.workers.postcall.job import PostcallJob
+from roma.workers.postcall.paths import DIR_MODE, FILE_MODE, ensure_private_dir
 
-_log = logging.getLogger("roma.postcall")
+_log = logging.getLogger("roma.workers.postcall")
 
 _COPY_CHUNK_BYTES = 64 * 1024
 

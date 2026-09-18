@@ -48,10 +48,10 @@ from pipecat.frames.frames import (
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
-from roma.dialer.openerstore import SAMPLE_RATE as OPENER_RATE
-from roma.guardrails.normalize import tokens
+from roma.domain.safety.normalize import tokens
+from roma.repositories.redis.opener_audio import SAMPLE_RATE as OPENER_RATE
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 _EXPECTED_SCRIPT_RANGES = (
     (0x0041, 0x005A),
@@ -166,7 +166,7 @@ def _looks_affirmative(text: str) -> bool:
     Imported lazily so this module keeps no import-time dependency on the controller: the
     telephony layer drives the controller, not the other way round.
     """
-    from roma.controller.turn import is_affirmation
+    from roma.domain.conversation.turn import is_affirmation
 
     return is_affirmation(text)
 

@@ -4,8 +4,7 @@ import asyncio
 import json
 
 import pytest
-
-from roma.telephony.media import _read_start
+from roma.realtime.pipeline import _read_start
 
 
 class _FakeWebSocket:

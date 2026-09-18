@@ -1,7 +1,7 @@
 """Backchannel lexicon + endpointing thresholds for Layer 3 barge-in (docs/05).
 
 Pure data and predicates — no pipecat import, so it unit-tests standalone. The
-pipecat strategies that consume it live in `roma.telephony.turntaking`. This mirrors
+pipecat strategies that consume it live in `roma.realtime.turntaking`. This mirrors
 the `guardrails/lexicon.py` vs `guardrails/filter.py` split: the words live apart from
 the machinery that acts on them, because the words are what gets edited as calls come in.
 
@@ -17,7 +17,7 @@ Matching is token-equality on `guardrails.normalize.tokens` — the same tokeniz
 guardrails filter and the P6 objection classifier use.
 """
 
-from roma.guardrails.normalize import tokens
+from roma.domain.safety.normalize import tokens
 
 # docs/05 Layer 2, from the 403-pooled-pause analysis. These are THE source values: the
 # `Settings` fields mirror them and `.env` sets them explicitly on top.

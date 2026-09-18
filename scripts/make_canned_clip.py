@@ -5,11 +5,11 @@ Two modes:
 
   # Real: convert an approved recording (must be 8kHz mono 16-bit PCM WAV) -> μ-law
   uv run python scripts/make_canned_clip.py from-wav approved_consent_8k.wav \
-      src/roma/telephony/assets/consent.ulaw
+      roma/realtime/assets/consent.ulaw
 
   # Placeholder: synthesize a stand-in clip so the transport is exercisable now
   uv run python scripts/make_canned_clip.py placeholder \
-      src/roma/telephony/assets/consent.ulaw --seconds 1.6
+      roma/realtime/assets/consent.ulaw --seconds 1.6
 
 The committed assets are PLACEHOLDERS until Weltec signs off the consent wording and
 the approved TEST line is recorded. If your recording isn't already 8kHz/mono/16-bit:
@@ -22,9 +22,9 @@ import sys
 import wave
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from roma.telephony.ulaw import pcm16_to_ulaw
+from roma.realtime.ulaw import pcm16_to_ulaw
 
 RATE = 8000
 

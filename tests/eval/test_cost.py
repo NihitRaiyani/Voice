@@ -7,7 +7,6 @@ pinned here.
 """
 
 import pytest
-
 from roma.eval.cost import BudgetExceeded, Meter, Usage, inr_for
 
 
@@ -29,7 +28,7 @@ def test_cost_rounds_up_never_down():
 def test_the_meter_bills_the_model_it_was_given():
     """The eval harness has the same 16.7x exposure the live path had: it used ONE
     hardcoded gpt-4o-mini price table, so a `--live` run against gpt-4o would have reported
-    a sixteenth of what it spent. There is now one price table (`roma.spend.PRICES`) and
+    a sixteenth of what it spent. There is now one price table (`roma.domain.costs.spend.PRICES`) and
     the model is a required argument, so there is no way to bill a call without saying
     which model billed it."""
     big = Usage(input_tokens=1_000_000, output_tokens=1_000_000)

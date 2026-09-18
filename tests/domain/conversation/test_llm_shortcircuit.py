@@ -42,18 +42,18 @@ So the honest split of ten utterances:
 import asyncio
 from datetime import datetime
 
-from roma.controller.confirmguard import (
+from roma.domain.appointments.slots import DiscoveryValue, TimeSlot
+from roma.domain.appointments.timeresolve import IST
+from roma.domain.conversation.confirmguard import (
     SAFE_HOLD_LINE,
     lead_wants_out,
 )
-from roma.controller.machine import P5_PIVOT
-from roma.controller.slots import DiscoveryValue, TimeSlot
-from roma.controller.state import CallState
-from roma.controller.timeresolve import IST
-from roma.controller.turn import advance_turn, defers_the_call, wants_to_book
-from roma.guardrails import safe_output
-from roma.guardrails.filter import screen
-from roma.guardrails.lexicon import SUBSTITUTIONS, BlockCategory
+from roma.domain.conversation.machine import P5_PIVOT
+from roma.domain.conversation.state import CallState
+from roma.domain.conversation.turn import advance_turn, defers_the_call, wants_to_book
+from roma.domain.safety import safe_output
+from roma.domain.safety.filter import screen
+from roma.domain.safety.lexicon import SUBSTITUTIONS, BlockCategory
 
 # Frozen like `test_turn.py:19` — a Friday morning, inside visiting hours, so the offer
 # phase has real slots to name and the test does not drift with the wall clock.
@@ -243,7 +243,7 @@ def test_the_routing_decision_is_fast_enough_to_be_worth_bypassing_for():
 def _shortcircuit():
     """The unbuilt router. None until it exists."""
     try:
-        from roma.controller import shortcircuit
+        from roma.domain.conversation import shortcircuit
     except ImportError:
         return None
     return shortcircuit

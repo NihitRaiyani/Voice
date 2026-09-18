@@ -1,7 +1,6 @@
 import pytest
+from roma.providers.telephony.twilio.auth import external_url, valid_twilio_signature
 from twilio.request_validator import RequestValidator
-
-from roma.telephony.twilio_auth import external_url, valid_twilio_signature
 
 
 def test_external_url_joins_the_public_origin_path_and_query():

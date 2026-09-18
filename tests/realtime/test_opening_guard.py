@@ -20,8 +20,7 @@ from pipecat.frames.frames import (
     TranscriptionFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection
-
-from roma.telephony.opening import OpeningTurnGuard
+from roma.realtime.opening import OpeningTurnGuard
 
 
 def _guard(**kw):
@@ -156,7 +155,7 @@ def test_the_guard_only_latches_once():
     assert [type(f) for f in g.captured] == [TranscriptionFrame, BotStoppedSpeakingFrame]
 
 
-from roma.telephony.opening import NoiseGate, is_noise_transcript  # noqa: E402
+from roma.realtime.opening import NoiseGate, is_noise_transcript  # noqa: E402
 
 
 def _gate():
@@ -244,7 +243,7 @@ def test_non_transcription_frames_are_untouched():
 
 
 def _greeter(**kw):
-    from roma.telephony.opening import PickupGreeter
+    from roma.realtime.opening import PickupGreeter
 
     g = PickupGreeter(enable_direct_mode=True, **kw)
     g.pushed = []
@@ -478,8 +477,7 @@ def test_the_outbound_greeter_speaks_the_opener_instead_of_asking_the_llm_for_it
         LLMRunFrame,
         TextFrame,
     )
-
-    from roma.telephony.opening import PickupGreeter
+    from roma.realtime.opening import PickupGreeter
 
     pushed = []
     g = PickupGreeter(opening_text_fn=lambda: "Hello Nihit ji, main Roma baat kar rahi hoon.")
@@ -498,8 +496,7 @@ def test_the_greeter_falls_back_to_generating_when_no_opener_is_supplied():
     import asyncio
 
     from pipecat.frames.frames import LLMRunFrame
-
-    from roma.telephony.opening import PickupGreeter
+    from roma.realtime.opening import PickupGreeter
 
     def collect_into(sink):
         return lambda f, d=None: sink.append(f) or asyncio.sleep(0)

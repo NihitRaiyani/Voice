@@ -1,4 +1,4 @@
-"""The Google Calendar adapter (`roma.controller.gcal`).
+"""The Google Calendar adapter (`roma.providers.calendar.google`).
 
 No test here touches the network: `session_factory` is injected, so what is exercised is
 the real URL construction, the real JSON handling, the real clash arithmetic and the real
@@ -12,9 +12,9 @@ import asyncio
 import json
 from datetime import date, datetime, timedelta
 
-from roma.controller.calendar import StaticHoursCalendar
-from roma.controller.gcal import GoogleCalendarVisits, build_calendar
-from roma.controller.timeresolve import IST
+from roma.domain.appointments.calendar import StaticHoursCalendar
+from roma.domain.appointments.timeresolve import IST
+from roma.providers.calendar.google import GoogleCalendarVisits, build_calendar
 
 NOW = datetime(2026, 7, 25, 8, 0, tzinfo=IST)
 MONDAY = date(2026, 7, 27)
@@ -210,7 +210,7 @@ def test_half_configured_is_loud():
     assert got is base
     got2 = build_calendar(_S(key="k"), base=base)
     assert got2 is base
-    assert logging.getLogger("roma.controller") is not None
+    assert logging.getLogger("roma.domain.conversation") is not None
 
 
 def test_both_set_builds_the_adapter():

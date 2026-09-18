@@ -12,7 +12,7 @@ fallback writes.
 post-call queue, then exit").
 
 This is a SEPARATE PROCESS from the media server on purpose (docs/08: slow work never in
-the pipeline), and `roma.postcall` imports no pipecat, so it starts without dragging in
+the pipeline), and `roma.workers.postcall` imports no pipecat, so it starts without dragging in
 silero/torch.
 """
 
@@ -23,21 +23,21 @@ import signal
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from roma.config import get_settings
-from roma.dialer import CONSENT_LINE, consent_signed_off
-from roma.logging_setup import configure_logging
-from roma.postcall.paths import job_spool_dir, media_dir, recordings_dir
-from roma.postcall.queue import (
+from roma.core.config import get_settings
+from roma.core.logging import configure_logging
+from roma.domain.calls import CONSENT_LINE, consent_signed_off
+from roma.repositories.redis.postcall_queue import (
     RedisPostcallQueue,
     SpoolPostcallQueue,
 )
-from roma.postcall.spool import JobSpool
-from roma.postcall.store import LocalRecordingStore, describe_permissions
-from roma.postcall.worker import WorkerDeps, run_worker
+from roma.workers.postcall.paths import job_spool_dir, media_dir, recordings_dir
+from roma.workers.postcall.spool import JobSpool
+from roma.workers.postcall.store import LocalRecordingStore, describe_permissions
+from roma.workers.postcall.worker import WorkerDeps, run_worker
 
-_log = logging.getLogger("roma.postcall")
+_log = logging.getLogger("roma.workers.postcall")
 
 
 def _parse_args(argv=None):

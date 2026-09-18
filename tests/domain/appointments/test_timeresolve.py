@@ -4,9 +4,8 @@ deterministic. Asia/Kolkata; below-threshold / underdetermined → None (re-ask)
 from datetime import date, datetime
 
 import pytest
-
-from roma.controller.slots import TimeSlot
-from roma.controller.timeresolve import (
+from roma.domain.appointments.slots import TimeSlot
+from roma.domain.appointments.timeresolve import (
     IST,
     MAX_DAY_OFFSET,
     resolve_time_slot,
@@ -278,7 +277,7 @@ def test_a_named_day_still_beats_the_anchor():
 
 def _tue_1530():
     """Tuesday 2026-07-28, 15:30 IST — the moment of the live call."""
-    from roma.controller.timeresolve import IST
+    from roma.domain.appointments.timeresolve import IST
 
     return datetime(2026, 7, 28, 15, 30, tzinfo=IST)
 
@@ -292,8 +291,8 @@ def test_a_named_weekday_beats_a_contradictory_day_offset():
     `day_offset` first and short-circuited, so 2pm resolved to Tuesday 2pm (past) and a
     bookable Wednesday 2pm was refused. `slots.py` tells the extractor to send one or the
     other; gpt-4o-mini sends both, and nothing downstream checked."""
-    from roma.controller.slots import TimeSlot
-    from roma.controller.timeresolve import resolve_visit_slot
+    from roma.domain.appointments.slots import TimeSlot
+    from roma.domain.appointments.timeresolve import resolve_visit_slot
 
     slot = TimeSlot(
         day_offset=0, weekday="wednesday", hour=2, period="afternoon", confidence=0.9
@@ -307,8 +306,8 @@ def test_a_named_weekday_beats_a_contradictory_day_offset():
 def test_day_offset_alone_is_still_believed():
     """The precedence only applies when BOTH are present. "kal" is a day_offset and nothing
     else, and it must keep resolving exactly as it did."""
-    from roma.controller.slots import TimeSlot
-    from roma.controller.timeresolve import resolve_visit_slot
+    from roma.domain.appointments.slots import TimeSlot
+    from roma.domain.appointments.timeresolve import resolve_visit_slot
 
     v = resolve_visit_slot(TimeSlot(day_offset=1, hour=11, confidence=0.9), _tue_1530())
     assert v.reason == "ok"
@@ -320,8 +319,8 @@ def test_an_hour_that_resolved_backwards_is_retried_against_the_day_on_the_table
     under discussion, the model attaches a day of its own, and the pair resolves into the
     past. The anchor is the day they were actually talking about, and it used to be reachable
     only from the `unclear` branch — so a wrong day that RESOLVED skipped the correction."""
-    from roma.controller.slots import TimeSlot
-    from roma.controller.timeresolve import resolve_visit_slot
+    from roma.domain.appointments.slots import TimeSlot
+    from roma.domain.appointments.timeresolve import resolve_visit_slot
 
     slot = TimeSlot(day_offset=0, hour=11, confidence=0.9)
     v = resolve_visit_slot(slot, _tue_1530(), anchor_day=date(2026, 7, 29))
@@ -332,8 +331,8 @@ def test_an_hour_that_resolved_backwards_is_retried_against_the_day_on_the_table
 def test_a_genuinely_past_time_is_still_refused():
     """The recovery must not become a way of booking anything at all. With no day under
     discussion there is nothing to re-read it against."""
-    from roma.controller.slots import TimeSlot
-    from roma.controller.timeresolve import resolve_visit_slot
+    from roma.domain.appointments.slots import TimeSlot
+    from roma.domain.appointments.timeresolve import resolve_visit_slot
 
     v = resolve_visit_slot(TimeSlot(day_offset=0, hour=11, confidence=0.9), _tue_1530())
     assert v.reason == "in_past"
@@ -343,8 +342,8 @@ def test_a_genuinely_past_time_is_still_refused():
 def test_the_recovery_will_not_book_outside_branch_hours():
     """An anchor cannot smuggle in a time the branch is shut for — the same bound every
     other resolution in this module carries."""
-    from roma.controller.slots import TimeSlot
-    from roma.controller.timeresolve import resolve_visit_slot
+    from roma.domain.appointments.slots import TimeSlot
+    from roma.domain.appointments.timeresolve import resolve_visit_slot
 
     slot = TimeSlot(day_offset=0, hour=7, period="morning", confidence=0.9)
     v = resolve_visit_slot(slot, _tue_1530(), anchor_day=date(2026, 7, 29))

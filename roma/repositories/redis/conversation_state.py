@@ -14,7 +14,7 @@ lead_id and lands with lead-import, which docs/10 does not number (Step 6 is pos
 import json
 from typing import Protocol, runtime_checkable
 
-from roma.controller.state import CallState
+from roma.domain.conversation.state import CallState
 
 STATE_TTL_SECONDS = 4 * 3600
 

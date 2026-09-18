@@ -18,9 +18,13 @@ allowed in the prefix because it is fixed for the life of a call.
 
 import re
 
-from roma.controller.state import CallState
-from roma.llm.prompts import PHASE_WORD_CAPS, assemble_system_prompt, cache_prefix
-from roma.telephony.phase_controller import _swap_system_prompt
+from roma.domain.conversation.prompts import (
+    PHASE_WORD_CAPS,
+    assemble_system_prompt,
+    cache_prefix,
+)
+from roma.domain.conversation.state import CallState
+from roma.realtime.phase_controller import _swap_system_prompt
 
 _VAR = re.compile(r"\{\{(\w+)\}\}")
 
@@ -97,7 +101,7 @@ def test_every_assembled_prompt_actually_starts_with_that_prefix():
 
 
 def test_hard_rules_has_no_template_variables_at_all():
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     assert _VAR.findall(_read("hard_rules.md")) == [], (
         "hard_rules.md is fully static and must stay that way; put per-turn state in the "
@@ -111,7 +115,7 @@ def test_branch_is_the_only_variable_the_persona_may_carry():
     `{{branch}}` is admissible only because it is constant for a call. Any other variable
     in this file is a per-turn value in a per-call span.
     """
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     assert set(_VAR.findall(_read("persona.md"))) == {"branch"}, (
         "a new variable appeared in persona.md — if it can change mid-call it breaks the "
@@ -134,7 +138,7 @@ def test_the_phase_fragment_is_where_per_turn_state_actually_lands():
     Without this, a refactor could satisfy every assertion above by dropping the dynamic
     state entirely — a perfectly cached prompt that has stopped telling Roma anything.
     """
-    from roma.llm.prompts import _read
+    from roma.domain.conversation.prompts import _read
 
     variables = _states()[3].as_prompt_vars()
     seen = set()

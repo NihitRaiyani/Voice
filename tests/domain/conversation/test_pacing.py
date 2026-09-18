@@ -1,11 +1,11 @@
-"""The five-minute call budget (roma.controller.pacing).
+"""The five-minute call budget (roma.domain.conversation.pacing).
 
 Roma books a visit; she does not counsel. The reference corpus of real Weltec counselling
 sessions runs 17–42 minutes, and none of that belongs on an outbound booking call — so the
 call has a ceiling, enforced in code rather than asked for in a prompt.
 """
 
-from roma.controller.pacing import (
+from roma.domain.conversation.pacing import (
     CLOSE_SECS,
     HURRY_SECS,
     OVER_SECS,

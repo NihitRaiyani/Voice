@@ -33,10 +33,10 @@ one costs the call.
 
 import logging
 
-from roma.dialer.leadstore import LEAD_TTL_SECONDS
-from roma.guardrails import safe_output
+from roma.domain.safety import safe_output
+from roma.repositories.redis.leads import LEAD_TTL_SECONDS
 
-_log = logging.getLogger("roma.dialer")
+_log = logging.getLogger("roma.domain.calls")
 
 # 8kHz mono PCM16 — `canned.SAMPLE_RATE`, the rate the transport plays at.
 SAMPLE_RATE = 8000

@@ -26,17 +26,21 @@ import asyncio
 import sys
 from datetime import datetime
 
-from roma.config import get_settings
-from roma.dialer.dnd import StubRegistry
-from roma.dialer.window import (
+from roma.core.config import get_settings
+from roma.domain.calls.dnd import StubRegistry
+from roma.domain.calls.window import (
     CALL_TIMEZONE,
     CALL_WINDOW_END_HOUR,
     CALL_WINDOW_START_HOUR,
     in_calling_window,
 )
-from roma.postcall.paths import spend_ledger_path
-from roma.spend import SpendLedger
-from roma.telephony.dialer import build_twilio_client, place_call, precall_check
+from roma.domain.costs.spend import SpendLedger
+from roma.providers.telephony.twilio.client import (
+    build_twilio_client,
+    place_call,
+    precall_check,
+)
+from roma.workers.postcall.paths import spend_ledger_path
 
 
 def main() -> int:
@@ -100,9 +104,9 @@ def main() -> int:
             print(f"dialed=False reason={verdict.reason}")
             return 1
 
-        from roma.dialer.leadstore import OutboundLead, RedisLeadStore
-        from roma.dialer.openerstore import OpenerStore, render_opener_audio
-        from roma.dialer.trigger import trigger_outbound_call
+        from roma.repositories.redis.leads import OutboundLead, RedisLeadStore
+        from roma.repositories.redis.opener_audio import OpenerStore, render_opener_audio
+        from roma.services.call_service import trigger_outbound_call
 
         lead = OutboundLead(
             phone=args.callee,

@@ -18,9 +18,7 @@ from pipecat.frames.frames import (
     OutputAudioRawFrame,
 )
 from pipecat.tests.utils import run_test
-
-from roma.postcall.paths import DIR_MODE, FILE_MODE
-from roma.telephony.recorder import (
+from roma.realtime.recorder import (
     RECORDING_CHANNELS,
     RECORDING_EXT,
     RECORDING_SAMPLE_RATE,
@@ -28,6 +26,7 @@ from roma.telephony.recorder import (
     attach_recorder,
     build_recorder,
 )
+from roma.workers.postcall.paths import DIR_MODE, FILE_MODE
 
 NOW = datetime(2026, 7, 26, 10, 0, tzinfo=UTC)
 

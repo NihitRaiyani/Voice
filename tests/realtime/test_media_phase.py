@@ -9,12 +9,11 @@ from datetime import datetime
 from pipecat.frames.frames import LLMContextFrame, LLMUpdateSettingsFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.tests.utils import run_test
-
-from roma.controller.slots import DiscoveryValue
-from roma.controller.state import CallState
-from roma.controller.timeresolve import IST
-from roma.llm.prompts import assemble_system_prompt, phase_max_tokens
-from roma.telephony.phase_controller import PhaseControllerProcessor
+from roma.domain.appointments.slots import DiscoveryValue
+from roma.domain.appointments.timeresolve import IST
+from roma.domain.conversation.prompts import assemble_system_prompt, phase_max_tokens
+from roma.domain.conversation.state import CallState
+from roma.realtime.phase_controller import PhaseControllerProcessor
 
 NOW = datetime(2026, 7, 25, 10, 0, tzinfo=IST)
 

@@ -1,7 +1,7 @@
 """CallState datum (docs/03, docs/06): discovery-slot ordering, prompt-var view,
 and the checkpoint round-trip that backs resume-on-drop."""
 
-from roma.controller.state import _NO_KNOWN_LINE, DISCOVERY_ORDER, CallState
+from roma.domain.conversation.state import _NO_KNOWN_LINE, DISCOVERY_ORDER, CallState
 
 
 def test_the_name_is_the_first_thing_asked_for():
@@ -44,7 +44,7 @@ def test_a_slot_the_caller_will_not_answer_stops_blocking_the_ones_behind_it():
     not give their name left it pinned on `lead_name` while the model moved on, so every
     later answer was extracted against a field nobody had been asked about — and P2 filled
     nothing at all. Name-first is what made that fatal rather than merely wasteful."""
-    from roma.controller.state import SLOT_ATTEMPT_CAP
+    from roma.domain.conversation.state import SLOT_ATTEMPT_CAP
 
     s = CallState()
     for _ in range(SLOT_ATTEMPT_CAP):
@@ -143,7 +143,7 @@ def test_slot_status_is_not_checkpointed():
 
 
 def test_spoken_slot_is_empty_for_missing_or_unparseable_values():
-    from roma.controller.state import spoken_slot
+    from roma.domain.conversation.state import spoken_slot
 
     assert spoken_slot(None) == ""
     assert spoken_slot("") == ""
@@ -151,14 +151,14 @@ def test_spoken_slot_is_empty_for_missing_or_unparseable_values():
 
 
 def test_spoken_slot_renders_midnight_and_noon_the_way_a_person_says_them():
-    from roma.controller.state import spoken_slot
+    from roma.domain.conversation.state import spoken_slot
 
     assert "12:00 AM" in spoken_slot("2026-07-27T00:00:00+05:30")
     assert "12:00 PM" in spoken_slot("2026-07-27T12:00:00+05:30")
 
 
 def test_prompt_vars_feed_the_assembler_without_dangling_placeholders():
-    from roma.llm.prompts import assemble_system_prompt
+    from roma.domain.conversation.prompts import assemble_system_prompt
 
     s = CallState(branch="Vadodara", lead_name="Asha")
     prompt = assemble_system_prompt(s.as_prompt_vars(), phase="p1_open")
@@ -172,7 +172,7 @@ def test_the_opening_prompt_greets_by_name_when_the_trigger_supplied_one():
     the P1 fragment. The inbound version of this test asserted the opposite for a good reason
     (a stranger who rang us has not told us their name), and that reason no longer holds.
     """
-    from roma.llm.prompts import assemble_system_prompt
+    from roma.domain.conversation.prompts import assemble_system_prompt
 
     s = CallState(branch="Vadodara", lead_name="Asha")
     assert "Asha" in assemble_system_prompt(s.as_prompt_vars(), phase="p1_open")
@@ -184,7 +184,7 @@ def test_the_opening_prompt_never_renders_the_word_none_for_a_missing_name():
     `lead_name` is None until captured, and `as_prompt_vars` maps it to "" for exactly this.
     The fragment carries the fallback instruction; this pins the substitution half.
     """
-    from roma.llm.prompts import assemble_system_prompt
+    from roma.domain.conversation.prompts import assemble_system_prompt
 
     prompt = assemble_system_prompt(CallState(branch="Vadodara").as_prompt_vars(), "p1_open")
     # A bare `"None" not in prompt` fails on the fragment's own instruction not to say it,
@@ -203,7 +203,7 @@ def test_the_opening_prompt_never_renders_the_word_none_for_a_missing_name():
 def test_a_captured_name_reaches_the_model_through_the_known_line():
     """Not through `{{lead_name}}` — through PATA HAI, which is restated from the machine's
     own state every turn and so survives a barge-in (the CA9933275 failure)."""
-    from roma.llm.prompts import assemble_system_prompt
+    from roma.domain.conversation.prompts import assemble_system_prompt
 
     s = CallState(branch="Vadodara", lead_name="Asha")
     assert "naam Asha" in s.as_prompt_vars()["known"]
@@ -364,7 +364,7 @@ def test_an_accepted_status_with_no_readable_slot_still_shows_the_offer():
 
 
 def _state_with_offers():
-    from roma.controller.state import CallState
+    from roma.domain.conversation.state import CallState
 
     s = CallState(call_sid="t", branch="Vadodara", lead_name="ji")
     s.slots_offered = ["2026-07-29T11:00:00+05:30", "2026-07-29T17:00:00+05:30"]
@@ -410,7 +410,7 @@ def test_lead_wants_out_is_sticky_and_survives_a_checkpoint():
     silence, which is the bug it exists to fix (live call 049f0dc1). And a resume must not
     clear it: a lead who asked to stop before the socket dropped has not changed their mind
     because it dropped."""
-    from roma.controller.state import CallState
+    from roma.domain.conversation.state import CallState
 
     s = CallState(branch="Vadodara")
     assert s.lead_wants_out is False
@@ -423,8 +423,8 @@ def test_facts_already_spoken_reach_the_prompt_and_do_not_repeat():
     practical-not-theory in three; the lead's complaint was the loop. `persona.md` already
     forbids it in as many words, which is the point — the rule asks the model to audit its
     own earlier turns, the same thing PATA HAI exists because it cannot do."""
-    from roma.controller.facts import facts_in
-    from roma.controller.state import CallState
+    from roma.domain.conversation.facts import facts_in
+    from roma.domain.conversation.state import CallState
 
     s = CallState(branch="Vadodara")
     assert s.as_prompt_vars()["said"] == "", "nothing said yet must render empty, not a line"

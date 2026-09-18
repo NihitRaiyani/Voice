@@ -33,9 +33,9 @@ to Bulbul.
 import logging
 from enum import Enum
 
-from roma.guardrails.normalize import tokens
+from roma.domain.safety.normalize import tokens
 
-_log = logging.getLogger("roma.controller")
+_log = logging.getLogger("roma.domain.conversation")
 
 # The third off-topic turn stops being charming. One warm line, then back to the script.
 CONVERGE_AFTER = 3

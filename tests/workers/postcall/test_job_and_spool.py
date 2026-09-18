@@ -7,17 +7,16 @@ import asyncio
 import stat
 
 import pytest
-
-from roma.controller.state import CallState
-from roma.postcall.job import (
+from roma.domain.conversation.state import CallState
+from roma.workers.postcall.job import (
     OUTCOME_LOCKED,
     OUTCOME_NO_LOCK,
     OUTCOME_UNKNOWN,
     PostcallJob,
     outcome_for,
 )
-from roma.postcall.paths import DIR_MODE, FILE_MODE
-from roma.postcall.spool import JobSpool, SpoolFallbackQueue
+from roma.workers.postcall.paths import DIR_MODE, FILE_MODE
+from roma.workers.postcall.spool import JobSpool, SpoolFallbackQueue
 
 EXPECTED_KEYS = {
     "v",

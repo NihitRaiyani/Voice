@@ -2,7 +2,7 @@
 
 docs/03 is explicit: the objection classifier is "a small fast call or a lexicon — NOT
 the main LLM deciding its own state." We use a lexicon (dict + token match), mirroring
-`roma.guardrails.lexicon`: zero latency, deterministic, editable as text, and it keeps
+`roma.domain.safety.lexicon`: zero latency, deterministic, editable as text, and it keeps
 state-selection out of the model's hands.
 
 The starter taxonomy is the Proposed-7 (product-approved; editable here as calls come in).
@@ -16,7 +16,7 @@ the first category (in CHECK_ORDER) that fires, or None, and never raises.
 
 from enum import Enum
 
-from roma.guardrails.normalize import tokens as _tokens
+from roma.domain.safety.normalize import tokens as _tokens
 
 
 class Objection(Enum):

@@ -2,8 +2,7 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-
-from roma.config import Settings
+from roma.core.config import Settings
 
 REQUIRED = [
     "SARVAM_API_KEY",
@@ -53,7 +52,7 @@ def test_secret_never_appears_in_repr(monkeypatch):
 
 
 def test_env_example_matches_settings_fields():
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     example = repo_root / ".env.example"
     keys_in_example = set()
     for raw in example.read_text().splitlines():
@@ -83,8 +82,8 @@ def test_twilio_credentials_are_optional_at_server_startup(monkeypatch, key):
 
 
 def test_dialing_without_twilio_credentials_fails_with_a_useful_message(monkeypatch):
-    from roma.config import Settings, get_settings
-    from roma.telephony.dialer import build_twilio_client
+    from roma.core.config import Settings, get_settings
+    from roma.providers.telephony.twilio.client import build_twilio_client
 
     _set_full_env(monkeypatch)
     monkeypatch.delenv("TWILIO_ACCOUNT_SID", raising=False)
@@ -96,7 +95,7 @@ def test_dialing_without_twilio_credentials_fails_with_a_useful_message(monkeypa
     # This test passed for weeks only because `.env` happened to have them blank; the day real
     # credentials landed it started asserting nothing and failed. A test about missing
     # credentials must not depend on the developer's own machine not having any.
-    monkeypatch.setattr("roma.config.Settings", lambda **kw: Settings(_env_file=None, **kw))
+    monkeypatch.setattr("roma.core.config.Settings", lambda **kw: Settings(_env_file=None, **kw))
     get_settings.cache_clear()
     try:
         with pytest.raises(
@@ -109,14 +108,14 @@ def test_dialing_without_twilio_credentials_fails_with_a_useful_message(monkeypa
 
 
 def test_twilio_client_uses_the_bounded_dial_timeout(monkeypatch):
-    from roma.config import Settings, get_settings
-    from roma.telephony.dialer import DIAL_TIMEOUT_SECS, build_twilio_client
+    from roma.core.config import Settings, get_settings
+    from roma.providers.telephony.twilio.client import DIAL_TIMEOUT_SECS, build_twilio_client
 
     _set_full_env(monkeypatch)
     monkeypatch.setenv("TWILIO_ACCOUNT_SID", "test-twilio-account-sid")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "0123456789abcdef0123456789abcdef")
     monkeypatch.setenv("TWILIO_FROM_NUMBER", "+919876543210")
-    monkeypatch.setattr("roma.config.Settings", lambda **kw: Settings(_env_file=None, **kw))
+    monkeypatch.setattr("roma.core.config.Settings", lambda **kw: Settings(_env_file=None, **kw))
     get_settings.cache_clear()
     try:
         client = build_twilio_client()
@@ -133,7 +132,7 @@ def test_twilio_client_uses_the_bounded_dial_timeout(monkeypatch):
 )
 def test_an_unreachable_base_url_is_refused(monkeypatch, base):
     """Twilio must be able to reach both `/answer` and `/ws` from its own network."""
-    from roma.config import get_settings, require_reachable_base_url
+    from roma.core.config import get_settings, require_reachable_base_url
 
     _set_full_env(monkeypatch)
     monkeypatch.setenv("PUBLIC_BASE_URL", base)
@@ -146,7 +145,7 @@ def test_an_unreachable_base_url_is_refused(monkeypatch, base):
 
 
 def test_a_real_public_host_is_accepted(monkeypatch):
-    from roma.config import get_settings, require_reachable_base_url
+    from roma.core.config import get_settings, require_reachable_base_url
 
     _set_full_env(monkeypatch)
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://sure-temperatures.trycloudflare.com")

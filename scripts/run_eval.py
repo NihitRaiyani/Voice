@@ -24,7 +24,7 @@ import logging
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from roma.eval import script as script_mod
 from roma.eval.checks import check_canaries
@@ -98,8 +98,7 @@ async def _main(argv=None) -> int:
     client = None
     if args.live:
         from openai import AsyncOpenAI
-
-        from roma.config import get_settings
+        from roma.core.config import get_settings
 
         settings = get_settings()
         meter = Meter(budget_inr=settings.openai_budget_inr)

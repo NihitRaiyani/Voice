@@ -1,7 +1,6 @@
 import pytest
-
-from roma.dialer import CONSENT_LINE
-from roma.telephony import canned
+from roma.domain.calls import CONSENT_LINE
+from roma.realtime import canned
 
 
 def test_consent_line_loads_and_matches_gate_constant():
@@ -18,7 +17,7 @@ def test_opening_line_loads_clean_through_filter():
 
 
 def test_opening_line_passes_the_pretts_filter_unaltered():
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     assert safe_output(canned.OPENING_LINE) == canned.OPENING_LINE
 
@@ -39,7 +38,7 @@ def test_missing_asset_raises_pointing_to_the_script():
 def test_the_opening_asset_exists_and_decodes():
     """It is played at connect from disk. A missing asset means the caller's first second is
     silence, which is the failure this whole mechanism exists to remove."""
-    from roma.telephony.canned import OPENING_LINE, opening_line
+    from roma.realtime.canned import OPENING_LINE, opening_line
 
     line = opening_line()
     assert line.text == OPENING_LINE
@@ -50,7 +49,7 @@ def test_the_opener_is_short_enough_to_be_an_answer_not_a_speech():
     """A person who answers a phone says who they are and stops. Every extra second is the
     caller waiting to say the thing they dialled to say — and it is audio they must barge in
     over. Two seconds is generous; the rendered asset is ~1.5s."""
-    from roma.telephony.canned import SAMPLE_RATE, opening_line
+    from roma.realtime.canned import SAMPLE_RATE, opening_line
 
     secs = len(opening_line().pcm) / 2 / SAMPLE_RATE
     assert secs < 2.0, f"the opener is {secs:.2f}s — that is a speech, not a greeting"
@@ -59,6 +58,6 @@ def test_the_opener_is_short_enough_to_be_an_answer_not_a_speech():
 def test_the_opener_names_weltec():
     """The whole reason it is not a bare "Hello?": a caller who does not hear the business
     name has to ask, which costs a turn. P1's branch exists for when they ask anyway."""
-    from roma.telephony.canned import OPENING_LINE
+    from roma.realtime.canned import OPENING_LINE
 
     assert "Weltec" in OPENING_LINE

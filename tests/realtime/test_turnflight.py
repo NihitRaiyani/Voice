@@ -1,4 +1,4 @@
-"""The shared answer to "is a reply on its way?" (roma.telephony.turnflight).
+"""The shared answer to "is a reply on its way?" (roma.realtime.turnflight).
 
 Live call CA4ba2a6b8 (2026-07-28) went dead 65 seconds in. The watchdog nudged 4.9s after a
 finalized transcript, a second generation started on top of the first, and the TTS context
@@ -16,10 +16,9 @@ import time
 from pipecat.frames.frames import LLMContextFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.frame_processor import FrameDirection
-
-from roma.controller.state import CallState
-from roma.telephony.phase_controller import PhaseControllerProcessor
-from roma.telephony.turnflight import TurnFlight
+from roma.domain.conversation.state import CallState
+from roma.realtime.phase_controller import PhaseControllerProcessor
+from roma.realtime.turnflight import TurnFlight
 
 VARS = {"branch": "Vadodara", "lead_name": "ji"}
 
@@ -145,7 +144,7 @@ def test_the_watchdog_and_the_controller_share_one_flight():
     call goes dead again — with every unit test still green."""
     import inspect
 
-    from roma.telephony import media
+    from roma.realtime import pipeline as media
 
     src = inspect.getsource(media.build_media_app)
     assert "flight = TurnFlight()" in src
@@ -165,7 +164,7 @@ def test_the_slot_client_is_shared_across_calls_and_bounded():
     `advance_turn` awaits this before the conversation LLM is asked."""
     import inspect
 
-    from roma.telephony import media
+    from roma.realtime import pipeline as media
 
     src = inspect.getsource(media.build_media_app)
     assert "app.state.slot_client = build_slot_client_fn(settings)" in src
@@ -182,7 +181,7 @@ def test_the_prelude_read_is_bounded():
     connected and said nothing held a websocket, a task and a Silero session indefinitely."""
     import inspect
 
-    from roma.telephony import media
+    from roma.realtime import pipeline as media
 
     src = inspect.getsource(media._read_start)
     assert "asyncio.wait_for" in src
@@ -210,7 +209,7 @@ def test_a_re_driven_utterance_does_not_advance_the_machine_twice():
     calls = []
 
     async def _extract(client, text, slot_name):
-        from roma.controller.slots import DiscoveryValue
+        from roma.domain.appointments.slots import DiscoveryValue
 
         calls.append(text)
         return DiscoveryValue()
@@ -235,7 +234,7 @@ def test_a_genuinely_new_utterance_still_advances():
     calls = []
 
     async def _extract(client, text, slot_name):
-        from roma.controller.slots import DiscoveryValue
+        from roma.domain.appointments.slots import DiscoveryValue
 
         calls.append(text)
         return DiscoveryValue()

@@ -29,7 +29,7 @@ wrote to Redis (`trigger.py:84-87`).
 
 ## The contract these tests define
 
-- `roma.dialer.openerstore.OpenerStore` — `put`/`get`/`aclose`, keyed `roma:opener:{token}`,
+- `roma.repositories.redis.opener_audio.OpenerStore` — `put`/`get`/`aclose`, keyed `roma:opener:{token}`,
   the same shape and TTL as `RedisLeadStore` next to it.
 - `PickupGreeter(opening_audio_fn=...)` — returns pre-rendered PCM or None.
 - A cache HIT plays audio and touches neither TTS nor the LLM.
@@ -42,9 +42,8 @@ wrote to Redis (`trigger.py:84-87`).
 import asyncio
 
 import fakeredis
-
-from roma.guardrails import safe_output
-from roma.llm.prompts import opening_line
+from roma.domain.conversation.prompts import opening_line
+from roma.domain.safety import safe_output
 
 LEAD_TOKEN = "tok_abc123"
 
@@ -62,7 +61,7 @@ def _openerstore():
     """The unbuilt module, or None. Imported lazily so absence is an assertion, not a
     collection error that reads as a broken suite."""
     try:
-        from roma.dialer import openerstore
+        from roma.repositories.redis import opener_audio as openerstore
     except ImportError:
         return None
     return openerstore
@@ -71,7 +70,7 @@ def _openerstore():
 def _require_store():
     mod = _openerstore()
     assert mod is not None, (
-        "NOT BUILT: roma/dialer/openerstore.py — OpenerStore(put/get/aclose) keyed "
+        "NOT BUILT: roma/repositories/redis/opener_audio.py — OpenerStore(put/get/aclose) keyed "
         "roma:opener:{token}, mirroring RedisLeadStore. Renders the outbound opener to "
         "telephony PCM during the ring so PickupGreeter can play bytes instead of waiting "
         "~0.8-1.3s on Bulbul."
@@ -82,7 +81,7 @@ def _require_store():
 def _greeter(**kwargs):
     """A PickupGreeter with its output captured. `enable_direct_mode` because there is no
     task manager here — the repo pattern from `test_opening_guard.py:28-45`."""
-    from roma.telephony.opening import PickupGreeter
+    from roma.realtime.opening import PickupGreeter
 
     g = PickupGreeter(enable_direct_mode=True, **kwargs)
     g.captured = []
@@ -260,7 +259,7 @@ def test_a_pre_rendered_opener_must_disarm_the_opening_guard():
     call 0ce455b0 then burned five silent minutes. The wiring itself is pinned by
     `test_media_wiring.py` — a unit test of a processor cannot verify its caller.
     """
-    from roma.telephony.opening import OpeningTurnGuard
+    from roma.realtime.opening import OpeningTurnGuard
 
     guard = OpeningTurnGuard(opener_is_raw_audio=True, enable_direct_mode=True)
     assert guard.opened, (

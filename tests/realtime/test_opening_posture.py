@@ -46,7 +46,7 @@ it too passes a literal `True`.
 A wiring bug needs a test of the wiring, so the decision now lives in a pure function.
 """
 
-from roma.telephony.opening import OpeningTurnGuard, PickupGreeter, opening_posture
+from roma.realtime.opening import OpeningTurnGuard, PickupGreeter, opening_posture
 
 # --- the truth table --------------------------------------------------------------------
 

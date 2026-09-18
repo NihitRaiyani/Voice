@@ -57,7 +57,7 @@ def _give_up() -> None:
 
 
 def main() -> int:
-    from roma.telephony.media import build_media_app, sole_call
+    from roma.realtime.pipeline import build_media_app, sole_call
 
     timer = threading.Timer(WATCHDOG_SECS, _give_up)
     timer.daemon = True

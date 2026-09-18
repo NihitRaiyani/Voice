@@ -26,7 +26,7 @@ win.
 
 ## The five-minute deadline
 
-The same processor enforces the call's time ceiling (`roma.controller.pacing`). By
+The same processor enforces the call's time ceiling (`roma.domain.conversation.pacing`). By
 `OVER_SECS` the pacing lines have been telling Roma to sign off for two minutes; if the
 call is still running, something has gone wrong and no prompt is going to fix it — a lead
 who will not be booked in five minutes gets a callback, not a longer call.
@@ -56,9 +56,9 @@ import logging
 from pipecat.frames.frames import BotStoppedSpeakingFrame, EndWorkerFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
-from roma.controller.pacing import OVER_GRACE_SECS, OVER_SECS
+from roma.domain.conversation.pacing import OVER_GRACE_SECS, OVER_SECS
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 
 class CallCloser(FrameProcessor):

@@ -15,7 +15,7 @@ import re
 from functools import cache
 from pathlib import Path
 
-_PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+_PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
 # NOT the lever for long turns, checked 2026-08-01 and recorded so it is not "fixed" again:
 # these are max_tokens CEILINGS, and on live call 049f0dc1 Roma's longest turn was 79

@@ -22,14 +22,13 @@ from pipecat.frames.frames import (
 )
 from pipecat.turns.types import ProcessFrameResult
 from pipecat.utils.asyncio.task_manager import TaskManager
-
-from roma.telephony.backchannel import (
+from roma.realtime.backchannel import (
     BACKCHANNEL_MAX_SECS,
     ENDPOINT_CONTINUATION_SECS,
     ENDPOINT_DEFAULT_SECS,
     ENDPOINT_TERMINAL_SECS,
 )
-from roma.telephony.turntaking import (
+from roma.realtime.turntaking import (
     AdaptiveEndpointStopStrategy,
     BackchannelAwareUserTurnStartStrategy,
 )
@@ -597,8 +596,7 @@ def _real_user_aggregator(**settings_kw):
     """The user aggregator exactly as `media.py` builds it with barge-in ON."""
     from pipecat.processors.aggregators.llm_context import LLMContext
     from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
-
-    from roma.telephony.media import build_user_params
+    from roma.realtime.pipeline import build_user_params
 
     class _Settings:
         backchannel_max_secs = ARM

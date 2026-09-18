@@ -8,18 +8,18 @@ Public surface:
 - `next_phase` / `TurnSignals` / `Transition` — the pure deterministic transition (docs/03).
 """
 
-from roma.controller.machine import Transition, TurnSignals, next_phase
-from roma.controller.state import (
+from roma.domain.conversation.machine import Transition, TurnSignals, next_phase
+from roma.domain.conversation.state import (
     DISCOVERY_ORDER,
     PHASES,
     CallState,
 )
-from roma.controller.store import (
+from roma.domain.conversation.turn import advance_turn
+from roma.repositories.redis.conversation_state import (
     CallStateStore,
     InMemoryCallStateStore,
     RedisCallStateStore,
 )
-from roma.controller.turn import advance_turn
 
 __all__ = [
     "CallState",

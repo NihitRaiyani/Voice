@@ -40,7 +40,12 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Protocol, runtime_checkable
 
-from roma.controller.timeresolve import IST, VISIT_HOUR_END, VISIT_HOUR_START, VISIT_MIN_LEAD
+from roma.domain.appointments.timeresolve import (
+    IST,
+    VISIT_HOUR_END,
+    VISIT_HOUR_START,
+    VISIT_MIN_LEAD,
+)
 
 
 @runtime_checkable

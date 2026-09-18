@@ -1,4 +1,4 @@
-from roma.dialer.dnd import DoNotCallRegistry, StubRegistry, normalize_phone
+from roma.domain.calls.dnd import DoNotCallRegistry, StubRegistry, normalize_phone
 
 
 def test_consented_number_is_dialable():

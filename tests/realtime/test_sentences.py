@@ -18,8 +18,7 @@ import asyncio
 from pipecat.frames.frames import InterruptionFrame, TextFrame
 from pipecat.processors.aggregators.sentence import SentenceAggregator
 from pipecat.tests.utils import run_test
-
-from roma.telephony.sentences import InterruptibleSentenceAggregator
+from roma.realtime.sentences import InterruptibleSentenceAggregator
 
 CANCELLED = "Aap kis saal"
 NEXT_TURN = "Achha, aap shop mein kaam kar rahe ho."
@@ -79,7 +78,7 @@ def test_the_dropped_text_is_never_logged(caplog):
     fires on every barge-in. Length only."""
     import logging
 
-    with caplog.at_level(logging.INFO, logger="roma.telephony"):
+    with caplog.at_level(logging.INFO, logger="roma.realtime"):
         _interrupted(InterruptibleSentenceAggregator())
     assert any("sentence aggregator" in r.getMessage() for r in caplog.records)
     for r in caplog.records:

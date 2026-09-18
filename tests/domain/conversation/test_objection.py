@@ -2,8 +2,7 @@
 utterances do not (false positives derail the close), and it never raises."""
 
 import pytest
-
-from roma.controller.objection import (
+from roma.domain.conversation.objection import (
     OBJECTION_PHRASES,
     Objection,
     classify_objection,

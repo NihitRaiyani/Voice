@@ -9,8 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
-
-from roma.controller.timeresolve import IST
+from roma.domain.appointments.timeresolve import IST
 from roma.eval import script as script_mod
 from roma.eval.cost import BudgetExceeded, Meter, Usage
 from roma.eval.runner import FROZEN_NOW, run_script

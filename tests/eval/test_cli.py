@@ -50,7 +50,7 @@ def test_a_broken_filter_exits_nonzero_even_with_a_perfect_corpus(monkeypatch, c
     tokenizer defect and the run must go red even though every script still passes — a
     filter that fails open is not something a green corpus is allowed to hide."""
     broken = re.compile(r"[₹%]|\w+")
-    monkeypatch.setattr("roma.guardrails.filter._tokens", lambda text: broken.findall(text))
+    monkeypatch.setattr("roma.domain.safety.filter._tokens", lambda text: broken.findall(text))
     assert _cli().main([]) == 1
     out = capsys.readouterr().out
     assert "filter canaries: FAIL" in out

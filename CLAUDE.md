@@ -67,7 +67,7 @@ PostgreSQL is the target durable system of record; it does not replace Redis's t
 - Current behavior belongs in `README.md` and `docs/01`–`docs/12`.
 - Target architecture and tutorials belong in `docs/13`–`docs/17`.
 - `LOG.md` and `docs/superpowers/` are historical evidence, not the current runbook.
-- Runtime prompt files under `src/roma/prompts/` affect product behavior; do not treat them as
+- Runtime prompt files under `roma/prompts/` affect product behavior; do not treat them as
   ordinary prose documentation.
 
 ## Project-local skills

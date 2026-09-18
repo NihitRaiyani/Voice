@@ -37,7 +37,7 @@ from pipecat.frames.frames import (
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 _WAV_HEADER_BYTES = 44
 

@@ -15,9 +15,15 @@ this is unit-testable with no live API.
 import logging
 from datetime import date, datetime
 
-from roma.controller.calendar import DEFAULT_CALENDAR, VisitCalendar
-from roma.controller.confirmguard import TIME_CUES, lead_wants_out
-from roma.controller.machine import (
+from roma.domain.appointments.calendar import DEFAULT_CALENDAR, VisitCalendar
+from roma.domain.appointments.slots import extract_discovery_slot, extract_time_slot
+from roma.domain.appointments.timeresolve import (
+    CONFIDENCE_THRESHOLD,
+    SlotVerdict,
+    resolve_visit_slot,
+)
+from roma.domain.conversation.confirmguard import TIME_CUES, lead_wants_out
+from roma.domain.conversation.machine import (
     P1_OPEN,
     P2_DISCOVER,
     P5_PIVOT,
@@ -26,18 +32,12 @@ from roma.controller.machine import (
     TurnSignals,
     next_phase,
 )
-from roma.controller.objection import classify_objection
-from roma.controller.pacing import band, should_force_pivot
-from roma.controller.slots import extract_discovery_slot, extract_time_slot
-from roma.controller.state import SLOT_ATTEMPT_CAP, CallState, spoken_slot
-from roma.controller.timeresolve import (
-    CONFIDENCE_THRESHOLD,
-    SlotVerdict,
-    resolve_visit_slot,
-)
-from roma.guardrails.normalize import tokens
+from roma.domain.conversation.objection import classify_objection
+from roma.domain.conversation.pacing import band, should_force_pivot
+from roma.domain.conversation.state import SLOT_ATTEMPT_CAP, CallState, spoken_slot
+from roma.domain.safety.normalize import tokens
 
-_log = logging.getLogger("roma.controller")
+_log = logging.getLogger("roma.domain.conversation")
 
 _AFFIRMATIONS = {
     "haan",
@@ -732,7 +732,7 @@ async def advance_turn(
     `Transition` (carrying `win`/`hard_pivot`). Checkpoints to `store` on durable events.
 
     `elapsed_secs` is seconds since the call connected. It drives the five-minute budget
-    (`roma.controller.pacing`): it rides into the phase prompt as `{{pacing}}`, and past
+    (`roma.domain.conversation.pacing`): it rides into the phase prompt as `{{pacing}}`, and past
     three minutes it can force the machine forward to the booking. Defaults to 0.0 so
     every existing caller and test keeps the old behaviour exactly.
     """

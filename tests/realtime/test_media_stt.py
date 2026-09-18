@@ -24,7 +24,7 @@ REQUIRED_ENV = {
 def settings(monkeypatch):
     for k, v in REQUIRED_ENV.items():
         monkeypatch.setenv(k, v)
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
     yield get_settings()
@@ -32,7 +32,7 @@ def settings(monkeypatch):
 
 
 def test_build_vad_uses_turn_final_stop_secs(settings):
-    from roma.telephony.media import VAD_STOP_SECS, build_vad
+    from roma.realtime.pipeline import VAD_STOP_SECS, build_vad
 
     vad = build_vad(settings)
     assert isinstance(vad, SileroVADAnalyzer)
@@ -46,7 +46,7 @@ def test_build_vad_uses_turn_final_stop_secs(settings):
 def test_build_vad_reads_stop_secs_from_settings(settings):
     """THE Step-7 knob. If this ever reverts to the module constant, tuning 850ms on the
     production origin silently becomes a code edit again and the env var lies."""
-    from roma.telephony.media import build_vad
+    from roma.realtime.pipeline import build_vad
 
     settings.vad_stop_secs = 0.62
     assert build_vad(settings).params.stop_secs == 0.62
@@ -60,7 +60,7 @@ def test_build_stt_configures_saaras_codemix_autodetect(settings):
     not: they code-switch every other clause, which is what `codemix` mode exists for, and
     pinning the decoder to one language fights the mode.
     """
-    from roma.telephony.media import build_stt
+    from roma.realtime.pipeline import build_stt
 
     stt = build_stt(settings)
     assert stt._settings.model == "saaras:v3"
@@ -88,7 +88,7 @@ def test_barge_in_off_still_lets_the_lead_interrupt_and_keeps_endpointing():
     audio nothing would ever flush.
 
     The STOP strategy assertion is unchanged and still matters."""
-    from roma.telephony.media import build_user_params
+    from roma.realtime.pipeline import build_user_params
 
     p = build_user_params()
     starts = p.user_turn_strategies.start
@@ -106,7 +106,7 @@ def test_barge_in_defaults_on():
     `test_barge_in_off_still_lets_the_lead_interrupt_and_keeps_endpointing`). It selects the
     Step 5B turn-taking strategies, and those are on by default now that the endpoint spans
     they depend on have been tuned against live audio."""
-    from roma.config import Settings
+    from roma.core.config import Settings
 
     assert Settings.model_fields["enable_barge_in"].default is True
 
@@ -125,8 +125,8 @@ def test_barge_in_off_keeps_pipecat_smart_turn():
 
     So: the adaptive stop strategy is now required in BOTH branches, and the flag must
     still govern interruptions."""
-    from roma.telephony.media import build_user_params
-    from roma.telephony.turntaking import AdaptiveEndpointStopStrategy
+    from roma.realtime.pipeline import build_user_params
+    from roma.realtime.turntaking import AdaptiveEndpointStopStrategy
 
     off = build_user_params(enable_barge_in=False).user_turn_strategies
     on = build_user_params(enable_barge_in=True).user_turn_strategies
@@ -141,7 +141,7 @@ def test_barge_in_off_keeps_pipecat_smart_turn():
 
     # ...and what the flag DOES own is still switched: the backchannel guard is a start
     # strategy and belongs only to the barge-in path.
-    from roma.telephony.turntaking import BackchannelAwareUserTurnStartStrategy
+    from roma.realtime.turntaking import BackchannelAwareUserTurnStartStrategy
 
     assert not any(isinstance(s, BackchannelAwareUserTurnStartStrategy) for s in off.start)
     assert any(isinstance(s, BackchannelAwareUserTurnStartStrategy) for s in on.start)
@@ -159,9 +159,8 @@ def test_barge_in_on_installs_the_backchannel_guard_alone():
         TranscriptionUserTurnStartStrategy,
     )
     from pipecat.turns.user_start.vad_user_turn_start_strategy import VADUserTurnStartStrategy
-
-    from roma.telephony.media import build_user_params
-    from roma.telephony.turntaking import (
+    from roma.realtime.pipeline import build_user_params
+    from roma.realtime.turntaking import (
         AdaptiveEndpointStopStrategy,
         BackchannelAwareUserTurnStartStrategy,
     )
@@ -188,7 +187,7 @@ def test_build_tts_pins_the_live_verified_voice_config(settings):
     v3 supports `pace` (0.5-2.0) and `temperature`; it does NOT support `pitch` or
     `loudness` (v2-only), so `pace` is the single prosody dial.
     """
-    from roma.telephony.media import TTS_PACE, TTS_VOICE, build_tts
+    from roma.realtime.pipeline import TTS_PACE, TTS_VOICE, build_tts
 
     s = build_tts(settings)._settings
     assert s.model == "bulbul:v3"
@@ -201,8 +200,7 @@ def test_build_tts_pins_the_live_verified_voice_config(settings):
 def test_tts_voice_is_a_real_bulbul_v3_speaker():
     """A typo'd speaker name is a runtime failure on a live call, not an import error."""
     from pipecat.services.sarvam.tts import SarvamTTSSpeakerV3
-
-    from roma.telephony.media import TTS_VOICE
+    from roma.realtime.pipeline import TTS_VOICE
 
     assert TTS_VOICE in {s.value for s in SarvamTTSSpeakerV3}
 
@@ -215,7 +213,7 @@ def _metrics_frame(pairs):
 
 
 def _usage_logger():
-    from roma.telephony.media import _UsageLogger
+    from roma.realtime.pipeline import _UsageLogger
 
     return _UsageLogger(enable_direct_mode=True)
 
@@ -278,7 +276,7 @@ def test_the_llm_dominates_the_endpoint_wait_on_real_numbers():
     """Documents the live finding (call CA9c5f7cf): LLM TTFB 1.21s against an 850ms
     endpoint wait. If this ever inverts, lowering `vad_stop_secs` becomes worth doing —
     until then it is not, and this test is where that reasoning is written down."""
-    from roma.config import Settings
+    from roma.core.config import Settings
 
     u = _drive(_usage_logger(), [_metrics_frame([("OpenAILLMService#0", 1.21)])])
     llm_p50 = u.ttfb_summary()["OpenAILLMService#0"]["p50"]
@@ -294,7 +292,7 @@ def test_build_stt_leaves_vad_signals_unset_so_the_flush_signal_stays_on(setting
 
     Pinned because it is a one-word change with no local symptom: the call still works,
     just slower, which is how it would survive review."""
-    from roma.telephony.media import build_stt
+    from roma.realtime.pipeline import build_stt
 
     stt = build_stt(settings)
     assert stt._settings.vad_signals is None
@@ -314,8 +312,7 @@ def test_the_stt_language_is_auto_detect_not_a_pinned_language():
     silently turn this back into a pinned language.
     """
     from pipecat.services.sarvam.stt import SarvamSTTService
-
-    from roma.telephony.media import STT_LANGUAGE, STT_MODEL
+    from roma.realtime.pipeline import STT_LANGUAGE, STT_MODEL
 
     assert STT_LANGUAGE is None
     svc = SarvamSTTService(
@@ -328,7 +325,7 @@ def test_the_stt_language_is_auto_detect_not_a_pinned_language():
 def test_code_mix_mode_survives_the_language_change():
     """Auto-detect is per utterance; `codemix` is what keeps a single sentence mixed rather
     than translated. Losing it would trade one transcription bug for another."""
-    from roma.telephony.media import STT_MODE
+    from roma.realtime.pipeline import STT_MODE
 
     assert STT_MODE == "codemix"
 
@@ -348,7 +345,7 @@ def test_the_usage_logger_sits_after_the_tts_service():
     position is what this pins."""
     import inspect
 
-    from roma.telephony import media
+    from roma.realtime import pipeline as media
 
     src = inspect.getsource(media)
     llm_idx = src.index("                    llm,\n")
@@ -365,7 +362,7 @@ def test_a_swallowed_exception_is_counted():
     threw on every turn, whose recording never opened and whose ledger never wrote still
     reported `service_errors=0` — which is exactly how the dead VAD and the silently-unplayed
     filler each survived multiple live calls."""
-    from roma.telephony.health import CallHealth
+    from roma.realtime.health import CallHealth
 
     h = CallHealth()
     assert h.degraded == {}
@@ -387,8 +384,8 @@ def test_the_conversational_llm_caps_its_first_attempt_and_retries():
     one Roma actually speaks with was not — this pins that asymmetry closed.
 
     Pipecat defaults `retry_on_timeout` to False, so this is opt-in and must stay opted in."""
-    from roma.config import Settings
-    from roma.telephony.media import LLM_FIRST_ATTEMPT_TIMEOUT_SECS, build_llm
+    from roma.core.config import Settings
+    from roma.realtime.pipeline import LLM_FIRST_ATTEMPT_TIMEOUT_SECS, build_llm
 
     llm = build_llm(
         Settings(
@@ -417,8 +414,8 @@ def test_stt_connect_does_not_block_the_pipeline_start():
     greeted them."""
     import asyncio
 
-    from roma.config import Settings
-    from roma.telephony.media import NonBlockingStartSarvamSTT, build_stt
+    from roma.core.config import Settings
+    from roma.realtime.pipeline import NonBlockingStartSarvamSTT, build_stt
 
     stt = build_stt(
         Settings(
@@ -459,7 +456,7 @@ def test_a_dropped_stt_handshake_is_retried_before_the_call_is_declared_deaf():
     the pipeline for three attempts would be worse than the failure it fixes."""
     import asyncio
 
-    from roma.telephony.media import STT_CONNECT_ATTEMPTS, NonBlockingStartSarvamSTT
+    from roma.realtime.pipeline import STT_CONNECT_ATTEMPTS, NonBlockingStartSarvamSTT
 
     assert STT_CONNECT_ATTEMPTS >= 2
 
@@ -472,7 +469,7 @@ def test_a_dropped_stt_handshake_is_retried_before_the_call_is_declared_deaf():
             raise TimeoutError("timed out during opening handshake")
 
     stt._connect = _flaky
-    import roma.telephony.media as media_mod
+    import roma.realtime.pipeline as media_mod
 
     orig = media_mod.STT_CONNECT_RETRY_SECS
     media_mod.STT_CONNECT_RETRY_SECS = 0.01
@@ -497,8 +494,8 @@ def test_the_tts_connect_does_not_block_the_pipeline_start_either():
     Safe because `run_tts` opens by reconnecting if the socket is closed."""
     import asyncio
 
-    from roma.config import Settings
-    from roma.telephony.media import NonBlockingStartSarvamTTS, build_tts
+    from roma.core.config import Settings
+    from roma.realtime.pipeline import NonBlockingStartSarvamTTS, build_tts
 
     tts = build_tts(
         Settings(
@@ -535,8 +532,8 @@ def test_the_tts_still_sets_the_sample_rate_its_config_message_needs():
     is set — and `_send_config` reads it. Dropping it would ship a broken config on connect."""
     import asyncio
 
-    from roma.config import Settings
-    from roma.telephony.media import build_tts
+    from roma.core.config import Settings
+    from roma.realtime.pipeline import build_tts
 
     tts = build_tts(
         Settings(
@@ -563,8 +560,8 @@ def test_a_failed_tts_prewarm_does_not_take_down_pipeline_start():
     """run_tts reconnects on demand, so a failed prewarm must be survivable."""
     import asyncio
 
-    from roma.config import Settings
-    from roma.telephony.media import build_tts
+    from roma.core.config import Settings
+    from roma.realtime.pipeline import build_tts
 
     tts = build_tts(
         Settings(
@@ -595,8 +592,8 @@ def test_a_concurrent_connect_does_not_open_a_second_socket():
     """
     import asyncio
 
-    from roma.config import Settings
-    from roma.telephony.media import build_tts
+    from roma.core.config import Settings
+    from roma.realtime.pipeline import build_tts
 
     tts = build_tts(
         Settings(
@@ -639,10 +636,9 @@ def test_a_closed_socket_is_still_reconnected():
     socket drops mid-call."""
     import asyncio
 
+    from roma.core.config import Settings
+    from roma.realtime.pipeline import build_tts
     from websockets.protocol import State
-
-    from roma.config import Settings
-    from roma.telephony.media import build_tts
 
     tts = build_tts(
         Settings(
@@ -687,7 +683,7 @@ def test_an_exhausted_stt_connect_does_not_tear_the_call_down():
     leg; killing the pipeline takes that decision away from it."""
     import asyncio
 
-    from roma.telephony.media import NonBlockingStartSarvamSTT
+    from roma.realtime.pipeline import NonBlockingStartSarvamSTT
 
     stt = NonBlockingStartSarvamSTT.__new__(NonBlockingStartSarvamSTT)
     calls = {"n": 0}
@@ -697,7 +693,7 @@ def test_an_exhausted_stt_connect_does_not_tear_the_call_down():
         raise TimeoutError("timed out during opening handshake")
 
     stt._connect = _always_fails
-    import roma.telephony.media as media_mod
+    import roma.realtime.pipeline as media_mod
 
     orig, orig_max = media_mod.STT_CONNECT_RETRY_SECS, media_mod.STT_CONNECT_RETRY_MAX_SECS
     media_mod.STT_CONNECT_RETRY_SECS = 0.001
@@ -714,7 +710,7 @@ def test_an_exhausted_stt_connect_does_not_tear_the_call_down():
 def test_the_retry_window_is_wide_enough_to_outlast_a_bad_handshake():
     """3 tries 1s apart covered a 2s window against a link measured at p50 3.0s with 40%
     outright timeouts — a formality, not a retry."""
-    from roma.telephony.media import (
+    from roma.realtime.pipeline import (
         STT_CONNECT_ATTEMPTS,
         STT_CONNECT_RETRY_MAX_SECS,
         STT_CONNECT_RETRY_SECS,

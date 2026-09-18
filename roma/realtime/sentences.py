@@ -29,7 +29,7 @@ from pipecat.frames.frames import InterruptionFrame
 from pipecat.processors.aggregators.sentence import SentenceAggregator
 from pipecat.processors.frame_processor import FrameDirection
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 
 class InterruptibleSentenceAggregator(SentenceAggregator):

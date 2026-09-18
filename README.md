@@ -39,6 +39,27 @@ roadmap targets—not current features. See [the documentation map](docs/README.
 - Barge-in, per-call isolation, Redis state, prompt caching, and post-call recording jobs.
 - Offline unit, integration-style, media, safety, and evaluation tests that do not place calls.
 
+## Backend layout
+
+```text
+roma/
+├── api/             # HTTP adapters: parse, authenticate, translate errors
+├── core/            # configuration and logging
+├── domain/          # provider-independent call, conversation, safety, and cost rules
+├── services/        # application use cases and orchestration
+├── repositories/    # Redis persistence adapters
+├── providers/       # Twilio and Google Calendar adapters
+├── realtime/        # latency-sensitive audio and turn-taking pipeline
+├── workers/         # post-call background processing
+├── eval/            # offline evaluation harness
+├── prompts/         # versioned runtime prompt data
+└── main.py           # production composition root
+```
+
+Dependencies point inward: routes call services; services coordinate domain rules and
+ports; providers and repositories contain infrastructure details. `roma/main.py` is the
+place where concrete implementations are assembled.
+
 ## Configuration
 
 Copy `.env.example` to the ignored local `.env` and set the required values. Never commit
@@ -87,7 +108,7 @@ This command can place a real paid call. Use only an approved test handset after
 ## Verify offline
 
 ```bash
-uv run --extra telephony --extra dev ruff check src tests scripts
+uv run --extra telephony --extra dev ruff check roma tests scripts
 uv run --extra telephony --extra dev pytest -q
 uv run --extra telephony --extra dev python scripts/verify_media.py
 bash -n scripts/start_roma.sh

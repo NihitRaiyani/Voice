@@ -16,8 +16,7 @@ real enforcement (docs/02); this is the belt that reports and refuses.
 """
 
 import pytest
-
-from roma.spend import (
+from roma.domain.costs.spend import (
     PRICES,
     SpendLedger,
     Usage,
@@ -115,7 +114,7 @@ def test_the_ledger_lives_under_the_one_data_root(tmp_path):
     """docs/07/docs/09: everything Roma writes to disk goes under one configurable root,
     so there is a single directory to lock down and a single line in .gitignore. The spend
     ledger is not an exception just because it holds no PII."""
-    from roma.postcall.paths import data_root, spend_ledger_path
+    from roma.workers.postcall.paths import data_root, spend_ledger_path
 
     class _S:
         roma_data_dir = str(tmp_path)
@@ -150,7 +149,7 @@ def test_the_ledger_and_the_root_it_creates_are_owner_only(tmp_path):
 def test_a_ledger_write_cannot_downgrade_an_existing_private_root(tmp_path):
     """The recorder may well get there first. Recording spend must not loosen what it
     found."""
-    from roma.postcall.paths import ensure_private_dir
+    from roma.workers.postcall.paths import ensure_private_dir
 
     root = ensure_private_dir(tmp_path / "root")
     SpendLedger(root / "spend.jsonl").record(Usage(input_tokens=100), "gpt-4o")

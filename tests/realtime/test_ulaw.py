@@ -1,8 +1,7 @@
 import struct
 
 import pytest
-
-from roma.telephony.ulaw import pcm16_to_ulaw, ulaw_to_pcm16
+from roma.realtime.ulaw import pcm16_to_ulaw, ulaw_to_pcm16
 
 
 def _pcm(samples):

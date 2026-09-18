@@ -1,7 +1,6 @@
 # 01 — Architecture
 
-**Status:** Implemented current architecture. PostgreSQL and the expanded service boundaries are
-planned, not present.
+**Status:** Implemented layered modular monolith. PostgreSQL remains planned, not present.
 
 **Learning objective:** Trace one call across transport, realtime processing, business control,
 state, safety, and asynchronous work. Explain why latency-sensitive and durable work need
@@ -30,8 +29,15 @@ different boundaries.
 ```
 
 ## Components (one responsibility each)
-- **Dialer / worker pool** — pulls warm leads, places outbound calls, respects calling
-  window + DND (see security). One in-flight call = one pipeline task.
+- **API adapters (`roma/api`)** — authenticate and translate HTTP/WebSocket traffic; business
+  gates do not live in route handlers.
+- **Application services (`roma/services`)** — coordinate outbound-call use cases and define
+  transaction-sized operations.
+- **Domain (`roma/domain`)** — provider-independent call rules, conversation state machine,
+  appointment policy, safety rules, and spend policy.
+- **Providers (`roma/providers`)** — Twilio and calendar integrations isolated from domain code.
+- **Repositories (`roma/repositories`)** — Redis-backed state, status, lead, opener, and queue
+  implementations.
 - **Pipecat pipeline** — the real-time loop. Owns VAD, STT, LLM, filter, TTS, and the
   interruption lifecycle. One instance per active call.
 - **Conversation controller** — the 7-phase state machine (`docs/03`). Plain Python. Decides
@@ -61,8 +67,11 @@ different boundaries.
 - Recording persistence → post-call worker.
 - Any network call that would add latency inside a turn → moved out or cached.
 
-## Roadmap bridge
+## Dependency direction
 
-The next architectural step is a **modular monolith**, not microservices: keep one deployable
-backend while introducing explicit API, service, repository, provider, and worker boundaries only
-where they improve testing or enforce a transaction. See `docs/13-backend-roadmap.md`.
+`api -> services -> domain` is the primary inward path. Redis and external APIs remain in
+`repositories` and `providers`; the production composition root in `roma/main.py` assembles the
+concrete backend. The project remains one deployable process family, not microservices.
+
+The next architecture milestone is PostgreSQL-backed durable records and transaction-safe
+appointment locking. See `docs/13-backend-roadmap.md`.

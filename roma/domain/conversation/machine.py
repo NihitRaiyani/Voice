@@ -12,7 +12,7 @@ count of 2 here means "this is the second time we've heard this objection".
 
 from dataclasses import dataclass
 
-from roma.controller.state import DISCOVERY_ORDER, CallState
+from roma.domain.conversation.state import DISCOVERY_ORDER, CallState
 
 P1_OPEN = "p1_open"
 P2_DISCOVER = "p2_discover"

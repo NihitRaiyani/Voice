@@ -2,8 +2,8 @@
 
 This package is deliberately **pipecat-free**. The worker runs as its own process and must
 start without dragging in pipecat -> silero -> torch, so nothing here may import from
-`roma.telephony`. It is the same layering the repo already uses for `roma.controller`:
-pure logic here, and a thin pipecat adapter (`roma.telephony.recorder`) on the other side.
+`roma.realtime`. It is the same layering the repo already uses for `roma.domain.conversation`:
+pure logic here, and a thin pipecat adapter (`roma.realtime.recorder`) on the other side.
 
 Flow (docs/09):
 
@@ -17,8 +17,8 @@ file instead and the worker drains it — teardown never fails and a recording r
 never silently dropped.
 """
 
-from roma.postcall.job import PostcallJob, outcome_for
-from roma.postcall.paths import (
+from roma.workers.postcall.job import PostcallJob, outcome_for
+from roma.workers.postcall.paths import (
     ensure_private_dir,
     job_spool_dir,
     media_dir,

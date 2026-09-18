@@ -27,17 +27,16 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/roma"]
+packages = ["roma"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.ruff]
 # 96 not 88: the guardrail and turn-taking modules carry long explanatory comments and
 # Gujarati/Devanagari lexicon literals that read worse when wrapped.
 line-length = 96
-src = ["src", "tests"]
+src = ["roma", "tests"]
 
 [tool.ruff.lint]
 select = [

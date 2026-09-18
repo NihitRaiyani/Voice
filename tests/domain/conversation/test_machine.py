@@ -8,7 +8,7 @@ count==1 means "first time heard" (answer it, P6); count>=2 means "heard again" 
 
 import dataclasses
 
-from roma.controller.machine import (
+from roma.domain.conversation.machine import (
     P1_OPEN,
     P2_DISCOVER,
     P2_MAX_TURNS,
@@ -21,7 +21,7 @@ from roma.controller.machine import (
     TurnSignals,
     next_phase,
 )
-from roma.controller.state import CallState
+from roma.domain.conversation.state import CallState
 
 FILLED = dict(
     lead_name="Asha",
@@ -165,8 +165,8 @@ def test_a_lead_pushing_for_a_time_in_p3_gets_the_offer_instead_of_another_cours
     baare mein aur kya jaanna chahenge?" — four turns running, at a lead who was trying to
     book. The guard is right that ROMA must not raise a time in P3; it has no way to know
     the LEAD did. The machine does."""
-    from roma.controller.machine import P5_PIVOT, TurnSignals, next_phase
-    from roma.controller.state import CallState
+    from roma.domain.conversation.machine import P5_PIVOT, TurnSignals, next_phase
+    from roma.domain.conversation.state import CallState
 
     state = CallState(phase="p3_value")
     state.phase_turn_count = 1
@@ -176,8 +176,8 @@ def test_a_lead_pushing_for_a_time_in_p3_gets_the_offer_instead_of_another_cours
 def test_one_passing_mention_of_a_time_does_not_skip_the_pitch():
     """`asks_to_book` is only set after two consecutive turns; a single mention leaves P3
     alone. Pivoting on one would offer a slot to someone still deciding."""
-    from roma.controller.machine import P3_VALUE, TurnSignals, next_phase
-    from roma.controller.state import CallState
+    from roma.domain.conversation.machine import P3_VALUE, TurnSignals, next_phase
+    from roma.domain.conversation.state import CallState
 
     state = CallState(phase="p3_value")
     state.phase_turn_count = 1
@@ -187,8 +187,8 @@ def test_one_passing_mention_of_a_time_does_not_skip_the_pitch():
 def test_an_objection_still_outranks_the_booking_pivot():
     """Objection handling is checked first and must stay that way — a lead raising a doubt
     and a time in the same breath needs the doubt answered, not a slot."""
-    from roma.controller.machine import P6_OBJECTION, TurnSignals, next_phase
-    from roma.controller.state import CallState
+    from roma.domain.conversation.machine import P6_OBJECTION, TurnSignals, next_phase
+    from roma.domain.conversation.state import CallState
 
     state = CallState(phase="p3_value")
     sig = TurnSignals(asks_to_book=True, objection="placement_doubt")
@@ -205,8 +205,8 @@ def test_a_lead_who_asks_to_book_gets_the_offer_from_any_pre_offer_phase():
     She was obeying the phase; the phase was wrong. Someone who already knows what they want
     should not have to sit through the pitch to earn a slot. The earlier fix only jumped
     from P3, so a lead asking in P2 or P4 still got walked through it."""
-    from roma.controller.machine import P5_PIVOT, TurnSignals, next_phase
-    from roma.controller.state import CallState
+    from roma.domain.conversation.machine import P5_PIVOT, TurnSignals, next_phase
+    from roma.domain.conversation.state import CallState
 
     for phase in ("p2_discover", "p3_value", "p4_structure", "p6_objection"):
         state = CallState(phase=phase)
@@ -222,8 +222,8 @@ def test_p1_holds_only_for_a_deferral_not_for_a_booking_ask():
     on it sent the lead to P2 for a course pitch they had explicitly declined.
 
     What P1 must still hold for is a DEFERRAL — see the two tests at the end of this file."""
-    from roma.controller.machine import P1_OPEN, TurnSignals, next_phase
-    from roma.controller.state import CallState
+    from roma.domain.conversation.machine import P1_OPEN, TurnSignals, next_phase
+    from roma.domain.conversation.state import CallState
 
     state = CallState(phase="p1_open")
     sig = TurnSignals(asks_to_book=True, declined_now=True, inquiry_confirmed=False)
@@ -238,8 +238,8 @@ def test_asking_to_book_in_p1_is_permission_and_pivots():
 
     "Meeting fix karo" is a stronger answer to "kya abhi 2 minute baat ho sakti hai?" than
     "haan" is."""
-    from roma.controller.machine import P5_PIVOT, TurnSignals, next_phase
-    from roma.controller.state import CallState
+    from roma.domain.conversation.machine import P5_PIVOT, TurnSignals, next_phase
+    from roma.domain.conversation.state import CallState
 
     state = CallState(phase="p1_open")
     sig = TurnSignals(asks_to_book=True, inquiry_confirmed=False)
@@ -249,8 +249,8 @@ def test_asking_to_book_in_p1_is_permission_and_pivots():
 def test_a_deferral_still_holds_p1_even_with_a_booking_word():
     """Hard rule 6: a busy lead gets one alternative and a warm close, never a slot. This is
     the one thing P1's exclusion was protecting, and it is kept explicitly."""
-    from roma.controller.machine import P1_OPEN, TurnSignals, next_phase
-    from roma.controller.state import CallState
+    from roma.domain.conversation.machine import P1_OPEN, TurnSignals, next_phase
+    from roma.domain.conversation.state import CallState
 
     state = CallState(phase="p1_open")
     sig = TurnSignals(asks_to_book=True, declined_now=True, inquiry_confirmed=False)

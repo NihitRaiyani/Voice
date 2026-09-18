@@ -29,9 +29,8 @@ from pipecat.frames.frames import (
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
-
-from roma.config import Settings
-from roma.telephony.media import InboundAudioCounter, build_vad, vad_stage
+from roma.core.config import Settings
+from roma.realtime.pipeline import InboundAudioCounter, build_vad, vad_stage
 
 RATE = 8000
 CHUNK = 256
@@ -188,7 +187,7 @@ def _media_ast():
     import ast
     from pathlib import Path
 
-    import roma.telephony.media as m
+    import roma.realtime.pipeline as m
 
     return ast.parse(Path(m.__file__).read_text(encoding="utf-8"))
 

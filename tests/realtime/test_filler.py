@@ -10,12 +10,11 @@ import asyncio
 from pipecat.frames.frames import LLMContextFrame, OutputAudioRawFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.frame_processor import FrameDirection
-
-from roma.controller.state import CallState
-from roma.telephony import filler as filler_mod
-from roma.telephony import phase_controller as pc_mod
-from roma.telephony.filler import FILLER_LINES, FillerClip, FillerPicker, load_fillers
-from roma.telephony.phase_controller import PhaseControllerProcessor
+from roma.domain.conversation.state import CallState
+from roma.realtime import filler as filler_mod
+from roma.realtime import phase_controller as pc_mod
+from roma.realtime.filler import FILLER_LINES, FillerClip, FillerPicker, load_fillers
+from roma.realtime.phase_controller import PhaseControllerProcessor
 
 VARS = {"branch": "Vadodara", "lead_name": "ji"}
 
@@ -31,7 +30,7 @@ def test_the_rendered_clips_exist_and_are_short_enough():
     the mask costs more than it saves — except the OBJECTION bucket, whose looser cap is a
     stated trade in `OBJECTION_LINES`: those turns have the slowest completions (the P6
     reframe), and empathy clipped short reads as dismissal."""
-    from roma.telephony.filler import OBJECTION_LINES
+    from roma.realtime.filler import OBJECTION_LINES
 
     clips = load_fillers()
     assert clips, "no filler assets — run scripts/make_filler_clips.py"
@@ -41,7 +40,7 @@ def test_the_rendered_clips_exist_and_are_short_enough():
 
 
 def test_every_declared_line_was_rendered():
-    from roma.telephony.filler import OBJECTION_LINES, QUESTION_LINES
+    from roma.realtime.filler import OBJECTION_LINES, QUESTION_LINES
 
     declared = set(FILLER_LINES) | set(QUESTION_LINES) | set(OBJECTION_LINES)
     assert {c.name for c in load_fillers()} == declared
@@ -49,7 +48,7 @@ def test_every_declared_line_was_rendered():
 
 def test_the_filler_lines_pass_the_pre_TTS_filter():
     """Audio reaching the wire has passed docs/04, with no exemption for being short."""
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     for text in FILLER_LINES.values():
         assert safe_output(text) == text
@@ -82,7 +81,7 @@ def test_picker_counts_confirmed_plays_not_attempts():
 
 
 def test_intent_buckets_route_and_fall_back_to_neutral():
-    from roma.telephony.filler import FillerIntent
+    from roma.realtime.filler import FillerIntent
 
     dekhiye = _clip("dekhiye")
     empathy = _clip("samajh_rahi_hoon")
@@ -100,7 +99,7 @@ def test_intent_buckets_route_and_fall_back_to_neutral():
 
 
 def test_intent_for_matches_the_turn_shape():
-    from roma.telephony.filler import FillerIntent, intent_for
+    from roma.realtime.filler import FillerIntent, intent_for
 
     assert intent_for("ye to bahut mehenga hai") is FillerIntent.OBJECTION
     assert intent_for("course kitne mahine ka hai") is FillerIntent.QUESTION
@@ -118,7 +117,7 @@ def test_the_phase_outranks_the_text_classifier():
     an objection turn like a lecture; `dekhiye (question, p1_open)` opened the lead's very
     first words the same way.
     """
-    from roma.telephony.filler import FillerIntent, intent_for
+    from roma.realtime.filler import FillerIntent, intent_for
 
     assert intent_for("ye kitna mehenga hai", "p6_objection") is FillerIntent.OBJECTION
     assert intent_for("kya batayenge", "p6_objection") is FillerIntent.OBJECTION
@@ -133,15 +132,15 @@ def test_each_intent_bucket_rotates_rather_than_repeating():
     """A bucket of one is a cycle of one. Turns 10 and 12 of call 8517d576 were both
     objections and both got "Samajh rahi hoon…" fourteen seconds apart — the anti-tic
     alternation only blocks CONSECUTIVE turns, so the bucket itself has to rotate."""
-    from roma.telephony.filler import FILLER_LINES, OBJECTION_LINES, QUESTION_LINES
+    from roma.realtime.filler import FILLER_LINES, OBJECTION_LINES, QUESTION_LINES
 
     for bank in (QUESTION_LINES, OBJECTION_LINES, FILLER_LINES):
         assert len(bank) >= 2, f"a bucket of one repeats on its second use: {bank}"
 
 
 def test_the_intent_lines_pass_the_pre_TTS_filter_and_hold_register():
-    from roma.guardrails import safe_output
-    from roma.telephony.filler import OBJECTION_LINES, QUESTION_LINES
+    from roma.domain.safety import safe_output
+    from roma.realtime.filler import OBJECTION_LINES, QUESTION_LINES
 
     for text in {**QUESTION_LINES, **OBJECTION_LINES}.values():
         assert safe_output(text) == text
@@ -233,7 +232,7 @@ def test_the_closing_phase_gets_no_filler():
     """P7 turns are capped at twenty-five words — the clip is a meaningful fraction of the
     line it precedes, and "achha… Theek hai, milte hain" is two acknowledgements and a
     goodbye. The mask costs more than the gap here."""
-    from roma.controller.machine import P7_CLOSE
+    from roma.domain.conversation.machine import P7_CLOSE
 
     proc = _proc(FillerPicker([_clip(), _clip()]))
     proc.state.phase = P7_CLOSE
@@ -297,7 +296,7 @@ def test_the_teardown_line_reports_what_the_filler_actually_did():
     than "0" — "never ran" and "ran and did nothing" are different answers."""
     import inspect
 
-    from roma.telephony import media
+    from roma.realtime import pipeline as media
 
     src = inspect.getsource(media)
     assert "fillers_played=%s" in src
@@ -319,8 +318,7 @@ def test_every_clip_is_levelled_to_roma_s_own_speaking_voice():
     piecemeal. Levelling is therefore pinned here rather than left to whoever renders next.
     """
     import numpy as np
-
-    from roma.telephony.filler import FILLER_TARGET_RMS
+    from roma.realtime.filler import FILLER_TARGET_RMS
 
     for clip in load_fillers():
         pcm = np.frombuffer(clip.pcm, dtype="<i2").astype(np.float32)
@@ -339,7 +337,7 @@ def _slow_proc(fillers, delay, phase="p2_discover"):
 
     async def _slow_extract(client, text, slot_name):
         await asyncio.sleep(delay)
-        from roma.controller.slots import DiscoveryValue
+        from roma.domain.appointments.slots import DiscoveryValue
 
         return DiscoveryValue()
 
@@ -412,7 +410,7 @@ def test_the_ack_forms_roma_actually_writes_are_stripped():
     rebuilt out of a different word — a vocabulary that lists the phrase but not the form
     is not coverage.
     """
-    from roma.telephony.filler import strip_leading_ack
+    from roma.realtime.filler import strip_leading_ack
 
     for line, must_go in (
         ("Main samajh gayi. Aap abhi padh rahe hain?", "samajh gayi"),

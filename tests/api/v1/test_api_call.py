@@ -59,7 +59,7 @@ async def _reachable_ok(base_url, **kw):
 
 
 def _app(monkeypatch, **overrides):
-    from roma.config import Settings
+    from roma.core.config import Settings
 
     # Pulled out BEFORE `overrides` is walked as environment variables — it is a callable,
     # and `monkeypatch.setenv` would reject it.
@@ -85,7 +85,7 @@ def _app(monkeypatch, **overrides):
     # The window predicate has its own injected-`now` tests in `tests/dialer/test_precall.py`;
     # here it is pinned open. (`precall_check` resolves the name through its module globals,
     # which is why this patch reaches it when nothing inside `mount_web_api` can be patched.)
-    monkeypatch.setattr("roma.dialer.precall.in_calling_window", lambda now: True)
+    monkeypatch.setattr("roma.domain.calls.precall.in_calling_window", lambda now: True)
 
     for key, value in {**BASE_ENV, "API_TOKEN": TOKEN, "DND_NUMBERS": DENIED}.items():
         monkeypatch.setenv(key, value)
@@ -94,10 +94,10 @@ def _app(monkeypatch, **overrides):
             monkeypatch.delenv(key, raising=False)
         else:
             monkeypatch.setenv(key, value)
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
-    from roma.telephony.webapi import mount_web_api
+    from roma.api.v1.calls import mount_web_api
 
     app = FastAPI()
     mount_web_api(app, reachable_fn=reachable_fn)
@@ -108,7 +108,7 @@ def _app(monkeypatch, **overrides):
 def client(monkeypatch):
     c = _app(monkeypatch)
     yield c
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
 
@@ -130,7 +130,7 @@ def test_a_denylisted_number_is_refused(client):
 def test_the_denylist_is_read_rather_than_merely_present():
     """The inverse. Without this, a registry that refused EVERYTHING would pass the test
     above and nothing would notice until no call could be placed at all."""
-    from roma.dialer.dnd import DenylistRegistry, numbers_from_config
+    from roma.domain.calls.dnd import DenylistRegistry, numbers_from_config
 
     registry = DenylistRegistry(suppressed=numbers_from_config(f"{DENIED}, +919111111111"))
     assert not registry.is_dialable(DENIED)
@@ -192,7 +192,7 @@ def test_an_unconfigured_token_disables_the_endpoint_rather_than_opening_it(monk
         res = client.post("/api/call", json={"to_number": ALLOWED}, headers=AUTH)
         assert res.status_code == 503
     finally:
-        from roma.config import get_settings
+        from roma.core.config import get_settings
 
         get_settings.cache_clear()
 
@@ -227,7 +227,7 @@ def test_only_indian_mobiles_are_accepted(client, bad):
 
 @pytest.mark.parametrize("good", ["+916000000000", "+917000000000", "+919876543210"])
 def test_the_indian_mobile_range_is_6_to_9(good):
-    from roma.dialer.dnd import is_indian_mobile
+    from roma.domain.calls.dnd import is_indian_mobile
 
     assert is_indian_mobile(good)
 
@@ -274,7 +274,7 @@ def test_an_unreachable_base_url_refuses_the_dial_instead_of_calling_the_carrier
             "'carrier refused' sent the operator looking in the wrong place"
         )
     finally:
-        from roma.config import get_settings
+        from roma.core.config import get_settings
 
         get_settings.cache_clear()
 
@@ -298,7 +298,7 @@ def test_the_preflight_runs_before_the_hourly_cap_is_consumed(monkeypatch):
             assert res.status_code == 503, "still the tunnel, never a spurious 429"
         assert len(seen) == 3
     finally:
-        from roma.config import get_settings
+        from roma.core.config import get_settings
 
         get_settings.cache_clear()
 
@@ -319,7 +319,7 @@ def test_a_gate_block_short_circuits_before_any_network_check(monkeypatch):
         )
         assert called == [], "Gate 0 refused it; nothing should have touched the network"
     finally:
-        from roma.config import get_settings
+        from roma.core.config import get_settings
 
         get_settings.cache_clear()
 
@@ -330,8 +330,7 @@ def test_a_non_200_from_the_base_url_is_treated_as_unreachable():
     import asyncio
 
     import httpx
-
-    from roma.dialer.preflight import base_url_reachable
+    from roma.providers.telephony.twilio.reachability import base_url_reachable
 
     async def run():
         transport = httpx.MockTransport(lambda request: httpx.Response(502))
@@ -363,7 +362,7 @@ def test_a_carrier_rejection_is_502_not_an_unhandled_500(client, monkeypatch):
     async def _boom(*a, **kw):
         raise RuntimeError("Twilio said 400")
 
-    monkeypatch.setattr("roma.telephony.webapi.trigger_outbound_call", _boom, raising=False)
+    monkeypatch.setattr("roma.api.v1.calls.trigger_outbound_call", _boom, raising=False)
     res = client.post("/api/call", json={"to_number": ALLOWED}, headers=AUTH)
     # 502 if the patch took, 5xx either way — what must never happen is a 200.
     assert res.status_code >= 400

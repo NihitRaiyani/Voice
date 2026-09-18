@@ -16,9 +16,8 @@ import asyncio
 from pipecat.frames.frames import MetricsFrame
 from pipecat.metrics.metrics import LLMTokenUsage, LLMUsageMetricsData
 from pipecat.processors.frame_processor import FrameDirection
-
-from roma.spend import SpendLedger
-from roma.telephony.media import _UsageLogger
+from roma.domain.costs.spend import SpendLedger
+from roma.realtime.pipeline import _UsageLogger
 
 
 def _usage_frame(model="gpt-4o", prompt=3200, completion=70, cached=2800):

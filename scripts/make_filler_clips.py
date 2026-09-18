@@ -6,7 +6,7 @@
 docs/06 is explicit that these are "always cached, never live-generated" — a filler whose
 job is to cover LLM latency cannot itself wait on a TTS round trip. So they are rendered
 ONCE here, offline, into 8kHz μ-law assets committed next to the consent clip, and
-`roma.telephony.filler` only ever reads bytes off disk.
+`roma.realtime.filler` only ever reads bytes off disk.
 
 Rendered in Roma's own voice (bulbul:v3 / ishita / pace 1.05, the same live-verified config
 as `media.build_tts`) — a filler in a different voice announces itself as a splice.
@@ -21,13 +21,12 @@ import asyncio
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import aiohttp
-
-from roma.config import get_settings
-from roma.guardrails import safe_output
-from roma.telephony.filler import (
+from roma.core.config import get_settings
+from roma.domain.safety import safe_output
+from roma.realtime.filler import (
     FILLER_LINES,
     HOLDING_LINES,
     OBJECTION_LINES,
@@ -35,8 +34,8 @@ from roma.telephony.filler import (
     filler_path,
     level_to_target,
 )
-from roma.telephony.render import RATE, render, trim_silence
-from roma.telephony.ulaw import pcm16_to_ulaw
+from roma.realtime.render import RATE, render, trim_silence
+from roma.realtime.ulaw import pcm16_to_ulaw
 
 
 async def main_async(force: bool) -> int:

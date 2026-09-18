@@ -6,7 +6,7 @@ Async is driven with asyncio.run (the repo convention — see tests/telephony/te
 
 import asyncio
 
-from roma.controller.slots import (
+from roma.domain.appointments.slots import (
     DiscoveryValue,
     TimeSlot,
     extract_discovery_slot,

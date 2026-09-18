@@ -8,8 +8,7 @@ by disabling the whole guard, so it gets pinned explicitly.
 from dataclasses import dataclass
 
 import pytest
-
-from roma.telephony.backchannel import (
+from roma.realtime.backchannel import (
     BACKCHANNEL_MAX_SECS,
     BACKCHANNEL_TOKENS,
     ENDPOINT_CONTINUATION_SECS,
@@ -68,7 +67,7 @@ def test_backchannel_disjoint_from_affirmations_where_it_matters():
     turn-takes in `_AFFIRMATIONS` (`bilkul`, `chalega`, `confirm`) must stay OUT of the
     backchannel set or barge-in would swallow a real answer.
     """
-    from roma.controller.turn import _AFFIRMATIONS
+    from roma.domain.conversation.turn import _AFFIRMATIONS
 
     assert "hmm" in BACKCHANNEL_TOKENS and "hmm" not in _AFFIRMATIONS
     assert "achha" in BACKCHANNEL_TOKENS and "achha" not in _AFFIRMATIONS
@@ -79,7 +78,7 @@ def test_backchannel_disjoint_from_affirmations_where_it_matters():
 def test_gujarati_affirmations_are_backchannels_too():
     """`હા`/`હા જી` are both — that is fine, and is why the guard also requires a
     <600ms span AND Roma mid-utterance before it suppresses anything."""
-    from roma.controller.turn import _AFFIRMATIONS
+    from roma.domain.conversation.turn import _AFFIRMATIONS
 
     assert "હા" in BACKCHANNEL_TOKENS and "હા" in _AFFIRMATIONS
 

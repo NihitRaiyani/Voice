@@ -7,8 +7,7 @@ added — so the rule moved from the prompt into a gate on the pre-TTS path.
 """
 
 import pytest
-
-from roma.controller.confirmguard import (
+from roma.domain.conversation.confirmguard import (
     CONFIRMABLE_STATUSES,
     SAFE_REOFFER_LINE,
     is_phantom_confirmation,
@@ -76,7 +75,7 @@ def test_the_substitution_claims_nothing_and_ends_on_a_question():
 def test_the_substitution_survives_the_pre_tts_filter():
     """It is still Roma's line and still goes through docs/04. A substitution the filter
     then blocks would land the lead on HARD_FAIL_LINE."""
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     assert safe_output(SAFE_REOFFER_LINE) == SAFE_REOFFER_LINE
 
@@ -93,7 +92,7 @@ def test_the_guard_never_takes_the_turn_down_with_it():
 
 
 def test_a_goodbye_with_nothing_booked_is_held():
-    from roma.controller.confirmguard import is_premature_signoff
+    from roma.domain.conversation.confirmguard import is_premature_signoff
 
     for line in (
         "Dhanyavaad!",
@@ -107,7 +106,7 @@ def test_a_goodbye_with_nothing_booked_is_held():
 
 def test_a_goodbye_after_a_real_lock_is_allowed():
     """The whole point is to reach this line, not to make it unreachable."""
-    from roma.controller.confirmguard import is_premature_signoff
+    from roma.domain.conversation.confirmguard import is_premature_signoff
 
     assert not is_premature_signoff("Theek hai ji, milte hain.", "locked")
 
@@ -116,7 +115,7 @@ def test_accepted_is_not_enough_to_say_goodbye():
     """`accepted` means the lead named a time; `locked` means they confirmed it read back.
     docs/03 makes the readback the win condition, and signing off at `accepted` is how the
     earlier calls ended with a lead who thought they had an appointment."""
-    from roma.controller.confirmguard import is_premature_signoff
+    from roma.domain.conversation.confirmguard import is_premature_signoff
 
     assert is_premature_signoff("Dhanyavaad, milte hain!", "accepted")
 
@@ -125,7 +124,7 @@ def test_the_gate_releases_after_the_cap_so_a_call_can_still_end():
     """Hard rule six: a lead who is busy or simply will not book gets one alternative and a
     polite close. A gate that can never be satisfied would hold them on the phone, which is
     a worse failure than the one it prevents."""
-    from roma.controller.confirmguard import SIGNOFF_ATTEMPT_CAP, safe_close
+    from roma.domain.conversation.confirmguard import SIGNOFF_ATTEMPT_CAP, safe_close
 
     line = "Theek hai ji, milte hain."
     for attempt in range(SIGNOFF_ATTEMPT_CAP):
@@ -137,12 +136,12 @@ def test_the_hold_line_trips_neither_gate_and_survives_the_filter():
     """It is still Roma's line. It must not contain a confirmation cue (the other gate runs
     first and would not re-screen it), nor a sign-off cue (this gate would catch its own
     output), nor anything docs/04 blocks."""
-    from roma.controller.confirmguard import (
+    from roma.domain.conversation.confirmguard import (
         SAFE_HOLD_LINE,
         is_phantom_confirmation,
         is_premature_signoff,
     )
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     assert not is_phantom_confirmation(SAFE_HOLD_LINE, "none")
     assert not is_premature_signoff(SAFE_HOLD_LINE, "none")
@@ -151,7 +150,7 @@ def test_the_hold_line_trips_neither_gate_and_survives_the_filter():
 
 
 def test_the_signoff_gate_never_takes_the_turn_down_with_it():
-    from roma.controller.confirmguard import safe_close
+    from roma.domain.conversation.confirmguard import safe_close
 
     class _Exploding(str):
         def __iter__(self):
@@ -161,7 +160,7 @@ def test_the_signoff_gate_never_takes_the_turn_down_with_it():
 
 
 def test_asking_for_a_visit_time_before_the_offer_phase_is_held():
-    from roma.controller.confirmguard import is_premature_time_talk
+    from roma.domain.conversation.confirmguard import is_premature_time_talk
 
     assert is_premature_time_talk(
         "Subah das ya gyaarah baje ka time theek rahega?", "p2_discover"
@@ -172,7 +171,7 @@ def test_asking_for_a_visit_time_before_the_offer_phase_is_held():
 
 def test_the_offer_phases_may_talk_about_time():
     """P5 and P7 carry the OFFER line. Booking is the whole job there."""
-    from roma.controller.confirmguard import is_premature_time_talk
+    from roma.domain.conversation.confirmguard import is_premature_time_talk
 
     assert not is_premature_time_talk(
         "Gyaarah baje ya paanch baje — kaunsa theek rahega?", "p5_pivot"
@@ -183,7 +182,7 @@ def test_the_offer_phases_may_talk_about_time():
 def test_the_gate_does_not_eat_ordinary_course_answers():
     """The expensive failure mode. A gate that swallows P3 content would cost the exact
     thing this call was missing — and "chaar se chhe mahine" is a duration, not a clock."""
-    from roma.controller.confirmguard import is_premature_time_talk
+    from roma.domain.conversation.confirmguard import is_premature_time_talk
 
     for line in (
         "Ye course chaar se chhe mahine ka hai, basic se advance tak.",
@@ -195,13 +194,13 @@ def test_the_gate_does_not_eat_ordinary_course_answers():
 
 
 def test_the_time_talk_substitution_trips_no_other_gate():
-    from roma.controller.confirmguard import (
+    from roma.domain.conversation.confirmguard import (
         SAFE_COURSE_LINE,
         is_phantom_confirmation,
         is_premature_signoff,
         is_premature_time_talk,
     )
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     assert not is_premature_time_talk(SAFE_COURSE_LINE, "p2_discover")
     assert not is_phantom_confirmation(SAFE_COURSE_LINE, "none")
@@ -212,13 +211,13 @@ def test_the_time_talk_substitution_trips_no_other_gate():
 def test_every_fact_spent_steer_trips_no_other_gate_either():
     """Same invariants as SAFE_COURSE_LINE, for each rotation line. A steer that its own
     guard would catch is an infinite substitution."""
-    from roma.controller.confirmguard import (
+    from roma.domain.conversation.confirmguard import (
         SAFE_COURSE_LINES_FACT_SPENT,
         is_phantom_confirmation,
         is_premature_signoff,
         is_premature_time_talk,
     )
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     assert SAFE_COURSE_LINES_FACT_SPENT
     for line in SAFE_COURSE_LINES_FACT_SPENT:
@@ -233,7 +232,7 @@ def test_the_steer_stops_naming_the_modules_once_they_are_spent():
     them again — the same sentence, word for word, both times. The lead heard one fact
     three times. It was blamed on the prompt and `{{said}}` was added to p1/p2 to fix it;
     that could never have worked, because this line is substituted, not generated."""
-    from roma.controller.confirmguard import SAFE_COURSE_LINE, steer_line
+    from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE, steer_line
 
     assert steer_line(None) == SAFE_COURSE_LINE, "unspent: naming the modules is the point"
     assert steer_line([]) == SAFE_COURSE_LINE
@@ -248,7 +247,7 @@ def test_the_steer_stops_naming_the_modules_once_they_are_spent():
 def test_two_catches_in_one_call_do_not_repeat_the_same_sentence():
     """Both catches on 6d7cc330 returned a byte-identical string. Two identical
     substitutions is what the lead actually complained about."""
-    from roma.controller.confirmguard import steer_line
+    from roma.domain.conversation.confirmguard import steer_line
 
     first = steer_line(["modules"], holds=0)
     second = steer_line(["modules"], holds=1)
@@ -257,7 +256,7 @@ def test_two_catches_in_one_call_do_not_repeat_the_same_sentence():
 
 def test_the_steer_survives_junk_in_place_of_the_fact_list():
     """A steer must never cost a turn; unreadable state falls back to the old behaviour."""
-    from roma.controller.confirmguard import SAFE_COURSE_LINE, steer_line
+    from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE, steer_line
 
     assert steer_line(object()) == SAFE_COURSE_LINE  # type: ignore[arg-type]
     assert steer_line({"modules"}, holds=99) != SAFE_COURSE_LINE, "a set is a valid container"
@@ -267,7 +266,7 @@ def test_the_time_gate_catches_english_time_words_too():
     """Live call CA8a85a4f reported `time_talk_holds=0` while Roma asked, in a phase with
     no OFFER line: "timing ke hisaab se kya prefer karenge — weekday evening ya weekend
     batch?" Every cue in the lexicon was Indic, and Roma's register is Hinglish."""
-    from roma.controller.confirmguard import is_premature_time_talk
+    from roma.domain.conversation.confirmguard import is_premature_time_talk
 
     assert is_premature_time_talk(
         "Timing ke hisaab se kya prefer karenge — weekday evening ya weekend batch?",
@@ -284,7 +283,7 @@ def test_tay_hai_is_a_phantom_confirmation():
     said this; `is_phantom_confirmation` returned False and the lead was told a refused slot
     was booked. `tay` is the codebase's OWN word for settled — `state.py` writes "slot tay ho
     chuka hai" into the prompt — and it was missing from the cue set."""
-    from roma.controller.confirmguard import is_phantom_confirmation
+    from roma.domain.conversation.confirmguard import is_phantom_confirmation
 
     line = "Aapka visit Vadodara branch mein tay hai dopehar do baje ko."
     assert is_phantom_confirmation(line, "in_past") is True
@@ -296,7 +295,7 @@ def test_tay_karna_baaki_hai_is_not_a_confirmation():
     denial as a claim: the gate's own `SAFE_HOLD_LINE` says "visit ka time abhi tay karna
     baaki hai" — still to be decided. A bare token cue would make the guard catch its own
     substitution, which is the exact bug the SAFE_REOFFER_LINE comment records."""
-    from roma.controller.confirmguard import (
+    from roma.domain.conversation.confirmguard import (
         SAFE_HOLD_LINE,
         SAFE_REOFFER_LINE,
         is_phantom_confirmation,
@@ -309,14 +308,14 @@ def test_tay_karna_baaki_hai_is_not_a_confirmation():
 
 def test_the_phrase_cues_carry_indic_spellings():
     """Roma answers in Hindi and her line comes back in Devanagari as often as romanized."""
-    from roma.controller.confirmguard import is_phantom_confirmation
+    from roma.domain.conversation.confirmguard import is_phantom_confirmation
 
     assert is_phantom_confirmation("आपकी visit तय है दोपहर दो बजे।", "in_past") is True
 
 
 def test_a_phrase_only_matches_consecutive_tokens():
     """Scattered words are not the phrase. "tay" early and "hai" late is ordinary Hinglish."""
-    from roma.controller.confirmguard import is_phantom_confirmation
+    from roma.domain.conversation.confirmguard import is_phantom_confirmation
 
     assert is_phantom_confirmation(
         "Tay karne ke liye counsellor se baat karni hai.", "none"
@@ -333,7 +332,7 @@ def test_the_signoff_guard_stands_down_when_the_lead_asks_the_call_to_stop():
     who is still engaged and a model that says goodbye too early; it had no concept of a
     lead who wants the call ENDED, so it made the machine pushy on the lead's behalf.
     """
-    from roma.controller.confirmguard import SAFE_HOLD_LINE, safe_close
+    from roma.domain.conversation.confirmguard import SAFE_HOLD_LINE, safe_close
 
     goodbye = "Theek hai ji, milte hain."
     # Unchanged behaviour: still engaged, no lock -> the sign-off is held.
@@ -347,7 +346,7 @@ def test_the_signoff_guard_stands_down_when_the_lead_asks_the_call_to_stop():
 def test_the_dismissal_detector_catches_what_the_lead_actually_said():
     """Transcribed verbatim off 049f0dc1. `defers_the_call` missed both — it only knows
     "not right now" — so the sign-off guard had nothing to stand down on."""
-    from roma.controller.confirmguard import lead_wants_out
+    from roma.domain.conversation.confirmguard import lead_wants_out
 
     for said in (
         "आप चले जाओ यहाँ से",
@@ -367,7 +366,7 @@ def test_the_dismissal_detector_does_not_fire_on_a_complaint_or_an_objection():
     times on 049f0dc1. Closing the call on that would lose a lead who is still talking.
 
     A deferral is also not a dismissal: "abhi busy hoon" means call back, not go away."""
-    from roma.controller.confirmguard import lead_wants_out
+    from roma.domain.conversation.confirmguard import lead_wants_out
 
     for said in (
         "मैंने आपको कुछ बोला ही नहीं है",
@@ -386,7 +385,7 @@ def test_the_hold_reads_the_slot_back_instead_of_re_asking_for_it():
     turn: "Monday, 3 August ko do baje slot tay ho chuka hai ... visit ka time abhi tay
     karna baaki hai." She contradicted her own booking, and the lead had nothing to affirm,
     so the slot never locked and the guard fired three times."""
-    from roma.controller.confirmguard import SAFE_HOLD_LINE, hold_line
+    from roma.domain.conversation.confirmguard import SAFE_HOLD_LINE, hold_line
 
     held = hold_line("accepted", "Monday, 3 August ko do baje")
     assert held != SAFE_HOLD_LINE
@@ -396,7 +395,7 @@ def test_the_hold_reads_the_slot_back_instead_of_re_asking_for_it():
 
 
 def test_the_hold_still_asks_for_a_time_when_there_is_none():
-    from roma.controller.confirmguard import SAFE_HOLD_LINE, hold_line
+    from roma.domain.conversation.confirmguard import SAFE_HOLD_LINE, hold_line
 
     assert hold_line("none", "") == SAFE_HOLD_LINE
     assert hold_line("accepted", "") == SAFE_HOLD_LINE, "no slot text: nothing to read back"
@@ -406,7 +405,7 @@ def test_the_hold_still_asks_for_a_time_when_there_is_none():
 def test_no_hold_line_says_ek_minute_ji():
     """The lead asked for this phrase to stop twice — once when the pacer said it, and
     again when this guard did. It is not allowed back in by either door."""
-    from roma.controller.confirmguard import SAFE_HOLD_LINE, hold_line
+    from roma.domain.conversation.confirmguard import SAFE_HOLD_LINE, hold_line
 
     for line in (SAFE_HOLD_LINE, hold_line("accepted", "Wednesday, 5 August ko do baje")):
         low = line.casefold()
@@ -416,12 +415,12 @@ def test_no_hold_line_says_ek_minute_ji():
 
 
 def test_the_readback_hold_trips_no_other_gate():
-    from roma.controller.confirmguard import (
+    from roma.domain.conversation.confirmguard import (
         hold_line,
         is_phantom_confirmation,
         is_premature_signoff,
     )
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     held = hold_line("accepted", "Monday, 3 August ko do baje")
     assert not is_phantom_confirmation(held, "accepted")
@@ -430,7 +429,7 @@ def test_the_readback_hold_trips_no_other_gate():
 
 
 def test_safe_close_passes_the_slot_through_to_the_hold():
-    from roma.controller.confirmguard import safe_close
+    from roma.domain.conversation.confirmguard import safe_close
 
     out = safe_close(
         "Dhanyavaad, milte hain!", "accepted", 0, slot="Monday, 3 August ko do baje"
@@ -442,7 +441,7 @@ def test_no_canned_substitution_anywhere_says_ek_second_or_ek_minute():
     """One assertion over EVERY canned line this module can speak. The phrase came back
     twice from a door nobody was watching — the pacer, then SAFE_HOLD_LINE, then this
     would have been the third. Enumerate the doors instead of fixing them one at a time."""
-    from roma.controller import confirmguard
+    from roma.domain.conversation import confirmguard
 
     canned = [
         confirmguard.SAFE_REOFFER_LINE,
@@ -462,7 +461,7 @@ def test_an_invented_refusal_is_blocked():
     """Call bde258d1, both lines verbatim. 4pm is inside the 10-18 window and Saturday was
     never refused by the machine — and eight turns later she booked the lead at Friday 4pm.
     Hard rule 8 forbids this in words; the words did not hold."""
-    from roma.controller.confirmguard import SAFE_AVAILABILITY_LINE, safe_availability
+    from roma.domain.conversation.confirmguard import SAFE_AVAILABILITY_LINE, safe_availability
 
     for line in (
         "Mujhe khed hai, lekin shaam 4 baje ka timing unfortunately available nahi hai.",
@@ -473,7 +472,7 @@ def test_an_invented_refusal_is_blocked():
 
 def test_a_real_refusal_is_left_alone():
     """When the machine DID refuse the time, saying so is hard rule 8 working, not failing."""
-    from roma.controller.confirmguard import safe_availability
+    from roma.domain.conversation.confirmguard import safe_availability
 
     line = "Us waqt branch band hoti hai — wo slot available nahi hai."
     for status in ("out_of_hours", "in_past"):
@@ -481,7 +480,7 @@ def test_a_real_refusal_is_left_alone():
 
 
 def test_ordinary_lines_are_not_read_as_refusals():
-    from roma.controller.confirmguard import is_phantom_denial
+    from roma.domain.conversation.confirmguard import is_phantom_denial
 
     for line in (
         "Koi fixed slot nahi hota, aap koi bhi time bata dijiye.",
@@ -495,14 +494,14 @@ def test_ordinary_lines_are_not_read_as_refusals():
 def test_the_availability_substitution_trips_no_other_gate():
     """It carries no '?' on purpose, so the time-talk guard cannot catch it in a phase
     without an OFFER line."""
-    from roma.controller.confirmguard import (
+    from roma.domain.conversation.confirmguard import (
         SAFE_AVAILABILITY_LINE,
         is_phantom_confirmation,
         is_phantom_denial,
         is_premature_signoff,
         is_premature_time_talk,
     )
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     line = SAFE_AVAILABILITY_LINE
     assert not is_premature_time_talk(line, "p2_discover")
@@ -521,7 +520,7 @@ def test_the_reoffer_does_not_race_the_offer_she_is_about_to_make():
     The substitution opened a subah/shaam axis and her own next sentence immediately asked a
     different time question. The lead: "यहां पे थोड़ा loop का error है, आपने time के बारे में
     बार बार बोला है"."""
-    from roma.controller.confirmguard import (
+    from roma.domain.conversation.confirmguard import (
         SAFE_REOFFER_LINE,
         SAFE_REOFFER_LINE_IN_OFFER,
         reoffer_line,
@@ -540,14 +539,14 @@ def test_the_reoffer_does_not_race_the_offer_she_is_about_to_make():
 
 
 def test_the_offer_phase_reoffer_trips_no_other_gate():
-    from roma.controller.confirmguard import (
+    from roma.domain.conversation.confirmguard import (
         SAFE_REOFFER_LINE_IN_OFFER,
         is_phantom_confirmation,
         is_phantom_denial,
         is_premature_signoff,
         is_premature_time_talk,
     )
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     line = SAFE_REOFFER_LINE_IN_OFFER
     assert not is_phantom_confirmation(line, "none"), "the guard would catch its own output"
@@ -558,7 +557,10 @@ def test_the_offer_phase_reoffer_trips_no_other_gate():
 
 
 def test_safe_confirmation_routes_on_the_phase():
-    from roma.controller.confirmguard import SAFE_REOFFER_LINE_IN_OFFER, safe_confirmation
+    from roma.domain.conversation.confirmguard import (
+        SAFE_REOFFER_LINE_IN_OFFER,
+        safe_confirmation,
+    )
 
     claim = "Aapki visit confirm ho gayi hai."
     assert safe_confirmation(claim, "none", "p5_pivot") == SAFE_REOFFER_LINE_IN_OFFER

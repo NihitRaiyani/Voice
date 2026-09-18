@@ -31,7 +31,7 @@ carrier can reach us, a call placed anyway is known-dead air on a real person's 
 
 import logging
 
-_log = logging.getLogger("roma.dialer")
+_log = logging.getLogger("roma.domain.calls")
 
 # Long enough for a cold tunnel hop to Mumbai and back (measured 0.75-0.89s on a healthy
 # bom09 edge), short enough that a dead host does not hold the backend request open. A DNS

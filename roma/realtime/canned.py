@@ -19,11 +19,11 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from roma.dialer import CONSENT_LINE
-from roma.guardrails import safe_output
-from roma.telephony.ulaw import ulaw_to_pcm16
+from roma.domain.calls import CONSENT_LINE
+from roma.domain.safety import safe_output
+from roma.realtime.ulaw import ulaw_to_pcm16
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 _ASSETS = Path(__file__).parent / "assets"
 

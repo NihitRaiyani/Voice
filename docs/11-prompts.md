@@ -6,12 +6,12 @@ behavior, not general documentation.
 **Learning objective:** Separate deterministic business control from probabilistic language,
 structure prompts for caching, and defend important output rules with code-level guardrails.
 
-The prompt text is **runtime data, not documentation**. It lives in `src/roma/prompts/` and is
+The prompt text is **runtime data, not documentation**. It lives in `roma/prompts/` and is
 loaded at startup. This doc is the contract for how it is structured and assembled.
 
 ## Layout
 ```
-src/roma/prompts/
+roma/prompts/
   persona.md              always loaded
   hard_rules.md           always loaded
   phases/

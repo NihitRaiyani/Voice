@@ -4,7 +4,7 @@ docs/04 say it must?
 Four assertions, straight from the build order — phase hits, word caps, slot extracted,
 **filter never leaks**. `scripts/run_eval.py` is the CLI.
 
-Pipecat-free, like `roma.postcall`: the harness drives the controller directly rather than
+Pipecat-free, like `roma.workers.postcall`: the harness drives the controller directly rather than
 standing up a media pipeline, so it runs anywhere, needs no websocket, and costs nothing by
 default. Live mode is opt-in and metered against `Settings.openai_budget_inr` (₹100).
 """

@@ -10,8 +10,7 @@ import json
 import time
 
 import fakeredis
-
-from roma.dialer.callstatus import (
+from roma.repositories.redis.call_status import (
     CONNECTED,
     DIALING,
     ENDED,
@@ -160,7 +159,7 @@ def test_the_record_carries_a_ttl():
 def test_the_cap_allows_up_to_the_limit_then_refuses():
     """The bound the spend cap cannot provide: it trips on COUNT, in minutes, where the
     money ceiling only trips once the money is gone."""
-    from roma.dialer.callstatus import HourlyDialCap
+    from roma.repositories.redis.call_status import HourlyDialCap
 
     async def run():
         cap = HourlyDialCap(client=_client(), limit=3)
@@ -171,7 +170,7 @@ def test_the_cap_allows_up_to_the_limit_then_refuses():
 
 def test_the_cap_is_per_clock_hour():
     """Fixed buckets, so a spent hour does not poison the next one."""
-    from roma.dialer.callstatus import HourlyDialCap
+    from roma.repositories.redis.call_status import HourlyDialCap
 
     async def run():
         cap = HourlyDialCap(client=_client(), limit=2)
@@ -185,7 +184,7 @@ def test_the_cap_is_per_clock_hour():
 
 
 def test_the_counter_expires_so_buckets_do_not_accumulate():
-    from roma.dialer.callstatus import HourlyDialCap, hour_key
+    from roma.repositories.redis.call_status import HourlyDialCap, hour_key
 
     async def run():
         client = _client()
@@ -199,7 +198,7 @@ def test_the_counter_expires_so_buckets_do_not_accumulate():
 def test_a_zero_limit_refuses_everything():
     """A misconfigured `MAX_CALLS_PER_HOUR=0` must stop calls, not wave them through — the
     same fail-closed reading as an unset API_TOKEN."""
-    from roma.dialer.callstatus import HourlyDialCap
+    from roma.repositories.redis.call_status import HourlyDialCap
 
     async def run():
         return await HourlyDialCap(client=_client(), limit=0).take()
@@ -210,7 +209,7 @@ def test_a_zero_limit_refuses_everything():
 def test_an_unreachable_counter_fails_open():
     """The opposite posture to the token, deliberately: a broken Redis must not stop the
     operator working, and the spend cap is still underneath."""
-    from roma.dialer.callstatus import HourlyDialCap
+    from roma.repositories.redis.call_status import HourlyDialCap
 
     class _Broken:
         async def incr(self, key):

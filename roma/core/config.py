@@ -79,7 +79,7 @@ class Settings(BaseSettings):
 
     # Topped up 100 -> 200 on 2026-08-01 at the user's instruction. The first outbound call
     # (a843a4a7) ended at ₹89.20/100 spent, so the next call would have hit the cap mid-turn.
-    # This is a SPEND CEILING, not a target: `roma.spend.SpendLedger` still halts the run.
+    # This is a SPEND CEILING, not a target: `roma.domain.costs.spend.SpendLedger` still halts the run.
     openai_budget_inr: float = 200.0
 
     # 0.75 -> 0.45 on 2026-08-04. This is dead air on EVERY turn, ahead of STT, the LLM and

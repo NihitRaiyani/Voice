@@ -5,15 +5,14 @@ import json
 from types import SimpleNamespace
 
 import pytest
-
-from roma.dialer.leadstore import (
+from roma.repositories.redis.leads import (
     LEAD_TTL_SECONDS,
     SEGMENTS,
     OutboundLead,
     RedisLeadStore,
     lead_key,
 )
-from roma.dialer.trigger import (
+from roma.services.call_service import (
     build_answer_url,
     lead_token_from_query,
     trigger_outbound_call,
@@ -176,7 +175,7 @@ def test_the_token_round_trips_through_the_query_string():
 
 def test_the_dynamic_variables_reach_call_state_and_the_prompt():
     """The whole point of the token: what the trigger knew must reach prompt assembly."""
-    from roma.controller.state import CallState
+    from roma.domain.conversation.state import CallState
 
     state = CallState(call_sid="c1", **LEAD.as_state_seed())
     assert state.lead_name == "Nihit"
@@ -202,7 +201,7 @@ def test_an_unknown_name_is_omitted_from_the_seed_never_passed_as_empty():
     for it (ce4a2e9). Seeding "" for a CRM record with no name marks it already-captured:
     Roma never asks, and `filled_discovery_count()` is inflated by two, cutting P2 short.
     """
-    from roma.controller.state import CallState
+    from roma.domain.conversation.state import CallState
 
     blank = OutboundLead(phone="+91", lead_name="", city="", segment="student")
     assert "lead_name" not in blank.as_state_seed()
@@ -219,14 +218,14 @@ def test_an_unknown_name_is_omitted_from_the_seed_never_passed_as_empty():
 
 
 def test_segment_survives_a_checkpoint_round_trip():
-    from roma.controller.state import CallState
+    from roma.domain.conversation.state import CallState
 
     state = CallState(call_sid="c1", segment="unemployed")
     assert CallState.from_dict(json.loads(json.dumps(state.to_dict()))).segment == "unemployed"
 
 
 def test_an_inbound_call_has_no_segment_and_that_is_valid():
-    from roma.controller.state import CallState
+    from roma.domain.conversation.state import CallState
 
     assert CallState().segment == ""
     assert CallState().as_prompt_vars()["segment"] == ""

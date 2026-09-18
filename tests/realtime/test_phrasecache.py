@@ -10,7 +10,7 @@ The dangerous edge is not the miss (a miss is live TTS, yesterday's behaviour). 
 import asyncio
 import json
 
-from roma.telephony.phrasecache import (
+from roma.realtime.phrasecache import (
     MANIFEST_NAME,
     PhraseCache,
     phrase_inventory,
@@ -40,8 +40,8 @@ def test_changing_one_word_changes_the_key():
 
 
 def test_the_inventory_carries_the_fixed_lines_and_no_format_strings():
-    from roma.controller.confirmguard import SAFE_SIGNOFF_LINE
-    from roma.guardrails.lexicon import SUBSTITUTIONS
+    from roma.domain.conversation.confirmguard import SAFE_SIGNOFF_LINE
+    from roma.domain.safety.lexicon import SUBSTITUTIONS
 
     inventory = phrase_inventory()
     values = set(inventory.values())
@@ -55,7 +55,7 @@ def test_the_inventory_carries_the_fixed_lines_and_no_format_strings():
 
 
 def test_every_inventory_line_survives_its_own_filter():
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     for slug, text in phrase_inventory().items():
         assert safe_output(text) == text, slug
@@ -65,7 +65,7 @@ def test_every_inventory_line_survives_its_own_filter():
 
 
 def test_the_shipped_assets_load_and_serve_the_substitutions():
-    from roma.guardrails.lexicon import SUBSTITUTIONS, BlockCategory
+    from roma.domain.safety.lexicon import SUBSTITUTIONS, BlockCategory
 
     cache = PhraseCache()
     assert cache, "no phrase assets — run scripts/warm_phrase_cache.py"
@@ -118,7 +118,7 @@ class _OneLineCache:
 
 
 def _service(cache):
-    from roma.telephony.media import build_tts
+    from roma.realtime.pipeline import build_tts
 
     svc = build_tts(_Settings(), cache)
     return svc

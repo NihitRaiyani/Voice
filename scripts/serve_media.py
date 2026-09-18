@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Step-1 live-test harness: serve the Media Streams /ws app on :8020 (docs/10).
 
-Point uvicorn at `create_app` — NOT at `roma.telephony.media:build_media_app`. The
-bare app factory never calls `configure_logging()`, so `roma.telephony` INFO lines —
+Point uvicorn at `create_app` — NOT at `roma.realtime.pipeline:build_media_app`. The
+bare app factory never calls `configure_logging()`, so `roma.realtime` INFO lines —
 including the teardown `media stream ended: ... inbound_frames=N` that PROVES audio-IN
 — are dropped (Python's last-resort handler emits WARNING+ only). `create_app()`
 configures logging (with secret redaction, docs/07) before building the app.
@@ -21,11 +21,10 @@ carries the same default for the __main__ path below.
 
 import uvicorn
 from fastapi import FastAPI
-
-from roma.config import require_reachable_base_url
-from roma.logging_setup import configure_logging
-from roma.telephony.media import build_media_app, sole_call
-from roma.telephony.webapi import mount_web_api
+from roma.api.v1.calls import mount_web_api
+from roma.core.config import require_reachable_base_url
+from roma.core.logging import configure_logging
+from roma.realtime.pipeline import build_media_app, sole_call
 
 
 def create_app() -> FastAPI:
@@ -80,7 +79,7 @@ def create_app() -> FastAPI:
 
     @app.get("/debug/endpoint-timing")
     async def _endpoint_timing():
-        from roma.config import get_settings as _gs
+        from roma.core.config import get_settings as _gs
 
         s = _gs()
         h = sole_call(app)
@@ -104,6 +103,6 @@ def create_app() -> FastAPI:
 if __name__ == "__main__":
     # Kept so `python scripts/serve_media.py` still works; the documented entry is the
     # uvicorn CLI above. log_config=None so uvicorn does not stomp configure_logging().
-    from roma.config import get_settings as _gs
+    from roma.core.config import get_settings as _gs
 
     uvicorn.run(create_app(), host=_gs().bind_host, port=8020, log_config=None)

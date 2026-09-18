@@ -12,9 +12,8 @@ import logging
 from pipecat.frames.frames import BotStoppedSpeakingFrame, EndWorkerFrame, ErrorFrame
 from pipecat.processors.frame_processor import FrameDirection
 from pipecat.services.stt_service import STTService
-
-from roma.telephony.closing import CallCloser
-from roma.telephony.health import CallHealth
+from roma.realtime.closing import CallCloser
+from roma.realtime.health import CallHealth
 
 CONNECT_FAILURE = "Failed to connect to Sarvam: "
 
@@ -53,8 +52,8 @@ def test_a_non_stt_error_is_recorded_but_does_not_end_the_call():
 
 def test_the_stt_failure_is_logged_at_error_with_our_own_logger(caplog):
     """Pipecat logs it at WARNING under `pipecat.*` and carries on, which is why four calls
-    could go by without anyone seeing it. It belongs in `roma.telephony`."""
-    with caplog.at_level(logging.WARNING, logger="roma.telephony"):
+    could go by without anyone seeing it. It belongs in `roma.realtime`."""
+    with caplog.at_level(logging.WARNING, logger="roma.realtime"):
         CallHealth().record(_error(_FakeSTT()))
     assert any("cannot hear the lead" in r.getMessage() for r in caplog.records)
 

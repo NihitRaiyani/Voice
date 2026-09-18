@@ -36,9 +36,9 @@ import logging
 import unicodedata
 from pathlib import Path
 
-from roma.telephony.ulaw import ulaw_to_pcm16
+from roma.realtime.ulaw import ulaw_to_pcm16
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 PHRASE_ASSETS = Path(__file__).parent / "assets" / "phrases"
 MANIFEST_NAME = "manifest.json"
@@ -46,7 +46,7 @@ MANIFEST_NAME = "manifest.json"
 # Same integrity floor as the opener store: shorter than 20ms of PCM16 is not audio.
 MIN_CLIP_BYTES = 320
 
-# For the teardown ₹ estimate only — spend gating stays OpenAI-only (`roma.spend`).
+# For the teardown ₹ estimate only — spend gating stays OpenAI-only (`roma.domain.costs.spend`).
 # Sarvam's published Bulbul price; VERIFY against the dashboard before quoting savings
 # anywhere that matters. Chars are counted on the text a hit replaced.
 TTS_INR_PER_1K_CHARS = 1.5
@@ -65,14 +65,14 @@ def phrase_inventory() -> "dict[str, str]":
     edit propagates and simply invalidates the old clip. Format strings (readback, offers)
     are excluded: their text varies per call and exact-match would never hit.
     """
-    from roma.controller import confirmguard
-    from roma.controller.offtopic import (
+    from roma.domain.conversation import confirmguard
+    from roma.domain.conversation.offtopic import (
         _SLOT_QUESTIONS,
         CONVERGE_FALLBACK,
         CONVERGE_PREFIX,
         DEFLECTIONS,
     )
-    from roma.guardrails.lexicon import HARD_FAIL_LINE, PERMITTED_MONEY_LINE, SUBSTITUTIONS
+    from roma.domain.safety.lexicon import HARD_FAIL_LINE, PERMITTED_MONEY_LINE, SUBSTITUTIONS
 
     inventory: dict[str, str] = {}
     for category, line in SUBSTITUTIONS.items():

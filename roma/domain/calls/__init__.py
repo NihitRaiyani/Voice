@@ -5,13 +5,13 @@ only on `may_dial=True`, speaking `consent_line` first. Allowlist-only DND postu
 fail-safe BLOCK on any error (never dial unguarded).
 """
 
-from roma.dialer.consent import (
+from roma.domain.calls.consent import (
     CONSENT_LINE,
     CONSENT_PENDING_MARKER,
     consent_signed_off,
 )
-from roma.dialer.dnd import DoNotCallRegistry, StubRegistry
-from roma.dialer.precall import PrecallVerdict, precall_check
+from roma.domain.calls.dnd import DoNotCallRegistry, StubRegistry
+from roma.domain.calls.precall import PrecallVerdict, precall_check
 
 __all__ = [
     "precall_check",

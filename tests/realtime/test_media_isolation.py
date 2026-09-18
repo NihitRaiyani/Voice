@@ -8,8 +8,7 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
-
-from roma.telephony.media import CallHandles, _registered_call, active_calls, sole_call
+from roma.realtime.pipeline import CallHandles, _registered_call, active_calls, sole_call
 
 REQUIRED_ENV = {
     "TWILIO_ACCOUNT_SID": "AC" + "1" * 32,
@@ -82,11 +81,11 @@ def test_registration_removed_even_when_the_call_body_raises():
 def test_build_media_app_starts_with_empty_registry(monkeypatch):
     for k, v in REQUIRED_ENV.items():
         monkeypatch.setenv(k, v)
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
     try:
-        from roma.telephony.media import build_media_app
+        from roma.realtime.pipeline import build_media_app
 
         app = build_media_app(auto_hang_up=False)
         assert app.state.calls == {}
@@ -97,8 +96,8 @@ def test_build_media_app_starts_with_empty_registry(monkeypatch):
 def _build_app(monkeypatch):
     for k, v in REQUIRED_ENV.items():
         monkeypatch.setenv(k, v)
-    from roma.config import get_settings
-    from roma.telephony.media import build_media_app
+    from roma.core.config import get_settings
+    from roma.realtime.pipeline import build_media_app
 
     get_settings.cache_clear()
     try:
@@ -134,8 +133,8 @@ def test_the_signed_off_consent_line_IS_loaded_once_at_app_build(monkeypatch):
     stopped, so neither the consent line nor the `LLMRunFrame` was queued and the call sat
     open in silence until Twilio timed out, logging an ordinary-looking
     `phase=p1_open won=False`."""
-    import roma.telephony.media as media_mod
-    from roma.telephony import canned
+    import roma.realtime.pipeline as media_mod
+    from roma.realtime import canned
 
     monkeypatch.setattr(media_mod, "consent_signed_off", lambda: True)
     monkeypatch.setattr(
@@ -150,8 +149,8 @@ def test_a_bad_consent_asset_fails_at_build_not_on_the_call(monkeypatch):
     """The failure mode that matters when the real Weltec wording lands: a line that trips
     the pre-TTS filter must crash startup, not turn every call into dead air. Skipping the
     load while unsigned must not have skipped this guard along with it."""
-    import roma.telephony.media as media_mod
-    from roma.telephony import canned
+    import roma.realtime.pipeline as media_mod
+    from roma.realtime import canned
 
     def _boom():
         raise ValueError("canned line would be altered by the pre-TTS filter")
@@ -165,8 +164,8 @@ def test_a_bad_consent_asset_fails_at_build_not_on_the_call(monkeypatch):
 def _build_app_with(monkeypatch, **env):
     for k, v in {**REQUIRED_ENV, **env}.items():
         monkeypatch.setenv(k, v)
-    from roma.config import get_settings
-    from roma.telephony.media import build_media_app
+    from roma.core.config import get_settings
+    from roma.realtime.pipeline import build_media_app
 
     get_settings.cache_clear()
     try:
@@ -200,7 +199,7 @@ def test_the_lead_can_always_interrupt_whatever_barge_in_says(monkeypatch):
     to ENABLE_BARGE_IN. That flag now selects the Step 5B turn-taking STRATEGIES
     (backchannel-aware start, adaptive endpoint) and nothing else.
     """
-    from roma.telephony.media import build_user_params
+    from roma.realtime.pipeline import build_user_params
 
     for barge_in in (False, True):
         for strategy in build_user_params(barge_in).user_turn_strategies.start:
@@ -225,7 +224,7 @@ def test_barge_in_on_is_a_warning_at_build(monkeypatch, caplog):
     screech happened, and nobody has explained it yet."""
     import logging
 
-    with caplog.at_level(logging.WARNING, logger="roma.telephony"):
+    with caplog.at_level(logging.WARNING, logger="roma.realtime"):
         _build_app_with(monkeypatch, ENABLE_BARGE_IN="true")
     msgs = [r.getMessage() for r in caplog.records]
     assert any("ENABLE_BARGE_IN is ON" in m for m in msgs)
@@ -238,7 +237,7 @@ def test_barge_in_off_says_nothing(monkeypatch, caplog):
     """The shipping path must stay quiet, or the warning stops being read."""
     import logging
 
-    with caplog.at_level(logging.WARNING, logger="roma.telephony"):
+    with caplog.at_level(logging.WARNING, logger="roma.realtime"):
         _build_app_with(monkeypatch, ENABLE_BARGE_IN="false")
     assert not any("ENABLE_BARGE_IN" in r.getMessage() for r in caplog.records)
 
@@ -251,7 +250,7 @@ def test_barge_in_defaults_to_on(monkeypatch):
     now unconditional (`test_the_lead_can_always_interrupt_whatever_barge_in_says`); this
     flag only chooses the Step 5B turn-taking strategies, whose endpoint spans have since
     been tuned on live audio."""
-    from roma.config import Settings
+    from roma.core.config import Settings
 
     assert Settings.model_fields["enable_barge_in"].default is True
 
@@ -260,7 +259,7 @@ def test_building_the_app_without_configured_logging_says_so(monkeypatch, capsys
     """The failure this catches lies to you rather than breaking.
 
     Without `configure_logging()` the last-resort handler emits WARNING and above only, so
-    every `roma.telephony` INFO line vanishes — including `media stream started`, which the
+    every `roma.realtime` INFO line vanishes — including `media stream started`, which the
     runbook treats as the binary proof that a call's socket arrived. Boot the bare factory,
     ring the number, and the call connects, builds its pipeline, opens Sarvam STT and TTS and
     spends credit while the log shows nothing at all. Measured exactly that way on
@@ -269,14 +268,14 @@ def test_building_the_app_without_configured_logging_says_so(monkeypatch, capsys
 
     for key, value in REQUIRED_ENV.items():
         monkeypatch.setenv(key, value)
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
     root = logging.getLogger()
     saved = root.handlers[:]
     root.handlers = []  # no configure_logging() has run
     try:
-        from roma.telephony.media import build_media_app
+        from roma.realtime.pipeline import build_media_app
 
         build_media_app(auto_hang_up=False)
         assert "logging is not configured" in capsys.readouterr().err

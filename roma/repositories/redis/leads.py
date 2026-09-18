@@ -24,7 +24,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-_log = logging.getLogger("roma.dialer")
+_log = logging.getLogger("roma.domain.calls")
 
 # Trigger -> ring -> pickup, plus room for a carrier retry. Not call duration: the record is
 # read once at /answer and once at /ws, both within seconds of the callee answering.

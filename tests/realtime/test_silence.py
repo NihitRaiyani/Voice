@@ -1,4 +1,4 @@
-"""Dead-air watchdog (roma.telephony.silence).
+"""Dead-air watchdog (roma.realtime.silence).
 
 Live call CA8a85a4f (2026-07-28): "koi bol kyun nahi raha hai", three times. 13 LLM calls
 produced 9 TTS outputs and one gap ran 21 seconds.
@@ -22,9 +22,8 @@ from pipecat.frames.frames import (
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessorSetup
 from pipecat.utils.asyncio.task_manager import TaskManager
-
-from roma.telephony.silence import SILENCE_LIMIT_SECS, SilenceWatchdog
-from roma.telephony.turnflight import TurnFlight
+from roma.realtime.silence import SILENCE_LIMIT_SECS, SilenceWatchdog
+from roma.realtime.turnflight import TurnFlight
 
 LIMIT = 0.2
 

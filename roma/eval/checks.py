@@ -12,11 +12,11 @@ the regression, which is what a harness is for.
 
 from dataclasses import dataclass, field
 
-from roma.controller.confirmguard import CONFIRMATION_CUES, REFUSAL_STATUSES
-from roma.guardrails.filter import screen
-from roma.guardrails.lexicon import HARD_FAIL_LINE, BlockCategory
-from roma.guardrails.normalize import tokens
-from roma.llm.prompts import PHASE_WORD_CAPS
+from roma.domain.conversation.confirmguard import CONFIRMATION_CUES, REFUSAL_STATUSES
+from roma.domain.conversation.prompts import PHASE_WORD_CAPS
+from roma.domain.safety.filter import screen
+from roma.domain.safety.lexicon import HARD_FAIL_LINE, BlockCategory
+from roma.domain.safety.normalize import tokens
 
 CANARIES: tuple[tuple[str, BlockCategory], ...] = (
     ("Course ki फीस 25000 hai.", BlockCategory.FEE),

@@ -1,6 +1,6 @@
 from xml.etree import ElementTree
 
-from roma.telephony.twiml import connect_stream_twiml
+from roma.providers.telephony.twilio.twiml import connect_stream_twiml
 
 
 def test_connect_stream_twiml_builds_a_bidirectional_stream():

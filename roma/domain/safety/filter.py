@@ -6,7 +6,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-from roma.guardrails.lexicon import (
+from roma.domain.safety.lexicon import (
     AMOUNT_WORDS,
     CERT_BLOCK_ENABLED,
     CERT_ORG_KEYWORDS,
@@ -27,9 +27,9 @@ from roma.guardrails.lexicon import (
     SUBSTITUTIONS,
     BlockCategory,
 )
-from roma.guardrails.normalize import normalize, tokens
+from roma.domain.safety.normalize import normalize, tokens
 
-_log = logging.getLogger("roma.guardrails")
+_log = logging.getLogger("roma.domain.safety")
 
 _PRECEDENCE = [
     BlockCategory.FEE,

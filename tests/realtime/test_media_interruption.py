@@ -22,13 +22,12 @@ from pipecat.frames.frames import (
 )
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.tests.utils import run_test
-
-from roma.controller.state import CallState
-from roma.guardrails import safe_output
-from roma.llm.prompts import assemble_system_prompt
-from roma.telephony.phase_controller import PhaseControllerProcessor
-from roma.telephony.pretts import PreTTSFilterProcessor
-from roma.telephony.tts import TTSAudioSanitizer
+from roma.domain.conversation.prompts import assemble_system_prompt
+from roma.domain.conversation.state import CallState
+from roma.domain.safety import safe_output
+from roma.realtime.phase_controller import PhaseControllerProcessor
+from roma.realtime.pretts import PreTTSFilterProcessor
+from roma.realtime.tts import TTSAudioSanitizer
 
 BLOCKED = "Fees pachaas hazaar hai."
 

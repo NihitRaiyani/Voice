@@ -19,10 +19,10 @@ def app(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "openai_test")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://host.example")
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
-    from roma.telephony.media import build_media_app
+    from roma.realtime.pipeline import build_media_app
 
     yield build_media_app(auto_hang_up=False)
     get_settings.cache_clear()
@@ -56,14 +56,14 @@ def test_an_inbound_call_carries_no_lead_and_that_is_not_an_error(app):
 
 
 def test_the_lead_token_is_never_written_to_the_log(app, caplog):
-    with caplog.at_level("INFO", logger="roma.telephony"):
+    with caplog.at_level("INFO", logger="roma.api.twilio"):
         _answer(app, "lead=SECRETLEADTOKEN")
     assert "SECRETLEADTOKEN" not in caplog.text
     assert "lead=yes" in caplog.text
 
 
 def test_a_lead_token_with_no_store_configured_does_not_break_the_call(app):
-    from roma.telephony.media import _load_triggered_lead
+    from roma.realtime.pipeline import _load_triggered_lead
 
     app.state.lead_store = None
     assert asyncio.run(_load_triggered_lead(app, "tok")) is None
@@ -71,7 +71,7 @@ def test_a_lead_token_with_no_store_configured_does_not_break_the_call(app):
 
 
 def test_a_failing_lead_store_degrades_instead_of_dropping_the_call(app):
-    from roma.telephony.media import _load_triggered_lead
+    from roma.realtime.pipeline import _load_triggered_lead
 
     class _Broken:
         async def get(self, token):

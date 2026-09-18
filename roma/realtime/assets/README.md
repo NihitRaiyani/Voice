@@ -22,7 +22,7 @@ approved recordings:
 
 ```
 uv run python scripts/make_canned_clip.py from-wav approved_consent_8k.wav \
-    src/roma/telephony/assets/consent.ulaw
+    roma/realtime/assets/consent.ulaw
 ```
 
 The recording must be 8kHz / mono / 16-bit PCM WAV (re-encode with

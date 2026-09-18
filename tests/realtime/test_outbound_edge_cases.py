@@ -10,10 +10,9 @@ silently, stream lifecycle mishandled, `OpeningTurnGuard` never opening, the fla
 import asyncio
 
 import pytest
-
-from roma.controller.state import CallState
-from roma.controller.turn import defers_the_call
-from roma.dialer.leadstore import OutboundLead
+from roma.domain.conversation.state import CallState
+from roma.domain.conversation.turn import defers_the_call
+from roma.repositories.redis.leads import OutboundLead
 
 # --- EDGE 1: the CRM record has no name --------------------------------------
 # RESOLUTION: omit the key from the seed so CallState's None default stands, and let P1's
@@ -37,10 +36,10 @@ def test_direction_is_decided_by_the_token_not_by_the_record(monkeypatch):
     monkeypatch.setenv("SARVAM_API_KEY", "s")
     monkeypatch.setenv("OPENAI_API_KEY", "o")
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://host.example")
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     get_settings.cache_clear()
-    from roma.telephony.media import _load_triggered_lead, build_media_app
+    from roma.realtime.pipeline import _load_triggered_lead, build_media_app
 
     app = build_media_app(auto_hang_up=False)
 
@@ -97,7 +96,11 @@ def test_agreement_is_not_mistaken_for_a_deferral(text):
 
 def test_the_opening_phase_does_not_advance_on_a_deferral():
     """The signal that matters: a busy lead must not land in discovery."""
-    from roma.controller.turn import asks_who_we_are, is_affirmation, opened_the_conversation
+    from roma.domain.conversation.turn import (
+        asks_who_we_are,
+        is_affirmation,
+        opened_the_conversation,
+    )
 
     text = "abhi meeting mein hoon, baad mein call karna"
     # It IS substantive — which is exactly why the inbound rule alone would have advanced.

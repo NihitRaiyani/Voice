@@ -11,7 +11,7 @@ Every line the bank can speak must also survive the systems below it: `safe_outp
 a time word and a question mark would be rewritten mid-flight into a course question).
 """
 
-from roma.controller.offtopic import (
+from roma.domain.conversation.offtopic import (
     _SLOT_QUESTIONS,
     CONVERGE_AFTER,
     CONVERGE_FALLBACK,
@@ -21,7 +21,7 @@ from roma.controller.offtopic import (
     classify_off_topic,
     deflection_for,
 )
-from roma.controller.state import DISCOVERY_ORDER, CallState
+from roma.domain.conversation.state import DISCOVERY_ORDER, CallState
 
 # --- the classifier ------------------------------------------------------------------------
 
@@ -121,7 +121,7 @@ def _every_line():
 def test_every_deflection_survives_its_own_filter():
     """Same pin as the SUBSTITUTIONS table: a safe line the filter would rewrite is a
     config bug caught at test time, not mid-call."""
-    from roma.guardrails import safe_output
+    from roma.domain.safety import safe_output
 
     for line in _every_line():
         assert safe_output(line) == line, line
@@ -131,7 +131,7 @@ def test_no_deflection_trips_the_premature_time_talk_guard():
     """A deflection plays in NON-offer phases by construction, where `safe_time_talk`
     rewrites any "?" sentence carrying a time cue into a course question — which would
     silently replace the deflection. No line may qualify."""
-    from roma.controller.confirmguard import is_premature_time_talk
+    from roma.domain.conversation.confirmguard import is_premature_time_talk
 
     for line in _every_line():
         for sentence in line.replace("—", ".").split("."):

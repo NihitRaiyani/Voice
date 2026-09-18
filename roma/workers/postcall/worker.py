@@ -16,10 +16,10 @@ from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
-from roma.postcall.job import PostcallJob
-from roma.postcall.store import prune
+from roma.workers.postcall.job import PostcallJob
+from roma.workers.postcall.store import prune
 
-_log = logging.getLogger("roma.postcall")
+_log = logging.getLogger("roma.workers.postcall")
 
 POLL_TIMEOUT_SECS = 5
 MAX_ATTEMPTS = 5

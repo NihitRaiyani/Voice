@@ -38,7 +38,7 @@ import json
 import logging
 import time
 
-_log = logging.getLogger("roma.dialer")
+_log = logging.getLogger("roma.domain.calls")
 
 DIALING = "dialing"
 CONNECTED = "connected"
@@ -150,7 +150,7 @@ def hour_key(epoch_secs: float) -> str:
 class HourlyDialCap:
     """How many calls this clock-hour, so one loop cannot spend the whole budget.
 
-    The spend cap (`roma.spend`) is the ceiling on MONEY and it works, but it only trips once
+    The spend cap (`roma.domain.costs.spend`) is the ceiling on MONEY and it works, but it only trips once
     the money is gone. This trips on COUNT, in minutes, and catches the failure the other
     cannot see coming: a stuck retry in the browser, or an operator holding the button down.
 

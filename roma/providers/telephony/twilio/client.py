@@ -4,9 +4,9 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
-from roma.dialer import DoNotCallRegistry, precall_check
+from roma.domain.calls import DoNotCallRegistry, precall_check
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 DIAL_TIMEOUT_SECS = 15.0
 
 
@@ -56,7 +56,7 @@ def build_twilio_client():
     from twilio.http.http_client import TwilioHttpClient
     from twilio.rest import Client
 
-    from roma.config import get_settings
+    from roma.core.config import get_settings
 
     settings = get_settings()
     credentials = (

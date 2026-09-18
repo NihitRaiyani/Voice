@@ -6,9 +6,9 @@ LLM had no equivalent, which left the one config with a 16.7x cost multiplier at
 it as the one config nothing guarded.
 """
 
-from roma.controller.slots import SLOT_MODEL
-from roma.spend import PRICES
-from roma.telephony.media import LLM_MODEL
+from roma.domain.appointments.slots import SLOT_MODEL
+from roma.domain.costs.spend import PRICES
+from roma.realtime.pipeline import LLM_MODEL
 
 
 def test_every_model_we_send_tokens_to_has_a_price():
@@ -23,7 +23,7 @@ def test_every_model_we_send_tokens_to_has_a_price():
     """
     for name, model in (("LLM_MODEL", LLM_MODEL), ("SLOT_MODEL", SLOT_MODEL)):
         assert model in PRICES, (
-            f"{name}={model!r} has no entry in roma.spend.PRICES. Price it before you "
+            f"{name}={model!r} has no entry in roma.domain.costs.spend.PRICES. Price it before you "
             f"ship it — an unpriced model bills at a guess."
         )
 

@@ -26,13 +26,13 @@ Two modes:
 import logging
 from datetime import datetime
 
-from roma.controller.slots import DiscoveryValue, TimeSlot
-from roma.controller.state import CallState
-from roma.controller.timeresolve import IST
-from roma.controller.turn import advance_turn
+from roma.domain.appointments.slots import DiscoveryValue, TimeSlot
+from roma.domain.appointments.timeresolve import IST
+from roma.domain.conversation.state import CallState
+from roma.domain.conversation.turn import advance_turn
 from roma.eval.checks import ScriptResult, TurnResult, run_checks
 from roma.eval.cost import BudgetExceeded, Meter
-from roma.postcall.job import outcome_for
+from roma.workers.postcall.job import outcome_for
 
 _log = logging.getLogger("roma.eval")
 

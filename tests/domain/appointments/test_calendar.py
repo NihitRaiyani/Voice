@@ -1,4 +1,4 @@
-"""What Roma is allowed to offer (roma.controller.calendar).
+"""What Roma is allowed to offer (roma.domain.appointments.calendar).
 
 The controller picks the visit slots; Roma only speaks them. She used to invent two each
 turn by copying the example in `p5_pivot.md`, so nothing was ever on record and a lead
@@ -12,8 +12,12 @@ fails silently.
 import asyncio
 from datetime import date, datetime
 
-from roma.controller.calendar import DEFAULT_CALENDAR, StaticHoursCalendar, VisitCalendar
-from roma.controller.timeresolve import (
+from roma.domain.appointments.calendar import (
+    DEFAULT_CALENDAR,
+    StaticHoursCalendar,
+    VisitCalendar,
+)
+from roma.domain.appointments.timeresolve import (
     IST,
     VISIT_HOUR_END,
     VISIT_HOUR_START,
@@ -60,7 +64,7 @@ def test_no_offer_is_sooner_than_the_lead_could_possibly_get_there():
     making them say no."""
     from datetime import timedelta
 
-    from roma.controller.timeresolve import VISIT_MIN_LEAD
+    from roma.domain.appointments.timeresolve import VISIT_MIN_LEAD
 
     for now in (MONDAY_8AM, MONDAY_1PM, MONDAY_9PM, datetime(2026, 7, 28, 10, 50, tzinfo=IST)):
         for slot in _offers(now):
@@ -70,7 +74,7 @@ def test_no_offer_is_sooner_than_the_lead_could_possibly_get_there():
 
 def test_a_day_pinned_by_the_lead_also_respects_the_lead_time():
     """The `on=` branch is a separate code path and had the same `> now` floor."""
-    from roma.controller.timeresolve import VISIT_MIN_LEAD
+    from roma.domain.appointments.timeresolve import VISIT_MIN_LEAD
 
     now = datetime(2026, 7, 28, 10, 50, tzinfo=IST)
     for slot in _offers(now, on=now.date()):

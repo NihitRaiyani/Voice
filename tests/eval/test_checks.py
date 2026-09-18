@@ -11,7 +11,6 @@ import re
 from dataclasses import replace
 
 import pytest
-
 from roma.eval import checks
 from roma.eval.checks import (
     Finding,
@@ -112,7 +111,7 @@ def test_canary_set_covers_both_scripts_and_every_category():
 def test_the_allow_case_is_not_over_blocked():
     """docs/04 has exactly one allow-case. A filter that substitutes over a rebuttal makes
     Roma concede the number she was refusing, so over-blocking is a failure too."""
-    from roma.guardrails.filter import screen
+    from roma.domain.safety.filter import screen
 
     for line in checks.ALLOWED_LINES:
         assert screen(line).allowed, line
@@ -130,7 +129,7 @@ def test_canaries_go_RED_when_the_tokenizer_is_broken(monkeypatch):
     to detect a filter that fails open, and every green run above it means nothing.
     """
     broken = re.compile(r"[₹%]|\w+")
-    monkeypatch.setattr("roma.guardrails.filter._tokens", lambda text: broken.findall(text))
+    monkeypatch.setattr("roma.domain.safety.filter._tokens", lambda text: broken.findall(text))
 
     findings = check_canaries()
     assert findings, "harness stayed green against a filter that fails open on Indic text"
@@ -147,7 +146,7 @@ def test_finding_str_is_readable():
 @pytest.mark.parametrize("line,_cat", checks.CANARIES)
 def test_each_canary_individually(line, _cat):
     """Parametrized so a regression names the exact line that started leaking."""
-    from roma.guardrails.filter import screen
+    from roma.domain.safety.filter import screen
 
     assert not screen(line).allowed, line
 

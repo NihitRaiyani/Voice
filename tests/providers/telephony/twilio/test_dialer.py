@@ -1,9 +1,9 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from roma.dialer import CONSENT_LINE
-from roma.dialer.dnd import StubRegistry
-from roma.telephony.dialer import DialResult, place_call
+from roma.domain.calls import CONSENT_LINE
+from roma.domain.calls.dnd import StubRegistry
+from roma.providers.telephony.twilio.client import DialResult, place_call
 
 PHONE = "+919876543210"
 FROM = "+16295550100"
@@ -44,7 +44,7 @@ def test_a_spent_budget_never_dials(tmp_path):
     """The ₹100 testing cap has to be able to stop a call being placed, or it is a report
     rather than a cap. gpt-4o is ~₹8 for a five-minute call, so the phase is about twelve
     calls long and the twelfth must be refused rather than noticed afterwards."""
-    from roma.spend import SpendLedger, Usage
+    from roma.domain.costs.spend import SpendLedger, Usage
 
     ledger = SpendLedger(tmp_path / "spend.jsonl")
     ledger.record(Usage(input_tokens=1_000_000), "gpt-4o")
@@ -74,7 +74,7 @@ def test_may_dial_places_one_call_pointing_at_the_answer_url():
 
 
 def test_the_call_sid_degrades_when_the_sdk_response_has_none():
-    from roma.telephony.dialer import _created_call_sid
+    from roma.providers.telephony.twilio.client import _created_call_sid
 
     assert _created_call_sid(SimpleNamespace(sid="CA_1")) == "CA_1"
     assert _created_call_sid(SimpleNamespace(sid=None)) is None

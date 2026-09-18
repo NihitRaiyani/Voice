@@ -21,7 +21,7 @@ import logging
 from pipecat.frames.frames import InterimTranscriptionFrame, TranscriptionFrame
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 
 class TranscriptionLogger(FrameProcessor):

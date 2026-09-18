@@ -10,12 +10,11 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-
-from roma.postcall.job import OUTCOME_LOCKED, PostcallJob
-from roma.postcall.queue import InMemoryPostcallQueue
-from roma.postcall.spool import JobSpool
-from roma.postcall.store import LocalRecordingStore
-from roma.postcall.worker import JobResult, WorkerDeps, handle_job, run_worker
+from roma.repositories.redis.postcall_queue import InMemoryPostcallQueue
+from roma.workers.postcall.job import OUTCOME_LOCKED, PostcallJob
+from roma.workers.postcall.spool import JobSpool
+from roma.workers.postcall.store import LocalRecordingStore
+from roma.workers.postcall.worker import JobResult, WorkerDeps, handle_job, run_worker
 
 NOW = datetime(2026, 7, 26, 12, 0, tzinfo=UTC)
 
@@ -91,7 +90,7 @@ def test_signed_off_consent_stores_the_recording(tmp_path):
 def test_the_real_consent_predicate_currently_blocks():
     """A live wire, not a mock: while the placeholder ships, storage is off. This test
     flips to the other branch the day Weltec signs the wording off, which is the point."""
-    from roma.dialer import CONSENT_LINE, consent_signed_off
+    from roma.domain.calls import CONSENT_LINE, consent_signed_off
 
     assert consent_signed_off(CONSENT_LINE) is False
     assert consent_signed_off("Namaste, ye call record ho rahi hai.") is True
@@ -151,7 +150,7 @@ def test_a_missing_capture_is_acked_not_looped_forever(tmp_path, caplog):
 
 
 def test_repeated_failures_dead_letter_rather_than_retry_forever(tmp_path):
-    from roma.postcall.worker import MAX_ATTEMPTS
+    from roma.workers.postcall.worker import MAX_ATTEMPTS
 
     deps = _deps(tmp_path, store=_FailingStore(tmp_path / "recordings"))
     job = _job(attempts=MAX_ATTEMPTS - 1)
@@ -193,7 +192,7 @@ def test_worker_drains_the_spool_before_polling(tmp_path):
 def test_worker_runs_the_whole_path_with_no_redis(tmp_path):
     """Today's actual environment: Redis is not running. The spool-backed queue must carry
     reserve/ack, not just the fallback write."""
-    from roma.postcall.queue import SpoolPostcallQueue
+    from roma.repositories.redis.postcall_queue import SpoolPostcallQueue
 
     spool = JobSpool(tmp_path / "spool")
     deps = _deps(tmp_path)

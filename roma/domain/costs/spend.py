@@ -31,9 +31,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from roma.postcall.paths import open_private
+from roma.workers.postcall.paths import open_private
 
-_log = logging.getLogger("roma.spend")
+_log = logging.getLogger("roma.domain.costs.spend")
 
 
 @dataclass(frozen=True)
@@ -74,7 +74,7 @@ def prices_for(model: str) -> Prices:
     if known is not None:
         return known
     _log.error(
-        "model %r has no entry in roma.spend.PRICES — billing it at the most expensive "
+        "model %r has no entry in roma.domain.costs.spend.PRICES — billing it at the most expensive "
         "known rate. Add it to the table; the estimate is wrong until you do.",
         model,
     )

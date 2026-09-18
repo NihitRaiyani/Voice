@@ -44,10 +44,10 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from urllib.parse import urlencode
 
-from roma.controller.calendar import DEFAULT_CALENDAR, VisitCalendar
-from roma.controller.timeresolve import IST
+from roma.domain.appointments.calendar import DEFAULT_CALENDAR, VisitCalendar
+from roma.domain.appointments.timeresolve import IST
 
-_log = logging.getLogger("roma.controller")
+_log = logging.getLogger("roma.domain.conversation")
 
 _API_BASE = "https://www.googleapis.com/calendar/v3/calendars"
 

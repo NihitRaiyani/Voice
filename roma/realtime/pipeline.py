@@ -33,10 +33,9 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from urllib.parse import parse_qsl
 
 import httpx
-from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from openai import AsyncOpenAI
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
@@ -78,59 +77,63 @@ from pipecat.turns.user_start.vad_user_turn_start_strategy import (
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
 from websockets.protocol import State
 
-from roma.config import get_settings
-from roma.controller import CallState, RedisCallStateStore
-from roma.controller.gcal import build_calendar
-from roma.controller.state import spoken_slot
-from roma.dialer import consent_signed_off
-from roma.dialer.leadstore import RedisLeadStore
-from roma.dialer.openerstore import OpenerStore
-from roma.dialer.trigger import lead_token_from_query
-from roma.llm.prompts import assemble_system_prompt, opening_line, phase_max_tokens
-from roma.logging_setup import RedactionFilter, current_call_sid
-from roma.postcall.job import PostcallJob, outcome_for
-from roma.postcall.paths import job_spool_dir, media_dir, spend_ledger_path
-from roma.postcall.queue import RedisPostcallQueue
-from roma.postcall.spool import JobSpool, SpoolFallbackQueue
-from roma.spend import SpendLedger, Usage
-from roma.telephony import canned
-from roma.telephony.backchannel import (
+from roma.api.v1.health import mount_health_route
+from roma.api.v1.twilio_webhooks import mount_answer_route
+from roma.core.config import get_settings
+from roma.core.logging import RedactionFilter, current_call_sid
+from roma.domain.calls import consent_signed_off
+from roma.domain.conversation import CallState, RedisCallStateStore
+from roma.domain.conversation.prompts import (
+    assemble_system_prompt,
+    opening_line,
+    phase_max_tokens,
+)
+from roma.domain.conversation.state import spoken_slot
+from roma.domain.costs.spend import SpendLedger, Usage
+from roma.providers.calendar.google import build_calendar
+from roma.providers.telephony.twilio.auth import external_url, valid_twilio_signature
+from roma.realtime import canned
+from roma.realtime.backchannel import (
     BACKCHANNEL_MAX_SECS,
     ENDPOINT_CONTINUATION_SECS,
     ENDPOINT_DEFAULT_SECS,
     ENDPOINT_TERMINAL_SECS,
 )
-from roma.telephony.closing import CallCloser
-from roma.telephony.filler import FillerPicker, load_fillers, load_holding
-from roma.telephony.health import CallHealth
-from roma.telephony.opening import (
+from roma.realtime.closing import CallCloser
+from roma.realtime.filler import FillerPicker, load_fillers, load_holding
+from roma.realtime.health import CallHealth
+from roma.realtime.opening import (
     NoiseGate,
     OpeningTurnGuard,
     PickupGreeter,
     opening_posture,
 )
-from roma.telephony.phase_controller import PhaseControllerProcessor
-from roma.telephony.phrasecache import PhraseCache, saved_inr
-from roma.telephony.pretts import PreTTSFilterProcessor
-from roma.telephony.recorder import (
+from roma.realtime.phase_controller import PhaseControllerProcessor
+from roma.realtime.phrasecache import PhraseCache, saved_inr
+from roma.realtime.pretts import PreTTSFilterProcessor
+from roma.realtime.recorder import (
     RECORDING_CHANNELS,
     RECORDING_SAMPLE_RATE,
     attach_recorder,
     build_recorder,
 )
-from roma.telephony.sentences import InterruptibleSentenceAggregator
-from roma.telephony.silence import SilenceWatchdog
-from roma.telephony.transcript import TranscriptionLogger
-from roma.telephony.tts import TTSAudioSanitizer
-from roma.telephony.turnflight import TurnFlight
-from roma.telephony.turntaking import (
+from roma.realtime.sentences import InterruptibleSentenceAggregator
+from roma.realtime.silence import SilenceWatchdog
+from roma.realtime.transcript import TranscriptionLogger
+from roma.realtime.tts import TTSAudioSanitizer
+from roma.realtime.turnflight import TurnFlight
+from roma.realtime.turntaking import (
     AdaptiveEndpointStopStrategy,
     BackchannelAwareUserTurnStartStrategy,
 )
-from roma.telephony.twilio_auth import external_url, valid_twilio_signature
-from roma.telephony.twiml import connect_stream_twiml
+from roma.repositories.redis.leads import RedisLeadStore
+from roma.repositories.redis.opener_audio import OpenerStore
+from roma.repositories.redis.postcall_queue import RedisPostcallQueue
+from roma.workers.postcall.job import PostcallJob, outcome_for
+from roma.workers.postcall.paths import job_spool_dir, media_dir, spend_ledger_path
+from roma.workers.postcall.spool import JobSpool, SpoolFallbackQueue
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 _RATE = canned.SAMPLE_RATE
 
@@ -167,7 +170,7 @@ def _call_status_store(app):
     url = getattr(settings, "redis_url", None) if settings is not None else None
     if url is None:
         return None
-    from roma.dialer.callstatus import CallStatusStore
+    from roma.repositories.redis.call_status import CallStatusStore
 
     return CallStatusStore(url.get_secret_value(), ttl=settings.call_status_ttl_secs)
 
@@ -1039,7 +1042,7 @@ def _warn_if_logging_unconfigured() -> None:
     """Say so, loudly, when `configure_logging()` has not run.
 
     Without it Python's last-resort handler emits WARNING and above only, so every
-    `roma.telephony` INFO line disappears — including `media stream started`, which the
+    `roma.realtime` INFO line disappears — including `media stream started`, which the
     runbook treats as the BINARY proof that a call's socket reached this process.
 
     That combination lies to you. Booting the bare factory and ringing the number produces a
@@ -1060,8 +1063,8 @@ def _warn_if_logging_unconfigured() -> None:
         _log.warning(
             "logging is not configured: roma INFO lines (including 'media stream started', "
             "the proof a call reached this process) will be DROPPED, and secret redaction "
-            "is not installed. Call roma.logging_setup.configure_logging() first — the "
-            "server entrypoint scripts.serve_media:create_app does."
+            "is not installed. Call roma.core.logging.configure_logging() first — the "
+            "production entrypoint roma.main:create_app does."
         )
 
 
@@ -1093,7 +1096,7 @@ def build_media_app(
     (injected so offline tests / verify_media pass stubs instead of opening live
     OpenAI / Sarvam sockets).
     `build_calendar_fn` picks what Roma books against — the Google diary when it is
-    configured, else branch hours (`roma.controller.gcal.build_calendar`). Built once per
+    configured, else branch hours (`roma.providers.calendar.google.build_calendar`). Built once per
     app, not per call: it is stateless apart from a short busy-cache, and sharing that
     cache across concurrent calls is the point — two leads offered the same 11 AM is the
     thing it exists to notice.
@@ -1173,43 +1176,8 @@ def build_media_app(
         app.state.opener_store = None
         _log.warning("no opener store: outbound greetings will be synthesized live")
 
-    @app.get("/health")
-    async def health() -> dict:
-        """Liveness. The runbook has curled this since before it existed (docs/12), and a
-        404 proved the tunnel worked only by accident."""
-        return {"status": "ok", "active_calls": len(getattr(app.state, "calls", {}) or {})}
-
-    @app.post("/answer")
-    async def answer(request: Request) -> Response:
-        """Validate Twilio and return bidirectional Media Streams TwiML."""
-        params = dict(parse_qsl((await request.body()).decode("utf-8"), keep_blank_values=True))
-        signature_url = external_url(
-            settings.public_base_url, request.url.path, request.url.query
-        )
-        if not valid_twilio_signature(
-            signature_url,
-            params,
-            request.headers.get("x-twilio-signature", ""),
-            settings.twilio_auth_token.get_secret_value(),
-        ):
-            raise HTTPException(status_code=403, detail="invalid Twilio signature")
-
-        call_id = params.get("CallSid")
-        lead_token = lead_token_from_query(request.query_params)
-        wss_url = external_url(settings.public_base_url, "/ws", websocket=True)
-        _log.info(
-            "answer: streaming call_id=%s lead=%s",
-            call_id or "-",
-            "yes" if lead_token else "-",  # never the token itself: it is an authority
-        )
-        # Twilio only fetches this URL once the callee has actually PICKED UP, which makes
-        # this the one honest "connected" signal in the system (docs/13). Fail-open: the web
-        # UI showing a stale state is cosmetic, an exception here would cost the call.
-        await _mark_call_connected(app, lead_token)
-        return Response(
-            content=connect_stream_twiml(wss_url, lead_token=lead_token),
-            media_type="application/xml",
-        )
+    mount_health_route(app)
+    mount_answer_route(app, settings=settings, on_connected=_mark_call_connected)
 
     @app.websocket("/ws")
     async def media_stream(websocket: WebSocket) -> None:

@@ -1,7 +1,6 @@
 import pytest
-
-from roma.guardrails.filter import screen
-from roma.guardrails.lexicon import BlockCategory
+from roma.domain.safety.filter import screen
+from roma.domain.safety.lexicon import BlockCategory
 
 BLOCK_CASES = [
     ("fees ₹5000 hai", BlockCategory.FEE),
@@ -20,7 +19,7 @@ BLOCK_CASES = [
 
 @pytest.mark.parametrize("text,category", BLOCK_CASES)
 def test_blocks_with_correct_category_and_substitution(text, category):
-    from roma.guardrails.lexicon import SUBSTITUTIONS
+    from roma.domain.safety.lexicon import SUBSTITUTIONS
 
     v = screen(text)
     assert v.allowed is False
@@ -94,8 +93,8 @@ def test_percentage_question_is_conservatively_blocked():
     assert v.category is BlockCategory.PLACEMENT
 
 
-from roma.guardrails import filter as filter_mod  # noqa: E402
-from roma.guardrails.lexicon import HARD_FAIL_LINE  # noqa: E402
+from roma.domain.safety import filter as filter_mod  # noqa: E402
+from roma.domain.safety.lexicon import HARD_FAIL_LINE  # noqa: E402
 
 
 def _boom(_toks):
@@ -117,7 +116,7 @@ def test_safe_output_returns_line_when_allowed():
 
 
 def test_safe_output_returns_substitution_when_blocked():
-    from roma.guardrails.lexicon import SUBSTITUTIONS
+    from roma.domain.safety.lexicon import SUBSTITUTIONS
 
     assert filter_mod.safe_output("fees ₹5000 hai") == SUBSTITUTIONS[BlockCategory.FEE]
 
@@ -128,7 +127,7 @@ def test_safe_output_failsafe_on_error(monkeypatch):
 
 
 def test_public_exports():
-    from roma.guardrails import BlockCategory, FilterVerdict, safe_output, screen
+    from roma.domain.safety import BlockCategory, FilterVerdict, safe_output, screen
 
     assert callable(screen) and callable(safe_output)
     assert FilterVerdict and BlockCategory
@@ -159,7 +158,7 @@ def test_indic_script_is_blocked_not_spoken(text, expected):
 
 def test_the_fee_leak_itself():
     """The exact trace that motivated the fix: this line was returned VERBATIM."""
-    from roma.guardrails.lexicon import SUBSTITUTIONS
+    from roma.domain.safety.lexicon import SUBSTITUTIONS
 
     leak = "Course ki फीस 25000 hai."
     spoken = filter_mod.safe_output(leak)
@@ -174,7 +173,7 @@ def test_every_indic_lexicon_entry_survives_tokenization():
     Every multi-codepoint keyword in every set must come back from the tokenizer as one
     token. A matra-splitting tokenizer fails this on the first Devanagari entry.
     """
-    from roma.guardrails.lexicon import (
+    from roma.domain.safety.lexicon import (
         AMOUNT_WORDS,
         CERT_ORG_KEYWORDS,
         CERT_TRIGGER,
@@ -282,7 +281,7 @@ def test_a_salary_figure_gets_the_salary_line_not_the_fees_deflection():
     was green, and Roma answered a salary question with the fees deflection: a non-sequitur
     the lead simply asks past. A wrong safe line is its own failure mode.
     """
-    from roma.guardrails.lexicon import SUBSTITUTIONS
+    from roma.domain.safety.lexicon import SUBSTITUTIONS
 
     v = screen("Starting salary 25 se 30 hazaar hoti hai.")
     assert not v.allowed
@@ -326,7 +325,7 @@ def test_the_money_substitution_does_not_breach_the_hard_rules_it_serves():
     to something nobody asked about. This substitution fires on every fee question, so the
     filter was reliably making Roma sound evasive at the moment she most needed not to.
     """
-    from roma.guardrails.lexicon import SUBSTITUTIONS, BlockCategory
+    from roma.domain.safety.lexicon import SUBSTITUTIONS, BlockCategory
 
     for category in (BlockCategory.FEE, BlockCategory.DISCOUNT):
         line = SUBSTITUTIONS[category]
@@ -337,7 +336,7 @@ def test_the_money_substitution_does_not_breach_the_hard_rules_it_serves():
 
 def test_every_substitution_survives_its_own_filter():
     """A safe line that would itself be blocked is a loop, not a fallback."""
-    from roma.guardrails.lexicon import SUBSTITUTIONS
+    from roma.domain.safety.lexicon import SUBSTITUTIONS
 
     for category, line in SUBSTITUTIONS.items():
         assert screen(line).allowed, f"{category} substitution is itself blocked: {line!r}"

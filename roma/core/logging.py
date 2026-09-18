@@ -8,7 +8,7 @@ import logging
 import re
 from contextvars import ContextVar
 
-from roma.config import Settings, get_settings
+from roma.core.config import Settings, get_settings
 
 _REDACTED = "***REDACTED***"
 
@@ -76,7 +76,7 @@ class LeadTokenFilter(logging.Filter):
 
     The lead token is a bearer credential: it dereferences in Redis to a real lead's
     name, city and segment, and it authorises the `/ws` socket that carries their live
-    voice. `roma.telephony` never logs it — but `uvicorn.access` logs the whole request
+    voice. `roma.realtime` never logs it — but `uvicorn.access` logs the whole request
     line, query string included, and nothing stood between that and the disk.
 
     This sits alongside RedactionFilter rather than inside it because RedactionFilter

@@ -1,4 +1,4 @@
-from roma.guardrails.normalize import normalize
+from roma.domain.safety.normalize import normalize
 
 
 def test_lowercases_and_collapses_whitespace():

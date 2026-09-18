@@ -1,6 +1,6 @@
 """Pipecat turn strategies for Step 5B barge-in (docs/05 Layers 2 and 3).
 
-Two strategies, both consuming the pure lexicon in `roma.telephony.backchannel`:
+Two strategies, both consuming the pure lexicon in `roma.realtime.backchannel`:
 
 - `BackchannelAwareUserTurnStartStrategy` — decides whether the lead talking over Roma
   is a real turn-take or just a nod.
@@ -58,7 +58,7 @@ from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (
     SpeechTimeoutUserTurnStopStrategy,
 )
 
-from roma.telephony.backchannel import (
+from roma.realtime.backchannel import (
     BACKCHANNEL_MAX_SECS,
     BARGE_IN_ATTEMPTS,
     ENDPOINT_CONTINUATION_SECS,
@@ -69,7 +69,7 @@ from roma.telephony.backchannel import (
     vad_span_secs,
 )
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 
 class BackchannelAwareUserTurnStartStrategy(BaseUserTurnStartStrategy):
@@ -301,7 +301,7 @@ class AdaptiveEndpointStopStrategy(SpeechTimeoutUserTurnStopStrategy):
     """Turn-final silence that varies with what the lead just said (docs/05 Layer 2).
 
     500ms after a clear terminal answer, 850ms by default, 1300ms after a continuation
-    marker. See `roma.telephony.backchannel.endpoint_timeout_for` for the lexicons.
+    marker. See `roma.realtime.backchannel.endpoint_timeout_for` for the lexicons.
 
     **Known limitation — Sarvam's latency eats part of the win.** Turn-end waits on two
     timers, and the words only exist once STT returns: pipecat's p99 TTFS for Sarvam is

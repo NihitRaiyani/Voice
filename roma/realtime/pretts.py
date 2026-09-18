@@ -34,16 +34,16 @@ from pipecat.frames.frames import (
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
-from roma.controller.confirmguard import (
+from roma.domain.conversation.confirmguard import (
     safe_availability,
     safe_close,
     safe_confirmation,
     safe_time_talk,
 )
-from roma.guardrails import safe_output
-from roma.telephony.filler import strip_leading_ack
+from roma.domain.safety import safe_output
+from roma.realtime.filler import strip_leading_ack
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 # "11:00 baje" -> "11 baje". Bulbul runs with `enable_preprocessing=True`, which reads a
 # digit clock time as a full Hindi time — "11:00" becomes "gyaarah baje" — and then speaks

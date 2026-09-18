@@ -18,9 +18,8 @@ from pipecat.frames.frames import (
     TranscriptionFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection
-
-from roma.controller.pacing import OVER_GRACE_SECS, OVER_SECS
-from roma.telephony.closing import CallCloser
+from roma.domain.conversation.pacing import OVER_GRACE_SECS, OVER_SECS
+from roma.realtime.closing import CallCloser
 
 
 def _closer(won=False):

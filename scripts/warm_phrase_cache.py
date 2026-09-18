@@ -3,7 +3,7 @@
     uv run python scripts/warm_phrase_cache.py            # render missing/stale clips
     uv run python scripts/warm_phrase_cache.py --force    # re-render everything
 
-Writes `src/roma/telephony/assets/phrases/<slug>.ulaw` plus `manifest.json` mapping each
+Writes `roma/realtime/assets/phrases/<slug>.ulaw` plus `manifest.json` mapping each
 slug to the EXACT text it speaks. The loader (`telephony.phrasecache`) refuses any clip
 whose manifest text no longer matches the live constant, so editing a wording anywhere
 just invalidates its clip until this script runs again — a stale clip can never speak
@@ -20,13 +20,12 @@ import json
 import sys
 
 import aiohttp
-
-from roma.config import get_settings
-from roma.guardrails import safe_output
-from roma.telephony.filler import SENTENCE_TARGET_RMS, level_to_target
-from roma.telephony.phrasecache import MANIFEST_NAME, PHRASE_ASSETS, phrase_inventory
-from roma.telephony.render import RATE, render, trim_silence
-from roma.telephony.ulaw import pcm16_to_ulaw
+from roma.core.config import get_settings
+from roma.domain.safety import safe_output
+from roma.realtime.filler import SENTENCE_TARGET_RMS, level_to_target
+from roma.realtime.phrasecache import MANIFEST_NAME, PHRASE_ASSETS, phrase_inventory
+from roma.realtime.render import RATE, render, trim_silence
+from roma.realtime.ulaw import pcm16_to_ulaw
 
 
 async def main_async(force: bool) -> int:
@@ -74,7 +73,7 @@ async def main_async(force: bool) -> int:
 
     # Mirror to Redis for inspectability (`roma:phrase:<sha1>`). The server never reads
     # this — its cache is in-memory from the assets above — so a missing Redis is a shrug.
-    from roma.telephony.phrasecache import PhraseCache
+    from roma.realtime.phrasecache import PhraseCache
 
     await PhraseCache().mirror_to_redis(settings.redis_url.get_secret_value())
     return 0

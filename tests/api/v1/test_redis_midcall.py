@@ -58,9 +58,9 @@ def test_a_checkpoint_failure_mid_call_does_not_end_the_turn():
     turn is not (`turn.py`). Turn one saves for real; then Redis dies and turn two must
     still classify, transition and return — a lead mid-objection cannot be dropped because
     a checkpoint write failed."""
-    from roma.controller.state import CallState
-    from roma.controller.store import RedisCallStateStore
-    from roma.controller.turn import advance_turn
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
+    from roma.repositories.redis.conversation_state import RedisCallStateStore
 
     client = _FlipClient()
     store = RedisCallStateStore(client=client)
@@ -85,8 +85,8 @@ def test_a_checkpoint_failure_mid_call_does_not_end_the_turn():
 def test_a_lead_store_that_dies_after_the_dial_degrades_to_no_lead():
     """The record was written at dial time; Redis dies before pickup. The call must still
     connect — Roma simply knows nothing about the person, the pre-token inbound behaviour."""
-    from roma.dialer.leadstore import OutboundLead, RedisLeadStore
-    from roma.telephony.media import _load_triggered_lead
+    from roma.realtime.pipeline import _load_triggered_lead
+    from roma.repositories.redis.leads import OutboundLead, RedisLeadStore
 
     client = _FlipClient()
     store = RedisLeadStore(client=client)
@@ -106,8 +106,8 @@ def test_a_lead_store_that_dies_after_the_dial_degrades_to_no_lead():
 def test_the_status_write_guard_swallows_a_dead_store():
     """`put_dialing` runs when the phone is ALREADY ringing; a Redis error there must not
     become a 500 for a dial that actually fired."""
-    from roma.dialer.callstatus import CallStatusStore
-    from roma.telephony.webapi import _put_dialing_guarded
+    from roma.api.v1.calls import _put_dialing_guarded
+    from roma.repositories.redis.call_status import CallStatusStore
 
     client = _FlipClient()
     client.kill()
@@ -118,8 +118,8 @@ def test_the_status_write_guard_swallows_a_dead_store():
 def test_a_dead_lead_store_fails_the_dial_closed_before_the_carrier_is_touched():
     """Fail-closed AND in order: the lead record write precedes the Twilio POST, so when it
     fails the carrier must never have been asked to do anything."""
-    from roma.dialer.leadstore import OutboundLead, RedisLeadStore
-    from roma.dialer.trigger import DialPrereqError, trigger_outbound_call
+    from roma.repositories.redis.leads import OutboundLead, RedisLeadStore
+    from roma.services.call_service import DialPrereqError, trigger_outbound_call
 
     client = _FlipClient()
     client.kill()
@@ -150,12 +150,12 @@ def test_a_redis_outage_surfaces_as_503_not_carrier_refused(monkeypatch):
     """End-to-end through the endpoint: Redis unreachable at dial time is OUR outage, and
     the response must say so — not blame Twilio. `REDIS_URL` points at a closed port and the
     Twilio credentials are present, so the first thing to fail is the lead-record write."""
-    from roma.config import Settings, get_settings
+    from roma.core.config import Settings, get_settings
 
     monkeypatch.setitem(Settings.model_config, "env_file", None)
     # Same wall-clock pin as `test_api_call._app`: the TRAI window would refuse every dial
     # outside 09:00-21:00 IST before the Redis failure under test is ever reached.
-    monkeypatch.setattr("roma.dialer.precall.in_calling_window", lambda now: True)
+    monkeypatch.setattr("roma.domain.calls.precall.in_calling_window", lambda now: True)
     env = {
         "TWILIO_FROM_NUMBER": "+16295550100",
         "TWILIO_ACCOUNT_SID": "AC" + "1" * 32,
@@ -172,7 +172,7 @@ def test_a_redis_outage_surfaces_as_503_not_carrier_refused(monkeypatch):
         monkeypatch.setenv(key, value)
     get_settings.cache_clear()
     try:
-        from roma.telephony.webapi import mount_web_api
+        from roma.api.v1.calls import mount_web_api
 
         async def _reachable_ok(base_url, **kw):
             return True, ""
@@ -199,9 +199,9 @@ def test_a_redis_outage_surfaces_as_503_not_carrier_refused(monkeypatch):
 def test_the_worker_survives_a_queue_outage(monkeypatch, tmp_path):
     """A Redis blip used to propagate out of `run_worker` and kill the whole process —
     stranding every job behind the failure. It now backs off and keeps polling."""
-    from roma.postcall import worker as worker_mod
-    from roma.postcall.store import LocalRecordingStore
-    from roma.postcall.worker import WorkerDeps, run_worker
+    from roma.workers.postcall import worker as worker_mod
+    from roma.workers.postcall.store import LocalRecordingStore
+    from roma.workers.postcall.worker import WorkerDeps, run_worker
 
     monkeypatch.setattr(worker_mod, "QUEUE_ERROR_BACKOFF_SECS", 0.0)
 

@@ -34,9 +34,9 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from roma.telephony.ulaw import ulaw_to_pcm16
+from roma.realtime.ulaw import ulaw_to_pcm16
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 _ASSETS = Path(__file__).parent / "assets"
 
@@ -152,8 +152,8 @@ def intent_for(text: "str | None", phase: "str | None" = None) -> FillerIntent:
             return FillerIntent.OBJECTION
         if not text:
             return FillerIntent.NEUTRAL
-        from roma.controller.objection import classify_objection
-        from roma.guardrails.normalize import tokens
+        from roma.domain.conversation.objection import classify_objection
+        from roma.domain.safety.normalize import tokens
 
         if classify_objection(text) is not None:
             return FillerIntent.OBJECTION

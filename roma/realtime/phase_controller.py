@@ -39,18 +39,22 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.settings import LLMSettings
 
-from roma.controller.facts import facts_in
-from roma.controller.machine import P7_CLOSE
-from roma.controller.offtopic import deflection_for
-from roma.controller.shortcircuit import canned_reply
-from roma.controller.state import CallState
-from roma.controller.timeresolve import IST
-from roma.controller.turn import advance_turn
-from roma.llm.prompts import assemble_system_prompt, cache_prefix, phase_max_tokens
-from roma.telephony.filler import SAMPLE_RATE as FILLER_RATE
-from roma.telephony.filler import intent_for
+from roma.domain.appointments.timeresolve import IST
+from roma.domain.conversation.facts import facts_in
+from roma.domain.conversation.machine import P7_CLOSE
+from roma.domain.conversation.offtopic import deflection_for
+from roma.domain.conversation.prompts import (
+    assemble_system_prompt,
+    cache_prefix,
+    phase_max_tokens,
+)
+from roma.domain.conversation.shortcircuit import canned_reply
+from roma.domain.conversation.state import CallState
+from roma.domain.conversation.turn import advance_turn
+from roma.realtime.filler import SAMPLE_RATE as FILLER_RATE
+from roma.realtime.filler import intent_for
 
-_log = logging.getLogger("roma.telephony")
+_log = logging.getLogger("roma.realtime")
 
 
 # How long a turn must be preparing before the line is HELD ("Ek second…").

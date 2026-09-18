@@ -21,7 +21,7 @@ import logging
 
 from pydantic import BaseModel, Field
 
-_log = logging.getLogger("roma.controller")
+_log = logging.getLogger("roma.domain.conversation")
 
 SLOT_MODEL = "gpt-4o-mini"
 
