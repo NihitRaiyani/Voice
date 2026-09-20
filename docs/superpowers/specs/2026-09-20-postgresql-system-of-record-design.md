@@ -29,7 +29,7 @@ record. PostgreSQL is not placed in the audio-frame path and does not store raw 
 
 ## Technology and dependency direction
 
-- PostgreSQL 16 is the reference database.
+- PostgreSQL 16 is the reference database or use the version which is one my system.
 - SQLAlchemy 2.x async sessions provide typed mappings and transaction boundaries.
 - `asyncpg` is the runtime driver.
 - Alembic owns forward and rollback schema changes.
