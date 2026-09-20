@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 from roma.core.config import Settings
 
 REQUIRED = [
@@ -38,6 +38,43 @@ def test_all_required_present_constructs(monkeypatch):
     settings = Settings(_env_file=None)
     assert settings.openai_api_key.get_secret_value() == "test-openai_api_key"
     assert settings.app_env == "dev"
+
+
+def test_database_settings_are_secret_and_use_safe_defaults(monkeypatch):
+    _set_full_env(monkeypatch)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://roma:password@localhost/roma")
+    monkeypatch.setenv("PII_HASH_KEY", "test-pii-hash-key")
+
+    settings = Settings(_env_file=None)
+
+    assert isinstance(settings.database_url, SecretStr)
+    assert isinstance(settings.pii_hash_key, SecretStr)
+    assert settings.database_pool_size == 5
+    assert settings.database_max_overflow == 10
+    assert settings.database_pool_timeout_secs == 5.0
+    assert "password" not in repr(settings)
+    assert "test-pii-hash-key" not in repr(settings)
+
+
+def test_non_async_postgres_database_url_is_rejected(monkeypatch):
+    _set_full_env(monkeypatch)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://roma:password@localhost/roma")
+
+    with pytest.raises(ValidationError, match="DATABASE_URL"):
+        Settings(_env_file=None)
+
+
+def test_invalid_database_url_error_does_not_leak_credentials(monkeypatch):
+    _set_full_env(monkeypatch)
+    invalid_url = "postgresql://u:pw@h/d"
+    monkeypatch.setenv("DATABASE_URL", invalid_url)
+
+    with pytest.raises(ValidationError) as error:
+        Settings(_env_file=None)
+
+    message = str(error.value)
+    assert invalid_url not in message
+    assert "pw" not in message
 
 
 def test_secret_never_appears_in_repr(monkeypatch):

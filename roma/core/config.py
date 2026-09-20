@@ -7,7 +7,7 @@ at the exact API-client boundary.
 
 from functools import lru_cache
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +18,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
         env_ignore_empty=True,
+        hide_input_in_errors=True,
     )
 
     # --- Twilio -------------------------------------------------------------------------
@@ -28,6 +29,20 @@ class Settings(BaseSettings):
     sarvam_api_key: SecretStr
     openai_api_key: SecretStr
     redis_url: SecretStr
+    database_url: SecretStr = SecretStr("")
+    pii_hash_key: SecretStr = SecretStr("")
+    database_pool_size: int = 5
+    database_max_overflow: int = 10
+    database_pool_timeout_secs: float = 5.0
+
+    @field_validator("database_url")
+    @classmethod
+    def validate_database_url(cls, value: SecretStr) -> SecretStr:
+        """Allow offline configuration, but require asyncpg for configured Postgres."""
+        database_url = value.get_secret_value()
+        if database_url and not database_url.startswith("postgresql+asyncpg://"):
+            raise ValueError("DATABASE_URL must begin with postgresql+asyncpg://")
+        return value
 
     google_calendar_id: str = ""
     google_calendar_api_key: "SecretStr | None" = None
