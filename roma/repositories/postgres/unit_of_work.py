@@ -144,7 +144,7 @@ class PostgresUnitOfWork:
 
     def _require_repository(self, repository: object | None, name: str) -> object:
         if repository is None:
-            raise RuntimeError(f"PostgreSQL {name} repository requested outside a unit of work")
+            raise RuntimeError("PostgreSQL unit of work is not active")
         return repository
 
     def _require_session(self) -> AsyncSession:
@@ -164,8 +164,16 @@ class PostgresUnitOfWork:
     async def _close_once(self) -> None:
         if self._closed or self._session is None:
             return
-        await self._session.close()
-        self._closed = True
+        try:
+            await self._session.close()
+        finally:
+            self._session = None
+            self._callers = None
+            self._calls = None
+            self._appointments = None
+            self._evidence = None
+            self._reference_data = None
+            self._closed = True
 
     def _translate(self, exc: BaseException) -> BaseException:
         if isinstance(exc, (PersistenceConflict, PersistenceUnavailable)):

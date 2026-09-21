@@ -218,3 +218,21 @@ def test_repository_boundaries_are_exposed_as_placeholders_until_adapters_exist(
                 _ = uow.calls.add
 
     asyncio.run(access_placeholder_repository())
+
+
+def test_unit_of_work_rejects_repository_and_session_access_after_exit():
+    session = FakeAsyncSession()
+    uow = PostgresUnitOfWork(FakeSessionFactory(session))
+
+    async def use_then_access_closed_uow() -> None:
+        async with uow:
+            pass
+
+        with pytest.raises(RuntimeError, match="not active"):
+            _ = uow.calls
+        with pytest.raises(RuntimeError, match="not active"):
+            await uow.commit()
+        with pytest.raises(RuntimeError, match="not active"):
+            await uow.rollback()
+
+    asyncio.run(use_then_access_closed_uow())
