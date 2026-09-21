@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from types import TracebackType
-from typing import Any
+from typing import TypeVar
 
 from asyncpg import exceptions as asyncpg_exceptions
 from sqlalchemy.exc import (
@@ -18,8 +18,24 @@ from sqlalchemy.exc import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from roma.domain.persistence import PersistenceConflict, PersistenceUnavailable
+from roma.repositories.interfaces.durable import (
+    AppointmentRepository,
+    CallerRepository,
+    CallRepository,
+    EvidenceRepository,
+    ReferenceDataRepository,
+)
+
+from .repositories import (
+    AppointmentPostgresRepository,
+    CallerPostgresRepository,
+    CallPostgresRepository,
+    EvidencePostgresRepository,
+    ReferenceDataPostgresRepository,
+)
 
 SessionFactory = Callable[[], AsyncSession]
+RepositoryT = TypeVar("RepositoryT")
 AsyncpgAvailabilityError = (
     asyncpg_exceptions.CannotConnectNowError,
     asyncpg_exceptions.ClientCannotConnectError,
@@ -41,16 +57,6 @@ SqlAlchemyAvailabilityError = (
 )
 
 
-class _Task6RepositoryPlaceholder:
-    def __init__(self, name: str) -> None:
-        self._name = name
-
-    def __getattr__(self, method_name: str) -> Any:
-        raise NotImplementedError(
-            f"PostgreSQL {self._name} repository adapters arrive in Task 6"
-        )
-
-
 class PostgresUnitOfWork:
     """Owns one async database session for one durable use case."""
 
@@ -60,30 +66,30 @@ class PostgresUnitOfWork:
         self._committed = False
         self._rolled_back = False
         self._closed = False
-        self._callers: object | None = None
-        self._calls: object | None = None
-        self._appointments: object | None = None
-        self._evidence: object | None = None
-        self._reference_data: object | None = None
+        self._callers: CallerRepository | None = None
+        self._calls: CallRepository | None = None
+        self._appointments: AppointmentRepository | None = None
+        self._evidence: EvidenceRepository | None = None
+        self._reference_data: ReferenceDataRepository | None = None
 
     @property
-    def callers(self) -> object:
+    def callers(self) -> CallerRepository:
         return self._require_repository(self._callers, "callers")
 
     @property
-    def calls(self) -> object:
+    def calls(self) -> CallRepository:
         return self._require_repository(self._calls, "calls")
 
     @property
-    def appointments(self) -> object:
+    def appointments(self) -> AppointmentRepository:
         return self._require_repository(self._appointments, "appointments")
 
     @property
-    def evidence(self) -> object:
+    def evidence(self) -> EvidenceRepository:
         return self._require_repository(self._evidence, "evidence")
 
     @property
-    def reference_data(self) -> object:
+    def reference_data(self) -> ReferenceDataRepository:
         return self._require_repository(self._reference_data, "reference data")
 
     async def __aenter__(self) -> PostgresUnitOfWork:
@@ -91,11 +97,11 @@ class PostgresUnitOfWork:
         self._rolled_back = False
         self._closed = False
         self._session = self._session_factory()
-        self._callers = _Task6RepositoryPlaceholder("callers")
-        self._calls = _Task6RepositoryPlaceholder("calls")
-        self._appointments = _Task6RepositoryPlaceholder("appointments")
-        self._evidence = _Task6RepositoryPlaceholder("evidence")
-        self._reference_data = _Task6RepositoryPlaceholder("reference data")
+        self._callers = CallerPostgresRepository(self._session)
+        self._calls = CallPostgresRepository(self._session)
+        self._appointments = AppointmentPostgresRepository(self._session)
+        self._evidence = EvidencePostgresRepository(self._session)
+        self._reference_data = ReferenceDataPostgresRepository(self._session)
         return self
 
     async def __aexit__(
@@ -142,7 +148,7 @@ class PostgresUnitOfWork:
         await session.rollback()
         self._rolled_back = True
 
-    def _require_repository(self, repository: object | None, name: str) -> object:
+    def _require_repository(self, repository: RepositoryT | None, name: str) -> RepositoryT:
         if repository is None:
             raise RuntimeError("PostgreSQL unit of work is not active")
         return repository

@@ -203,10 +203,10 @@ def test_availability_errors_become_persistence_unavailable_with_cause(
     assert session.closes == 1
 
 
-def test_repository_boundaries_are_exposed_as_placeholders_until_adapters_exist():
+def test_repository_boundaries_are_exposed_as_stable_adapters_inside_context():
     session = FakeAsyncSession()
 
-    async def access_placeholder_repository() -> None:
+    async def access_repository_adapters() -> None:
         async with PostgresUnitOfWork(FakeSessionFactory(session)) as uow:
             assert uow.callers is uow.callers
             assert uow.calls is uow.calls
@@ -214,10 +214,9 @@ def test_repository_boundaries_are_exposed_as_placeholders_until_adapters_exist(
             assert uow.evidence is uow.evidence
             assert uow.reference_data is uow.reference_data
             assert uow.calls is not session
-            with pytest.raises(NotImplementedError, match="Task 6"):
-                _ = uow.calls.add
+            assert callable(uow.calls.add)
 
-    asyncio.run(access_placeholder_repository())
+    asyncio.run(access_repository_adapters())
 
 
 def test_unit_of_work_rejects_repository_and_session_access_after_exit():
