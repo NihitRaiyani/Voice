@@ -231,12 +231,17 @@ def test_repositories_round_trip_durable_records(session_factory):
                     call_id=call.id,
                     event_type="stage.changed",
                     conversation_stage="booking",
-                    payload={"from": "discovery", "to": "booking"},
+                    payload={
+                        "from": "discovery",
+                        "to": "booking",
+                        "nested": {"items": [1, {"state": "original"}]},
+                    },
                     occurred_at=_now(7),
                     idempotency_key=f"event-{uuid4()}",
                 )
             )
             assert event.payload["to"] == "booking"
+            assert event.payload["nested"]["items"] == (1, {"state": "original"})
 
             slot = await uow.appointments.add_slot(
                 AppointmentSlotRecord(
@@ -301,7 +306,10 @@ def test_repositories_round_trip_durable_records(session_factory):
                     rule="claims",
                     original_category="guarantee",
                     replacement_type="softened",
-                    metadata={"term": "guaranteed job"},
+                    metadata={
+                        "term": "guaranteed job",
+                        "nested": {"items": [1, {"state": "original"}]},
+                    },
                     retention_until=_now(60),
                     created_at=_now(11),
                 )
@@ -385,6 +393,7 @@ def test_repositories_round_trip_durable_records(session_factory):
                 )
             )
             assert safety.metadata["term"] == "guaranteed job"
+            assert safety.metadata["nested"]["items"] == (1, {"state": "original"})
             assert usage.provider_metadata["cached"] is False
             assert cost.metadata["rounded"] is True
             assert recording.object_key.startswith("recordings/")

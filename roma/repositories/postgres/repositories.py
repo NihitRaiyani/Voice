@@ -60,7 +60,15 @@ from .models import (
 
 
 def _json(value: Mapping[str, object]) -> dict[str, object]:
-    return dict(value)
+    return {key: _json_value(item) for key, item in value.items()}
+
+
+def _json_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return _json(value)
+    if isinstance(value, (list, tuple, frozenset)):
+        return [_json_value(item) for item in value]
+    return value
 
 
 async def _flush_or_conflict(session: AsyncSession) -> None:
