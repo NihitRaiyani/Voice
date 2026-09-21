@@ -35,6 +35,9 @@ packages = ["roma"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "postgres: requires a disposable PostgreSQL database",
+]
 
 [tool.ruff]
 # 96 not 88: the guardrail and turn-taking modules carry long explanatory comments and
