@@ -8,15 +8,22 @@ import shutil
 import socket
 import subprocess
 from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import date, time
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from uuid import uuid4
 
 import pytest
 from alembic import command
 from alembic.config import Config
+from docker.errors import DockerException
 from roma.repositories.postgres.models import Base
 from sqlalchemy import ForeignKeyConstraint, UniqueConstraint, inspect, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine
+from testcontainers.community.postgres import PostgresContainer
+from testcontainers.core.exceptions import ContainerStartException
 
 pytestmark = pytest.mark.postgres
 
@@ -41,16 +48,29 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-@pytest.fixture(scope="session")
-def disposable_postgres_url() -> Iterator[str]:
+@contextmanager
+def _testcontainer_postgres_url() -> Iterator[str]:
+    image = os.environ.get("POSTGRES_TEST_IMAGE", "postgres:18")
+    container = PostgresContainer(
+        image=image,
+        username="roma",
+        password="roma",
+        dbname="roma",
+        driver="asyncpg",
+    )
+    with container:
+        yield container.get_connection_url()
+
+
+@contextmanager
+def _local_postgres_url() -> Iterator[str]:
     initdb = _postgres_bin("initdb")
     pg_ctl = _postgres_bin("pg_ctl")
     if not initdb or not pg_ctl:
-        pytest.skip("PostgreSQL initdb/pg_ctl binaries are unavailable")
+        raise RuntimeError("PostgreSQL initdb/pg_ctl binaries are unavailable")
 
     with TemporaryDirectory(prefix="roma-pg-") as directory:
         data_dir = Path(directory) / "data"
-        port = _free_port()
         subprocess.run(
             [
                 initdb,
@@ -64,22 +84,32 @@ def disposable_postgres_url() -> Iterator[str]:
             capture_output=True,
             text=True,
         )
-        subprocess.run(
-            [
-                pg_ctl,
-                "-D",
-                str(data_dir),
-                "-o",
-                f"-h 127.0.0.1 -p {port}",
-                "-w",
-                "start",
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        started_port: int | None = None
+        for _ in range(5):
+            port = _free_port()
+            startup = subprocess.run(
+                [
+                    pg_ctl,
+                    "-D",
+                    str(data_dir),
+                    "-o",
+                    f"-h 127.0.0.1 -p {port}",
+                    "-w",
+                    "start",
+                ],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if startup.returncode == 0:
+                started_port = port
+                break
+
+        if started_port is None:
+            raise RuntimeError("Could not start local disposable PostgreSQL")
+
         try:
-            url = f"postgresql+asyncpg://roma@127.0.0.1:{port}/postgres"
+            url = f"postgresql+asyncpg://roma@127.0.0.1:{started_port}/postgres"
             yield url
         finally:
             subprocess.run(
@@ -88,6 +118,27 @@ def disposable_postgres_url() -> Iterator[str]:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
+
+
+@pytest.fixture(scope="session")
+def disposable_postgres_url() -> Iterator[str]:
+    testcontainers_error: DockerException | ContainerStartException | None = None
+    try:
+        with _testcontainer_postgres_url() as url:
+            yield url
+            return
+    except (DockerException, ContainerStartException) as error:
+        testcontainers_error = error
+
+    try:
+        with _local_postgres_url() as url:
+            yield url
+            return
+    except RuntimeError as error:
+        pytest.skip(
+            "Testcontainers PostgreSQL unavailable "
+            f"({testcontainers_error!r}); local PostgreSQL fallback unavailable ({error!r})"
+        )
 
 
 @pytest.fixture()
@@ -176,10 +227,6 @@ def _assert_tables_constraints_and_indexes(sync_connection) -> None:
     active_index = active_indexes["uq_appointments_active_slot"]
     assert active_index["unique"]
     assert active_index["column_names"] == ["branch_id", "appointment_date", "start_time"]
-    assert active_index["dialect_options"]["postgresql_where"] == (
-        "((status)::text = ANY ((ARRAY['booked'::character varying, "
-        "'confirmed'::character varying])::text[]))"
-    )
 
 
 async def _assert_application_tables_are_gone(database_url: str) -> None:
@@ -193,12 +240,114 @@ async def _assert_application_tables_are_gone(database_url: str) -> None:
         await engine.dispose()
 
 
+async def _assert_active_appointment_index_behavior(database_url: str) -> None:
+    engine = create_async_engine(database_url)
+    branch_id = uuid4()
+    institute_id = uuid4()
+    booked_appointment_id = uuid4()
+    slot_id = uuid4()
+    slot_date = date(2026, 9, 21)
+    slot_start = time(10, 0)
+    slot_end = time(10, 30)
+    try:
+        async with engine.begin() as connection:
+            await connection.execute(
+                text(
+                    "INSERT INTO institutes (id, code, name) "
+                    "VALUES (:id, :code, :name)"
+                ),
+                {"id": institute_id, "code": "weltec", "name": "Weltec"},
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO branches (id, institute_id, code, name, city, timezone) "
+                    "VALUES (:id, :institute_id, :code, :name, :city, :timezone)"
+                ),
+                {
+                    "id": branch_id,
+                    "institute_id": institute_id,
+                    "code": "ahm",
+                    "name": "Ahmedabad",
+                    "city": "Ahmedabad",
+                    "timezone": "Asia/Kolkata",
+                },
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO appointment_slots "
+                    "(id, branch_id, appointment_date, start_time, end_time, capacity, status) "
+                    "VALUES (:id, :branch_id, :appointment_date, :start_time, :end_time, "
+                    ":capacity, :status)"
+                ),
+                {
+                    "id": slot_id,
+                    "branch_id": branch_id,
+                    "appointment_date": slot_date,
+                    "start_time": slot_start,
+                    "end_time": slot_end,
+                    "capacity": 2,
+                    "status": "available",
+                },
+            )
+            await connection.execute(
+                text(
+                    "INSERT INTO appointments "
+                    "(id, branch_id, appointment_date, start_time, status) "
+                    "VALUES (:id, :branch_id, :appointment_date, :start_time, :status)"
+                ),
+                {
+                    "id": booked_appointment_id,
+                    "branch_id": branch_id,
+                    "appointment_date": slot_date,
+                    "start_time": slot_start,
+                    "status": "booked",
+                },
+            )
+
+        with pytest.raises(IntegrityError):
+            async with engine.begin() as connection:
+                await connection.execute(
+                    text(
+                        "INSERT INTO appointments "
+                        "(id, branch_id, appointment_date, start_time, status) "
+                        "VALUES (:id, :branch_id, :appointment_date, :start_time, :status)"
+                    ),
+                    {
+                        "id": uuid4(),
+                        "branch_id": branch_id,
+                        "appointment_date": slot_date,
+                        "start_time": slot_start,
+                        "status": "confirmed",
+                    },
+                )
+
+        async with engine.begin() as connection:
+            for status in ["cancelled", "no_show"]:
+                await connection.execute(
+                    text(
+                        "INSERT INTO appointments "
+                        "(id, branch_id, appointment_date, start_time, status) "
+                        "VALUES (:id, :branch_id, :appointment_date, :start_time, :status)"
+                    ),
+                    {
+                        "id": uuid4(),
+                        "branch_id": branch_id,
+                        "appointment_date": slot_date,
+                        "start_time": slot_start,
+                        "status": status,
+                    },
+                )
+    finally:
+        await engine.dispose()
+
+
 def test_initial_migration_upgrades_to_metadata_and_downgrades_to_base(
     alembic_config: Config, disposable_postgres_url: str
 ) -> None:
     command.upgrade(alembic_config, "head")
 
     asyncio.run(_assert_schema_matches_metadata(disposable_postgres_url))
+    asyncio.run(_assert_active_appointment_index_behavior(disposable_postgres_url))
 
     command.downgrade(alembic_config, "base")
 

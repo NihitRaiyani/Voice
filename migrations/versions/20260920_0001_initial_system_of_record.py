@@ -1,7 +1,7 @@
 """initial system of record.
 
 Revision ID: 20260920_0001
-Revises: 
+Revises:
 Create Date: 2026-09-21 07:50:41.222409+00:00
 """
 
