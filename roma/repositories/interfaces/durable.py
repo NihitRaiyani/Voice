@@ -15,15 +15,21 @@ from roma.domain.persistence import (
     AppointmentRecord,
     AppointmentSlotRecord,
     AuditLogRecord,
+    BranchRecord,
     CallCostRecord,
     CallerRecord,
     CallEventRecord,
     CallRecord,
     CallTurnRecord,
+    CounsellorRecord,
+    CourseRecord,
     FollowupJobRecord,
+    InstituteRecord,
     ProviderUsageRecord,
     RecordingRecord,
+    RoleRecord,
     SafetyEventRecord,
+    UserRecord,
 )
 
 
@@ -109,7 +115,15 @@ class ReferenceDataRepository(Protocol):
     upserts return the stable ``(branch_id, course_id)`` and ``(user_id, role_id)`` identities.
     """
 
+    async def get_institute(self, institute_id: UUID) -> InstituteRecord | None: ...
+
+    async def list_institutes(self) -> tuple[InstituteRecord, ...]: ...
+
     async def upsert_institute(self, *, code: str, name: str, is_active: bool) -> UUID: ...
+
+    async def get_branch(self, branch_id: UUID) -> BranchRecord | None: ...
+
+    async def list_branches(self, institute_id: UUID | None = None) -> tuple[BranchRecord, ...]: ...
 
     async def upsert_branch(
         self,
@@ -121,6 +135,10 @@ class ReferenceDataRepository(Protocol):
         timezone: str,
         is_active: bool,
     ) -> UUID: ...
+
+    async def get_course(self, course_id: UUID) -> CourseRecord | None: ...
+
+    async def list_courses(self, institute_id: UUID | None = None) -> tuple[CourseRecord, ...]: ...
 
     async def upsert_course(
         self,
@@ -136,7 +154,17 @@ class ReferenceDataRepository(Protocol):
         self, *, branch_id: UUID, course_id: UUID
     ) -> tuple[UUID, UUID]: ...
 
+    async def list_branch_course_offerings(self, branch_id: UUID) -> tuple[tuple[UUID, UUID], ...]: ...
+
+    async def get_role(self, role_id: UUID) -> RoleRecord | None: ...
+
+    async def list_roles(self) -> tuple[RoleRecord, ...]: ...
+
     async def upsert_role(self, *, name: str, description: str | None) -> UUID: ...
+
+    async def get_user(self, user_id: UUID) -> UserRecord | None: ...
+
+    async def list_users(self) -> tuple[UserRecord, ...]: ...
 
     async def upsert_user(
         self,
@@ -148,6 +176,12 @@ class ReferenceDataRepository(Protocol):
     ) -> UUID: ...
 
     async def upsert_user_role(self, *, user_id: UUID, role_id: UUID) -> tuple[UUID, UUID]: ...
+
+    async def list_user_roles(self, user_id: UUID) -> tuple[tuple[UUID, UUID], ...]: ...
+
+    async def get_counsellor(self, counsellor_id: UUID) -> CounsellorRecord | None: ...
+
+    async def list_counsellors(self, branch_id: UUID | None = None) -> tuple[CounsellorRecord, ...]: ...
 
     async def upsert_counsellor(
         self,

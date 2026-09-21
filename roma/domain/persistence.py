@@ -287,22 +287,95 @@ class AuditLogRecord:
         _freeze_mapping_fields(self, "metadata")
 
 
+@dataclass(frozen=True, slots=True)
+class InstituteRecord:
+    id: UUID
+    code: str
+    name: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class BranchRecord:
+    id: UUID
+    institute_id: UUID
+    code: str
+    name: str
+    city: str
+    timezone: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class CourseRecord:
+    id: UUID
+    institute_id: UUID
+    code: str
+    name: str
+    description: str | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class RoleRecord:
+    id: UUID
+    name: str
+    description: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class UserRecord:
+    id: UUID
+    email: str
+    display_name: str
+    password_hash: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class CounsellorRecord:
+    id: UUID
+    branch_id: UUID
+    employee_code: str
+    display_name: str
+    user_id: UUID | None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
 __all__ = [
     "AppointmentRecord",
     "AppointmentSlotRecord",
     "AuditLogRecord",
+    "BranchRecord",
     "CallCostRecord",
     "CallEventRecord",
     "CallRecord",
     "CallTurnRecord",
     "CallerRecord",
+    "CounsellorRecord",
+    "CourseRecord",
     "FollowupJobRecord",
+    "InstituteRecord",
     "PersistenceConflict",
     "PersistenceError",
     "PersistenceUnavailable",
     "ProviderUsageRecord",
     "RecordNotFound",
     "RecordingRecord",
+    "RoleRecord",
     "SafetyEventRecord",
+    "UserRecord",
     "hash_phone_e164",
 ]

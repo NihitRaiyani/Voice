@@ -16,17 +16,23 @@ from roma.domain.persistence import (
     AppointmentRecord,
     AppointmentSlotRecord,
     AuditLogRecord,
+    BranchRecord,
     CallCostRecord,
     CallerRecord,
     CallEventRecord,
     CallRecord,
     CallTurnRecord,
+    CounsellorRecord,
+    CourseRecord,
     FollowupJobRecord,
+    InstituteRecord,
     PersistenceConflict,
     ProviderUsageRecord,
     RecordingRecord,
     RecordNotFound,
+    RoleRecord,
     SafetyEventRecord,
+    UserRecord,
 )
 
 from .models import (
@@ -283,6 +289,79 @@ def _audit_log_record(row: AuditLog) -> AuditLogRecord:
     )
 
 
+def _institute_record(row: Institute) -> InstituteRecord:
+    return InstituteRecord(
+        id=row.id,
+        code=row.code,
+        name=row.name,
+        is_active=row.is_active,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _branch_record(row: Branch) -> BranchRecord:
+    return BranchRecord(
+        id=row.id,
+        institute_id=row.institute_id,
+        code=row.code,
+        name=row.name,
+        city=row.city,
+        timezone=row.timezone,
+        is_active=row.is_active,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _course_record(row: Course) -> CourseRecord:
+    return CourseRecord(
+        id=row.id,
+        institute_id=row.institute_id,
+        code=row.code,
+        name=row.name,
+        description=row.description,
+        is_active=row.is_active,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _role_record(row: Role) -> RoleRecord:
+    return RoleRecord(
+        id=row.id,
+        name=row.name,
+        description=row.description,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _user_record(row: User) -> UserRecord:
+    return UserRecord(
+        id=row.id,
+        email=row.email,
+        display_name=row.display_name,
+        password_hash=row.password_hash,
+        is_active=row.is_active,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _counsellor_record(row: Counsellor) -> CounsellorRecord:
+    return CounsellorRecord(
+        id=row.id,
+        branch_id=row.branch_id,
+        user_id=row.user_id,
+        employee_code=row.employee_code,
+        display_name=row.display_name,
+        is_active=row.is_active,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
 class CallerPostgresRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -491,6 +570,9 @@ class AppointmentPostgresRepository:
         return tuple(_slot_record(row) for row in rows)
 
     async def book(self, record: AppointmentRecord) -> AppointmentRecord:
+        if record.status not in {"booked", "confirmed"}:
+            raise PersistenceConflict("appointment booking must use an active status")
+
         slot = await self._session.scalar(
             select(AppointmentSlot)
             .where(
@@ -658,6 +740,14 @@ class ReferenceDataPostgresRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def get_institute(self, institute_id: UUID) -> InstituteRecord | None:
+        row = await self._session.get(Institute, institute_id)
+        return None if row is None else _institute_record(row)
+
+    async def list_institutes(self) -> tuple[InstituteRecord, ...]:
+        rows = await self._session.scalars(select(Institute).order_by(Institute.code))
+        return tuple(_institute_record(row) for row in rows)
+
     async def upsert_institute(self, *, code: str, name: str, is_active: bool) -> UUID:
         return await self._upsert_id(
             Institute,
@@ -665,6 +755,17 @@ class ReferenceDataPostgresRepository:
             [Institute.code],
             {"name": name, "is_active": is_active},
         )
+
+    async def get_branch(self, branch_id: UUID) -> BranchRecord | None:
+        row = await self._session.get(Branch, branch_id)
+        return None if row is None else _branch_record(row)
+
+    async def list_branches(self, institute_id: UUID | None = None) -> tuple[BranchRecord, ...]:
+        statement = select(Branch)
+        if institute_id is not None:
+            statement = statement.where(Branch.institute_id == institute_id)
+        rows = await self._session.scalars(statement.order_by(Branch.code))
+        return tuple(_branch_record(row) for row in rows)
 
     async def upsert_branch(
         self,
@@ -689,6 +790,17 @@ class ReferenceDataPostgresRepository:
             [Branch.institute_id, Branch.code],
             {"name": name, "city": city, "timezone": timezone, "is_active": is_active},
         )
+
+    async def get_course(self, course_id: UUID) -> CourseRecord | None:
+        row = await self._session.get(Course, course_id)
+        return None if row is None else _course_record(row)
+
+    async def list_courses(self, institute_id: UUID | None = None) -> tuple[CourseRecord, ...]:
+        statement = select(Course)
+        if institute_id is not None:
+            statement = statement.where(Course.institute_id == institute_id)
+        rows = await self._session.scalars(statement.order_by(Course.code))
+        return tuple(_course_record(row) for row in rows)
 
     async def upsert_course(
         self,
@@ -723,6 +835,22 @@ class ReferenceDataPostgresRepository:
         await _execute_or_conflict(self._session, statement)
         return branch_id, course_id
 
+    async def list_branch_course_offerings(self, branch_id: UUID) -> tuple[tuple[UUID, UUID], ...]:
+        rows = await self._session.execute(
+            select(BranchCourse.branch_id, BranchCourse.course_id)
+            .where(BranchCourse.branch_id == branch_id)
+            .order_by(BranchCourse.course_id)
+        )
+        return tuple((row.branch_id, row.course_id) for row in rows)
+
+    async def get_role(self, role_id: UUID) -> RoleRecord | None:
+        row = await self._session.get(Role, role_id)
+        return None if row is None else _role_record(row)
+
+    async def list_roles(self) -> tuple[RoleRecord, ...]:
+        rows = await self._session.scalars(select(Role).order_by(Role.name))
+        return tuple(_role_record(row) for row in rows)
+
     async def upsert_role(self, *, name: str, description: str | None) -> UUID:
         return await self._upsert_id(
             Role,
@@ -730,6 +858,14 @@ class ReferenceDataPostgresRepository:
             [Role.name],
             {"description": description},
         )
+
+    async def get_user(self, user_id: UUID) -> UserRecord | None:
+        row = await self._session.get(User, user_id)
+        return None if row is None else _user_record(row)
+
+    async def list_users(self) -> tuple[UserRecord, ...]:
+        rows = await self._session.scalars(select(User).order_by(User.email))
+        return tuple(_user_record(row) for row in rows)
 
     async def upsert_user(
         self,
@@ -763,6 +899,27 @@ class ReferenceDataPostgresRepository:
         )
         await _execute_or_conflict(self._session, statement)
         return user_id, role_id
+
+    async def list_user_roles(self, user_id: UUID) -> tuple[tuple[UUID, UUID], ...]:
+        rows = await self._session.execute(
+            select(UserRole.user_id, UserRole.role_id)
+            .where(UserRole.user_id == user_id)
+            .order_by(UserRole.role_id)
+        )
+        return tuple((row.user_id, row.role_id) for row in rows)
+
+    async def get_counsellor(self, counsellor_id: UUID) -> CounsellorRecord | None:
+        row = await self._session.get(Counsellor, counsellor_id)
+        return None if row is None else _counsellor_record(row)
+
+    async def list_counsellors(
+        self, branch_id: UUID | None = None
+    ) -> tuple[CounsellorRecord, ...]:
+        statement = select(Counsellor)
+        if branch_id is not None:
+            statement = statement.where(Counsellor.branch_id == branch_id)
+        rows = await self._session.scalars(statement.order_by(Counsellor.employee_code))
+        return tuple(_counsellor_record(row) for row in rows)
 
     async def upsert_counsellor(
         self,

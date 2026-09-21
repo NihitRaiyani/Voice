@@ -411,6 +411,128 @@ def test_repositories_round_trip_durable_records(session_factory):
     asyncio.run(run())
 
 
+def test_reference_data_reads_round_trip_written_records(session_factory):
+    async def run() -> None:
+        async with PostgresUnitOfWork(session_factory) as uow:
+            institute_id = await uow.reference_data.upsert_institute(
+                code="weltec-read",
+                name="Weltec Institute",
+                is_active=True,
+            )
+            inactive_institute_id = await uow.reference_data.upsert_institute(
+                code="weltec-inactive",
+                name="Weltec Inactive",
+                is_active=False,
+            )
+            branch_id = await uow.reference_data.upsert_branch(
+                institute_id=institute_id,
+                code="ahm",
+                name="Ahmedabad",
+                city="Ahmedabad",
+                timezone="Asia/Kolkata",
+                is_active=True,
+            )
+            other_branch_id = await uow.reference_data.upsert_branch(
+                institute_id=inactive_institute_id,
+                code="mum",
+                name="Mumbai",
+                city="Mumbai",
+                timezone="Asia/Kolkata",
+                is_active=False,
+            )
+            course_id = await uow.reference_data.upsert_course(
+                institute_id=institute_id,
+                code="gd",
+                name="Graphic Design",
+                description="Design diploma",
+                is_active=True,
+            )
+            other_course_id = await uow.reference_data.upsert_course(
+                institute_id=inactive_institute_id,
+                code="web",
+                name="Web Design",
+                description=None,
+                is_active=False,
+            )
+            await uow.reference_data.upsert_branch_course_offering(
+                branch_id=branch_id,
+                course_id=course_id,
+            )
+            role_id = await uow.reference_data.upsert_role(
+                name="counsellor",
+                description="Counsellor",
+            )
+            user_id = await uow.reference_data.upsert_user(
+                email="reader@example.com",
+                display_name="Reader",
+                password_hash="hash",
+                is_active=True,
+            )
+            await uow.reference_data.upsert_user_role(user_id=user_id, role_id=role_id)
+            counsellor_id = await uow.reference_data.upsert_counsellor(
+                branch_id=branch_id,
+                employee_code="emp-read",
+                display_name="Counsellor Reader",
+                user_id=user_id,
+                is_active=True,
+            )
+            await uow.commit()
+
+        async with PostgresUnitOfWork(session_factory) as uow:
+            institute = await uow.reference_data.get_institute(institute_id)
+            assert institute is not None
+            assert institute.code == "weltec-read"
+            assert [item.id for item in await uow.reference_data.list_institutes()] == [
+                inactive_institute_id,
+                institute_id,
+            ]
+
+            branch = await uow.reference_data.get_branch(branch_id)
+            assert branch is not None
+            assert branch.city == "Ahmedabad"
+            assert [item.id for item in await uow.reference_data.list_branches(institute_id)] == [
+                branch_id
+            ]
+            assert {item.id for item in await uow.reference_data.list_branches()} == {
+                branch_id,
+                other_branch_id,
+            }
+
+            course = await uow.reference_data.get_course(course_id)
+            assert course is not None
+            assert course.description == "Design diploma"
+            assert [item.id for item in await uow.reference_data.list_courses(institute_id)] == [
+                course_id
+            ]
+            assert {item.id for item in await uow.reference_data.list_courses()} == {
+                course_id,
+                other_course_id,
+            }
+            assert await uow.reference_data.list_branch_course_offerings(branch_id) == (
+                (branch_id, course_id),
+            )
+
+            role = await uow.reference_data.get_role(role_id)
+            assert role is not None
+            assert role.name == "counsellor"
+            assert [item.id for item in await uow.reference_data.list_roles()] == [role_id]
+
+            user = await uow.reference_data.get_user(user_id)
+            assert user is not None
+            assert user.email == "reader@example.com"
+            assert [item.id for item in await uow.reference_data.list_users()] == [user_id]
+            assert await uow.reference_data.list_user_roles(user_id) == ((user_id, role_id),)
+
+            counsellor = await uow.reference_data.get_counsellor(counsellor_id)
+            assert counsellor is not None
+            assert counsellor.employee_code == "emp-read"
+            assert [item.id for item in await uow.reference_data.list_counsellors(branch_id)] == [
+                counsellor_id
+            ]
+
+    asyncio.run(run())
+
+
 def test_duplicate_provider_call_ids_become_conflicts(session_factory):
     async def run() -> None:
         caller, first_call = await _add_caller_and_call(session_factory)
@@ -622,6 +744,49 @@ def test_duplicate_active_slot_bookings_become_conflicts(session_factory):
                         updated_at=_now(33),
                     )
                 )
+
+    asyncio.run(run())
+
+
+def test_booking_with_inactive_status_becomes_conflict(session_factory):
+    async def run() -> None:
+        caller, call = await _add_caller_and_call(session_factory)
+        async with PostgresUnitOfWork(session_factory) as uow:
+            _, branch_id, _, _, _ = await _seed_reference_data(uow)
+            slot = await uow.appointments.add_slot(
+                AppointmentSlotRecord(
+                    id=uuid4(),
+                    branch_id=branch_id,
+                    appointment_date=date(2026, 9, 24),
+                    start_time=time(10, 0),
+                    end_time=time(10, 30),
+                    capacity=1,
+                    status="available",
+                    created_at=_now(36),
+                    updated_at=_now(36),
+                )
+            )
+            with pytest.raises(PersistenceConflict):
+                await uow.appointments.book(
+                    AppointmentRecord(
+                        id=uuid4(),
+                        caller_id=caller.id,
+                        call_id=call.id,
+                        branch_id=branch_id,
+                        appointment_date=slot.appointment_date,
+                        start_time=slot.start_time,
+                        status="cancelled",
+                        created_at=_now(37),
+                        updated_at=_now(37),
+                    )
+                )
+            assert [
+                available.id
+                for available in await uow.appointments.list_available_slots(
+                    branch_id,
+                    slot.appointment_date,
+                )
+            ] == [slot.id]
 
     asyncio.run(run())
 
