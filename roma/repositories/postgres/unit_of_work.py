@@ -20,6 +20,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from roma.domain.persistence import PersistenceConflict, PersistenceUnavailable
 
 SessionFactory = Callable[[], AsyncSession]
+AsyncpgAvailabilityError = (
+    asyncpg_exceptions.CannotConnectNowError,
+    asyncpg_exceptions.ClientCannotConnectError,
+    asyncpg_exceptions.ConnectionDoesNotExistError,
+    asyncpg_exceptions.ConnectionFailureError,
+    asyncpg_exceptions.ConnectionRejectionError,
+    asyncpg_exceptions.FDWUnableToEstablishConnectionError,
+    asyncpg_exceptions.IdleInTransactionSessionTimeoutError,
+    asyncpg_exceptions.IdleSessionTimeoutError,
+    asyncpg_exceptions.PostgresConnectionError,
+    asyncpg_exceptions.TooManyConnectionsError,
+    asyncpg_exceptions.TransactionTimeoutError,
+)
+SqlAlchemyAvailabilityError = (
+    TimeoutError,
+    OperationalError,
+    InterfaceError,
+    DisconnectionError,
+)
 
 
 class _Task6RepositoryPlaceholder:
@@ -68,6 +87,9 @@ class PostgresUnitOfWork:
         return self._require_repository(self._reference_data, "reference data")
 
     async def __aenter__(self) -> PostgresUnitOfWork:
+        self._committed = False
+        self._rolled_back = False
+        self._closed = False
         self._session = self._session_factory()
         self._callers = _Task6RepositoryPlaceholder("callers")
         self._calls = _Task6RepositoryPlaceholder("calls")
@@ -89,7 +111,10 @@ class PostgresUnitOfWork:
             elif not self._rolled_back:
                 await self.rollback()
         except BaseException as rollback_error:
-            raise self._translate(rollback_error) from rollback_error
+            translated = self._translate(rollback_error)
+            if translated is rollback_error:
+                raise
+            raise translated from rollback_error
         finally:
             await self._close_once()
 
@@ -106,7 +131,10 @@ class PostgresUnitOfWork:
             await session.commit()
         except BaseException as exc:
             await self._rollback_after_failed_commit()
-            raise self._translate(exc) from exc
+            translated = self._translate(exc)
+            if translated is exc:
+                raise
+            raise translated from exc
         self._committed = True
 
     async def rollback(self) -> None:
@@ -117,8 +145,6 @@ class PostgresUnitOfWork:
     def _require_repository(self, repository: object | None, name: str) -> object:
         if repository is None:
             raise RuntimeError(f"PostgreSQL {name} repository requested outside a unit of work")
-        if isinstance(repository, _Task6RepositoryPlaceholder):
-            raise NotImplementedError(f"PostgreSQL {name} repository adapters arrive in Task 6")
         return repository
 
     def _require_session(self) -> AsyncSession:
@@ -146,27 +172,9 @@ class PostgresUnitOfWork:
             return exc
         if isinstance(exc, IntegrityError):
             return PersistenceConflict("durable write conflicts with existing data")
-        if isinstance(
-            exc,
-            (
-                TimeoutError,
-                OperationalError,
-                InterfaceError,
-                DisconnectionError,
-                DatabaseError,
-                asyncpg_exceptions.CannotConnectNowError,
-                asyncpg_exceptions.ClientCannotConnectError,
-                asyncpg_exceptions.ConnectionDoesNotExistError,
-                asyncpg_exceptions.ConnectionFailureError,
-                asyncpg_exceptions.ConnectionRejectionError,
-                asyncpg_exceptions.FDWUnableToEstablishConnectionError,
-                asyncpg_exceptions.IdleInTransactionSessionTimeoutError,
-                asyncpg_exceptions.IdleSessionTimeoutError,
-                asyncpg_exceptions.PostgresConnectionError,
-                asyncpg_exceptions.TooManyConnectionsError,
-                asyncpg_exceptions.TransactionTimeoutError,
-            ),
-        ):
+        if isinstance(exc, SqlAlchemyAvailabilityError + AsyncpgAvailabilityError):
+            return PersistenceUnavailable("durable storage is unavailable")
+        if isinstance(exc, DatabaseError) and isinstance(exc.orig, AsyncpgAvailabilityError):
             return PersistenceUnavailable("durable storage is unavailable")
         return exc
 
