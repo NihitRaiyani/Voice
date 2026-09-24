@@ -10,7 +10,7 @@ from functools import lru_cache
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
+ # BaseSettings automatically reads values from environment variable
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     @classmethod
     def validate_database_url(cls, value: SecretStr) -> SecretStr:
         """Allow offline configuration, but require asyncpg for configured Postgres."""
-        database_url = value.get_secret_value()
+        database_url = value.get_secret_value() # reveals the actual, plain-text string
         if database_url and not database_url.startswith("postgresql+asyncpg://"):
             raise ValueError("DATABASE_URL must begin with postgresql+asyncpg://")
         return value
@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     # EMPTY BLOCKS NOTHING, and that is the honest state: no TRAI/DLT feed is wired
     # (docs/07 §consent), so we have no real suppression data. What bounds this endpoint is
     # `api_token`, `max_calls_per_hour`, the spend cap and the calling window — not this.
-    dnd_numbers: str = ""
+    dnd_numbers: str = "" #represents numbers Roma should not call.
 
     # Bearer token for /api/call. UNSET MEANS THE ENDPOINT IS DEAD (503), not open: an
     # unconfigured lock must never read as "no lock needed". The dial path rings real phones
@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     vad_confidence: float = 0.8
     vad_min_volume: float = 0.7
 
-
+# It checks whether your server URL is still local.
 def require_reachable_base_url(settings: "Settings | None" = None) -> None:
     """Raise unless `PUBLIC_BASE_URL` names a host the carrier can actually reach.
 

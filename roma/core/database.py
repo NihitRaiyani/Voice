@@ -5,10 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
+    AsyncEngine, # engine type
+    AsyncSession, # factory that CREATES sessions
+    async_sessionmaker, # actual session used for DB work
+    create_async_engine, # function that CREATES engine
 )
 
 from roma.core.config import Settings

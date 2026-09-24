@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: roma_dev
+      POSTGRES_USER: roma_dev
+      POSTGRES_PASSWORD: roma_dev_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roma_dev -d roma_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "roma_dev_redis"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "roma_dev_redis", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgres-data:
+  redis-data:

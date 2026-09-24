@@ -611,6 +611,8 @@ class AppointmentPostgresRepository:
             updated_at=record.updated_at,
         )
         self._session.add(row)
+        slot.status = "booked"
+        slot.updated_at = record.updated_at
         await _flush_or_conflict(self._session)
         return _appointment_record(row)
 
