@@ -34,6 +34,14 @@ starts `None` and is filled during discovery like any other slot. There is no `c
 | P6 | Objection | answer → route money to visit | 45 | **max** |
 | P7 | Close | readback + lock | 25 | high |
 
+`roma.domain.conversation.stage.ConversationStage` is the public enum:
+`open → discover → value → structure → pivot → objection → close`. The older `p1_open`...
+`p7_close` ids remain as prompt/logging ids. Application code should use the formal facade in
+`roma.domain.conversation.state_machine`: `get_state`, `transition`, `can_transition`,
+`save_state`, `restore_state`, `handle_interruption`, `handle_objection`, and
+`handle_missing_information`. This keeps business-state ownership in the domain layer while Redis
+remains only a checkpoint adapter.
+
 ## Discovery order (P2) — fixed, one slot per turn, never batched
 `lead_name → current_status → education → passing_year → city`
 

@@ -30,11 +30,12 @@ from roma.domain.conversation.machine import (
     P7_CLOSE,
     Transition,
     TurnSignals,
-    next_phase,
 )
 from roma.domain.conversation.objection import classify_objection
 from roma.domain.conversation.pacing import band, should_force_pivot
 from roma.domain.conversation.state import SLOT_ATTEMPT_CAP, CallState, spoken_slot
+from roma.domain.conversation.state_machine import save_state
+from roma.domain.conversation.state_machine import transition as transition_state
 from roma.domain.safety.normalize import tokens
 
 _log = logging.getLogger("roma.domain.conversation")
@@ -917,7 +918,7 @@ async def advance_turn(
     if not (phase == P2_DISCOVER and slot_filled):
         _record_objection(user_text)
 
-    transition = next_phase(state, TurnSignals(**sig))
+    transition = transition_state(state, TurnSignals(**sig))
 
     if should_force_pivot(elapsed_secs, transition.next_phase):
         _log.info(
@@ -947,7 +948,7 @@ async def advance_turn(
         changed or slot_filled or lock_happened or objection_recorded or offers_changed
     ):
         try:
-            await store.save(state)
+            await save_state(store, state)
         except Exception:  # noqa: BLE001 — a checkpoint is best-effort, the turn is not
             _log.warning("call-state checkpoint failed; continuing (phase=%s)", state.phase)
 
