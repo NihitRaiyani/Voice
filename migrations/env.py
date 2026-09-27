@@ -6,14 +6,14 @@ import asyncio
 import os
 from logging.config import fileConfig
 
-from alembic import context
+from alembic import context # basically Alembic's current migration environment
 from roma.core.config import get_settings
 from roma.repositories.postgres.models import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-config = context.config
+config = context.config # Now this Python file can access Alembic settings. connects with alembic.ini
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -42,7 +42,7 @@ def _asyncpg_url(url: str) -> str:
         return url.replace("postgresql://", "postgresql+asyncpg://", 1)
     return url
 
-
+# Offline migration
 def run_migrations_offline() -> None:
     context.configure(
         url=_configured_database_url(),
@@ -55,7 +55,7 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
-
+# Online migration
 def do_run_migrations(connection: Connection) -> None:
     context.configure(
         connection=connection,
@@ -75,7 +75,8 @@ async def run_async_migrations() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-
+    
+#Here you actually connect to PostgreSQL.
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
 

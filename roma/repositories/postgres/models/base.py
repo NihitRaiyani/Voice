@@ -2,13 +2,14 @@
 
 from datetime import datetime
 from typing import ClassVar
-from uuid import UUID as PythonUUID
+from uuid import UUID as PythonUUID # Python representation of UUID # UUID value inside Python
 
-from sqlalchemy import DateTime, MetaData, func
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.asyncio import AsyncAttrs
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
+from sqlalchemy import DateTime, MetaData, func 
+from sqlalchemy.dialects.postgresql import UUID # PostgreSQL UUID column type
+from sqlalchemy.ext.asyncio import AsyncAttrs # helps SQLAlchemy models work properly in an async application.
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column # # Mapped Used for type information of model attributes.
+                         # provides SQLAlchemy's model/table system.
+                           
 NAMING_CONVENTION = {
     "ix": "ix_%(table_name)s_%(column_0_N_name)s",
     "uq": "uq_%(table_name)s_%(column_0_N_name)s",
