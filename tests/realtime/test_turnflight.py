@@ -17,7 +17,7 @@ from pipecat.frames.frames import LLMContextFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.frame_processor import FrameDirection
 from roma.domain.conversation.state import CallState
-from roma.realtime.phase_controller import PhaseControllerProcessor
+from roma.realtime.stage_controller import StageControllerProcessor
 from roma.realtime.turnflight import TurnFlight
 
 VARS = {"branch": "Vadodara", "lead_name": "ji"}
@@ -111,7 +111,7 @@ def _ctx(*, user):
 
 
 def _proc(flight):
-    return PhaseControllerProcessor(
+    return StageControllerProcessor(
         CallState(call_sid="t", **VARS),
         client=None,
         now_fn=lambda: __import__("datetime").datetime(2026, 7, 25, 10, 0),
@@ -119,7 +119,7 @@ def _proc(flight):
     )
 
 
-def test_the_phase_controller_declares_a_real_user_turn():
+def test_the_stage_controller_declares_a_real_user_turn():
     """It is the only processor that sees a turn BEGIN — the transcript never reaches the end
     of the pipeline, so nothing downstream can work this out for itself."""
     f = TurnFlight()
@@ -149,7 +149,7 @@ def test_the_watchdog_and_the_controller_share_one_flight():
     src = inspect.getsource(media.build_media_app)
     assert "flight = TurnFlight()" in src
     assert "SilenceWatchdog(flight=flight)" in src
-    assert "flight=flight," in src, "the phase controller must get the same object"
+    assert "flight=flight," in src, "the stage controller must get the same object"
 
 
 def test_the_slot_client_is_shared_across_calls_and_bounded():
@@ -204,7 +204,7 @@ def test_a_re_driven_utterance_does_not_advance_the_machine_twice():
     """A `SilenceWatchdog` nudge pushes an `LLMRunFrame`, the aggregator re-emits the SAME
     context, and the machine used to run again on words the lead said once: a second
     slot-extraction round trip on the critical path, a second turn_count increment, and a
-    second phase-advance decision for one signal. The nudge exists to make Roma SPEAK again,
+    second stage-advance decision for one signal. The nudge exists to make Roma SPEAK again,
     not to re-decide the call."""
     calls = []
 
@@ -215,8 +215,8 @@ def test_a_re_driven_utterance_does_not_advance_the_machine_twice():
         return DiscoveryValue()
 
     state = CallState(call_sid="t", **VARS)
-    state.phase = "p2_discover"
-    proc = PhaseControllerProcessor(
+    state.stage = "discover"
+    proc = StageControllerProcessor(
         state,
         client=object(),
         now_fn=lambda: __import__("datetime").datetime(2026, 7, 25, 10, 0),
@@ -240,8 +240,8 @@ def test_a_genuinely_new_utterance_still_advances():
         return DiscoveryValue()
 
     state = CallState(call_sid="t", **VARS)
-    state.phase = "p2_discover"
-    proc = PhaseControllerProcessor(
+    state.stage = "discover"
+    proc = StageControllerProcessor(
         state,
         client=object(),
         now_fn=lambda: __import__("datetime").datetime(2026, 7, 25, 10, 0),

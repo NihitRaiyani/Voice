@@ -27,7 +27,7 @@ def test_every_shipped_script_loads():
     assert {s.name for s in scripts} >= {
         "clean_lock",
         "objection_detour",
-        "evasive_p2_valve",
+        "evasive_discover_valve",
         "gujarati_cost_objection",
     }
 
@@ -40,13 +40,13 @@ def test_shipped_script_passes_offline(script):
     assert result.ok, "\n".join(str(f) for f in result.findings) or result.halted
 
 
-def test_the_gujarati_cost_objection_actually_reaches_p6():
+def test_the_gujarati_cost_objection_actually_reaches_objection():
     """Pinned separately from the generic pass because it is a named regression: the COST
     lexicon carried no money word in any script, so `ફી બહુ વધારે છે` classified as None
-    and the one objection the flow exists to route to a visit never reached P6 (D3)."""
+    and the one objection the flow exists to route to a visit never reached objection (D3)."""
     script = next(s for s in _load_all() if s.name == "gujarati_cost_objection")
     result = asyncio.run(run_script(script))
-    assert any(t.phase == "p6_objection" for t in result.turns)
+    assert any(t.stage == "objection" for t in result.turns)
 
 
 def test_a_clean_lock_produces_a_real_datetime_not_just_a_flag():
@@ -67,8 +67,8 @@ def test_offline_run_makes_zero_network_calls():
     which means this test fails loudly rather than silently spending money."""
     script = script_mod.loads(
         '{"name": "t"}\n'
-        '{"lead": "haan", "expect_phase": "p2_discover"}\n'
-        '{"lead": "job karta hoon", "slot": "job", "expect_phase": "p2_discover"}\n'
+        '{"lead": "haan", "expect_stage": "discover"}\n'
+        '{"lead": "job karta hoon", "slot": "job", "expect_stage": "discover"}\n'
     )
     result = asyncio.run(run_script(script))
     assert result.ok
@@ -92,7 +92,7 @@ def test_repeat_runs_are_byte_identical():
     second = asyncio.run(run_script(script))
     assert first.ok and second.ok
     assert first.slots == second.slots
-    assert [t.phase for t in first.turns] == [t.phase for t in second.turns]
+    assert [t.stage for t in first.turns] == [t.stage for t in second.turns]
 
 
 def test_now_is_injected_rather_than_read_from_the_clock():

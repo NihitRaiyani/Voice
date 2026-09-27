@@ -12,7 +12,7 @@ TwilioTransport(in)
   → SileroVAD
   → SaarasSTT (streaming, endpoint-on-final)
   → UserContextAggregator
-  → ConversationController (7-phase; injects phase prompt + call-state)
+  → ConversationController (7-stage; injects stage prompt + call-state)
   → OpenAILLM (streaming)
   → SentenceChunker (flush on sentence boundary)
   → PreTTSFilter        ← GATE-ZERO, sub-10ms, deterministic
@@ -43,7 +43,7 @@ INSIDE that cancellation path (see `docs/04`).
 - No lists, no markdown, no "firstly/secondly." Numbers spelled as words (TTS reads digits
   unpredictably).
 - Short sentences — they are the chunking boundaries. Long sentences = late first audio.
-- One turn = one LLM call. Response length capped per phase (`docs/03`), enforced at the LLM,
+- One turn = one LLM call. Response length capped per stage (`docs/03`), enforced at the LLM,
   not by truncating TTS.
 
 ## Token & cost optimization (what applies to THIS project)
@@ -53,20 +53,20 @@ ones that reduce what we send/receive per turn — not model-serving internals (
 OpenAI's side) and not database-query tricks (Roma has no in-call DB).
 
 Applies — add these:
-1. **Prompt caching (static prefix).** Structure each phase prompt so the fixed part — system
-   instructions, the phase's rules, the static KB grounding — is the *prefix*, and only a small
+1. **Prompt caching (static prefix).** Structure each stage prompt so the fixed part — system
+   instructions, the stage's rules, the static KB grounding — is the *prefix*, and only a small
    variable tail (call-state, last user turn) changes. OpenAI caches the prefix → lower input
    tokens and lower TTFT on every turn. Highest-ROI item for our stack.
-2. **max_tokens per phase = the word cap (`docs/03`).** A hard output ceiling per phase caps
+2. **max_tokens per stage = the word cap (`docs/03`).** A hard output ceiling per stage caps
    output tokens AND latency together (fewer tokens = faster completion). Set it to match the
-   phase's word cap, not a global default.
+   stage's word cap, not a global default.
 3. **Structured call-state instead of raw-transcript context (already in `docs/03`).** We pass
    ~10 state fields, not 40 turns of history. This is the single biggest token saver and it's
    already designed in — do not regress to stuffing the transcript into context.
 4. **Fixed-phrase TTS + KB cache (already in `docs/06`).** Repeated lines (greeting, the four
    substitution lines, readback, EMI line) skip the LLM entirely → zero tokens on those turns.
-5. **Model routing per phase.** Cheap model for simple phases (P1/P2 confirm/discover), stronger
-   model only where phrasing quality matters (P3/P5/P6). Resolves the open model-choice item in
+5. **Model routing per stage.** Cheap model for simple stages (open/discover confirm/discover), stronger
+   model only where phrasing quality matters (value/pivot/objection). Resolves the open model-choice item in
    `docs/decisions.md`. Measure real TTFT per model before locking.
 
 Confidence thresholds (a form of validation, already partly designed):
@@ -87,8 +87,8 @@ the burden is to show what changed — not to add it because it's on a generic c
 - **Speculative execution** (generating before the user finishes) — fights barge-in-heavy
   Hinglish endpointing and wastes tokens on interrupted turns. The filler token gets the same
   perceived-latency win without the complexity.
-- **Semantic caching of LLM responses** — dangerous in a stateful phase machine (same words,
-  different phase = wrong reply). The *fixed-phrase* cache (`docs/06`) is the safe form; keep
+- **Semantic caching of LLM responses** — dangerous in a stateful stage machine (same words,
+  different stage = wrong reply). The *fixed-phrase* cache (`docs/06`) is the safe form; keep
   that, not general response-level semantic cache.
 - **Prompt compression / conversation-memory compression / context-window management** — a
   5-min call is ~40 turns, far under the window; the structured call-state already handles
@@ -99,8 +99,8 @@ the burden is to show what changed — not to add it because it's on a generic c
   filter leaks and hallucinations against the transcripts.
 - **ReAct / Tree-of-Thoughts / Chain-of-Thought** — multi-step reasoning frameworks for
   tool-using agents. Roma does one thing per turn, no mid-turn tools. CoT adds latency + tokens
-  for reasoning she doesn't need. Same reasoning that dropped LangGraph — if a phase seems to
-  need CoT, the phase is doing too much.
+  for reasoning she doesn't need. Same reasoning that dropped LangGraph — if a stage seems to
+  need CoT, the stage is doing too much.
 
 ## Acoustic front-end (noise suppression / AEC) — see `docs/05`
 
@@ -121,8 +121,8 @@ Two separate jobs, two mechanisms — don't reach for one tool to do both.
 - **Pipeline latency:** structured logs / Pipecat's own metrics for the acoustic stages
   (VAD → STT → filter → TTS). These aren't LLM calls, so LLM-tracing tools can't see them.
 
-## Cost cap (testing phase)
-- **Hard budget: OpenAI mini spend < ₹100 for the whole testing phase.** Revised down from
+## Cost cap (testing period)
+- **Hard budget: OpenAI mini spend < ₹100 for the whole testing period.** Revised down from
   ₹200 on 2026-07-26: ₹100 is what is actually left on the account, so it is the real
   ceiling. Enforce it with a **hard spend limit set in the OpenAI dashboard** — enforced by
   OpenAI, not discipline. `Settings.openai_budget_inr` mirrors it so the eval harness can

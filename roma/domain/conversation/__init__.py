@@ -1,18 +1,18 @@
-"""Roma conversation controller (docs/03 phase machine, docs/06 call-state).
+"""Roma conversation controller (docs/03 stage machine, docs/06 call-state).
 
 The machine decides WHAT happens next; the LLM only decides HOW to say it. It never
-picks the phase, the slot, or "objection handled" — that is what makes the flow fixed.
+picks the stage, the slot, or "objection handled" — that is what makes the flow fixed.
 
 Public surface:
-- `CallState` / phase + discovery constants — the per-call datum (docs/03).
-- `next_phase` / `TurnSignals` / `Transition` — the pure deterministic transition (docs/03).
+- `CallState` / stage + discovery constants — the per-call datum (docs/03).
+- `next_stage` / `TurnSignals` / `Transition` — the pure deterministic transition (docs/03).
 """
 
-from roma.domain.conversation.machine import Transition, TurnSignals, next_phase
+from roma.domain.conversation.machine import Transition, TurnSignals, next_stage
 from roma.domain.conversation.stage import ConversationStage
 from roma.domain.conversation.state import (
     DISCOVERY_ORDER,
-    PHASES,
+    STAGES,
     CallState,
 )
 from roma.domain.conversation.state_machine import (
@@ -34,10 +34,10 @@ from roma.repositories.redis.conversation_state import (
 
 __all__ = [
     "CallState",
-    "PHASES",
+    "STAGES",
     "DISCOVERY_ORDER",
     "ConversationStage",
-    "next_phase",
+    "next_stage",
     "transition",
     "get_state",
     "can_transition",

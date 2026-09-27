@@ -1,7 +1,7 @@
 """Step 7 replay harness (docs/10): does a scripted call still do what docs/03, docs/11 and
 docs/04 say it must?
 
-Four assertions, straight from the build order — phase hits, word caps, slot extracted,
+Four assertions, straight from the build order — stage hits, word caps, slot extracted,
 **filter never leaks**. `scripts/run_eval.py` is the CLI.
 
 Pipecat-free, like `roma.workers.postcall`: the harness drives the controller directly rather than

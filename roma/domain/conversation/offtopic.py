@@ -24,7 +24,7 @@ module narrows the funnel, it is not the fence.
 * Guarded topics (fees/salary/placement/cert) and objections have their own routes that run
   earlier or carry real answers; their vocabularies are intentionally disjoint from these.
 
-Runs AFTER `canned_reply` in `phase_controller._maybe_short_circuit`, so a pending readback
+Runs AFTER `canned_reply` in `stage_controller._maybe_short_circuit`, so a pending readback
 or sign-off always outranks a deflection. Every line here survives its own `safe_output`
 (pinned in tests) and, like every short-circuit, still passes through `pretts` on the way
 to Bulbul.
@@ -143,7 +143,7 @@ DEFLECTIONS: dict[OffTopic, list[str]] = {
 }
 
 # The question Roma returns to after converging. Mirrors the wording in
-# `prompts/phases/p2_discover.md` — the fragment is the source of the phrasing; if it
+# `prompts/stages/discover.md` — the fragment is the source of the phrasing; if it
 # changes there, change it here (the register lint in tests/llm covers both).
 _SLOT_QUESTIONS = {
     "lead_name": "aapka naam kya hai?",

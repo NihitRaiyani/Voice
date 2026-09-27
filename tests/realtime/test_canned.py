@@ -57,7 +57,7 @@ def test_the_opener_is_short_enough_to_be_an_answer_not_a_speech():
 
 def test_the_opener_names_weltec():
     """The whole reason it is not a bare "Hello?": a caller who does not hear the business
-    name has to ask, which costs a turn. P1's branch exists for when they ask anyway."""
+    name has to ask, which costs a turn. open's branch exists for when they ask anyway."""
     from roma.realtime.canned import OPENING_LINE
 
     assert "Weltec" in OPENING_LINE

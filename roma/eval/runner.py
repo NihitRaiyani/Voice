@@ -10,8 +10,8 @@ a convenience: `advance_turn` already takes `extract_discovery`/`extract_time`/`
 as parameters (Step 4 built it that way), so the harness injects rather than mocks, and
 nothing here reaches into a private.
 
-The pattern generalises `tests/telephony/test_media_phase_e2e.py`, which already drives a
-scripted P1→P7 call offline. That test keeps its own copy on purpose — a test that depends
+The pattern generalises `tests/telephony/test_media_stage_e2e.py`, which already drives a
+scripted open→close call offline. That test keeps its own copy on purpose — a test that depends
 on the harness it is meant to backstop is not a backstop.
 
 Two modes:
@@ -135,8 +135,8 @@ async def run_script(
                 index=i,
                 lead=turn.lead,
                 roma=roma_line,
-                phase=state.phase,
-                expect_phase=turn.expect_phase,
+                stage=state.stage,
+                expect_stage=turn.expect_stage,
                 win=transition.win,
                 slot_status=state.slot_status,
             )

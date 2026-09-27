@@ -31,7 +31,7 @@ _log = logging.getLogger("roma.domain.calls")
 LEAD_TTL_SECONDS = 30 * 60
 
 # The segments Weltec dials. Carried as a VARIABLE, never as a branch: one flow, one set of
-# override rules (docs/03). It selects which value proof leads in P3 and turns P2's
+# override rules (docs/03). It selects which value proof leads in value and turns discover's
 # study-or-work question into a confirmation — nothing else.
 SEGMENTS = ("student", "working_professional", "unemployed")
 
@@ -45,7 +45,7 @@ class OutboundLead:
     """What we know before dialling. Everything here is a dynamic variable.
 
     Inbound knew nothing and asked for all of it; outbound knows the lead up front, which is
-    the whole reason the discovery phase changes shape. `phone` is the number we dial.
+    the whole reason the discovery stage changes shape. `phone` is the number we dial.
     """
 
     phone: str
@@ -76,7 +76,7 @@ class OutboundLead:
         `.city` are `str | None`, and `next_discovery_slot()` treats any non-None value as
         already captured — so seeding `lead_name=""` for a lead whose name the CRM lacks
         would mark the name permanently filled, Roma would never ask it, and
-        `filled_discovery_count()` would be inflated by two, cutting P2 short. That is the
+        `filled_discovery_count()` would be inflated by two, cutting discover short. That is the
         exact trap `ce4a2e9` documented when it made the field None-by-default; routing a CRM
         record through here reintroduced it from the other side.
 

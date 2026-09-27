@@ -4,7 +4,7 @@ Two failure modes bound this design, and the tests hold both edges:
 
   * UNDER-deflect and the model rambles about cricket on a five-minute budget call;
   * OVER-deflect and Roma stonewalls real answers — "beti ki shaadi hai" is a timing
-    constraint, not chit-chat, and deflecting it torches the discovery phase.
+    constraint, not chit-chat, and deflecting it torches the discovery stage.
 
 Every line the bank can speak must also survive the systems below it: `safe_output`
 (nothing here may trip a guarded category) and `is_premature_time_talk` (a deflection with
@@ -68,7 +68,7 @@ def test_a_proposal_is_inappropriate_not_a_personal_question():
 
 
 def test_two_drifts_get_two_different_lines_and_the_third_converges():
-    state = CallState(call_sid="CA_ot", phase="p2_discover")
+    state = CallState(call_sid="CA_ot", stage="discover")
     first = deflection_for(state, "match dekha kya aapne")
     second = deflection_for(state, "mausam accha hai na aaj")
     third = deflection_for(state, "cricket khelte ho kya")
@@ -81,9 +81,7 @@ def test_two_drifts_get_two_different_lines_and_the_third_converges():
 
 
 def test_the_converge_line_re_asks_the_pending_discovery_question():
-    state = CallState(
-        call_sid="CA_conv", phase="p2_discover", off_topic_turns=CONVERGE_AFTER - 1
-    )
+    state = CallState(call_sid="CA_conv", stage="discover", off_topic_turns=CONVERGE_AFTER - 1)
     line = deflection_for(state, "ek joke sunao na")
     assert line is not None
     assert line.startswith(CONVERGE_PREFIX)
@@ -93,14 +91,14 @@ def test_the_converge_line_re_asks_the_pending_discovery_question():
 
 
 def test_after_convergence_every_drift_gets_the_same_calm_wall():
-    state = CallState(call_sid="CA_wall", phase="p2_discover", off_topic_turns=CONVERGE_AFTER)
+    state = CallState(call_sid="CA_wall", stage="discover", off_topic_turns=CONVERGE_AFTER)
     a = deflection_for(state, "gaana sunao")
     b = deflection_for(state, "match dekha")
     assert a == b, "past the converge point there is one line, not a fresh bank"
 
 
 def test_an_ordinary_turn_never_touches_the_counter():
-    state = CallState(call_sid="CA_plain", phase="p2_discover")
+    state = CallState(call_sid="CA_plain", stage="discover")
     assert deflection_for(state, "BCom kiya hai maine 2024 mein") is None
     assert state.off_topic_turns == 0
 
@@ -128,14 +126,14 @@ def test_every_deflection_survives_its_own_filter():
 
 
 def test_no_deflection_trips_the_premature_time_talk_guard():
-    """A deflection plays in NON-offer phases by construction, where `safe_time_talk`
+    """A deflection plays in NON-offer stages by construction, where `safe_time_talk`
     rewrites any "?" sentence carrying a time cue into a course question — which would
     silently replace the deflection. No line may qualify."""
     from roma.domain.conversation.confirmguard import is_premature_time_talk
 
     for line in _every_line():
         for sentence in line.replace("—", ".").split("."):
-            assert not is_premature_time_talk(sentence, phase="p2_discover"), (line, sentence)
+            assert not is_premature_time_talk(sentence, stage="discover"), (line, sentence)
 
 
 def test_the_counter_survives_a_checkpoint_round_trip():

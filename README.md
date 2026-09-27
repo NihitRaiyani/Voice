@@ -123,7 +123,7 @@ frontend.
 1. [Project and learning charter](docs/00-project-charter.md)
 2. [Current architecture](docs/01-architecture.md)
 3. [Pipeline and latency](docs/02-pipeline.md)
-4. [Conversation state machine](docs/03-phase-machine.md)
+4. [Conversation state machine](docs/03-stage-machine.md)
 5. [Safety guardrails](docs/04-guardrails.md)
 6. [Four-level backend roadmap](docs/10-build-order.md)
 7. [Placement study guide](docs/17-placement-study-guide.md)

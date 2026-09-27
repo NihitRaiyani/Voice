@@ -25,7 +25,7 @@ def _app(calls):
 
 
 def _handles(tag):
-    return CallHandles(counter=tag, transcript=tag, pretts=tag, phase_ctrl=tag)
+    return CallHandles(counter=tag, transcript=tag, pretts=tag, stage_ctrl=tag)
 
 
 def test_sole_call_none_when_empty():
@@ -132,7 +132,7 @@ def test_the_signed_off_consent_line_IS_loaded_once_at_app_build(monkeypatch):
     can raise, and pipecat SWALLOWS exceptions out of that handler: the handler simply
     stopped, so neither the consent line nor the `LLMRunFrame` was queued and the call sat
     open in silence until Twilio timed out, logging an ordinary-looking
-    `phase=p1_open won=False`."""
+    `stage=open won=False`."""
     import roma.realtime.pipeline as media_mod
     from roma.realtime import canned
 

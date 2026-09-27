@@ -9,7 +9,7 @@ reference corpus runs 17 minutes and the longest 42. Roma is the door, not the r
 
 "Be brief" is not a budget. A model asked to hurry still spends four turns explaining SEO,
 because nothing measures it. So the elapsed time is measured in code, converted to one of
-four `Phase`s here, and rendered into the prompt as an instruction Roma cannot drift past
+four time bands here, and rendered into the prompt as an instruction Roma cannot drift past
 — the same shape as `state.slot_status`. At the hard deadline the call is ENDED, by
 `telephony.closing.CallCloser`, whatever the model is in the middle of saying.
 
@@ -17,7 +17,7 @@ four `Phase`s here, and rendered into the prompt as an instruction Roma cannot d
 
 | band | from | what Roma is told |
 |---|---|---|
-| `open` | 0:00 | nothing — run the normal phase flow |
+| `open` | 0:00 | nothing — run the normal stage flow |
 | `hurry` | 3:00 | stop exploring, get to two slots |
 | `close` | 4:00 | one slot or WhatsApp, then sign off |
 | `over` | 5:00 | the call is ended under her |
@@ -27,6 +27,8 @@ Derived from the live calls, not guessed: CAea3dd7e reached a (mis-)confirmed bo
 rather than aggressive. The margin between `close` and `over` is one minute because a
 sign-off plus a WhatsApp promise is two short turns.
 """
+
+from roma.domain.conversation.stage import ConversationStage
 
 HURRY_SECS = 180.0
 CLOSE_SECS = 240.0
@@ -62,23 +64,23 @@ def band(elapsed_secs: float) -> str:
 
 
 def pacing_line(elapsed_secs: float) -> str:
-    """The instruction for the phase prompt. Empty string while there is time."""
+    """The instruction for the stage prompt. Empty string while there is time."""
     return PACING_LINES[band(elapsed_secs)]
 
 
-def should_force_pivot(elapsed_secs: float, phase: str) -> bool:
+def should_force_pivot(elapsed_secs: float, stage: ConversationStage) -> bool:
     """True if the machine should cut discovery/value short and go straight to booking.
 
-    Never fires in P6 (an objection is being answered — abandoning it mid-sentence reads
-    as evasion, which is the one thing docs/03 says loses a warm lead) or in P7 (already
-    closing). It also never fires in P1: without the inquiry confirm there is nothing to
+    Never fires in objection (an objection is being answered — abandoning it mid-sentence reads
+    as evasion, which is the one thing docs/03 says loses a warm lead) or in close (already
+    closing). It also never fires in open: without the inquiry confirm there is nothing to
     book, and pivoting at a lead who has not agreed to talk is how a call becomes a
     complaint.
     """
-    return band(elapsed_secs) in FORCE_PIVOT_BANDS and phase in (
-        "p2_discover",
-        "p3_value",
-        "p4_structure",
+    return band(elapsed_secs) in FORCE_PIVOT_BANDS and stage in (
+        ConversationStage.DISCOVER,
+        ConversationStage.VALUE,
+        ConversationStage.STRUCTURE,
     )
 
 

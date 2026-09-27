@@ -130,7 +130,7 @@ def test_hours_outside_the_visiting_window_are_rejected(hour, period):
 
 def test_six_pm_is_closing_time_not_a_bookable_slot():
     """Weltec confirmed 9-6 on 2026-07-26. The branch shuts AT six, so a visit cannot
-    start then — and `p5_pivot.md`'s example line had to move off "shaam chhe baje"
+    start then — and `pivot.md`'s example line had to move off "shaam chhe baje"
     with it, or Roma would keep offering a slot her own resolver refuses."""
     slot = TimeSlot(day_offset=1, hour=6, period="evening", confidence=0.9)
     assert resolve_time_slot(slot, NOW) is None

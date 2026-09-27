@@ -64,7 +64,7 @@ FACT_ANCHORS: "dict[str, tuple[frozenset[str], ...]]" = {
     "certificate": (frozenset({"weltec", "certificate"}),),
 }
 
-# What the model is told, per fact. Short: this line is billed on every turn of the phases
+# What the model is told, per fact. Short: this line is billed on every turn of the stages
 # that carry it, and it is a reminder, not an explanation.
 FACT_LABELS = {
     "modules": "teen module",

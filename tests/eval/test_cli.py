@@ -34,15 +34,15 @@ def test_offline_run_over_the_shipped_corpus_exits_zero(capsys):
 
 
 def test_a_failing_expectation_exits_nonzero(tmp_path, capsys):
-    """A script whose declared phase is wrong must turn the run red, not be shrugged off."""
+    """A script whose declared stage is wrong must turn the run red, not be shrugged off."""
     d = tmp_path / "scripts"
     d.mkdir()
     (d / "wrong.jsonl").write_text(
-        '{"name": "wrong"}\n{"lead": "haan", "expect_phase": "p7_close"}\n',
+        '{"name": "wrong"}\n{"lead": "haan", "expect_stage": "close"}\n',
         encoding="utf-8",
     )
     assert _cli().main(["--scripts-dir", str(d)]) == 1
-    assert "[phase-hits]" in capsys.readouterr().out
+    assert "[stage-hits]" in capsys.readouterr().out
 
 
 def test_a_broken_filter_exits_nonzero_even_with_a_perfect_corpus(monkeypatch, capsys):
@@ -77,7 +77,7 @@ def test_a_bad_scripts_dir_is_an_error(tmp_path, capsys):
 def test_verbose_prints_per_turn_detail(capsys):
     assert _cli().main(["--script", "clean_lock", "-v"]) == 0
     out = capsys.readouterr().out
-    assert "roma (" in out and "[p2_discover" in out
+    assert "roma (" in out and "[discover" in out
 
 
 @pytest.mark.parametrize("flag", ["--live"])

@@ -1,9 +1,9 @@
-"""What Roma is allowed to offer (docs/03 P5).
+"""What Roma is allowed to offer (docs/03 pivot).
 
 ## Why this exists
 
 Roma's two visit slots used to be invented by the LLM, fresh each turn, by copying the
-literal example in `p5_pivot.md`. Nothing recorded them. So when a lead answered "મેં
+literal example in `pivot.md`. Nothing recorded them. So when a lead answered "મેં
 Tuesday કુ આઉંગા" — "I'll come Tuesday" — there was nothing to resolve "Tuesday" against:
 no hour was named, no offer was on record, and the acceptance evaporated. `won=False`, no
 log, no checkpoint.

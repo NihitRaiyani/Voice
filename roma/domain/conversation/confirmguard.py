@@ -2,7 +2,7 @@
 
 ## Why this is code and not a prompt rule
 
-It already IS a prompt rule. `hard_rules.md` rule 9 says it in as many words, every phase
+It already IS a prompt rule. `hard_rules.md` rule 9 says it in as many words, every stage
 fragment carries a `SLOT STATUS` line saying what the controller decided, and
 `state.slot_status` spells the refusal out as an imperative Hinglish sentence. On live call
 CA1bf16a (2026-07-26) the prompt said:
@@ -14,7 +14,7 @@ and Roma said:
 
     "Tuesday subah gyaarah baje ko aap aa rahi ho, ye confirm ho gaya."
 
-Teardown: `phase=p5_pivot won=False`. No booking exists. That is the third call in a row
+Teardown: `stage=pivot won=False`. No booking exists. That is the third call in a row
 with this failure and the second since the status line was added, so the conclusion is
 forced: on gpt-4o-mini this instruction does not hold, and a rule that does not hold is not
 a control. docs/03 calls a lead who leaves believing in a visit that was never booked the
@@ -40,6 +40,7 @@ the cost of a miss is a lead who drives to a branch that is not expecting them.
 
 import logging
 
+from roma.domain.conversation.stage import ConversationStage
 from roma.domain.safety.normalize import tokens
 
 _log = logging.getLogger("roma.domain.conversation")
@@ -97,7 +98,7 @@ SAFE_REOFFER_LINE = (
     "Abhi wo time final nahi hua hai. Aapko subah ka time theek rahega ya shaam ka?"
 )
 
-# In P5/P7 the OFFER line is right there and Roma is about to name two concrete times, so
+# In pivot/close the OFFER line is right there and Roma is about to name two concrete times, so
 # the subah/shaam question above becomes a SECOND, competing time question in the same turn.
 # Call c9be521d, one turn, verbatim:
 #
@@ -110,9 +111,9 @@ SAFE_REOFFER_LINE = (
 SAFE_REOFFER_LINE_IN_OFFER = "Abhi wo time final nahi hua hai."
 
 
-def reoffer_line(phase: str = "") -> str:
+def reoffer_line(stage: str = "") -> str:
     """The substitution for a phantom confirmation, given where the call is."""
-    return SAFE_REOFFER_LINE_IN_OFFER if phase in OFFER_PHASES else SAFE_REOFFER_LINE
+    return SAFE_REOFFER_LINE_IN_OFFER if stage in OFFER_STAGES else SAFE_REOFFER_LINE
 
 
 # Roma telling the lead a time is unavailable. The exact mirror of a phantom confirmation:
@@ -142,7 +143,7 @@ DENIAL_PHRASES = (
 DENIABLE_STATUSES = frozenset({"out_of_hours", "in_past"})
 
 # Carries no "?" on purpose, so `is_premature_time_talk` (which needs a question) can never
-# catch this guard's own substitution in a phase without an OFFER line.
+# catch this guard's own substitution in a stage without an OFFER line.
 # Threads every other gate's vocabulary: no "fix"/"book" (confirmation cues), no "slot"
 # or "available" (this guard's own cues), no sign-off word, and no "?" — so none of the
 # four gates can catch the line this one substitutes.
@@ -380,7 +381,7 @@ def safe_close(
         return line
 
 
-OFFER_PHASES = frozenset({"p5_pivot", "p7_close"})
+OFFER_STAGES = frozenset({ConversationStage.PIVOT, ConversationStage.CLOSE})
 
 TIME_CUES = frozenset(
     {
@@ -414,7 +415,7 @@ SAFE_COURSE_LINE = (
 # Steers for when the modules fact is already spent. On call 6d7cc330 this guard fired
 # twice after Roma had ALREADY named the three modules, so the lead heard that fact three
 # times — twice in the identical sentence, because the steer was one fixed string. The
-# repetition was blamed on the prompt and `{{said}}` was added to p1/p2 to stop it; that
+# repetition was blamed on the prompt and `{{said}}` was added to open/discover to stop it; that
 # was wrong. These lines are substituted, not generated, so no prompt can reach them.
 #
 # Fact-free by construction: the steer's job is to hold premature time talk and hand the
@@ -443,15 +444,15 @@ def steer_line(said: "list[str] | set[str] | None" = None, holds: int = 0) -> st
     return SAFE_COURSE_LINE
 
 
-def is_premature_time_talk(line: str, phase: str) -> bool:
-    """True if `line` raises a visit time in a phase that has no OFFER line.
+def is_premature_time_talk(line: str, stage: str) -> bool:
+    """True if `line` raises a visit time in a stage that has no OFFER line.
 
     Gated on the line being a QUESTION as well as carrying a time cue, and that pairing is
     what keeps it safe. "Branch subah das se shaam chhe baje tak khuli rehti hai" is a
     factual answer to "kab khula hai" and hard rule eight positively requires it; the same
     words with a question mark are Roma asking the lead to pick a slot.
     """
-    if not line or phase in OFFER_PHASES:
+    if not line or stage in OFFER_STAGES:
         return False
     if "?" not in line:
         return False
@@ -460,15 +461,15 @@ def is_premature_time_talk(line: str, phase: str) -> bool:
 
 def safe_time_talk(
     line: str,
-    phase: str,
+    stage: str,
     said: "list[str] | set[str] | None" = None,
     holds: int = 0,
 ) -> str:
-    """`line` if the phase may discuss a visit time, else a course question."""
+    """`line` if the stage may discuss a visit time, else a course question."""
     try:
-        if is_premature_time_talk(line, phase):
+        if is_premature_time_talk(line, stage):
             _log.warning(
-                "premature time talk held (phase=%s); steering back to the course", phase
+                "premature time talk held (stage=%s); steering back to the course", stage
             )
             _log.debug("premature time talk was: %r", line)
             return steer_line(said, holds)
@@ -493,7 +494,7 @@ def is_phantom_confirmation(line: str, slot_status: str) -> bool:
     return _has_phrase(toks, CONFIRMATION_PHRASES)
 
 
-def safe_confirmation(line: str, slot_status: str, phase: str = "") -> str:
+def safe_confirmation(line: str, slot_status: str, stage: str = "") -> str:
     """`line` if it may be spoken, else the safe re-offer. Never raises, never empty.
 
     Fail-safe like `guardrails.safe_output`: if this function itself breaks, the caller
@@ -506,7 +507,7 @@ def safe_confirmation(line: str, slot_status: str, phase: str = "") -> str:
                 slot_status,
             )
             _log.debug("phantom confirmation was: %r", line)
-            return reoffer_line(phase)
+            return reoffer_line(stage)
         return line
     except Exception:  # noqa: BLE001 — a guard that can kill the turn is worse than the bug
         _log.exception("confirmation guard failed; passing the line through")
@@ -537,7 +538,7 @@ __all__ = [
     "safe_confirmation",
     "is_premature_signoff",
     "safe_close",
-    "OFFER_PHASES",
+    "OFFER_STAGES",
     "TIME_CUES",
     "SAFE_COURSE_LINE",
     "SAFE_COURSE_LINES_FACT_SPENT",

@@ -810,7 +810,7 @@ Then **STOP and confirm with the user** before starting Step 1 (telephony spine)
 
 **Spec coverage:** three override rules → enforced by the four categories + CERT (Task 3);
 four block categories → Task 3 (B1–B11); the ONE allow-case (negation-gated) → Task 4
-(P1–P3, N1–N3); permitted-EMI allowlist → Task 4; substitution lines → lexicon (Task 2),
+(open–value, N1–N3); permitted-EMI allowlist → Task 4; substitution lines → lexicon (Task 2),
 asserted in Task 3; prior-quote injection → Task 4 (I1); token-boundary → Task 4 (T1);
 hyphen-split → Task 4 (H1–H5); negation-distance → Task 4 (N1–N3); fail-safe → Task 5
 (F1–F2); cert toggle → lexicon + Task 3 (B10–B11); `safe_output` entrypoint → Task 5.

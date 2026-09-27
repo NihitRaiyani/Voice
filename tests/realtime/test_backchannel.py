@@ -61,7 +61,7 @@ def test_not_backchannel(text):
 
 
 def test_backchannel_disjoint_from_affirmations_where_it_matters():
-    """docs/05's backchannel set is NOT the P1 affirmation set.
+    """docs/05's backchannel set is NOT the open affirmation set.
 
     `hmm`/`achha` are pure backchannels and are absent from `_AFFIRMATIONS`; the genuine
     turn-takes in `_AFFIRMATIONS` (`bilkul`, `chalega`, `confirm`) must stay OUT of the

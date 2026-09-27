@@ -129,7 +129,7 @@ def test_unparseable_json_falls_back_to_branch_hours():
 
 
 def test_a_fully_booked_day_offers_the_taken_slots_rather_than_nothing():
-    """An empty offer list is unusable: the phase prompt has nothing to speak and the lead
+    """An empty offer list is unusable: the stage prompt has nothing to speak and the lead
     hears a re-ask with no times in it. A counsellor can move an appointment; a lead who is
     told there are no times hangs up."""
     day = date(2026, 7, 27)

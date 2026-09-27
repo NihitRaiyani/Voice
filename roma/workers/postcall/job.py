@@ -10,7 +10,7 @@ must carry.
 
 `CallState` is deliberately NOT extended to hold them: `to_dict()` is the checkpoint
 schema, checkpoints are written on durable events only, a live `duration` would force a
-write per tick, and `outcome` is not an input to any phase transition — `machine.py` stays
+write per tick, and `outcome` is not an input to any stage transition — `machine.py` stays
 a pure function of conversation signals.
 
 **No PII.** No phone number, no lead name, no transcript. `call_sid` is a Twilio

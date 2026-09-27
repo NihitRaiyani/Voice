@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from roma.domain.conversation.machine import Transition, TurnSignals, next_phase
-from roma.domain.conversation.stage import ConversationStage, phase_for, stage_for
+from roma.domain.conversation.machine import Transition, TurnSignals, next_stage
+from roma.domain.conversation.stage import ConversationStage
 from roma.domain.conversation.state import CallState
 
 
@@ -53,31 +53,23 @@ _ALLOWED_TRANSITIONS: dict[ConversationStage, frozenset[ConversationStage]] = {
 }
 
 
-def _coerce_stage(stage: ConversationStage | str) -> ConversationStage:
-    if isinstance(stage, ConversationStage):
-        return stage
-    if stage.startswith("p"):
-        return stage_for(stage)
-    return ConversationStage(stage)
-
-
 def get_state(state: CallState) -> ConversationStage:
     """Return the public business stage for a call checkpoint."""
-    return stage_for(state.phase)
+    return state.stage
 
 
 def can_transition(current: ConversationStage | str, target: ConversationStage | str) -> bool:
     """Return whether the target stage is allowed by the finite-state graph."""
-    current_stage = _coerce_stage(current)
-    target_stage = _coerce_stage(target)
+    current_stage = ConversationStage(current)
+    target_stage = ConversationStage(target)
     return target_stage in _ALLOWED_TRANSITIONS[current_stage]
 
 
 def transition(state: CallState, signals: TurnSignals) -> Transition:
     """Compute the next machine transition without mutating the call state."""
-    result = next_phase(state, signals)
-    if not can_transition(state.phase, result.next_phase):
-        raise ValueError(f"invalid transition {state.phase!r} -> {result.next_phase!r}")
+    result = next_stage(state, signals)
+    if not can_transition(state.stage, result.next_stage):
+        raise ValueError(f"invalid transition {state.stage!r} -> {result.next_stage!r}")
     return result
 
 
@@ -93,7 +85,7 @@ async def restore_state(store: ConversationStateStore, call_sid: str) -> CallSta
 
 def handle_interruption(state: CallState) -> Transition:
     """Barge-in/interruption does not advance the business stage."""
-    return Transition(phase_for(get_state(state)))
+    return Transition(get_state(state))
 
 
 def handle_objection(state: CallState, objection: str) -> Transition:

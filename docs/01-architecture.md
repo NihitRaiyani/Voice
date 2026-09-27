@@ -40,7 +40,7 @@ different boundaries.
   implementations.
 - **Pipecat pipeline** — the real-time loop. Owns VAD, STT, LLM, filter, TTS, and the
   interruption lifecycle. One instance per active call.
-- **Conversation controller** — the 7-phase state machine (`docs/03`). Plain Python. Decides
+- **Conversation controller** — the 7-stage state machine (`docs/03`). Plain Python. Decides
   *what* happens; the LLM decides *how to say it*.
 - **Pre-TTS filter** — deterministic guardrail between LLM and TTS (`docs/04`). Gate-zero.
 - **Redis** — three roles: (a) per-call state for resume-on-drop, (b) cache for fixed TTS
@@ -50,7 +50,7 @@ different boundaries.
 ## Data flow, one turn
 1. Twilio streams caller audio → Silero VAD marks speech.
 2. Endpointing decides the turn ended (`docs/05`, 850ms default) → Saaras finalizes.
-3. Controller updates call-state, picks the current phase's prompt fragment.
+3. Controller updates call-state, picks the current stage's prompt fragment.
 4. OpenAI streams a response; sentences flush as they complete.
 5. **Filter inspects each sentence** before TTS. Clean → speak. Blocked → substitute a safe
    line. This step is non-skippable.

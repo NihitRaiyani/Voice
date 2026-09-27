@@ -22,7 +22,7 @@ If a tutorial describes a target design, the status label wins. Never infer that
 | [00 — Project charter](00-project-charter.md) | Why the project exists and how learning is measured |
 | [01 — Architecture](01-architecture.md) | What runs during a call and where boundaries live |
 | [02 — Pipeline and latency](02-pipeline.md) | Where turn latency and provider cost come from |
-| [03 — Phase machine](03-phase-machine.md) | How software—not the LLM—owns conversation state |
+| [03 — Stage machine](03-stage-machine.md) | How software—not the LLM—owns conversation state |
 | [04 — Guardrails](04-guardrails.md) | How unsafe claims are stopped before speech |
 | [05 — Endpointing, VAD, barge-in](05-endpointing-vad.md) | How realtime turn-taking and cancellation work |
 | [06 — State and cache](06-state-and-cache.md) | What Redis owns today and what it must not own later |

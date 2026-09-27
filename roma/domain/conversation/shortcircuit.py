@@ -7,7 +7,7 @@ full generation before that reply overwrites it. Live call 932b6c88:
     19:03:16.723  TTS: "...Visit ka time abhi tay karna baaki hai..."   <- a constant
 
 1.9s of generation, billed, discarded. `advance_turn` had already decided the answer before
-the request went out — the machine picks the phase, never the model (docs/03).
+the request went out — the machine picks the stage, never the model (docs/03).
 
 ## The rule this module holds to
 

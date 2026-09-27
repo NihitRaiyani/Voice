@@ -14,16 +14,16 @@ which is where it lived while being silently discarded; see `vad_stage`. Audio-I
 transcripts flow into the LLM context (user aggregator), the LLM streams a reply,
 each sentence is routed through the pre-TTS filter (`safe_output`, docs/04) before
 Bulbul speaks it, and the assistant aggregator records Roma's line. On connect the
-canned consent line plays; Roma's opening turn (P1) is started by `PickupGreeter` when the
+canned consent line plays; Roma's opening turn (open) is started by `PickupGreeter` when the
 lead makes a sound — or after its short timeout if they say nothing — rather than at
 connect, so the call opens the way a phone call does.
 Every line Roma speaks passes `safe_output()` — canned lines at load, LLM lines at
 the PreTTSFilter.
 
-Step 4 — the 7-phase switch: a PhaseControllerProcessor sits between the user aggregator
-and the LLM. Each user turn it runs the deterministic machine (docs/03), swaps the phase
+Step 4 — the 7-stage switch: a StageControllerProcessor sits between the user aggregator
+and the LLM. Each user turn it runs the deterministic machine (docs/03), swaps the stage
 prompt + max_tokens, and checkpoints call-state to Redis (docs/06). On connect the last
-checkpoint is loaded so a dropped/reconnected call resumes at the phase reached.
+checkpoint is loaded so a dropped/reconnected call resumes at the stage reached.
 """
 
 import asyncio
@@ -82,11 +82,11 @@ from roma.api.v1.twilio_webhooks import mount_answer_route
 from roma.core.config import get_settings
 from roma.core.logging import RedactionFilter, current_call_sid
 from roma.domain.calls import consent_signed_off
-from roma.domain.conversation import CallState, RedisCallStateStore
+from roma.domain.conversation import CallState, ConversationStage, RedisCallStateStore
 from roma.domain.conversation.prompts import (
     assemble_system_prompt,
     opening_line,
-    phase_max_tokens,
+    stage_max_tokens,
 )
 from roma.domain.conversation.state import spoken_slot
 from roma.domain.costs.spend import SpendLedger, Usage
@@ -108,7 +108,6 @@ from roma.realtime.opening import (
     PickupGreeter,
     opening_posture,
 )
-from roma.realtime.phase_controller import PhaseControllerProcessor
 from roma.realtime.phrasecache import PhraseCache, saved_inr
 from roma.realtime.pretts import PreTTSFilterProcessor
 from roma.realtime.recorder import (
@@ -119,6 +118,7 @@ from roma.realtime.recorder import (
 )
 from roma.realtime.sentences import InterruptibleSentenceAggregator
 from roma.realtime.silence import SilenceWatchdog
+from roma.realtime.stage_controller import StageControllerProcessor
 from roma.realtime.transcript import TranscriptionLogger
 from roma.realtime.tts import TTSAudioSanitizer
 from roma.realtime.turnflight import TurnFlight
@@ -151,7 +151,7 @@ TTS_MODEL = "bulbul:v3"
 TTS_VOICE = "ishita"
 TTS_PACE = 1.05
 TTS_LANGUAGE = Language.HI_IN
-OPENING_PHASE = "p1_open"
+OPENING_STAGE = ConversationStage.OPEN
 # Roma is inbound: the caller rang us and we know nothing about them. No name is seeded —
 # it is the first discovery slot and stays None until the caller says it (docs/03).
 DEFAULT_LEAD = {
@@ -248,7 +248,7 @@ class CallHandles:
     counter: "InboundAudioCounter"
     transcript: "TranscriptionLogger"
     pretts: "PreTTSFilterProcessor"
-    phase_ctrl: "PhaseControllerProcessor"
+    stage_ctrl: "StageControllerProcessor"
     recorder: object = None
     usage: object = None
     health: object = None
@@ -597,7 +597,7 @@ LLM_FIRST_ATTEMPT_TIMEOUT_SECS = 5.0
 
 
 def build_llm(settings) -> OpenAILLMService:
-    """OpenAI streaming LLM (`LLM_MODEL`, gpt-4o). `max_tokens` is the phase word cap ceiling
+    """OpenAI streaming LLM (`LLM_MODEL`, gpt-4o). `max_tokens` is the stage word cap ceiling
     (docs/02). Secret read via `.get_secret_value()` here — the boundary (docs/07).
 
     ## Why the retry is ON
@@ -623,7 +623,7 @@ def build_llm(settings) -> OpenAILLMService:
         retry_on_timeout=True,
         retry_timeout_secs=LLM_FIRST_ATTEMPT_TIMEOUT_SECS,
         settings=OpenAILLMService.Settings(
-            model=LLM_MODEL, max_tokens=phase_max_tokens(OPENING_PHASE)
+            model=LLM_MODEL, max_tokens=stage_max_tokens(OPENING_STAGE)
         ),
     )
 
@@ -1334,7 +1334,7 @@ def build_media_app(
             messages=[
                 {
                     "role": "system",
-                    "content": assemble_system_prompt(state.as_prompt_vars(), state.phase),
+                    "content": assemble_system_prompt(state.as_prompt_vars(), state.stage),
                 }
             ]
         )
@@ -1347,7 +1347,7 @@ def build_media_app(
         if not getattr(app.state, "slot_prewarmed", False):
             app.state.slot_prewarmed = True
             prewarm_task = asyncio.create_task(prewarm_slot_client(slot_client))
-        phase_ctrl = PhaseControllerProcessor(
+        stage_ctrl = StageControllerProcessor(
             state,
             client=slot_client,
             store=store,
@@ -1363,7 +1363,7 @@ def build_media_app(
         )
         watchdog = SilenceWatchdog(flight=flight)
         closer = CallCloser(
-            lambda: phase_ctrl.won, phase_ctrl.elapsed, deaf_fn=lambda: health.deaf
+            lambda: stage_ctrl.won, stage_ctrl.elapsed, deaf_fn=lambda: health.deaf
         )
         # Outbound speaks its opener from the template instead of generating it — the one
         # turn whose text is fully determined is the one turn that must not wait on a network
@@ -1397,13 +1397,13 @@ def build_media_app(
         usage = _UsageLogger(
             ledger=SpendLedger(spend_ledger_path(settings)),
             call_sid=call_sid or stream_sid,
-            prefix_fn=lambda: phase_ctrl.prefix_hash,
+            prefix_fn=lambda: stage_ctrl.prefix_hash,
         )
         sentence_agg = InterruptibleSentenceAggregator()
         pretts = PreTTSFilterProcessor(
             lambda: state.slot_status,
-            lambda: state.phase,
-            lambda: phase_ctrl.filler_this_turn,
+            lambda: state.stage,
+            lambda: stage_ctrl.filler_this_turn,
             lambda: state.lead_wants_out,
             lambda: state.facts_said,
             lambda: spoken_slot(state.accepted_slot),
@@ -1429,7 +1429,7 @@ def build_media_app(
                     noise_gate,
                     opening_guard,
                     aggregators.user(),
-                    phase_ctrl,
+                    stage_ctrl,
                     llm,
                     sentence_agg,
                     pretts,
@@ -1498,7 +1498,7 @@ def build_media_app(
             counter=counter,
             transcript=transcript,
             pretts=pretts,
-            phase_ctrl=phase_ctrl,
+            stage_ctrl=stage_ctrl,
             recorder=recorder,
             usage=usage,
             health=health,
@@ -1513,7 +1513,7 @@ def build_media_app(
                         await prewarm_task
                 # Before `_registered_call`'s own finally: pops this call out of
                 # `app.state.calls` and it stops existing anywhere in the process (docs/13).
-                await _mark_call_ended(app, lead_token, "won" if phase_ctrl.won else "")
+                await _mark_call_ended(app, lead_token, "won" if stage_ctrl.won else "")
                 postcall = await finalize_call(
                     state=state,
                     store=store,
@@ -1524,15 +1524,15 @@ def build_media_app(
                 _log.info(
                     "media stream ended: stream_sid=%s inbound_frames=%d inbound_bytes=%d "
                     "outbound_frames=%d outbound_bytes=%d clears=%d "
-                    "phase=%s won=%s recorded_bytes=%d postcall=%s",
+                    "stage=%s won=%s recorded_bytes=%d postcall=%s",
                     stream_sid,
                     counter.frame_count,
                     counter.byte_count,
                     getattr(serializer, "play_frames", 0),
                     getattr(serializer, "play_bytes", 0),
                     getattr(serializer, "clear_events", 0),
-                    state.phase,
-                    phase_ctrl.won,
+                    state.stage,
+                    stage_ctrl.won,
                     recorder.bytes_written if recorder is not None else 0,
                     postcall,
                 )
@@ -1544,7 +1544,7 @@ def build_media_app(
                     "prefix=%s prefix_changes=%d short_circuits=%d deflections=%d "
                     "phrase_cache_hits=%d phrase_saved=₹%.2f "
                     "ttfb=%s slot_extract=%s turn_latency=%s heard_latency=%s "
-                    "cost=₹%.2f phase_spent=₹%.2f/%.2f",
+                    "cost=₹%.2f budget_spent=₹%.2f/%.2f",
                     stream_sid,
                     type(vad).__name__ if vad is not None else "none",
                     f"{vad.params.stop_secs:.2f}" if vad is not None else "n/a",
@@ -1554,21 +1554,21 @@ def build_media_app(
                     not health.deaf,
                     len(health.errors),
                     health.degraded or "-",
-                    getattr(phase_ctrl._fillers, "played", "off"),
+                    getattr(stage_ctrl._fillers, "played", "off"),
                     pretts.signoff_holds,
                     pretts.time_talk_holds,
                     watchdog.nudges,
                     pretts.dupe_drops,
-                    phase_ctrl.pacer_clips,
-                    phase_ctrl.repeat_skips,
-                    phase_ctrl.prefix_hash or "-",
-                    phase_ctrl.prefix_changes,
-                    phase_ctrl.short_circuits,
-                    phase_ctrl.deflections,
+                    stage_ctrl.pacer_clips,
+                    stage_ctrl.repeat_skips,
+                    stage_ctrl.prefix_hash or "-",
+                    stage_ctrl.prefix_changes,
+                    stage_ctrl.short_circuits,
+                    stage_ctrl.deflections,
                     getattr(tts, "phrase_hits", 0),
                     saved_inr(getattr(tts, "phrase_chars", 0)),
                     usage.ttfb_summary(),
-                    _summarize_secs(phase_ctrl.advance_secs),
+                    _summarize_secs(stage_ctrl.advance_secs),
                     flight.summary(),
                     flight.heard_summary(),
                     usage.call_inr,

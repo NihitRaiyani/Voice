@@ -6,7 +6,7 @@ websocket, and `PostcallJob` deliberately carries none ("No PII ... no transcrip
 the corpus is hand-written conversation scripts, and real-call replay lands when
 consent sign-off unblocks storing what a lead actually said.
 
-That is not a downgrade. A fixture states its EXPECTATION — which phase this turn should
+That is not a downgrade. A fixture states its EXPECTATION — which stage this turn should
 land in, which slot should be filled — and an expectation is exactly what a captured
 transcript lacks. A recorded call tells you what happened; only a fixture tells you what
 should have happened.
@@ -16,14 +16,14 @@ files). Line 1 is the header, every line after it is a turn:
 
     {"name": "...", "description": "...", "lead_name": "ji", "branch": "Vadodara",
      "expect_slots": {"education": "BCom"}, "expect_outcome": "locked"}
-    {"lead": "haan bolo", "roma": "...", "expect_phase": "p2_discover", "slot": "..."}
+    {"lead": "haan bolo", "roma": "...", "expect_stage": "discover", "slot": "..."}
 
 `lead` is what the lead said (what STT would have returned). `roma` is the reference line
 Roma is expected to speak — offline it stands in for the model, and it is what the word-cap
 and filter checks read; live, the model's real line replaces it and the reference becomes
 the thing the model is compared against.
 
-`expect_phase` is the phase the machine must land on AFTER this turn.
+`expect_stage` is the stage the machine must land on AFTER this turn.
 """
 
 import json
@@ -34,7 +34,7 @@ TURN_KEYS = frozenset(
     {
         "lead",
         "roma",
-        "expect_phase",
+        "expect_stage",
         "slot",
         "accept",
         "confirm",
@@ -73,7 +73,7 @@ class Turn:
 
     lead: str
     roma: str = ""
-    expect_phase: str = ""
+    expect_stage: str = ""
     slot: "str | None" = None
     accept: bool = False
     confirm: bool = False

@@ -80,18 +80,18 @@ promised; this is how you prove it.
 | **2** | Sarvam flushes on the VAD stop frame — `vad_signals` must stay `None`, or `flush_signal="true"` is never sent. | pinned by test. Do not "fix" it by setting `vad_signals`. | verified offline |
 | **2** | Saaras WER measured on real 8kHz μ-law. | Not built. It can invalidate assumptions (`docs/decisions.md`) — flag it, do not silently skip it. | **UNVERIFIED** |
 | **3** | One LLM call per turn, streamed, sentence-chunked, filtered, spoken. | `llm usage` lines == generations in a live log. | verified live |
-| **3** | `persona → hard_rules` is byte-identical across a call's turns (prefix caching). Dynamic content lives **only** in the phase fragment. | `tests/domain/conversation/test_prompts.py`. Any new `{{var}}` goes in a phase fragment, never in persona/hard_rules. | verified offline |
+| **3** | `persona → hard_rules` is byte-identical across a call's turns (prefix caching). Dynamic content lives **only** in the stage fragment. | `tests/domain/conversation/test_prompts.py`. Any new `{{var}}` goes in a stage fragment, never in persona/hard_rules. | verified offline |
 | **3** | OpenAI dashboard hard spend limit is set. **₹100 remaining — this is the real ceiling, not `openai_budget_inr`.** | Check the dashboard. The setting only lets the harness refuse to start. | **UNVERIFIED** |
-| **3** | Every model we send tokens to has a price, and spend is counted where it is actually spent. | `tests/domain/costs/test_spend.py`, `tests/realtime/test_media_llm.py` (`LLM_MODEL`/`SLOT_MODEL` must be keys of `roma.domain.costs.spend.PRICES`), `tests/realtime/test_media_spend.py`. Live: the teardown line prints `cost=₹N phase_spent=₹N/100`. | verified offline |
+| **3** | Every model we send tokens to has a price, and spend is counted where it is actually spent. | `tests/domain/costs/test_spend.py`, `tests/realtime/test_media_llm.py` (`LLM_MODEL`/`SLOT_MODEL` must be keys of `roma.domain.costs.spend.PRICES`), `tests/realtime/test_media_spend.py`. Live: the teardown line prints `cost=₹N budget_spent=₹N/100`. | verified offline |
 | **3** | The ₹100 cap can refuse a call, and survives a restart. | `tests/domain/calls/test_precall.py::test_a_spent_budget_blocks_the_dial`; `place_test_call.py` prints the running total and exits non-zero on `reason=block:budget`. Ledger: `{ROMA_DATA_DIR}/spend.jsonl`. | verified offline |
-| **4** | The controller picks the phase; the model never does. Exactly one fragment per turn, `max_tokens` from that phase's cap. | `tests/domain/conversation/`, `tests/realtime/test_media_phase_e2e.py`. | verified offline |
-| **4** | **Every** P5/P7 turn writes `slot_status` and emits exactly one `slot verdict:` line. There is no silent path. | `grep 'slot verdict' <log> \| grep -v 'reason=ok'` is the diagnosis; a *missing* line on a slot-bearing turn is the bug. | verified live |
+| **4** | The controller picks the stage; the model never does. Exactly one fragment per turn, `max_tokens` from that stage's cap. | `tests/domain/conversation/`, `tests/realtime/test_media_stage_e2e.py`. | verified offline |
+| **4** | **Every** pivot/close turn writes `slot_status` and emits exactly one `slot verdict:` line. There is no silent path. | `grep 'slot verdict' <log> \| grep -v 'reason=ok'` is the diagnosis; a *missing* line on a slot-bearing turn is the bug. | verified live |
 | **4** | Roma never claims a booking the machine did not make (hard rule 9). | `confirmguard` + `tests/domain/conversation/test_confirmguard.py`. Live: no "confirm ho gayi" without `status=accepted\|locked`. | verified offline |
 | **5** | A barge-in cancels cleanly and leaks nothing: no half-sentence carried into the next turn, no unfiltered text to TTS. | `tests/realtime/test_sentences.py`, `test_turntaking.py`. Live: `grep 'sentence aggregator'`. | verified offline |
 | **5** | Multi-call isolation — no process-global "last call" slot. | `tests/realtime/test_media_isolation.py`. **Two concurrent live calls have never been run.** | **UNVERIFIED live** |
 | **6** | Recordings are discarded while `CONSENT_LINE` is the compliance placeholder. **That is by design, not a bug — do not "fix" it.** | `tests/workers/postcall/`. | verified offline |
 | **6** | `PostcallJob.raw` is never re-serialised on ack — LREM matches by exact string. | pinned by test. | verified offline |
-| **7** | Replay harness: phase hits, word caps, slot extracted, filter never leaks. | `scripts/run_eval.py` → 8/8. | verified offline |
+| **7** | Replay harness: stage hits, word caps, slot extracted, filter never leaks. | `scripts/run_eval.py` → 8/8. | verified offline |
 | **7** | The five docs/05 thresholds are `Settings` fields and actually applied, not merely printed. | Teardown `endpoint timing:` line prints **evidence** (`vad_starts`/`vad_stops`), not just configuration — printing configuration is what hid the dead VAD for four calls. | verified live |
 | **7** | Tuning calls placed, one threshold moved per call. | Not done. Needs a tunnel and burns Sarvam credits. | **UNVERIFIED** |
 
@@ -138,12 +138,12 @@ verdict. Say these, in order, and note what she does:
 6. `"12 બજે"`. → Must be accepted (branch is 9–6). She must **not** say the branch is
    shut, and must never quote the two offered times as opening hours.
 7. `"fees kitni hai?"` → No number, ever. Route to the visit.
-8. Accept a slot, confirm the readback. → `phase controller: WIN`.
+8. Accept a slot, confirm the readback. → `stage controller: WIN`.
 
 Then read the log, in this order:
 
 ```
-grep -E "Generating TTS|barge-in|slot verdict|claim vetoed|p5 offers|objection:|sentence aggregator|WIN" <log>
+grep -E "Generating TTS|barge-in|slot verdict|claim vetoed|pivot offers|objection:|sentence aggregator|WIN" <log>
 grep -o "transcript='[^']*'" <log>          # reconstruct what was actually said
 grep "endpoint timing" <log>                # vad_starts/vad_stops > 0, won=True
 ```
@@ -157,7 +157,7 @@ that the lead was unclear.
 The lead said `"4 બજે"` three times. Every turn:
 
 ```
-slot verdict: phase=p5_pivot reason=unclear ... hour=4 anchor=- resolved=- status=none
+slot verdict: stage=pivot reason=unclear ... hour=4 anchor=- resolved=- status=none
 ```
 
 Two distinct causes, both real, neither fixed:

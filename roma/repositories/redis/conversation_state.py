@@ -1,8 +1,8 @@
 """Per-call state store with resume-on-drop (docs/06).
 
 Redis holds one checkpoint per call at `call:{call_sid}:state`, written on durable events
-only (phase transition, slot fill, lock — NOT every token) and expiring a few hours after
-the call. On reconnect the pipeline loads the last checkpoint so Roma resumes at the phase
+only (stage transition, slot fill, lock — NOT every token) and expiring a few hours after
+the call. On reconnect the pipeline loads the last checkpoint so Roma resumes at the stage
 reached, with discovery answers intact — never re-asking a filled slot (docs/06).
 
 `CallStateStore` is the seam: tests and local dev use `InMemoryCallStateStore` (no live

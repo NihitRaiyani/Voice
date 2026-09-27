@@ -13,6 +13,9 @@ detail belongs in `LOG.md` or `docs/superpowers/`. Roadmap entries are not imple
 - Lead metadata is a Twilio Stream custom parameter, never a Stream URL query parameter.
 - The service is backend-only. The call and status APIs remain bearer-protected.
 - Redis holds call state, lead records, opener audio, status, and post-call work.
+- `ConversationStage` supplies the seven stage names used by the controller, prompts, logs,
+  evaluation fixtures, and new Redis checkpoints. The checkpoint reader accepts the old
+  serialized shape until its four-hour TTL expires.
 - The pre-call gate and pre-TTS guard are mandatory and fail closed where safety requires it.
 
 ## Lessons that still constrain the implementation

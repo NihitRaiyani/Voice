@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from roma.domain.conversation.stage import ConversationStage
 from roma.realtime.ulaw import ulaw_to_pcm16
 
 _log = logging.getLogger("roma.realtime")
@@ -75,7 +76,7 @@ QUESTION_LINES: dict[str, str] = {
 }
 OBJECTION_LINES: dict[str, str] = {
     # Longer than the 200-300ms docs/05 asks of an opener clip, accepted deliberately: an
-    # objection turn's completion is the SLOWEST kind (P6 reframe), so there is more dead
+    # objection turn's completion is the SLOWEST kind (objection reframe), so there is more dead
     # air to cover, and empathy clipped short reads as dismissal.
     "samajh_rahi_hoon": "Samajh rahi hoon…",
     "haan_ji": "Haan ji…",
@@ -129,26 +130,28 @@ _QUESTION_CUES = frozenset(
 )
 
 
-def intent_for(text: "str | None", phase: "str | None" = None) -> FillerIntent:
+def intent_for(
+    text: "str | None", stage: "ConversationStage | str | None" = None
+) -> FillerIntent:
     """The turn-shape this filler should match. Never raises; unknown is NEUTRAL.
 
-    THE PHASE OUTRANKS THE TEXT, because the phase is the machine's own decision and the
+    THE STAGE OUTRANKS THE TEXT, because the stage is the machine's own decision and the
     text classifier is a guess about the same question. Two live mismatches on 2026-08-08
     forced this:
 
-      * `dekhiye (question, p6_objection)` — the machine had already classified an
-        objection and moved the phase; the filler still called it a question and Roma
+      * `dekhiye (question, objection)` — the machine had already classified an
+        objection and moved the stage; the filler still called it a question and Roma
         opened an objection turn with "Dekhiye…", which reads as a lecture, not empathy.
-      * `dekhiye (question, p1_open)` — the lead's FIRST words after the greeting. P1 is
+      * `dekhiye (question, open)` — the lead's FIRST words after the greeting. open is
         two turns of hello; opening one with "Dekhiye…" is a stranger starting a lecture.
-        P1 is pinned NEUTRAL whatever the words look like.
+        open is pinned NEUTRAL whatever the words look like.
 
-    Only where the machine has no opinion (P2-P5, P7) does the text decide.
+    Only where the machine has no opinion (discover-pivot, close) does the text decide.
     """
     try:
-        if phase == "p1_open":
+        if stage == ConversationStage.OPEN:
             return FillerIntent.NEUTRAL
-        if phase == "p6_objection":
+        if stage == ConversationStage.OBJECTION:
             return FillerIntent.OBJECTION
         if not text:
             return FillerIntent.NEUTRAL

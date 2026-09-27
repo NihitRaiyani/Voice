@@ -87,7 +87,7 @@ def test_every_other_frame_passes_straight_through_untouched():
 
 
 def test_the_win_is_read_at_frame_time_not_at_construction():
-    """The closer is built before the phase controller has seen a single turn, so a value
+    """The closer is built before the stage controller has seen a single turn, so a value
     snapshotted at construction would always be False and the call would never end."""
     state = {"won": False}
     c = CallCloser(lambda: state["won"], enable_direct_mode=True)
@@ -111,7 +111,7 @@ def test_a_raising_win_check_leaves_the_call_open_rather_than_crashing_it():
     strictly better than one that dies mid-sentence."""
 
     def _boom():
-        raise RuntimeError("phase controller is gone")
+        raise RuntimeError("stage controller is gone")
 
     c = CallCloser(_boom, enable_direct_mode=True)
     c.captured = []

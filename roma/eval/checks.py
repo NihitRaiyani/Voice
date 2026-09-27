@@ -1,4 +1,4 @@
-"""The four Step-7 assertions (docs/10): phase hits, word caps, slot extracted, filter
+"""The four Step-7 assertions (docs/10): stage hits, word caps, slot extracted, filter
 never leaks.
 
 Its own module because this is the contract. `runner.py` is machinery — how a script gets
@@ -13,7 +13,7 @@ the regression, which is what a harness is for.
 from dataclasses import dataclass, field
 
 from roma.domain.conversation.confirmguard import CONFIRMATION_CUES, REFUSAL_STATUSES
-from roma.domain.conversation.prompts import PHASE_WORD_CAPS
+from roma.domain.conversation.prompts import STAGE_WORD_CAPS
 from roma.domain.safety.filter import screen
 from roma.domain.safety.lexicon import HARD_FAIL_LINE, BlockCategory
 from roma.domain.safety.normalize import tokens
@@ -56,8 +56,8 @@ class TurnResult:
     index: int
     lead: str
     roma: str
-    phase: str
-    expect_phase: str = ""
+    stage: str
+    expect_stage: str = ""
     win: bool = False
     slot_status: str = "none"
 
@@ -81,40 +81,40 @@ class ScriptResult:
         return not self.findings and not self.halted
 
 
-def check_phase_hits(result: ScriptResult) -> list[Finding]:
+def check_stage_hits(result: ScriptResult) -> list[Finding]:
     """The machine landed where the script says it should, every turn.
 
-    Checked per turn, not just at the end: a call that reaches P7 by the wrong route has
+    Checked per turn, not just at the end: a call that reaches close by the wrong route has
     still mis-answered an objection or skipped discovery, and an end-state-only assertion
     cannot see that.
     """
     out = []
     for t in result.turns:
-        if t.expect_phase and t.phase != t.expect_phase:
+        if t.expect_stage and t.stage != t.expect_stage:
             out.append(
                 Finding(
-                    "phase-hits",
+                    "stage-hits",
                     f"{result.name} turn {t.index}",
-                    f"expected {t.expect_phase}, landed {t.phase} (lead: {t.lead!r})",
+                    f"expected {t.expect_stage}, landed {t.stage} (lead: {t.lead!r})",
                 )
             )
     return out
 
 
 def check_word_caps(result: ScriptResult) -> list[Finding]:
-    """Roma's line fits the phase's word cap (docs/11).
+    """Roma's line fits the stage's word cap (docs/11).
 
     The cap is a SHAPE target enforced by the prompt text, not a hard truncation — so this
     reports rather than aborts. Offline it is checking the fixtures are realistic; live it
     is checking the model, which is the only mode where it says anything about production.
-    The phase used is the one the turn LANDED in, because that is the phase whose fragment
+    The stage used is the one the turn LANDED in, because that is the stage whose fragment
     and `max_tokens` produced the line.
     """
     out = []
     for t in result.turns:
         if not t.roma:
             continue
-        cap = PHASE_WORD_CAPS.get(t.phase)
+        cap = STAGE_WORD_CAPS.get(t.stage)
         if cap is None:
             continue
         n = len(t.roma.split())
@@ -122,7 +122,7 @@ def check_word_caps(result: ScriptResult) -> list[Finding]:
             out.append(
                 Finding(
                     "word-caps",
-                    f"{result.name} turn {t.index} ({t.phase})",
+                    f"{result.name} turn {t.index} ({t.stage})",
                     f"{n} words over cap {cap}: {t.roma!r}",
                 )
             )
@@ -134,7 +134,7 @@ def check_slots(
 ) -> list[Finding]:
     """The declared end-state was reached: slots filled, outcome classified, win correct.
 
-    `locked_slot` is the win condition (docs/03 P7) and a soft "dekhta hoon" is not a win —
+    `locked_slot` is the win condition (docs/03 close) and a soft "dekhta hoon" is not a win —
     so `expect_outcome` is asserted separately from the slots rather than inferred.
     """
     out = []
@@ -273,7 +273,7 @@ def check_canaries() -> list[Finding]:
 
 
 def check_offer_recorded(result: ScriptResult) -> list[Finding]:
-    """Any call that reached P5 must have offers on record.
+    """Any call that reached pivot must have offers on record.
 
     A STRUCTURAL check, and it exists because of the failure mode no behavioural check
     catches: `state.slots_offered` was declared, checkpointed and rehydrated for four build
@@ -284,7 +284,7 @@ def check_offer_recorded(result: ScriptResult) -> list[Finding]:
     Nothing here asserts WHICH slots — that is the calendar's business. It asserts only that
     the mechanism is connected, which is precisely what nobody was checking.
     """
-    if not any(t.phase in ("p5_pivot", "p7_close") for t in result.turns):
+    if not any(t.stage in ("pivot", "close") for t in result.turns):
         return []
     if result.slots.get("slots_offered"):
         return []
@@ -292,7 +292,7 @@ def check_offer_recorded(result: ScriptResult) -> list[Finding]:
         Finding(
             "offer-recorded",
             result.name,
-            "the call reached P5 but state.slots_offered is empty — Roma is inventing her "
+            "the call reached pivot but state.slots_offered is empty — Roma is inventing her "
             "own slots, so an accepted slot cannot be resolved",
         )
     ]
@@ -301,7 +301,7 @@ def check_offer_recorded(result: ScriptResult) -> list[Finding]:
 def run_checks(result: ScriptResult, script) -> list[Finding]:
     """Every per-script check. Canaries are run once per suite, not per script."""
     findings = []
-    findings += check_phase_hits(result)
+    findings += check_stage_hits(result)
     findings += check_word_caps(result)
     findings += check_slots(
         result, script.expect_slots, script.expect_outcome, script.expect_win
@@ -317,7 +317,7 @@ __all__ = [
     "TurnResult",
     "ScriptResult",
     "run_checks",
-    "check_phase_hits",
+    "check_stage_hits",
     "check_word_caps",
     "check_slots",
     "check_filter",

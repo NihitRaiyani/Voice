@@ -1,21 +1,21 @@
-"""The phase controller as a Pipecat processor (docs/03, docs/11).
+"""The stage controller as a Pipecat processor (docs/03, docs/11).
 
 Sits between the user aggregator and the LLM. On each finalized user turn it:
 
-  1. runs `advance_turn` — extract slots / classify objection / pick the next phase
+  1. runs `advance_turn` — extract slots / classify objection / pick the next stage
      (the machine decides, never the model) and checkpoint to the store;
-  2. swaps the context's system message IN PLACE to the new phase's assembled prompt
+  2. swaps the context's system message IN PLACE to the new stage's assembled prompt
      (in place, so the persona->hard_rules prefix stays byte-identical for prompt caching —
      never `LLMMessagesUpdateFrame`, which rewrites the whole context);
-  3. pushes an `LLMUpdateSettingsFrame` setting `max_tokens` from the phase's word cap;
+  3. pushes an `LLMUpdateSettingsFrame` setting `max_tokens` from the stage's word cap;
 
 then forwards the context frame to the LLM. Forwarding only AFTER the swap is what makes
-"the controller picks the phase" a frame-ordering invariant — the LLM never reads the
+"the controller picks the stage" a frame-ordering invariant — the LLM never reads the
 context before the mutation lands (docs/03).
 
 The opening turn (an `LLMRunFrame` with no user message yet) carries no user text, so the
-controller leaves the seeded P1 prompt + P1 max_tokens untouched. Any error inside the turn
-logic is swallowed — Roma still speaks the prior phase's prompt (the guardrail always gates
+controller leaves the seeded open prompt + open max_tokens untouched. Any error inside the turn
+logic is swallowed — Roma still speaks the prior stage's prompt (the guardrail always gates
 the actual line); a controller bug must never drop the call.
 """
 
@@ -41,14 +41,14 @@ from pipecat.services.settings import LLMSettings
 
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.facts import facts_in
-from roma.domain.conversation.machine import P7_CLOSE
 from roma.domain.conversation.offtopic import deflection_for
 from roma.domain.conversation.prompts import (
     assemble_system_prompt,
     cache_prefix,
-    phase_max_tokens,
+    stage_max_tokens,
 )
 from roma.domain.conversation.shortcircuit import canned_reply
+from roma.domain.conversation.stage import ConversationStage
 from roma.domain.conversation.state import CallState
 from roma.domain.conversation.turn import advance_turn
 from roma.realtime.filler import SAMPLE_RATE as FILLER_RATE
@@ -135,8 +135,8 @@ def _last_assistant_text(context) -> "str | None":
     return None
 
 
-class PhaseControllerProcessor(FrameProcessor):
-    """Drive the 7-phase machine per user turn and set the phase prompt + max_tokens."""
+class StageControllerProcessor(FrameProcessor):
+    """Drive the 7-stage machine per user turn and set the stage prompt + max_tokens."""
 
     def __init__(
         self,
@@ -179,7 +179,7 @@ class PhaseControllerProcessor(FrameProcessor):
         self.short_circuits = 0
         self.deflections = 0
 
-    def _note_prefix(self, prompt_vars: dict, prompt: str, phase: str) -> None:
+    def _note_prefix(self, prompt_vars: dict, prompt: str, stage: str) -> None:
         """Record a digest of the cached span, and shout when it moves mid-call.
 
         `cache_prefix` (persona -> hard_rules) is what OpenAI's prompt cache keys on, and it
@@ -204,10 +204,10 @@ class PhaseControllerProcessor(FrameProcessor):
                     "turn from here re-pays the full prefix",
                     self.prefix_hash,
                     digest,
-                    phase,
+                    stage,
                 )
             self.prefix_hash = digest
-            _log.info("prompt: prefix=%s full=%s phase=%s", digest, full, phase)
+            _log.info("prompt: prefix=%s full=%s stage=%s", digest, full, stage)
         except Exception:  # noqa: BLE001 — instrumentation must never cost a turn
             _log.warning("prompt cache digest failed; continuing without it")
 
@@ -294,13 +294,13 @@ class PhaseControllerProcessor(FrameProcessor):
 
         * Never twice running. Halves the rate and breaks the metronome, which is what makes
           it read as a verbal habit rather than a pause.
-        * Never in P7. Closing turns are capped at twenty-five words, so the clip is a large
+        * Never in close. Closing turns are capped at twenty-five words, so the clip is a large
           fraction of the line it introduces, and "achha… Theek hai, milte hain" is two
           acknowledgements stacked on a goodbye.
         """
         if not self._fillers or _last_user_text(frame.context) is None:
             return False
-        if self.state.phase == P7_CLOSE:
+        if self.state.stage == ConversationStage.CLOSE:
             return False
         return not self._filler_last_turn
 
@@ -311,7 +311,7 @@ class PhaseControllerProcessor(FrameProcessor):
             self.filler_this_turn = False
             return
         self._filler_last_turn = True
-        intent = intent_for(_last_user_text(frame.context), self.state.phase)
+        intent = intent_for(_last_user_text(frame.context), self.state.stage)
         clip = self._fillers.next(intent)
         if clip is None:
             self.filler_this_turn = False
@@ -327,7 +327,7 @@ class PhaseControllerProcessor(FrameProcessor):
             # ever played is the teardown counter, and a call that does not tear down
             # cleanly leaves no trace at all — so "was the lead's dead air masked?" became
             # unanswerable after call 98aa06a3. A silent success is not observability.
-            _log.info("filler: played %s (%s, %s)", clip.name, intent.value, self.state.phase)
+            _log.info("filler: played %s (%s, %s)", clip.name, intent.value, self.state.stage)
         except Exception:  # noqa: BLE001 — a latency mask must never cost the turn itself
             _log.warning("filler emit failed; continuing unmasked")
             if self._health is not None:
@@ -361,12 +361,12 @@ class PhaseControllerProcessor(FrameProcessor):
         filler — every other turn, by `_should_fill`'s anti-tic rule — were also the turns
         with no cover at all if they stalled.
 
-        NEVER in P7. The close is a readback and a goodbye over an already-locked visit, and
+        NEVER in close. The close is a readback and a goodbye over an already-locked visit, and
         on call e3237622 the lead heard "ek second ji" while Roma was confirming a booking he
         had just agreed to. Holding the line implies more is coming; at the close, nothing is.
         Same exclusion `_should_fill` already makes, for the same reason.
         """
-        if self.state.phase == P7_CLOSE:
+        if self.state.stage == ConversationStage.CLOSE:
             return
         try:
             self._pacer = asyncio.create_task(self._pace_filler())
@@ -427,7 +427,7 @@ class PhaseControllerProcessor(FrameProcessor):
             return
         if user_text == self._last_driven_text:
             self.repeat_skips += 1
-            _log.info("phase controller: same utterance re-driven; not advancing again")
+            _log.info("stage controller: same utterance re-driven; not advancing again")
             return
         self._last_driven_text = user_text
         # Mark whatever Roma said LAST turn as spent, before this turn's prompt is built.
@@ -451,26 +451,26 @@ class PhaseControllerProcessor(FrameProcessor):
                 elapsed_secs=self.elapsed(),
                 **self._advance_kwargs,
             )
-        except Exception:  # noqa: BLE001 — a phase-advance bug must not kill the call
-            _log.exception("phase controller failed; holding phase %s", self.state.phase)
+        except Exception:  # noqa: BLE001 — a stage-advance bug must not kill the call
+            _log.exception("stage controller failed; holding stage %s", self.state.stage)
             if self._health is not None:
-                self._health.degrade("phase_advance")
+                self._health.degrade("stage_advance")
             return
         finally:
             self.advance_secs.append(time.monotonic() - started)
 
-        phase = self.state.phase
+        stage = self.state.stage
         prompt_vars = self.state.as_prompt_vars()
-        prompt = assemble_system_prompt(prompt_vars, phase)
-        self._note_prefix(prompt_vars, prompt, phase)
+        prompt = assemble_system_prompt(prompt_vars, stage)
+        self._note_prefix(prompt_vars, prompt, stage)
         _swap_system_prompt(context, prompt)
         await self.push_frame(
-            LLMUpdateSettingsFrame(delta=LLMSettings(max_tokens=phase_max_tokens(phase))),
+            LLMUpdateSettingsFrame(delta=LLMSettings(max_tokens=stage_max_tokens(stage))),
             FrameDirection.DOWNSTREAM,
         )
         if transition.win and not self.won:
             self.won = True
-            _log.info("phase controller: WIN — visit locked at %s", self.state.locked_slot)
+            _log.info("stage controller: WIN — visit locked at %s", self.state.locked_slot)
 
     def elapsed(self) -> float:
         """Seconds since the call connected. Read by `CallCloser` for the hard deadline."""
@@ -483,4 +483,4 @@ class PhaseControllerProcessor(FrameProcessor):
             return 0.0
 
 
-__all__ = ["PhaseControllerProcessor"]
+__all__ = ["StageControllerProcessor"]

@@ -10,11 +10,11 @@ docs/05's backchannel rule, verbatim: a user-speech span that is (a) < ~600ms AN
 turn-take — "log it, keep talking". All three conditions, or it is a real barge-in.
 
 **Gujarati script is first-class.** STT runs `gu-IN` (D3) and returns Gujarati, not
-romanized text. A live call already stalled at P1 because `હા જી` was missing from an
+romanized text. A live call already stalled at open because `હા જી` was missing from an
 affirmation lexicon; every lead-facing matcher here carries Gujarati spellings.
 
 Matching is token-equality on `guardrails.normalize.tokens` — the same tokenizer the
-guardrails filter and the P6 objection classifier use.
+guardrails filter and the objection objection classifier use.
 """
 
 from roma.domain.safety.normalize import tokens

@@ -2,7 +2,7 @@
 
 Until this existed, exactly two lines in the system named a call: the stream-start line and
 the spend-ledger row. Everything from `roma.domain.conversation`, `roma.domain.safety`, `pretts`,
-`silence`, `opening` and `phase_controller` logged through module-level loggers with no call
+`silence`, `opening` and `stage_controller` logged through module-level loggers with no call
 identity at all — readable only because every diagnosis so far has been done on a log with
 exactly ONE call in it.
 """

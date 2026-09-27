@@ -33,7 +33,7 @@ skills that preserve the boundary between implemented and planned work.
 **Files:**
 - Modify: `docs/01-architecture.md`
 - Modify: `docs/02-pipeline.md`
-- Modify: `docs/03-phase-machine.md`
+- Modify: `docs/03-stage-machine.md`
 - Modify: `docs/04-guardrails.md`
 - Modify: `docs/05-endpointing-vad.md`
 - Modify: `docs/06-state-and-cache.md`

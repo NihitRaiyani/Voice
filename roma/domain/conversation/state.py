@@ -1,8 +1,8 @@
 """The per-call state datum (docs/03, docs/06).
 
 One `CallState` per call, keyed by Twilio Call SID in Redis (`store.py`). It carries
-the discovery slots, the phase-machine bookkeeping, and the win-condition fields. It is
-a plain dataclass — the phase is *state*, not an agent (the LangGraph rejection, docs/11).
+the discovery slots, the stage-machine bookkeeping, and the win-condition fields. It is
+a plain dataclass — the stage is *state*, not an agent (the LangGraph rejection, docs/11).
 
 `as_prompt_vars()` is the bridge to `roma.domain.conversation.prompts.assemble_system_prompt`, which
 reads its `call_state` via `__contains__`/`__getitem__` — so the prompt layer needs zero
@@ -14,16 +14,9 @@ from datetime import datetime
 
 from roma.domain.conversation.facts import already_said_line
 from roma.domain.conversation.pacing import pacing_line
+from roma.domain.conversation.stage import ConversationStage
 
-PHASES: tuple[str, ...] = (
-    "p1_open",
-    "p2_discover",
-    "p3_value",
-    "p4_structure",
-    "p5_pivot",
-    "p6_objection",
-    "p7_close",
-)
+STAGES: tuple[ConversationStage, ...] = tuple(ConversationStage)
 
 DISCOVERY_ORDER: tuple[str, ...] = (
     "lead_name",
@@ -38,7 +31,7 @@ DISCOVERY_ORDER: tuple[str, ...] = (
 # unfilled slot forever, and it drives EXTRACTION only — it does not force the question. So a
 # caller who will not give their name leaves the pointer on `lead_name` while the model
 # sensibly asks about something else, and every later answer is extracted against a field
-# nobody was asked about, returns null, and fills nothing for the rest of P2.
+# nobody was asked about, returns null, and fills nothing for the rest of discover.
 #
 # Two is deliberate: one re-ask is a normal misheard-reply recovery, a third is nagging.
 #
@@ -134,7 +127,7 @@ _WEEKDAY_NAMES = (
 
 
 def spoken_slot(iso: "str | None") -> str:
-    """An ISO slot as the weekday/date/time Roma should say (docs/03 P7 readback).
+    """An ISO slot as the weekday/date/time Roma should say (docs/03 close readback).
 
     Returns "" for None or anything unparseable — the caller falls back to a status line
     with no slot in it, which is strictly safer than voicing a half-parsed date.
@@ -175,8 +168,8 @@ class CallState:
     # override rules. Empty on any call where we did not know, which is every inbound call.
     #
     # Carried into prompt vars here so the plumbing is done and testable; NO fragment reads
-    # `{{segment}}` yet. What it will change is exactly two things (P2's study-or-work
-    # question becoming a confirmation, and which value proof leads in P3), and both are
+    # `{{segment}}` yet. What it will change is exactly two things (discover's study-or-work
+    # question becoming a confirmation, and which value proof leads in value), and both are
     # prompt work still awaiting sign-off.
     segment: str = ""
     # None, not "": `next_discovery_slot` treats a non-None value as already filled, so an
@@ -207,9 +200,9 @@ class CallState:
 
     elapsed_secs: float = 0.0
 
-    phase: str = "p1_open"
+    stage: ConversationStage = ConversationStage.OPEN
     turn_count: int = 0
-    phase_turn_count: int = 0
+    stage_turn_count: int = 0
 
     inquiry_confirmed: bool = False
     readback_confirmed: bool = False
@@ -245,6 +238,9 @@ class CallState:
     # deflection bank has been spent and the converge line should take over.
     off_topic_turns: int = 0
 
+    def __post_init__(self) -> None:
+        self.stage = ConversationStage(self.stage)
+
     def record_facts(self, keys) -> None:
         """Mark `keys` as spent. Idempotent — a fact repeated is still one entry."""
         for key in keys:
@@ -270,13 +266,13 @@ class CallState:
         self.slot_attempts[slot] = self.slot_attempts.get(slot, 0) + 1
 
     def filled_discovery_count(self) -> int:
-        """How many of the five discovery slots are filled (docs/03 P2 exit gate)."""
+        """How many of the five discovery slots are filled (docs/03 discover exit gate)."""
         return sum(1 for slot in DISCOVERY_ORDER if getattr(self, slot) is not None)
 
     def as_prompt_vars(self) -> dict:
         """The mapping `assemble_system_prompt` substitutes into the fragments (docs/11).
 
-        `slot_status` renders inside the PHASE fragment, never in persona/hard_rules — the
+        `slot_status` renders inside the STAGE fragment, never in persona/hard_rules — the
         `persona -> hard_rules` prefix must stay byte-identical across a call's turns or
         OpenAI prefix caching stops hitting (docs/11).
         """
@@ -286,7 +282,7 @@ class CallState:
             status = "none"
         return {
             "branch": self.branch,
-            # `or ""` because lead_name is None until P2 captures it — a fragment must never
+            # `or ""` because lead_name is None until discover captures it — a fragment must never
             # render the string "None" at a lead.
             "lead_name": self.lead_name or "",
             "segment": self.segment,
@@ -344,21 +340,21 @@ class CallState:
         return _KNOWN_LINE.format(known=joined)
 
     def _offer_line(self, status: str = "none") -> str:
-        """The OFFER instruction for the phase fragment.
+        """The OFFER instruction for the stage fragment.
 
         Renders only slots that actually parse — a malformed ISO string must degrade to
         "no offer" rather than put a dangling blank into a sentence Roma then reads aloud.
 
         ## Why this reads the status
 
-        An accepted slot SPENDS the offer, and until this checked, `p7_close.md` rendered
+        An accepted slot SPENDS the offer, and until this checked, `close.md` rendered
         both at once: SLOT STATUS saying "read back Monday 2:00 PM" directly above OFFER
         saying "offer only 11 AM or 5 PM". Two different sets of times, one prompt.
 
         Live call CA1652a5e (2026-07-27). The lead said `મેં 2 બજે વિઝિટ કરૂંગા` — "I'll
         visit at 2" — and the machine took it:
 
-            slot verdict: phase=p5_pivot reason=ok accepted=True hour=2 \
+            slot verdict: stage=pivot reason=ok accepted=True hour=2 \
                 resolved=2026-07-27T14:00:00+05:30 status=accepted
 
         A booking, correctly recorded. Roma then asked "gyaarah baje ya paanch baje?" seven
@@ -399,9 +395,9 @@ class CallState:
             "accepted_slot": self.accepted_slot,
             "locked_slot": self.locked_slot,
             "pending_day": self.pending_day,
-            "phase": self.phase,
+            "stage": self.stage.value,
             "turn_count": self.turn_count,
-            "phase_turn_count": self.phase_turn_count,
+            "stage_turn_count": self.stage_turn_count,
             "inquiry_confirmed": self.inquiry_confirmed,
             "readback_confirmed": self.readback_confirmed,
             "facts_said": list(self.facts_said),
@@ -417,13 +413,32 @@ class CallState:
     def from_dict(cls, data: dict) -> "CallState":
         """Rehydrate a checkpoint (docs/06 resume-on-drop). Unknown keys are ignored so
         an older checkpoint schema never crashes a resume."""
+        data = dict(data)
+        # Checkpoints written before the stage-only schema can remain in Redis for four
+        # hours. Translate them only at this deserialization boundary; new writes use stage.
+        if "stage" not in data and "phase" in data:
+            legacy = data["phase"]
+            names = tuple(ConversationStage)
+            if not isinstance(legacy, str) or len(legacy) < 4 or legacy[0] != "p":
+                raise ValueError(f"invalid saved conversation stage {legacy!r}")
+            index = int(legacy[1]) - 1 if legacy[1].isdigit() else -1
+            if (
+                index < 0
+                or index >= len(names)
+                or legacy[2] != "_"
+                or legacy[3:] != names[index].value
+            ):
+                raise ValueError(f"invalid saved conversation stage {legacy!r}")
+            data["stage"] = names[index]
+        if "stage_turn_count" not in data and "phase_turn_count" in data:
+            data["stage_turn_count"] = data["phase_turn_count"]
         known = {f for f in cls.__dataclass_fields__}
         return cls(**{k: v for k, v in data.items() if k in known})
 
 
 __all__ = [
     "CallState",
-    "PHASES",
+    "STAGES",
     "DISCOVERY_ORDER",
     "SLOT_ATTEMPT_CAP",
     "SLOT_STATUS_LINES",

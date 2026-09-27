@@ -11,11 +11,11 @@ separate key namespaces.
 
 ## 1. Per-call state (resume-on-drop)
 - **Key:** `call:{call_sid}:state` → the call-state object from `docs/03`.
-- **Written** on every phase transition and slot fill (not every token — durable checkpoints
+- **Written** on every stage transition and slot fill (not every token — durable checkpoints
   only).
 - **TTL:** expire a few hours after call end; the post-call worker reads it before expiry.
 - **Resume:** if a call drops mid-flow and reconnects (or a retry dials back), load the last
-  checkpoint so Roma resumes at the phase reached, not from P1. Discovery answers persist —
+  checkpoint so Roma resumes at the stage reached, not from open. Discovery answers persist —
   never re-ask a slot already filled.
 
 ## 2. Cache (latency + cost)
@@ -26,7 +26,7 @@ The same lines are spoken on every single call. Cache them.
   entirely on repeat.
 - **Filler-token cache:** the 200–300ms "achha…" / "haan ji…" clips. Always cached, never
   live-generated.
-- **KB cache:** the DM course facts are static; cache the retrieved grounding so P3/P4 don't
+- **KB cache:** the DM course facts are static; cache the retrieved grounding so value/structure don't
   re-fetch.
 - **Cache invalidation:** fixed-phrase and KB caches are versioned by a content hash — change
   the line, the key changes, old entry is ignored. No manual purge needed.

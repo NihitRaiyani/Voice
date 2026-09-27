@@ -42,7 +42,7 @@ def test_next_discovery_slot_none_when_all_filled():
 def test_a_slot_the_caller_will_not_answer_stops_blocking_the_ones_behind_it():
     """The pointer drives EXTRACTION, not the question. Before the cap, a caller who would
     not give their name left it pinned on `lead_name` while the model moved on, so every
-    later answer was extracted against a field nobody had been asked about — and P2 filled
+    later answer was extracted against a field nobody had been asked about — and discover filled
     nothing at all. Name-first is what made that fatal rather than merely wasteful."""
     from roma.domain.conversation.state import SLOT_ATTEMPT_CAP
 
@@ -86,7 +86,7 @@ def test_as_prompt_vars_has_exactly_the_template_keys():
 
 
 def test_an_uncaptured_name_renders_as_empty_never_the_word_none():
-    """`lead_name` is None until P2 captures it (Roma is inbound). A fragment that
+    """`lead_name` is None until discover captures it (Roma is inbound). A fragment that
     substituted it would otherwise say the literal "None" at a lead."""
     assert CallState().as_prompt_vars()["lead_name"] == ""
 
@@ -161,7 +161,7 @@ def test_prompt_vars_feed_the_assembler_without_dangling_placeholders():
     from roma.domain.conversation.prompts import assemble_system_prompt
 
     s = CallState(branch="Vadodara", lead_name="Asha")
-    prompt = assemble_system_prompt(s.as_prompt_vars(), phase="p1_open")
+    prompt = assemble_system_prompt(s.as_prompt_vars(), stage="open")
     assert "Vadodara" in prompt and "{{" not in prompt
 
 
@@ -169,13 +169,13 @@ def test_the_opening_prompt_greets_by_name_when_the_trigger_supplied_one():
     """INVERTED 2026-08-01 with the pivot back to outbound.
 
     Roma dialled them, so the CRM name is the correct first word — `{{lead_name}}` is back in
-    the P1 fragment. The inbound version of this test asserted the opposite for a good reason
+    the open fragment. The inbound version of this test asserted the opposite for a good reason
     (a stranger who rang us has not told us their name), and that reason no longer holds.
     """
     from roma.domain.conversation.prompts import assemble_system_prompt
 
     s = CallState(branch="Vadodara", lead_name="Asha")
-    assert "Asha" in assemble_system_prompt(s.as_prompt_vars(), phase="p1_open")
+    assert "Asha" in assemble_system_prompt(s.as_prompt_vars(), stage="open")
 
 
 def test_the_opening_prompt_never_renders_the_word_none_for_a_missing_name():
@@ -186,7 +186,7 @@ def test_the_opening_prompt_never_renders_the_word_none_for_a_missing_name():
     """
     from roma.domain.conversation.prompts import assemble_system_prompt
 
-    prompt = assemble_system_prompt(CallState(branch="Vadodara").as_prompt_vars(), "p1_open")
+    prompt = assemble_system_prompt(CallState(branch="Vadodara").as_prompt_vars(), "open")
     # A bare `"None" not in prompt` fails on the fragment's own instruction not to say it,
     # so assert the SUBSTITUTION SITE instead: `Hello {{lead_name}} ji` must not render a
     # name, and no placeholder may survive.
@@ -195,7 +195,7 @@ def test_the_opening_prompt_never_renders_the_word_none_for_a_missing_name():
     assert "{{lead_name}}" not in prompt
 
     named = assemble_system_prompt(
-        CallState(branch="Vadodara", lead_name="Asha").as_prompt_vars(), "p1_open"
+        CallState(branch="Vadodara", lead_name="Asha").as_prompt_vars(), "open"
     )
     assert "Hello Asha ji" in named
 
@@ -207,15 +207,15 @@ def test_a_captured_name_reaches_the_model_through_the_known_line():
 
     s = CallState(branch="Vadodara", lead_name="Asha")
     assert "naam Asha" in s.as_prompt_vars()["known"]
-    assert "Asha" in assemble_system_prompt(s.as_prompt_vars(), phase="p2_discover")
+    assert "Asha" in assemble_system_prompt(s.as_prompt_vars(), stage="discover")
 
 
 def test_checkpoint_round_trip_preserves_state():
     s = CallState(
         call_sid="CA123",
         education="12th",
-        phase="p5_pivot",
-        phase_turn_count=2,
+        stage="pivot",
+        stage_turn_count=2,
         objection_counts={"fees": 1},
         slots_offered=["Mon 6pm", "Tue 11am"],
         inquiry_confirmed=True,
@@ -225,8 +225,19 @@ def test_checkpoint_round_trip_preserves_state():
 
 
 def test_from_dict_ignores_unknown_keys():
-    restored = CallState.from_dict({"call_sid": "CA1", "phase": "p2_discover", "legacy": 1})
-    assert restored.call_sid == "CA1" and restored.phase == "p2_discover"
+    restored = CallState.from_dict({"call_sid": "CA1", "stage": "discover", "legacy": 1})
+    assert restored.call_sid == "CA1" and restored.stage == "discover"
+
+
+def test_old_checkpoint_is_read_and_rewritten_with_stage_names():
+    restored = CallState.from_dict(
+        {"call_sid": "CA1", "phase": "p5_pivot", "phase_turn_count": 2}
+    )
+    assert restored.stage == "pivot"
+    assert restored.stage_turn_count == 2
+    checkpoint = restored.to_dict()
+    assert checkpoint["stage"] == "pivot"
+    assert "phase" not in checkpoint and "phase_turn_count" not in checkpoint
 
 
 def test_no_offer_yet_says_so_rather_than_rendering_a_blank():
@@ -282,7 +293,7 @@ def test_the_known_line_lists_what_the_lead_answered():
 
 
 def test_the_known_line_never_names_a_field():
-    """`p2_discover` forbids saying "education" or "timing constraint" out loud. A prompt
+    """`discover` forbids saying "education" or "timing constraint" out loud. A prompt
     that hands Roma the field name is a prompt that gets the field name said."""
     s = CallState(
         education="BCom",
@@ -317,7 +328,7 @@ def test_pending_day_is_checkpointed():
 
 
 def test_an_accepted_slot_removes_the_offer_times_from_the_prompt():
-    """THE regression. `p7_close.md` rendered SLOT STATUS ("read back Monday 2:00 PM")
+    """THE regression. `close.md` rendered SLOT STATUS ("read back Monday 2:00 PM")
     directly above OFFER ("offer only 11 AM or 5 PM") — two different sets of times in one
     prompt. Roma read the OFFER list and asked "gyaarah baje ya paanch baje?" seven times
     in a row, over a 2 PM the machine had already accepted. `won=False`."""

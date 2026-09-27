@@ -12,9 +12,9 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.frame_processor import FrameDirection
 from roma.domain.conversation.state import CallState
 from roma.realtime import filler as filler_mod
-from roma.realtime import phase_controller as pc_mod
+from roma.realtime import stage_controller as pc_mod
 from roma.realtime.filler import FILLER_LINES, FillerClip, FillerPicker, load_fillers
-from roma.realtime.phase_controller import PhaseControllerProcessor
+from roma.realtime.stage_controller import StageControllerProcessor
 
 VARS = {"branch": "Vadodara", "lead_name": "ji"}
 
@@ -28,7 +28,7 @@ def test_the_rendered_clips_exist_and_are_short_enough():
     latency it exists to hide. docs/05 says 200-300ms; Bulbul pads short utterances, which
     is why `make_filler_clips.py` trims silence. Half a second is the outer limit before
     the mask costs more than it saves — except the OBJECTION bucket, whose looser cap is a
-    stated trade in `OBJECTION_LINES`: those turns have the slowest completions (the P6
+    stated trade in `OBJECTION_LINES`: those turns have the slowest completions (the objection
     reframe), and empathy clipped short reads as dismissal."""
     from roma.realtime.filler import OBJECTION_LINES
 
@@ -109,23 +109,23 @@ def test_intent_for_matches_the_turn_shape():
     assert intent_for(None) is FillerIntent.NEUTRAL
 
 
-def test_the_phase_outranks_the_text_classifier():
+def test_the_stage_outranks_the_text_classifier():
     """Both live mismatches from call 8517d576 (2026-08-08).
 
     The text classifier is a GUESS at the same question the machine has already answered,
-    so where the machine has an opinion it wins. `dekhiye (question, p6_objection)` opened
-    an objection turn like a lecture; `dekhiye (question, p1_open)` opened the lead's very
+    so where the machine has an opinion it wins. `dekhiye (question, objection)` opened
+    an objection turn like a lecture; `dekhiye (question, open)` opened the lead's very
     first words the same way.
     """
     from roma.realtime.filler import FillerIntent, intent_for
 
-    assert intent_for("ye kitna mehenga hai", "p6_objection") is FillerIntent.OBJECTION
-    assert intent_for("kya batayenge", "p6_objection") is FillerIntent.OBJECTION
+    assert intent_for("ye kitna mehenga hai", "objection") is FillerIntent.OBJECTION
+    assert intent_for("kya batayenge", "objection") is FillerIntent.OBJECTION
     for text in ("haan kya hai", "ji kaun bol raha hai", "mehenga hai"):
-        assert intent_for(text, "p1_open") is FillerIntent.NEUTRAL, text
+        assert intent_for(text, "open") is FillerIntent.NEUTRAL, text
     # Where the machine has no opinion, the text still decides.
-    assert intent_for("course kitne mahine ka hai", "p2_discover") is FillerIntent.QUESTION
-    assert intent_for("bahut mehenga hai", "p5_pivot") is FillerIntent.OBJECTION
+    assert intent_for("course kitne mahine ka hai", "discover") is FillerIntent.QUESTION
+    assert intent_for("bahut mehenga hai", "pivot") is FillerIntent.OBJECTION
 
 
 def test_each_intent_bucket_rotates_rather_than_repeating():
@@ -171,7 +171,7 @@ def _drive(proc, frames):
 
 
 def _proc(fillers):
-    return PhaseControllerProcessor(
+    return StageControllerProcessor(
         CallState(call_sid="t", **VARS),
         client=None,
         now_fn=lambda: __import__("datetime").datetime(2026, 7, 25, 10, 0),
@@ -228,14 +228,14 @@ def test_the_filler_does_not_play_on_consecutive_turns():
     assert len(_audio(_drive(proc, [_user_ctx("teesra")]))) == 1, "should resume after a skip"
 
 
-def test_the_closing_phase_gets_no_filler():
-    """P7 turns are capped at twenty-five words — the clip is a meaningful fraction of the
+def test_the_closing_stage_gets_no_filler():
+    """close turns are capped at twenty-five words — the clip is a meaningful fraction of the
     line it precedes, and "achha… Theek hai, milte hain" is two acknowledgements and a
     goodbye. The mask costs more than the gap here."""
-    from roma.domain.conversation.machine import P7_CLOSE
+    from roma.domain.conversation.stage import ConversationStage
 
     proc = _proc(FillerPicker([_clip(), _clip()]))
-    proc.state.phase = P7_CLOSE
+    proc.state.stage = ConversationStage.CLOSE
     assert not _audio(_drive(proc, [_user_ctx("haan theek hai")]))
 
 
@@ -300,7 +300,7 @@ def test_the_teardown_line_reports_what_the_filler_actually_did():
 
     src = inspect.getsource(media)
     assert "fillers_played=%s" in src
-    assert 'getattr(phase_ctrl._fillers, "played", "off")' in src
+    assert 'getattr(stage_ctrl._fillers, "played", "off")' in src
 
 
 def test_every_clip_is_levelled_to_roma_s_own_speaking_voice():
@@ -331,7 +331,7 @@ def test_every_clip_is_levelled_to_roma_s_own_speaking_voice():
         assert np.abs(pcm).max() < 32000, f"{clip.name} clips"
 
 
-def _slow_proc(fillers, delay, phase="p2_discover"):
+def _slow_proc(fillers, delay, stage="discover"):
     """A controller whose slot extraction takes `delay` seconds — the live shape, where the
     round trip measured 1.93s p50 while the clip covering it is 0.37s long."""
 
@@ -342,8 +342,8 @@ def _slow_proc(fillers, delay, phase="p2_discover"):
         return DiscoveryValue()
 
     state = CallState(call_sid="t", **VARS)
-    state.phase = phase
-    return PhaseControllerProcessor(
+    state.stage = stage
+    return StageControllerProcessor(
         state,
         client=object(),
         now_fn=lambda: __import__("datetime").datetime(2026, 7, 25, 10, 0),

@@ -73,7 +73,7 @@ def test_job_carries_exactly_the_expected_keys():
 def test_job_contains_no_pii():
     """docs/07: a lead's name, phone and transcript are PII. A queue payload is the last
     place they should end up — it is persisted, logged, and read by another process."""
-    state = CallState(call_sid="CA_pii", phase="p7_close", lead_name="Rakesh")
+    state = CallState(call_sid="CA_pii", stage="close", lead_name="Rakesh")
     state.locked_slot = "2026-07-27T15:00:00+05:30"
     payload = _job(call_sid=state.call_sid, outcome=outcome_for(state)).to_json()
 
@@ -106,7 +106,7 @@ def test_with_attempt_increments_and_reserialises():
 )
 def test_outcome_for_reads_the_lock(locked, expected):
     """A soft "dekhta hoon" is `no_lock`, deliberately — CLAUDE.md: it is NOT a win."""
-    state = CallState(call_sid="CA_o", phase="p7_close")
+    state = CallState(call_sid="CA_o", stage="close")
     state.locked_slot = locked
     assert outcome_for(state) == expected
 

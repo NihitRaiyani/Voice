@@ -154,7 +154,7 @@ STILL_OBJECTIONS = [
 
 @pytest.mark.parametrize("text", NOT_OBJECTIONS)
 def test_naming_placement_is_not_objecting_to_it(text):
-    assert classify_objection(text) is None, f"{text!r} would derail the call into P6"
+    assert classify_objection(text) is None, f"{text!r} would derail the call into objection"
 
 
 @pytest.mark.parametrize("text", STILL_OBJECTIONS)

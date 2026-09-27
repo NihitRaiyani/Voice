@@ -1,13 +1,13 @@
 """Per-turn orchestration (docs/03 + docs/06).
 
 `advance_turn` is the one place the pieces compose: given the finalized user text, it
-gathers the turn's signals (per phase), lets the PURE machine pick the next phase, applies
+gathers the turn's signals (per stage), lets the PURE machine pick the next stage, applies
 the resulting state mutations, and checkpoints to the store on durable events. It runs
-BEFORE Roma's response is generated, so the phase it lands on is the phase Roma speaks —
-"the controller picks the phase; the model never does" (docs/03).
+BEFORE Roma's response is generated, so the stage it lands on is the stage Roma speaks —
+"the controller picks the stage; the model never does" (docs/03).
 
-The second model call (slot extraction) is gated here to the slot-bearing phases (P2/P5/P7)
-and skipped everywhere else, honoring "one turn = one LLM call unless a phase provably needs
+The second model call (slot extraction) is gated here to the slot-bearing stages (discover/pivot/close)
+and skipped everywhere else, honoring "one turn = one LLM call unless a stage provably needs
 one". Dependencies (the extraction calls, the classifier, the store, `now`) are injected so
 this is unit-testable with no live API.
 """
@@ -24,15 +24,12 @@ from roma.domain.appointments.timeresolve import (
 )
 from roma.domain.conversation.confirmguard import TIME_CUES, lead_wants_out
 from roma.domain.conversation.machine import (
-    P1_OPEN,
-    P2_DISCOVER,
-    P5_PIVOT,
-    P7_CLOSE,
     Transition,
     TurnSignals,
 )
 from roma.domain.conversation.objection import classify_objection
 from roma.domain.conversation.pacing import band, should_force_pivot
+from roma.domain.conversation.stage import ConversationStage
 from roma.domain.conversation.state import SLOT_ATTEMPT_CAP, CallState, spoken_slot
 from roma.domain.conversation.state_machine import save_state
 from roma.domain.conversation.state_machine import transition as transition_state
@@ -108,7 +105,7 @@ _NEGATIONS = {
 
 
 def is_affirmation(text: str) -> bool:
-    """True if the lead's reply carries an affirmation cue and NO negation (P1 confirm)."""
+    """True if the lead's reply carries an affirmation cue and NO negation (open confirm)."""
     if not text:
         return False
     toks = set(tokens(text))
@@ -135,8 +132,8 @@ def asks_who_we_are(text: str) -> bool:
     Roma's opener is a cached "Hello, Weltec Institute" — a second of audio at connect, no
     LLM. Most callers answer it by stating their business, and those go straight to
     discovery. A caller who instead asks "kaun bol raha hai?" has not heard it, and asking
-    such a person for their NAME (P2's first question) is the rudest possible reply. They
-    stay in P1, which does one thing: says who we are again.
+    such a person for their NAME (discover's first question) is the rudest possible reply. They
+    stay in open, which does one thing: says who we are again.
     """
     toks = list(tokens(text))
     seen = set(toks)
@@ -157,7 +154,7 @@ _COURSE_WORDS = {
 }
 
 # A request to be TOLD. Without one of these, "course" is almost always the lead ANSWERING
-# the P2 status question ("koi course kar raha hoon"), which must not trigger anything.
+# the discover status question ("koi course kar raha hoon"), which must not trigger anything.
 _ASK_CUES = {
     "bataiye",
     "batao",
@@ -191,17 +188,17 @@ def asks_about_course(text: str) -> bool:
 
     ## Why this outranks the discovery queue
 
-    Live call 049f0dc1 (2026-08-01). In P2 the lead asked five separate times — "mujhe
+    Live call 049f0dc1 (2026-08-01). In discover the lead asked five separate times — "mujhe
     course ke baare mein bataiye", "maine poochha aapko" — and the machine had no signal for
-    it. P2 only exits when five slots fill or it times out after five turns, and the lead was
+    it. discover only exits when five slots fill or it times out after five turns, and the lead was
     complaining rather than answering, so neither happened for SIX turns. Roma answered from
-    the P2 prompt, which forbids pitching and carries no course content, so she improvised
+    the discover prompt, which forbids pitching and carries no course content, so she improvised
     the same three facts out of the persona's phrase list over and over.
 
-    The lead asking what the course is IS the cue to go and explain it. P3 exists for exactly
+    The lead asking what the course is IS the cue to go and explain it. value exists for exactly
     that question and has the KB to answer it properly.
 
-    Both halves are required. A bare "course" is usually the lead answering the P2 status
+    Both halves are required. A bare "course" is usually the lead answering the discover status
     question ("koi course kar rahe hain?" -> "haan course kar raha hoon"), and advancing on
     that would skip discovery for someone who never asked anything.
     """
@@ -222,7 +219,7 @@ LEAD_TIME_ASKS_BEFORE_PIVOT = 2
 #    kar rahi. Aapko pehle course ki value clear honi chahiye."
 #   "visit abhi schedule wahi hota hai jab mujhe prompt ho."
 #
-# She was obeying the phase. The phase was wrong. A lead who already knows what they want
+# She was obeying the stage. The stage was wrong. A lead who already knows what they want
 # does not have to be walked through the pitch to earn a slot, and being refused one is the
 # fastest way to lose someone who was ready to book.
 # Unambiguous: none of these can mean "I am busy".
@@ -243,7 +240,7 @@ _BOOKING_WORDS = frozenset(
 # — "abhi meeting mein hoon" is the commonest way a lead says they are busy — so on call
 # 56504a23 the lead said "…toh ab hamari meeting schedule fix karo" and `defers_the_call`
 # fired on the very word that carried the booking intent. The deferral won and Roma stayed
-# in P3. These need a booking VERB alongside them to count.
+# in value. These need a booking VERB alongside them to count.
 _BOOKING_AMBIGUOUS = frozenset(
     {
         "meeting",
@@ -335,13 +332,13 @@ def raises_the_visit_time(text: str) -> bool:
 
 
 def opened_the_conversation(text: str) -> bool:
-    """Inbound P1 exit: has the caller stated their business?
+    """Inbound open exit: has the caller stated their business?
 
     Outbound needed an affirmation here because WE interrupted THEM — "kya abhi 2 minute baat
     kar sakte hain?" is a real question and "haan" is a real answer. Inbound inverts it: they
     dialled Weltec and waited for someone to pick up, so the inquiry is the call itself. A
     caller who says "course ki information chahiye thi" has confirmed it far more clearly
-    than one who says "haan" — and requiring the affirmation left them stuck in P1 for the
+    than one who says "haan" — and requiring the affirmation left them stuck in open for the
     whole call, because they never say it.
 
     The one reply that is NOT an opening is a short bare negation — "nahi", "galat number" —
@@ -552,13 +549,13 @@ def _is_refusal_only(text: str) -> bool:
     Live call CA9933275 (2026-07-27). Roma had offered Monday 11 AM and Monday 5 PM. The
     lead said `નહીં નહીં કોઈ દૂસરા item ના દો` — "no no, don't give me another one" — and
     the extractor returned `accepted=True chose_offer=1 confidence=1.00`. The machine
-    recorded Monday 11 AM as accepted, moved to P7, and Roma read the booking back. The
+    recorded Monday 11 AM as accepted, moved to close, and Roma read the booking back. The
     lead had refused; three utterances later they were still refusing.
 
     Structured output does not make a model's judgement true, and `accepted` had just been
     widened to include a stated intention to come — which is right for "kal aa jaunga" and
     catastrophic when the model over-reaches. So the win condition gets the same code-level
-    veto the P1/P7 affirmation detector already has (`is_affirmation`): a negation anywhere
+    veto the open/close affirmation detector already has (`is_affirmation`): a negation anywhere
     wins outright unless the lead also put a day or a time on the table.
 
     Three things open the gate, and between them they are what a real acceptance carries: a
@@ -632,7 +629,7 @@ def _corroborate(ts, user_text: str):
     Live call CA4777470 (2026-07-27). The lead said `4 બજે` — "four o'clock" — three times.
     Every turn:
 
-        slot verdict: phase=p5_pivot reason=unclear ... hour=4 anchor=- resolved=- status=none
+        slot verdict: stage=pivot reason=unclear ... hour=4 anchor=- resolved=- status=none
 
     `hour=4` was extracted correctly. It was thrown away because the model reported
     `confidence=0.50`, under `CONFIDENCE_THRESHOLD` (0.70). Nothing about that utterance was
@@ -651,7 +648,7 @@ def _corroborate(ts, user_text: str):
     This cannot re-open the phantom booking of CA9933275: `નહીં નહીં કોઈ દૂસરા item ના દો`
     carries no time evidence, so it is never floored — and `_is_refusal_only` vetoes the
     claim regardless. The residual exposure is STT mishearing a time into existence, which
-    is exactly the exposure a self-reported 0.9 already carries, and the P7 readback is the
+    is exactly the exposure a self-reported 0.9 already carries, and the close readback is the
     designed net for it: the lead hears the time and confirms it before anything locks.
     """
     if ts.confidence >= CONFIDENCE_THRESHOLD:
@@ -673,7 +670,7 @@ def _spoken_offers(state: CallState) -> list:
 def _close_turn(
     state: CallState, ts, verdict, claimed: bool, user_text: str, sig: dict
 ) -> None:
-    """The P7 readback turn: revise, lock, or hold. Order is load-bearing.
+    """The close readback turn: revise, lock, or hold. Order is load-bearing.
 
     REVISION IS CHECKED FIRST. A lead who says "haan, Monday theek rahega" at the readback
     is changing the day, not confirming Tuesday — but `is_affirmation` fires on "haan", so a
@@ -683,7 +680,7 @@ def _close_turn(
     time.
     """
     if claimed and verdict.slot is not None and verdict.slot.isoformat() != state.accepted_slot:
-        _log.info("p7: slot revised %s -> %s", state.accepted_slot, verdict.slot.isoformat())
+        _log.info("close: slot revised %s -> %s", state.accepted_slot, verdict.slot.isoformat())
         state.accepted_slot = verdict.slot.isoformat()
         state.slot_status = "accepted"
         return
@@ -699,7 +696,7 @@ def _close_turn(
     # Surface why it failed so the fragment can re-offer; never fall through to the lock.
     if claimed and verdict.slot is None:
         _log.info(
-            "p7: unresolved revision (%s) — holding, not locking %s",
+            "close: unresolved revision (%s) — holding, not locking %s",
             verdict.reason,
             state.accepted_slot,
         )
@@ -733,7 +730,7 @@ async def advance_turn(
     `Transition` (carrying `win`/`hard_pivot`). Checkpoints to `store` on durable events.
 
     `elapsed_secs` is seconds since the call connected. It drives the five-minute budget
-    (`roma.domain.conversation.pacing`): it rides into the phase prompt as `{{pacing}}`, and past
+    (`roma.domain.conversation.pacing`): it rides into the stage prompt as `{{pacing}}`, and past
     three minutes it can force the machine forward to the booking. Defaults to 0.0 so
     every existing caller and test keeps the old behaviour exactly.
     """
@@ -742,14 +739,14 @@ async def advance_turn(
     # can never disagree (live call e3237622: she called a Saturday "Wednesday").
     state.today_iso = now.date().isoformat()
     state.turn_count += 1
-    state.phase_turn_count += 1
-    phase = state.phase
+    state.stage_turn_count += 1
+    stage = state.stage
 
-    # Checked in EVERY phase, not just P1: a lead can ask the call to stop at any point, and
-    # on 049f0dc1 they did it in P3. Sticky by assignment — once true it is never cleared.
+    # Checked in EVERY stage, not just open: a lead can ask the call to stop at any point, and
+    # on 049f0dc1 they did it in value. Sticky by assignment — once true it is never cleared.
     if not state.lead_wants_out and lead_wants_out(user_text):
         state.lead_wants_out = True
-        _log.info("lead asked to end the call; sign-off guard will not hold (phase=%s)", phase)
+        _log.info("lead asked to end the call; sign-off guard will not hold (stage=%s)", stage)
 
     sig: dict = {}
     slot_filled = False
@@ -765,15 +762,15 @@ async def advance_turn(
             sig["objection"] = obj.value
             objection_recorded = True
             _log.info(
-                "objection: %s (count=%d, phase=%s)",
+                "objection: %s (count=%d, stage=%s)",
                 obj.value,
                 state.objection_counts[obj.value],
-                phase,
+                stage,
             )
 
-    # Counted for every phase, before the per-phase branches: the lead can start pushing for
-    # a time in P3 and still be pushing in P4, and a counter that only ran inside one branch
-    # would reset at the phase boundary — which is exactly where 0f09c8a3 crossed.
+    # Counted for every stage, before the per-stage branches: the lead can start pushing for
+    # a time in value and still be pushing in structure, and a counter that only ran inside one branch
+    # would reset at the stage boundary — which is exactly where 0f09c8a3 crossed.
     if raises_the_visit_time(user_text):
         state.lead_time_asks += 1
     else:
@@ -786,7 +783,7 @@ async def advance_turn(
     # Neither fires while the lead is leaving. "Baad mein milte hain" carries a booking word
     # and a deferral carries a time, and answering either with a slot is precisely the push
     # hard rule 6 forbids.
-    # Read from the text directly, not from `sig`: `declined_now` is set inside the P1 branch
+    # Read from the text directly, not from `sig`: `declined_now` is set inside the open branch
     # BELOW this point, so a sig lookup here is always False.
     #
     # A DEFERRAL vetoes the weak route only. `defers_the_call` fires on "meeting", because
@@ -802,33 +799,33 @@ async def advance_turn(
         user_text
     )
     sig["asks_to_book"] = not leaving and (wants_to_book(user_text) or weak_route)
-    if sig["asks_to_book"] and phase not in (P5_PIVOT, P7_CLOSE):
+    if sig["asks_to_book"] and stage not in (ConversationStage.PIVOT, ConversationStage.CLOSE):
         # States the SIGNAL, not the outcome. This line used to say "pivoting to the offer"
-        # and said it twice on bde258d1 while the machine was refusing to pivot out of P1 —
+        # and said it twice on bde258d1 while the machine was refusing to pivot out of open —
         # a log that reports an intention as a fact hides the bug it should have exposed.
-        # Whether the pivot happened is visible in the phase change that follows.
-        _log.info("lead asked to book (phase=%s)", phase)
+        # Whether the pivot happened is visible in the stage change that follows.
+        _log.info("lead asked to book (stage=%s)", stage)
 
-    if phase == P1_OPEN:
-        # A caller asking who picked up holds P1 whatever else the reply contains — "haan,
+    if stage == ConversationStage.OPEN:
+        # A caller asking who picked up holds open whatever else the reply contains — "haan,
         # Weltec hai?" is an affirmation AND a question, and the question is the part that
-        # matters. P1 answers it; P2 would ask them their name instead.
+        # matters. open answers it; discover would ask them their name instead.
         # Outbound adds a third answer that inbound never had. Inbound, anything substantive
         # meant "I rang you, here is why" and advancing was right. Outbound, WE interrupted
         # THEM, so "abhi meeting mein hoon, baad mein call karo" is substantive, is not a
         # wrong number, and is emphatically not permission — `opened_the_conversation` returns
         # True for it and would walk a busy person straight into five discovery questions.
-        # Hard rule 6: one alternative, then close. So a deferral holds P1.
+        # Hard rule 6: one alternative, then close. So a deferral holds open.
         # ...unless they asked to BOOK. "Meeting fix karo" matches `defers_the_call` (the
-        # word "meeting" genuinely carries both senses), and P1 was the one phase where that
-        # collision still won: `machine.next_phase` lists P1_OPEN among the phases a booking
+        # word "meeting" genuinely carries both senses), and open was the one stage where that
+        # collision still won: `machine.next_stage` lists ConversationStage.OPEN among the stages a booking
         # request may pivot from, but gates it on `not declined_now`, so the readiest lead on
         # the list — someone answering "kya abhi 2 minute baat ho sakti hai?" with "book me a
-        # meeting" — was read as hanging up and held in P1.
+        # meeting" — was read as hanging up and held in open.
         #
         # Same precedence the pivot already applies everywhere else: an EXPLICIT ask to book
         # outranks the deferral lexicon it collides with. A deferral that is not also a
-        # booking request still holds P1, which is the compliance case this flag exists for.
+        # booking request still holds open, which is the compliance case this flag exists for.
         sig["declined_now"] = defers_the_call(user_text) and not sig["asks_to_book"]
         sig["inquiry_confirmed"] = (
             not asks_who_we_are(user_text)
@@ -836,7 +833,7 @@ async def advance_turn(
             and (is_affirmation(user_text) or opened_the_conversation(user_text))
         )
 
-    elif phase == P2_DISCOVER:
+    elif stage == ConversationStage.DISCOVER:
         sig["asks_about_course"] = asks_about_course(user_text)
         slot_name = state.next_discovery_slot()
         if slot_name and client is not None:
@@ -847,7 +844,7 @@ async def advance_turn(
                 slot_filled = True
             else:
                 # Nothing usable came back. Count it, so a slot the caller will not answer
-                # cannot pin the pointer for the rest of P2 (state.SLOT_ATTEMPT_CAP).
+                # cannot pin the pointer for the rest of discover (state.SLOT_ATTEMPT_CAP).
                 state.record_slot_attempt(slot_name)
                 if state.slot_attempts[slot_name] >= SLOT_ATTEMPT_CAP:
                     _log.info(
@@ -856,7 +853,7 @@ async def advance_turn(
                         slot_name,
                     )
 
-    elif phase in (P5_PIVOT, P7_CLOSE):
+    elif stage in (ConversationStage.PIVOT, ConversationStage.CLOSE):
         if client is not None:
             offered = _parse_offers(state.slots_offered)
             ts = await extract_time(client, user_text, offered=_spoken_offers(state))
@@ -868,18 +865,18 @@ async def advance_turn(
 
             said_a_time = _has_time_evidence(set(tokens(user_text)))
             if not claimed and verdict.reason == "ok" and said_a_time:
-                _log.info("claim inferred: the lead named a bookable time (phase=%s)", phase)
+                _log.info("claim inferred: the lead named a bookable time (stage=%s)", stage)
                 claimed = True
 
             if claimed and _is_refusal_only(user_text):
-                _log.info("claim vetoed: refusal with no day or time in it (phase=%s)", phase)
+                _log.info("claim vetoed: refusal with no day or time in it (stage=%s)", stage)
                 claimed = False
                 verdict = SlotVerdict("unclear")
 
             if verdict.day is not None:
                 state.pending_day = verdict.day.isoformat()
 
-            if phase == P5_PIVOT:
+            if stage == ConversationStage.PIVOT:
                 if claimed and verdict.slot is not None:
                     state.accepted_slot = verdict.slot.isoformat()
                     state.slot_status = "accepted"
@@ -892,15 +889,15 @@ async def advance_turn(
                     if pinned and pinned != state.slots_offered:
                         state.slots_offered = pinned
                         offers_changed = True
-                        _log.info("p5 re-offer on %s: %s", verdict.day, ",".join(pinned))
-            elif phase == P7_CLOSE:
+                        _log.info("pivot re-offer on %s: %s", verdict.day, ",".join(pinned))
+            elif stage == ConversationStage.CLOSE:
                 _close_turn(state, ts, verdict, claimed, user_text, sig)
                 lock_happened = sig.get("readback_confirmed", False)
 
             _log.info(
-                "slot verdict: phase=%s reason=%s accepted=%s chose_offer=%s conf=%.2f "
+                "slot verdict: stage=%s reason=%s accepted=%s chose_offer=%s conf=%.2f "
                 "day_offset=%s weekday=%s%s hour=%s anchor=%s resolved=%s status=%s",
-                phase,
+                stage,
                 verdict.reason,
                 ts.accepted,
                 ts.chose_offer,
@@ -915,31 +912,31 @@ async def advance_turn(
             )
             _log.debug("slot verdict text: %r", user_text)
 
-    if not (phase == P2_DISCOVER and slot_filled):
+    if not (stage == ConversationStage.DISCOVER and slot_filled):
         _record_objection(user_text)
 
     transition = transition_state(state, TurnSignals(**sig))
 
-    if should_force_pivot(elapsed_secs, transition.next_phase):
+    if should_force_pivot(elapsed_secs, transition.next_stage):
         _log.info(
-            "pacing: %.0fs elapsed (%s) — forcing %s → p5_pivot",
+            "pacing: %.0fs elapsed (%s) — forcing %s → pivot",
             elapsed_secs,
             band(elapsed_secs),
-            transition.next_phase,
+            transition.next_stage,
         )
-        transition = Transition(P5_PIVOT, hard_pivot=True)
+        transition = Transition(ConversationStage.PIVOT, hard_pivot=True)
 
-    changed = transition.next_phase != state.phase
+    changed = transition.next_stage != state.stage
     if changed:
-        state.phase = transition.next_phase
-        state.phase_turn_count = 0
+        state.stage = transition.next_stage
+        state.stage_turn_count = 0
 
-    if state.phase == P5_PIVOT and not state.slots_offered:
+    if state.stage == ConversationStage.PIVOT and not state.slots_offered:
         state.slots_offered = [d.isoformat() for d in await calendar.offers(now)]
         offers_changed = True
         state.pending_day = _sole_offer_day(state.slots_offered)
         _log.info(
-            "p5 offers: %s (anchor=%s)",
+            "pivot offers: %s (anchor=%s)",
             ",".join(state.slots_offered) or "(none available)",
             state.pending_day or "-",
         )
@@ -950,7 +947,7 @@ async def advance_turn(
         try:
             await save_state(store, state)
         except Exception:  # noqa: BLE001 — a checkpoint is best-effort, the turn is not
-            _log.warning("call-state checkpoint failed; continuing (phase=%s)", state.phase)
+            _log.warning("call-state checkpoint failed; continuing (stage=%s)", state.stage)
 
     return transition
 

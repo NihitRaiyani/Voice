@@ -64,19 +64,19 @@ def test_a_checkpoint_failure_mid_call_does_not_end_the_turn():
 
     client = _FlipClient()
     store = RedisCallStateStore(client=client)
-    state = CallState(call_sid="CA_flip", phase="p5_pivot")
+    state = CallState(call_sid="CA_flip", stage="pivot")
 
     t1 = asyncio.run(
         advance_turn(state, "ye to bahut mehenga hai", client=None, now=NOW, store=store)
     )
-    assert t1.next_phase == "p6_objection"
+    assert t1.next_stage == "objection"
     assert asyncio.run(store.load("CA_flip")) is not None, "turn one must have checkpointed"
 
     client.kill()
     t2 = asyncio.run(
         advance_turn(state, "phir bhi mehenga lagta hai", client=None, now=NOW, store=store)
     )
-    assert t2.next_phase == "p5_pivot" and t2.hard_pivot is True, (
+    assert t2.next_stage == "pivot" and t2.hard_pivot is True, (
         "the machine must keep advancing on a dead checkpoint store"
     )
     assert state.turn_count == 2

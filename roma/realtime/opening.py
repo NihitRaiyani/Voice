@@ -1,8 +1,8 @@
-"""Hold the lead's first words until Roma has actually opened (docs/02, docs/03 P1).
+"""Hold the lead's first words until Roma has actually opened (docs/02, docs/03 open).
 
 ## The bug this exists to stop
 
-An outbound call opens with `LLMRunFrame()` queued at connect, which generates Roma's P1
+An outbound call opens with `LLMRunFrame()` queued at connect, which generates Roma's open
 greeting. But the lead has a phone to their ear and says "Hello" the moment they pick up —
 so a `TranscriptionFrame` lands ~1s later, while that first generation is still in flight.
 The user aggregator treats it as a complete user turn and fires a SECOND generation.
@@ -26,7 +26,7 @@ not of turn-taking in general. It belongs in one small processor on the input pa
 ## Why not just drop the frames
 
 The text is kept and re-emitted once Roma finishes. A lead who answers the phone with
-"Haan boliye" has told us something real — docs/03's P1 confirm reads exactly that kind of
+"Haan boliye" has told us something real — docs/03's open confirm reads exactly that kind of
 reply — and silently discarding it would make Roma re-ask a question already answered.
 Suppressing the *turn* is not the same as discarding the *words*.
 """
@@ -89,7 +89,7 @@ def is_noise_transcript(text: str) -> bool:
 
     * No surviving tokens (punctuation, stray marks) -> noise.
     * A SINGLE character -> noise. This is the line that needs care: `હા` and `ha` are real
-      two-character affirmations that decide the P1 confirm, so the threshold sits below
+      two-character affirmations that decide the open confirm, so the threshold sits below
       them deliberately. One character is never a word the lead meant to say.
     * A script Roma's leads do not speak -> noise. Added after CA3c7d3c7b (2026-07-28),
       where auto-detect STT decoded breaths as Tamil. The length rule caught three of them
@@ -161,7 +161,7 @@ def is_pickup_token(text: str) -> bool:
 
 
 def _looks_affirmative(text: str) -> bool:
-    """Whether the controller will read this as the P1 confirm — for LOGGING only.
+    """Whether the controller will read this as the open confirm — for LOGGING only.
 
     Imported lazily so this module keeps no import-time dependency on the controller: the
     telephony layer drives the controller, not the other way round.
@@ -505,7 +505,7 @@ class PickupGreeter(FrameProcessor):
         """Kick off Roma's opening turn exactly once.
 
         The opener is SPOKEN, not generated, whenever `opening_text_fn` yields a line.
-        `phases/p1_open.md` orders the model to say one exact sentence, so asking for it costs
+        `stages/open.md` orders the model to say one exact sentence, so asking for it costs
         a network round trip to be told what we already know — and on calls acf8e78f and
         c5672a23 (2026-08-01) that round trip stalled (64s, 18.6s) and both calls were silent
         end to end. The lead had just picked up and heard nothing.

@@ -34,10 +34,10 @@ So the two conditions are evaluated by whichever signal can answer them first:
 A suppressed backchannel logs and returns CONTINUE. It must NOT call
 `trigger_reset_aggregation()` — that handler wipes the *entire* aggregation buffer, not the
 last segment, and docs/05 only ever says "log it, keep talking". Only the *interruption* is
-suppressed; the text stays. Three concrete regressions this avoids: `achha` is the P6->P5
-objection-answered signal, `hmm` is a whole user turn in the P2 budget test, and a lone `હા`
-answering P1 while Roma finishes the question would be silently dropped — which is exactly
-the live P1 stall the Gujarati affirmation fix was written to cure.
+suppressed; the text stays. Three concrete regressions this avoids: `achha` is the objection->pivot
+objection-answered signal, `hmm` is a whole user turn in the discover budget test, and a lone `હા`
+answering open while Roma finishes the question would be silently dropped — which is exactly
+the live open stall the Gujarati affirmation fix was written to cure.
 """
 
 import asyncio

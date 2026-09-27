@@ -1,4 +1,4 @@
-PHASE: CLOSE
+STAGE: CLOSE
 
 {{today}}
 

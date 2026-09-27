@@ -29,7 +29,7 @@ frames survive the aggregator.
 
 Two processors each know half of it and neither can see the other's half:
 
-* `PhaseControllerProcessor` sits UPSTREAM of the LLM and sees the `LLMContextFrame` that
+* `StageControllerProcessor` sits UPSTREAM of the LLM and sees the `LLMContextFrame` that
   starts a turn. It cannot see audio.
 * `SilenceWatchdog` sits after the output transport and sees `TTSAudioRawFrame` when it
   reaches the wire. It cannot see a turn begin.

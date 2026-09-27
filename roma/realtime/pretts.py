@@ -40,6 +40,7 @@ from roma.domain.conversation.confirmguard import (
     safe_confirmation,
     safe_time_talk,
 )
+from roma.domain.conversation.stage import ConversationStage
 from roma.domain.safety import safe_output
 from roma.realtime.filler import strip_leading_ack
 
@@ -81,7 +82,7 @@ class PreTTSFilterProcessor(FrameProcessor):
     def __init__(
         self,
         slot_status_fn=None,
-        phase_fn=None,
+        stage_fn=None,
         filler_fn=None,
         wants_out_fn=None,
         facts_said_fn=None,
@@ -89,7 +90,7 @@ class PreTTSFilterProcessor(FrameProcessor):
     ) -> None:
         super().__init__()
         self._slot_status_fn = slot_status_fn
-        self._phase_fn = phase_fn
+        self._stage_fn = stage_fn
         self._filler_fn = filler_fn
         self._wants_out_fn = wants_out_fn
         self._facts_said_fn = facts_said_fn
@@ -112,17 +113,17 @@ class PreTTSFilterProcessor(FrameProcessor):
             _log.warning("confirmation gate could not read slot_status; assuming none")
             return "none"
 
-    def _phase(self) -> str:
-        """The phase Roma is speaking in. Read at frame time, like `_slot_status`. With no
-        call state wired, report an OFFER phase so the gate never rewrites a unit test's
+    def _stage(self) -> ConversationStage:
+        """The stage Roma is speaking in. Read at frame time, like `_slot_status`. With no
+        call state wired, report an OFFER stage so the gate never rewrites a unit test's
         line — same posture as `_slot_status` defaulting to "accepted"."""
-        if self._phase_fn is None:
-            return "p5_pivot"
+        if self._stage_fn is None:
+            return ConversationStage.PIVOT
         try:
-            return str(self._phase_fn())
+            return ConversationStage(self._stage_fn())
         except Exception:  # noqa: BLE001 — unreadable state fails towards "do not schedule"
-            _log.warning("time-talk gate could not read the phase; assuming the course")
-            return "p3_value"
+            _log.warning("time-talk gate could not read the stage; assuming the course")
+            return ConversationStage.VALUE
 
     def _wants_out(self) -> bool:
         """Has the lead asked the call to stop? Read at frame time like the others.
@@ -189,7 +190,7 @@ class PreTTSFilterProcessor(FrameProcessor):
             self._first_of_turn = False
             after_ack = line
             status = self._slot_status()
-            line = safe_confirmation(line, status, self._phase())
+            line = safe_confirmation(line, status, self._stage())
             denied = safe_availability(line, status)
             if denied != line:
                 self.denial_holds += 1
@@ -204,7 +205,7 @@ class PreTTSFilterProcessor(FrameProcessor):
             if held != line:
                 self.signoff_holds += 1
             steered = safe_time_talk(
-                held, self._phase(), self._facts_said(), self.time_talk_holds
+                held, self._stage(), self._facts_said(), self.time_talk_holds
             )
             if steered != held:
                 self.time_talk_holds += 1

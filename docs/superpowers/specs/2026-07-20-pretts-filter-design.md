@@ -190,9 +190,9 @@ Each row is `input → expected (verdict / category)`. Table-driven.
 ### Allow-case: negation-gated pushback
 | # | Input | Expect | Pins |
 |---|---|---|---|
-| P1 | `wo ₹5000 fees nahi, offer message hai` | ALLOW (pushback) | canonical doc allow-case; comma clause-split |
-| P2 | `main discount nahi de sakti` | ALLOW (pushback) | negation adjacent to keyword |
-| P3 | `wo number fees nahi tha` | ALLOW (pushback) | lead-quoted number deflected |
+| open | `wo ₹5000 fees nahi, offer message hai` | ALLOW (pushback) | canonical doc allow-case; comma clause-split |
+| discover | `main discount nahi de sakti` | ALLOW (pushback) | negation adjacent to keyword |
+| value | `wo number fees nahi tha` | ALLOW (pushback) | lead-quoted number deflected |
 
 ### Negation-distance (the FP boundary — explicit)
 | # | Input | Expect | Pins |

@@ -18,7 +18,7 @@ billed by Twilio.
 ## Why it waits for `BotStoppedSpeakingFrame`
 
 `EndWorkerFrame` flushes what is queued ahead of it, but only what has already been queued.
-The win is decided in `PhaseControllerProcessor` BEFORE the closing line has been generated
+The win is decided in `StageControllerProcessor` BEFORE the closing line has been generated
 — ending there would cut Roma off mid-goodbye, which is a worse bug than the one being
 fixed. So this sits after `transport.output()`, where `BotStoppedSpeakingFrame` means the
 audio has actually been written to the wire, and ends the call on the first one after the
@@ -64,7 +64,7 @@ _log = logging.getLogger("roma.realtime")
 class CallCloser(FrameProcessor):
     """End the call on a locked visit, or when the five-minute budget runs out.
 
-    Reads the win from the phase controller rather than tracking it here: the machine owns
+    Reads the win from the stage controller rather than tracking it here: the machine owns
     the win condition (docs/03) and a second copy of it would be a second thing to get
     wrong. `won_fn` is a callable so the value is read at frame time, not at construction.
 

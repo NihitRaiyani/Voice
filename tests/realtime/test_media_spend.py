@@ -7,7 +7,7 @@ real money with nothing counting it at all. `_UsageLogger` logged token counts a
 there: no rupees, no total, no ledger, nothing that survived the process.
 
 That was survivable on gpt-4o-mini at roughly ₹0.5 a call. On gpt-4o it is ~₹8 a call
-against a ₹100 phase budget, which is about twelve calls — few enough that "we would
+against a ₹100 testing budget, which is about twelve calls — few enough that "we would
 notice" is not a plan.
 """
 
@@ -96,7 +96,7 @@ def test_no_ledger_configured_is_not_a_crash(tmp_path):
 
 def test_the_usage_logger_reports_what_this_call_spent(tmp_path):
     """The teardown line needs a per-call number, not just a running total: "this call cost
-    ₹8" is what tells you the phase is twelve calls long."""
+    ₹8" is what tells you the budget permits about twelve calls."""
     u = _UsageLogger(enable_direct_mode=True, ledger=SpendLedger(tmp_path / "s.jsonl"))
     _drive(u, [_usage_frame(), _usage_frame()])
     assert u.call_inr > 0.0

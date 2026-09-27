@@ -15,7 +15,7 @@ live call 932b6c88:
 
 1.9 seconds of generation, billed, then discarded and replaced by `SAFE_HOLD_LINE`. The
 deterministic layer already KNEW the answer before the request went out — `advance_turn`
-runs ahead of the LLM, by design, so that the machine picks the phase and never the model.
+runs ahead of the LLM, by design, so that the machine picks the stage and never the model.
 
 `PickupGreeter` already proves the mechanism: push `LLMFullResponseStartFrame` ->
 `TextFrame` -> `LLMFullResponseEndFrame` and the rest of the pipeline cannot tell the
@@ -35,7 +35,7 @@ So the honest split of ten utterances:
     not swallow them.
   * **3 bypass-eligible** — the answer is a constant that already exists in `confirmguard`.
     Red today.
-  * **2 booking-intent** — route to P5 *and* still reach the model. Green today, and the
+  * **2 booking-intent** — route to pivot *and* still reach the model. Green today, and the
     guard against a short-circuit that over-reaches.
 """
 
@@ -48,7 +48,7 @@ from roma.domain.conversation.confirmguard import (
     SAFE_HOLD_LINE,
     lead_wants_out,
 )
-from roma.domain.conversation.machine import P5_PIVOT
+from roma.domain.conversation.stage import ConversationStage
 from roma.domain.conversation.state import CallState
 from roma.domain.conversation.turn import advance_turn, defers_the_call, wants_to_book
 from roma.domain.safety import safe_output
@@ -56,7 +56,7 @@ from roma.domain.safety.filter import screen
 from roma.domain.safety.lexicon import SUBSTITUTIONS, BlockCategory
 
 # Frozen like `test_turn.py:19` — a Friday morning, inside visiting hours, so the offer
-# phase has real slots to name and the test does not drift with the wall clock.
+# stage has real slots to name and the test does not drift with the wall clock.
 NOW = datetime(2026, 7, 25, 8, 0, tzinfo=IST)
 
 # --- the dataset -------------------------------------------------------------------------
@@ -98,7 +98,7 @@ async def _fake_discovery(client, text, slot_name):
     """Async and low-confidence on purpose (`advance_turn` awaits both extractors).
 
     Below the acceptance threshold, so no discovery slot fills and no time is accepted:
-    the ROUTING decision stays the only thing that can move the phase, which is what this
+    the ROUTING decision stays the only thing that can move the stage, which is what this
     file is about.
     """
     return DiscoveryValue(value=text, confidence=0.2)
@@ -158,43 +158,43 @@ def test_booking_intent_outranks_the_deferral_lexicon_it_collides_with():
     )
 
 
-def test_booking_intent_routes_to_the_offer_phase():
+def test_booking_intent_routes_to_the_offer_stage():
     """The precedence above, proven end to end rather than asserted about the predicates."""
     for text in BOOKING_INTENT:
-        for start in ("p2_discover", "p3_value", "p4_structure", "p6_objection"):
-            state = _state(phase=start)
+        for start in ("discover", "value", "structure", "objection"):
+            state = _state(stage=start)
             _advance(state, text)
-            assert state.phase == P5_PIVOT, (
-                f"{text!r} from {start} did not reach the offer phase — intent must "
-                "outrank phase order"
+            assert state.stage == ConversationStage.PIVOT, (
+                f"{text!r} from {start} did not reach the offer stage — intent must "
+                "outrank stage order"
             )
 
 
 def test_a_booking_request_answering_the_opener_is_swallowed_by_declined_now():
     """RED — found while writing this file, not previously known.
 
-    `machine.next_phase` lists P1_OPEN among the phases a booking request may pivot from
-    (`machine.py:88-93`), but the pivot is gated on `not signals.declined_now`, and in P1 a
+    `machine.next_stage` lists ConversationStage.OPEN among the stages a booking request may pivot from
+    (`machine.py:88-93`), but the pivot is gated on `not signals.declined_now`, and in open a
     reply carrying no affirmation token sets `declined_now`. So:
 
-        CallState(phase="p1_open") + "Meeting fix karo"
+        CallState(stage="open") + "Meeting fix karo"
           -> signals: declined_now=True, asks_to_book=True
-          -> stays in p1_open
+          -> stays in open
 
     A lead who answers "kya abhi 2 minute baat ho sakti hai?" with "book me a meeting" is
     the readiest lead on the list, and the machine reads them as hanging up. Every other
-    phase handles it (the test above). This is the user's own instruction — "activity
+    stage handles it (the test above). This is the user's own instruction — "activity
     detection should be powerful... it's not necessary to follow sequential paths" — with
-    one phase still missing.
+    one stage still missing.
 
     Deliberately NOT fixed here: this is a test change, and `declined_now` gates the
     compliance path where a lead really is refusing the call. It needs its own change and
     its own live call.
     """
-    state = _state(phase="p1_open")
+    state = _state(stage="open")
     _advance(state, "Meeting fix karo")
-    assert state.phase == P5_PIVOT, (
-        "NOT FIXED: an explicit booking request in P1 is discarded as a declined call — "
+    assert state.stage == ConversationStage.PIVOT, (
+        "NOT FIXED: an explicit booking request in open is discarded as a declined call — "
         "declined_now vetoes asks_to_book in machine.py:88-93"
     )
 
@@ -253,7 +253,7 @@ def _require_router():
     mod = _shortcircuit()
     assert mod is not None, (
         "NOT BUILT: roma/controller/shortcircuit.py — canned_reply(state, user_text) -> "
-        "str | None, consulted by PhaseControllerProcessor BEFORE it forwards the context "
+        "str | None, consulted by StageControllerProcessor BEFORE it forwards the context "
         "frame. A non-None result is spoken via the LLMFullResponseStart/Text/End trio that "
         "PickupGreeter already uses (opening.py:412-415), and the completion is skipped. "
         "Measured cost of not having it: 1.9s per guarded turn on call 932b6c88."
@@ -301,7 +301,7 @@ def test_a_booking_request_is_never_short_circuited():
     mod = _require_router()
     for text in BOOKING_INTENT:
         state = _state()
-        state.phase = P5_PIVOT
+        state.stage = ConversationStage.PIVOT
         assert mod.canned_reply(state, text) is None, (
             f"{text!r} was answered with a canned line — a booking request needs an offer "
             "built from this lead's constraints, not a form letter"

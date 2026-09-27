@@ -3,7 +3,7 @@ whitespace collapse -> brand-fold. No cross-script transliteration; the lexicon
 lists the spellings we match (docs/04).
 
 `tokens()` is the one tokenizer every lexicon matcher shares (guardrails filter,
-P6 objection classifier, barge-in backchannel guard). A per-module private copy
+objection objection classifier, barge-in backchannel guard). A per-module private copy
 would drift, and the Indic strip rule below is exactly the kind of subtlety that
 only stays correct in one place."""
 

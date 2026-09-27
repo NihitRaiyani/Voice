@@ -44,14 +44,14 @@ def _send(guard, frames):
 
 
 def test_a_transcript_before_roma_opens_does_not_start_a_turn():
-    """THE regression. Without this the pickup 'Hello' fires a second P1 generation."""
+    """THE regression. Without this the pickup 'Hello' fires a second open generation."""
     g = _guard()
     out = _send(g, [TranscriptionFrame("Hello", "lead", "t1")])
     assert out == []
 
 
 def test_the_words_are_released_after_the_opening_not_discarded():
-    """A lead who answers with 'Haan boliye' has told us something docs/03 P1 reads as the
+    """A lead who answers with 'Haan boliye' has told us something docs/03 open reads as the
     inquiry confirm. Suppressing the TURN must not discard the WORDS. (A bare "Hello" is
     the other case — see `test_a_bare_hello_is_dropped_not_released`.)"""
     g = _guard()
@@ -177,7 +177,7 @@ def test_a_single_character_is_noise():
 
 
 def test_two_character_affirmations_are_NOT_noise():
-    """The threshold sits deliberately below `હા` and `ha`. These decide the P1 inquiry
+    """The threshold sits deliberately below `હા` and `ha`. These decide the open inquiry
     confirm — dropping one costs a real answer, which is far worse than answering a cough."""
     assert not is_noise_transcript("હા")
     assert not is_noise_transcript("ha")
@@ -463,7 +463,7 @@ def test_the_outbound_greeter_speaks_the_opener_instead_of_asking_the_llm_for_it
     answered, heard nothing, and hung up. Both times the FIRST completion stalled — 64s and
     18.6s — on a link that otherwise carried the call.
 
-    `p1_open.md` orders one exact sentence, so asking for it spends a network round trip to
+    `open.md` orders one exact sentence, so asking for it spends a network round trip to
     be told what we already know, on the one turn where silence costs most.
 
     The trio matters, not just the text: `PreTTSFilterProcessor` keys `_first_of_turn` on the

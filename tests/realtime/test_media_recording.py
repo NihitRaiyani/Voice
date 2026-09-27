@@ -45,7 +45,7 @@ def _recorder(tmp_path, *, audio=b"\x01\x02\x03\x04" * 8000):
 
 
 def _state(locked=None):
-    s = CallState(call_sid="CA_fin", phase="p7_close")
+    s = CallState(call_sid="CA_fin", stage="close")
     s.locked_slot = locked
     return s
 
@@ -219,9 +219,9 @@ def test_both_clients_are_closed(tmp_path):
 def test_call_handles_carries_the_recorder():
     """Per-call, keyed by stream SID (docs/08) — never a process-global slot that
     concurrent calls would clobber."""
-    h = CallHandles(counter=1, transcript=2, pretts=3, phase_ctrl=4, recorder="rec")
+    h = CallHandles(counter=1, transcript=2, pretts=3, stage_ctrl=4, recorder="rec")
     assert h.recorder == "rec"
-    assert CallHandles(counter=1, transcript=2, pretts=3, phase_ctrl=4).recorder is None
+    assert CallHandles(counter=1, transcript=2, pretts=3, stage_ctrl=4).recorder is None
 
 
 def test_the_capture_processor_sits_after_the_output_transport():

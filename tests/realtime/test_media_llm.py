@@ -32,10 +32,10 @@ def test_generation_runs_on_gpt_4o():
     """The conversation model, moved up from gpt-4o-mini (2026-07-27).
 
     mini kept losing the prompt's hard rules under pressure — most visibly hard rule 10
-    (p7_close: "do not sign off until SLOT STATUS says the visit is locked"), where it
+    (close: "do not sign off until SLOT STATUS says the visit is locked"), where it
     signed off with "milte hain... confirmation WhatsApp par bhej rahi hoon" on a call
     whose slot was merely `accepted`, never locked. That is the exact failure the whole
-    seven-phase machine exists to prevent, and no further prompt wording moved it.
+    seven-stage machine exists to prevent, and no further prompt wording moved it.
     """
     assert LLM_MODEL == "gpt-4o"
 

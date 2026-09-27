@@ -125,7 +125,7 @@ def test_suppression_never_resets_aggregation():
     """The suppressed text must survive.
 
     `trigger_reset_aggregation()` wipes the WHOLE aggregation buffer, not the last
-    segment. A lone `હા` answering P1 while Roma finishes the question would be dropped —
+    segment. A lone `હા` answering open while Roma finishes the question would be dropped —
     the exact live stall the Gujarati affirmation fix cured. Only the interruption is
     suppressed, never the text.
     """
@@ -158,7 +158,7 @@ def test_content_word_over_roma_barges_in():
 
 
 def test_backchannel_while_roma_silent_starts_a_turn():
-    """The P1 regression guard.
+    """The open regression guard.
 
     `હા` answering a question Roma has finished asking is an ANSWER, not a nod. docs/05
     condition (c) fails, so the guard must not engage — and the turn must start at VAD

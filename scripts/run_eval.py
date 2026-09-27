@@ -64,8 +64,8 @@ def _print_result(result, verbose: bool) -> None:
     print(f"\n{mark}  {result.name}  ({len(result.turns)} turns, outcome={result.outcome})")
     if verbose:
         for t in result.turns:
-            flag = "  " if not t.expect_phase or t.phase == t.expect_phase else "->"
-            print(f"   {flag} {t.index:>2}. [{t.phase:<12}] lead: {t.lead}")
+            flag = "  " if not t.expect_stage or t.stage == t.expect_stage else "->"
+            print(f"   {flag} {t.index:>2}. [{t.stage:<12}] lead: {t.lead}")
             if t.roma:
                 print(f"          roma ({len(t.roma.split())}w): {t.roma}")
     if result.halted:

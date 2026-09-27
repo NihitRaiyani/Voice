@@ -66,13 +66,13 @@ def create_app() -> FastAPI:
         p = h.pretts if h else None
         return {"last_spoken": getattr(p, "last_spoken", None)}
 
-    @app.get("/debug/last-phase")
-    async def _last_phase():
+    @app.get("/debug/last-stage")
+    async def _last_stage():
         h = sole_call(app)
-        pc = h.phase_ctrl if h else None
+        pc = h.stage_ctrl if h else None
         state = getattr(pc, "state", None)
         return {
-            "phase": getattr(state, "phase", None),
+            "stage": getattr(state, "stage", None),
             "turn_count": getattr(state, "turn_count", None),
             "won": getattr(pc, "won", None),
         }

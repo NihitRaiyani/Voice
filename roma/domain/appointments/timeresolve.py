@@ -126,7 +126,7 @@ def resolve_time_slot_reason(slot: TimeSlot, now: datetime) -> "tuple[str, datet
     So the rejection needs a *reason*, not just a None: "outside branch hours" needs Roma to
     say the branch is shut then and offer alternatives, while "I could not parse a time"
     needs her to simply re-ask. `roma.domain.conversation.turn` puts the reason into call state and
-    `state.as_prompt_vars()` renders it into the phase prompt.
+    `state.as_prompt_vars()` renders it into the stage prompt.
 
     Reasons: `ok` | `out_of_hours` | `in_past` | `unclear`.
 

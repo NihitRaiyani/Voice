@@ -6,7 +6,7 @@ Call 0ce455b0 (2026-08-04) ran five minutes and thirteen seconds. Roma said noth
 and heard nothing at all. The teardown line:
 
     media stream ended: inbound_frames=923 ... outbound_frames=0 outbound_bytes=0
-                        phase=p1_open won=False
+                        stage=open won=False
 
 `outbound_frames=0` means the serializer was never handed a single frame to play — not one
 byte of audio reached the carrier for the whole call. Meanwhile, six times:

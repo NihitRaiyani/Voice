@@ -1,7 +1,7 @@
 """What Roma is allowed to offer (roma.domain.appointments.calendar).
 
 The controller picks the visit slots; Roma only speaks them. She used to invent two each
-turn by copying the example in `p5_pivot.md`, so nothing was ever on record and a lead
+turn by copying the example in `pivot.md`, so nothing was ever on record and a lead
 answering "મેં Tuesday કુ આઉંગા" had nothing to be resolved against.
 
 The invariant that matters most here is the last one: an offer the resolver would refuse is

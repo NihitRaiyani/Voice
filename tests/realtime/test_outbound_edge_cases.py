@@ -1,4 +1,4 @@
-"""Outbound edge cases found while rebuilding P1, each with the resolution that ships.
+"""Outbound edge cases found while rebuilding open, each with the resolution that ships.
 
 The pivot moved Roma from answering to dialling, and the first eight seconds invert with it.
 Every case here is one where the call still CONNECTS and still sounds plausible while being
@@ -15,7 +15,7 @@ from roma.domain.conversation.turn import defers_the_call
 from roma.repositories.redis.leads import OutboundLead
 
 # --- EDGE 1: the CRM record has no name --------------------------------------
-# RESOLUTION: omit the key from the seed so CallState's None default stands, and let P1's
+# RESOLUTION: omit the key from the seed so CallState's None default stands, and let open's
 # fallback wording carry the greeting. Covered end to end in test_outbound_trigger and
 # test_state; asserted here as the *conversational* consequence.
 
@@ -57,7 +57,7 @@ def test_direction_is_decided_by_the_token_not_by_the_record(monkeypatch):
 
 
 # --- EDGE 3: "not now" is substantive, and used to mean "advance" -------------
-# RESOLUTION: `defers_the_call` holds P1. Inbound had no such answer — a caller who rang us
+# RESOLUTION: `defers_the_call` holds open. Inbound had no such answer — a caller who rang us
 # never says "I'm busy" — so `opened_the_conversation` returning True for it was harmless
 # then and walks a driving lead into five discovery questions now.
 
@@ -75,7 +75,7 @@ DEFERRALS = [
 
 
 @pytest.mark.parametrize("text", DEFERRALS)
-def test_a_deferral_is_recognised_and_holds_the_opening_phase(text):
+def test_a_deferral_is_recognised_and_holds_the_opening_stage(text):
     assert defers_the_call(text), f"deferral not detected: {text!r}"
 
 
@@ -94,7 +94,7 @@ def test_agreement_is_not_mistaken_for_a_deferral(text):
     assert not defers_the_call(text), f"over-matched as a deferral: {text!r}"
 
 
-def test_the_opening_phase_does_not_advance_on_a_deferral():
+def test_the_opening_stage_does_not_advance_on_a_deferral():
     """The signal that matters: a busy lead must not land in discovery."""
     from roma.domain.conversation.turn import (
         asks_who_we_are,

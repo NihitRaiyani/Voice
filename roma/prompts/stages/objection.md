@@ -1,4 +1,4 @@
-PHASE: OBJECTION
+STAGE: OBJECTION
 
 {{said}}
 

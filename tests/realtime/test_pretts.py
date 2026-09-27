@@ -128,7 +128,7 @@ def test_a_leading_ack_is_dropped_when_a_clip_just_said_it():
     the clip and the sentence behind it — the clip cannot know what she is about to say,
     because it plays before the model is asked. So the match is made afterwards, on her
     line."""
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p5_pivot", lambda: True)
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "pivot", lambda: True)
     assert _speak(proc, "Achha, toh aap abhi job kar rahe hain?") == (
         "Toh aap abhi job kar rahe hain?"
     )
@@ -137,7 +137,7 @@ def test_a_leading_ack_is_dropped_when_a_clip_just_said_it():
 def test_the_opener_survives_when_no_clip_played():
     """With no clip there is nothing to duplicate, and an acknowledgement is ordinary
     counsellor speech. Stripping it unconditionally would flatten her."""
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p5_pivot", lambda: False)
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "pivot", lambda: False)
     line = "Achha, toh aap abhi job kar rahe hain?"
     assert _speak(proc, line) == line
 
@@ -147,7 +147,7 @@ def test_only_the_first_sentence_of_a_turn_is_stripped():
     opener. Only the sentence the clip actually preceded can collide with it."""
     from pipecat.frames.frames import LLMFullResponseStartFrame
 
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p5_pivot", lambda: True)
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "pivot", lambda: True)
     asyncio.run(proc.process_frame(LLMFullResponseStartFrame(), FrameDirection.DOWNSTREAM))
     assert _speak(proc, "Achha, teen module hain.") == "Teen module hain."
     assert _speak(proc, "Bilkul, wahi hai.") == "Bilkul, wahi hai."
@@ -168,7 +168,7 @@ def test_the_same_substitution_is_never_spoken_twice_in_one_turn():
     it, not the model."""
     from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE
 
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p3_value")
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "value")
     _start_turn(proc)
     first = _speak(proc, "Subah das baje aa sakte hain?")
     assert first.strip() == SAFE_COURSE_LINE, "the first catch must still be substituted"
@@ -189,12 +189,12 @@ def test_two_different_canned_lines_in_one_turn_are_not_both_spoken():
     `dupe_drops=0` on that call while the duplicate was audible."""
     from roma.domain.conversation.confirmguard import reoffer_line
 
-    proc = PreTTSFilterProcessor(lambda: "in_past", lambda: "p5_pivot")
+    proc = PreTTSFilterProcessor(lambda: "in_past", lambda: "pivot")
     _start_turn(proc)
     first = _speak(proc, "Aapka visit confirm ho gaya hai.")
-    # Phase-aware since c9be521d: in an OFFER phase the re-offer is a statement, so it does
+    # Stage-aware since c9be521d: in an OFFER stage the re-offer is a statement, so it does
     # not race the concrete times Roma is about to name in the same turn.
-    assert first.strip() == reoffer_line("p5_pivot")
+    assert first.strip() == reoffer_line("pivot")
     assert _speak(proc, "Theek hai ji, milte hain.") is None, "two steers in one turn"
     assert proc.dupe_drops == 1
 
@@ -203,7 +203,7 @@ def test_a_substitution_is_padded_at_both_ends():
     """ "...do baje ko.Ek second ji" — the TTS service concatenates a turn's frames verbatim.
     A trailing space alone cannot fix that join: the sentence IN FRONT is Roma's own line and
     may carry no padding of its own, so the leading space has to be here."""
-    proc = PreTTSFilterProcessor(lambda: "none", lambda: "p5_pivot")
+    proc = PreTTSFilterProcessor(lambda: "none", lambda: "pivot")
     _start_turn(proc)
     out = _speak(proc, "Aapka visit confirm ho gaya hai.")
     assert out.startswith(" ") and out.endswith(" ")
@@ -215,7 +215,7 @@ def test_the_next_turn_may_say_it_again():
     catch unguarded."""
     from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE
 
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p3_value")
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "value")
     _start_turn(proc)
     assert _speak(proc, "Subah das baje aa sakte hain?").strip() == SAFE_COURSE_LINE
     _start_turn(proc)
@@ -230,9 +230,7 @@ def test_the_steer_reads_spent_facts_off_the_live_call_state():
     from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE
 
     said: list[str] = []
-    proc = PreTTSFilterProcessor(
-        lambda: "accepted", lambda: "p3_value", None, None, lambda: said
-    )
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "value", None, None, lambda: said)
 
     _start_turn(proc)
     assert _speak(proc, "Subah das baje aa sakte hain?").strip() == SAFE_COURSE_LINE
@@ -247,7 +245,7 @@ def test_the_steer_reads_spent_facts_off_the_live_call_state():
 def test_two_steers_after_the_fact_is_spent_are_not_the_same_sentence():
     """`time_talk_holds` is what rotates them; pin that the processor passes it."""
     proc = PreTTSFilterProcessor(
-        lambda: "accepted", lambda: "p3_value", None, None, lambda: ["modules"]
+        lambda: "accepted", lambda: "value", None, None, lambda: ["modules"]
     )
     _start_turn(proc)
     first = _speak(proc, "Subah das baje aa sakte hain?").strip()
@@ -263,7 +261,7 @@ def test_an_exploding_facts_reader_falls_back_to_the_old_steer():
     def _boom():
         raise RuntimeError("redis gone")
 
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p3_value", None, None, _boom)
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "value", None, None, _boom)
     _start_turn(proc)
     assert _speak(proc, "Subah das baje aa sakte hain?").strip() == SAFE_COURSE_LINE
 
@@ -271,7 +269,7 @@ def test_an_exploding_facts_reader_falls_back_to_the_old_steer():
 def test_the_first_line_of_a_turn_is_never_dropped():
     """The drop must never be able to produce dead air — that is the one thing docs/04 does
     not allow a catch to do. It cannot, because the turn's history is empty here."""
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p3_value")
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "value")
     for _ in range(3):
         _start_turn(proc)
         assert _speak(proc, "Subah das baje aa sakte hain?") is not None
@@ -282,7 +280,7 @@ def test_a_substitution_cannot_fuse_onto_the_next_sentence():
     """ "...isiliye visit best rahega.Pehle main aapko..." — the TTS service concatenates a
     turn's frames verbatim, and the canned lines end on punctuation with no trailing space,
     so two sentences arrived as one unsayable word."""
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p3_value")
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "value")
     _start_turn(proc)
     assert _speak(proc, "Subah das baje aa sakte hain?").endswith(" ")
 
@@ -290,7 +288,7 @@ def test_a_substitution_cannot_fuse_onto_the_next_sentence():
 def test_an_acknowledgement_that_is_the_whole_turn_is_left_alone():
     """Dropping it would hand the lead silence, which is the failure the watchdog exists
     for. A short turn is still a turn."""
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p5_pivot", lambda: True)
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "pivot", lambda: True)
     assert _speak(proc, "Achha ji.") == "Achha ji."
 
 
@@ -299,7 +297,7 @@ def test_the_processor_hands_the_accepted_slot_to_the_hold():
     never passes it the slot — that is how call e1fff5ee got the contradiction."""
     proc = PreTTSFilterProcessor(
         lambda: "accepted",
-        lambda: "p7_close",
+        lambda: "close",
         None,
         None,
         None,
@@ -318,9 +316,7 @@ def test_an_exploding_slot_reader_falls_back_to_the_plain_hold():
     def _boom():
         raise RuntimeError("state gone")
 
-    proc = PreTTSFilterProcessor(
-        lambda: "accepted", lambda: "p7_close", None, None, None, _boom
-    )
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "close", None, None, None, _boom)
     _start_turn(proc)
     assert _speak(proc, "Dhanyavaad ji, milte hain!").strip() == SAFE_HOLD_LINE
 
@@ -356,7 +352,7 @@ def test_ordinary_time_wordings_are_untouched():
 
 def test_the_strip_runs_on_what_actually_reaches_tts():
     """Wiring pin: it must apply to the final text, including a canned substitution."""
-    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "p5_pivot")
+    proc = PreTTSFilterProcessor(lambda: "accepted", lambda: "pivot")
     _start_turn(proc)
     out = _speak(proc, "Toh Tuesday, 4 August ko subah 11:00 baje — theek hai?")
     assert "11:00 baje" not in out
@@ -372,7 +368,7 @@ def test_a_trailing_statement_substitution_is_dropped_not_spoken():
     inside one turn. The blocked sentence still must not air; dropping it is the strongest
     form of that, and docs/04's rule is about dead air, which cannot happen once the turn
     has already produced audible text."""
-    proc = PreTTSFilterProcessor(lambda: "none", lambda: "p5_pivot")
+    proc = PreTTSFilterProcessor(lambda: "none", lambda: "pivot")
     _start_turn(proc)
     first = _speak(proc, "Tuesday 4 August ko subah 11 baje theek rahega?")
     assert first.strip().endswith("?"), "her own question must be spoken"
@@ -386,17 +382,17 @@ def test_a_first_sentence_substitution_is_still_spoken():
     the turn's first sentence, dropping it WOULD be dead air."""
     from roma.domain.conversation.confirmguard import reoffer_line
 
-    proc = PreTTSFilterProcessor(lambda: "none", lambda: "p5_pivot")
+    proc = PreTTSFilterProcessor(lambda: "none", lambda: "pivot")
     _start_turn(proc)
     out = _speak(proc, "Aapka slot confirm ho gaya hai.")
-    assert out is not None and out.strip() == reoffer_line("p5_pivot")
+    assert out is not None and out.strip() == reoffer_line("pivot")
     assert proc.dupe_drops == 0
 
 
 def test_a_trailing_substitution_that_asks_is_still_spoken():
     """Only question-free substitutions are dropped — one that hands the turn back is
     doing real work and must survive."""
-    proc = PreTTSFilterProcessor(lambda: "none", lambda: "p3_value")
+    proc = PreTTSFilterProcessor(lambda: "none", lambda: "value")
     _start_turn(proc)
     assert _speak(proc, "Aapka background bahut acha hai.") is not None
     out = _speak(proc, "Aapka slot confirm ho gaya hai.")

@@ -2,7 +2,7 @@
 
 Live call CA1bf16a (2026-07-26). The prompt said "Confirm kuch mat karo"; Roma said
 "Tuesday subah gyaarah baje ko aap aa rahi ho, ye confirm ho gaya"; the teardown said
-`phase=p5_pivot won=False`. Third call in a row, second since the SLOT STATUS line was
+`stage=pivot won=False`. Third call in a row, second since the SLOT STATUS line was
 added — so the rule moved from the prompt into a gate on the pre-TTS path.
 """
 
@@ -159,28 +159,26 @@ def test_the_signoff_gate_never_takes_the_turn_down_with_it():
     assert safe_close(_Exploding("kuch bhi"), "none", 0) is not None
 
 
-def test_asking_for_a_visit_time_before_the_offer_phase_is_held():
+def test_asking_for_a_visit_time_before_the_offer_stage_is_held():
     from roma.domain.conversation.confirmguard import is_premature_time_talk
 
-    assert is_premature_time_talk(
-        "Subah das ya gyaarah baje ka time theek rahega?", "p2_discover"
-    )
-    assert is_premature_time_talk("Aap kab aa sakte hain?", "p3_value")
-    assert is_premature_time_talk("Aap subah free rehte hain ya shaam ko?", "p2_discover")
+    assert is_premature_time_talk("Subah das ya gyaarah baje ka time theek rahega?", "discover")
+    assert is_premature_time_talk("Aap kab aa sakte hain?", "value")
+    assert is_premature_time_talk("Aap subah free rehte hain ya shaam ko?", "discover")
 
 
-def test_the_offer_phases_may_talk_about_time():
-    """P5 and P7 carry the OFFER line. Booking is the whole job there."""
+def test_the_offer_stages_may_talk_about_time():
+    """pivot and close carry the OFFER line. Booking is the whole job there."""
     from roma.domain.conversation.confirmguard import is_premature_time_talk
 
     assert not is_premature_time_talk(
-        "Gyaarah baje ya paanch baje — kaunsa theek rahega?", "p5_pivot"
+        "Gyaarah baje ya paanch baje — kaunsa theek rahega?", "pivot"
     )
-    assert not is_premature_time_talk("Toh kal gyaarah baje, theek hai?", "p7_close")
+    assert not is_premature_time_talk("Toh kal gyaarah baje, theek hai?", "close")
 
 
 def test_the_gate_does_not_eat_ordinary_course_answers():
-    """The expensive failure mode. A gate that swallows P3 content would cost the exact
+    """The expensive failure mode. A gate that swallows value content would cost the exact
     thing this call was missing — and "chaar se chhe mahine" is a duration, not a clock."""
     from roma.domain.conversation.confirmguard import is_premature_time_talk
 
@@ -190,7 +188,7 @@ def test_the_gate_does_not_eat_ordinary_course_answers():
         "Branch subah das se shaam chhe baje tak khuli rehti hai.",
         "SEO, social media marketing aur Google Ads — teen module. Kaunsa interesting lagta hai?",
     ):
-        assert not is_premature_time_talk(line, "p3_value"), line
+        assert not is_premature_time_talk(line, "value"), line
 
 
 def test_the_time_talk_substitution_trips_no_other_gate():
@@ -202,7 +200,7 @@ def test_the_time_talk_substitution_trips_no_other_gate():
     )
     from roma.domain.safety import safe_output
 
-    assert not is_premature_time_talk(SAFE_COURSE_LINE, "p2_discover")
+    assert not is_premature_time_talk(SAFE_COURSE_LINE, "discover")
     assert not is_phantom_confirmation(SAFE_COURSE_LINE, "none")
     assert not is_premature_signoff(SAFE_COURSE_LINE, "none")
     assert safe_output(SAFE_COURSE_LINE) == SAFE_COURSE_LINE
@@ -221,7 +219,7 @@ def test_every_fact_spent_steer_trips_no_other_gate_either():
 
     assert SAFE_COURSE_LINES_FACT_SPENT
     for line in SAFE_COURSE_LINES_FACT_SPENT:
-        assert not is_premature_time_talk(line, "p2_discover"), line
+        assert not is_premature_time_talk(line, "discover"), line
         assert not is_phantom_confirmation(line, "none"), line
         assert not is_premature_signoff(line, "none"), line
         assert safe_output(line) == line, line
@@ -230,7 +228,7 @@ def test_every_fact_spent_steer_trips_no_other_gate_either():
 def test_the_steer_stops_naming_the_modules_once_they_are_spent():
     """Call 6d7cc330: Roma named the three modules, then this guard fired TWICE and named
     them again — the same sentence, word for word, both times. The lead heard one fact
-    three times. It was blamed on the prompt and `{{said}}` was added to p1/p2 to fix it;
+    three times. It was blamed on the prompt and `{{said}}` was added to open/discover to fix it;
     that could never have worked, because this line is substituted, not generated."""
     from roma.domain.conversation.confirmguard import SAFE_COURSE_LINE, steer_line
 
@@ -263,18 +261,18 @@ def test_the_steer_survives_junk_in_place_of_the_fact_list():
 
 
 def test_the_time_gate_catches_english_time_words_too():
-    """Live call CA8a85a4f reported `time_talk_holds=0` while Roma asked, in a phase with
+    """Live call CA8a85a4f reported `time_talk_holds=0` while Roma asked, in a stage with
     no OFFER line: "timing ke hisaab se kya prefer karenge — weekday evening ya weekend
     batch?" Every cue in the lexicon was Indic, and Roma's register is Hinglish."""
     from roma.domain.conversation.confirmguard import is_premature_time_talk
 
     assert is_premature_time_talk(
         "Timing ke hisaab se kya prefer karenge — weekday evening ya weekend batch?",
-        "p3_value",
+        "value",
     )
-    assert is_premature_time_talk("Morning slot theek rahega?", "p2_discover")
+    assert is_premature_time_talk("Morning slot theek rahega?", "discover")
     assert not is_premature_time_talk(
-        "Har module AI tools ke saath sikhaya jaata hai. Kya aur jaanna chahenge?", "p3_value"
+        "Har module AI tools ke saath sikhaya jaata hai. Kya aur jaanna chahenge?", "value"
     )
 
 
@@ -492,7 +490,7 @@ def test_ordinary_lines_are_not_read_as_refusals():
 
 
 def test_the_availability_substitution_trips_no_other_gate():
-    """It carries no '?' on purpose, so the time-talk guard cannot catch it in a phase
+    """It carries no '?' on purpose, so the time-talk guard cannot catch it in a stage
     without an OFFER line."""
     from roma.domain.conversation.confirmguard import (
         SAFE_AVAILABILITY_LINE,
@@ -504,7 +502,7 @@ def test_the_availability_substitution_trips_no_other_gate():
     from roma.domain.safety import safe_output
 
     line = SAFE_AVAILABILITY_LINE
-    assert not is_premature_time_talk(line, "p2_discover")
+    assert not is_premature_time_talk(line, "discover")
     assert not is_phantom_confirmation(line, "none")
     assert not is_premature_signoff(line, "none")
     assert not is_phantom_denial(line, "none"), "the guard would catch its own output"
@@ -526,19 +524,19 @@ def test_the_reoffer_does_not_race_the_offer_she_is_about_to_make():
         reoffer_line,
     )
 
-    for phase in ("p5_pivot", "p7_close"):
-        got = reoffer_line(phase)
-        assert got == SAFE_REOFFER_LINE_IN_OFFER, phase
+    for stage in ("pivot", "close"):
+        got = reoffer_line(stage)
+        assert got == SAFE_REOFFER_LINE_IN_OFFER, stage
         assert "?" not in got, "a second question in a turn that already asks one"
         assert "subah" not in got.casefold()
 
-    # Outside the offer phases there is no competing question, so it still asks one.
-    for phase in ("p2_discover", "p3_value", ""):
-        assert reoffer_line(phase) == SAFE_REOFFER_LINE, phase
+    # Outside the offer stages there is no competing question, so it still asks one.
+    for stage in ("discover", "value", ""):
+        assert reoffer_line(stage) == SAFE_REOFFER_LINE, stage
     assert SAFE_REOFFER_LINE.strip().endswith("?")
 
 
-def test_the_offer_phase_reoffer_trips_no_other_gate():
+def test_the_offer_stage_reoffer_trips_no_other_gate():
     from roma.domain.conversation.confirmguard import (
         SAFE_REOFFER_LINE_IN_OFFER,
         is_phantom_confirmation,
@@ -550,20 +548,20 @@ def test_the_offer_phase_reoffer_trips_no_other_gate():
 
     line = SAFE_REOFFER_LINE_IN_OFFER
     assert not is_phantom_confirmation(line, "none"), "the guard would catch its own output"
-    assert not is_premature_time_talk(line, "p2_discover")
+    assert not is_premature_time_talk(line, "discover")
     assert not is_premature_signoff(line, "none")
     assert not is_phantom_denial(line, "none")
     assert safe_output(line) == line
 
 
-def test_safe_confirmation_routes_on_the_phase():
+def test_safe_confirmation_routes_on_the_stage():
     from roma.domain.conversation.confirmguard import (
         SAFE_REOFFER_LINE_IN_OFFER,
         safe_confirmation,
     )
 
     claim = "Aapki visit confirm ho gayi hai."
-    assert safe_confirmation(claim, "none", "p5_pivot") == SAFE_REOFFER_LINE_IN_OFFER
-    assert safe_confirmation(claim, "none", "p2_discover") != SAFE_REOFFER_LINE_IN_OFFER
-    # Back-compat: the phase is optional and defaults to the asking variant.
+    assert safe_confirmation(claim, "none", "pivot") == SAFE_REOFFER_LINE_IN_OFFER
+    assert safe_confirmation(claim, "none", "discover") != SAFE_REOFFER_LINE_IN_OFFER
+    # Back-compat: the stage is optional and defaults to the asking variant.
     assert safe_confirmation(claim, "none") != SAFE_REOFFER_LINE_IN_OFFER

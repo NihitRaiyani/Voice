@@ -358,7 +358,7 @@ def test_the_usage_logger_sits_after_the_tts_service():
 
 def test_a_swallowed_exception_is_counted():
     """`service_errors` only ever counted ErrorFrames reaching the pipeline handler, so every
-    `except: log and continue` in the repo was invisible to it. A call whose phase advance
+    `except: log and continue` in the repo was invisible to it. A call whose stage advance
     threw on every turn, whose recording never opened and whose ledger never wrote still
     reported `service_errors=0` — which is exactly how the dead VAD and the silently-unplayed
     filler each survived multiple live calls."""
@@ -366,10 +366,10 @@ def test_a_swallowed_exception_is_counted():
 
     h = CallHealth()
     assert h.degraded == {}
-    h.degrade("phase_advance")
-    h.degrade("phase_advance")
+    h.degrade("stage_advance")
+    h.degrade("stage_advance")
     h.degrade("filler_emit")
-    assert h.degraded == {"phase_advance": 2, "filler_emit": 1}
+    assert h.degraded == {"stage_advance": 2, "filler_emit": 1}
     assert h.deaf is False, "a degraded call is not a deaf call"
 
 

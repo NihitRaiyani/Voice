@@ -199,7 +199,7 @@ def test_an_unknown_name_is_omitted_from_the_seed_never_passed_as_empty():
 
     `CallState.lead_name` is None-by-default precisely so `next_discovery_slot()` will ask
     for it (ce4a2e9). Seeding "" for a CRM record with no name marks it already-captured:
-    Roma never asks, and `filled_discovery_count()` is inflated by two, cutting P2 short.
+    Roma never asks, and `filled_discovery_count()` is inflated by two, cutting discover short.
     """
     from roma.domain.conversation.state import CallState
 

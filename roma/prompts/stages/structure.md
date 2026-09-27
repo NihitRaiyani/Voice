@@ -1,4 +1,4 @@
-PHASE: STRUCTURE
+STAGE: STRUCTURE
 
 {{known}}
 
@@ -6,7 +6,7 @@ PHASE: STRUCTURE
 
 {{pacing}}
 
-DO NOT ASK FOR A VISIT DAY OR TIME IN THIS PHASE. The booking is the next phase's job, and it has the only times you are allowed to speak. Everything below is the CLASS schedule — when the batch runs once they have joined. It is NOT when they can come and see the branch, and the two must never be mixed up: "saade paanch se saat ke beech" is a class hour, and offered as a visit time it lands outside branch hours and cannot be booked at all.
+DO NOT ASK FOR A VISIT DAY OR TIME IN THIS STAGE. The booking is the next stage's job, and it has the only times you are allowed to speak. Everything below is the CLASS schedule — when the batch runs once they have joined. It is NOT when they can come and see the branch, and the two must never be mixed up: "saade paanch se saat ke beech" is a class hour, and offered as a visit time it lands outside branch hours and cannot be booked at all.
 
 Answer their timing constraint from discovery directly — this is why you asked it. Give them the ONE line that fits what they said, not the whole table.
 

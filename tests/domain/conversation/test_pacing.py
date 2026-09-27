@@ -73,29 +73,29 @@ def test_pacing_line_matches_the_band():
 
 
 def test_no_pivot_is_forced_while_the_call_is_open():
-    for phase in ("p2_discover", "p3_value", "p4_structure"):
-        assert should_force_pivot(HURRY_SECS - 1, phase) is False
+    for stage in ("discover", "value", "structure"):
+        assert should_force_pivot(HURRY_SECS - 1, stage) is False
 
 
 def test_discovery_and_the_pitch_are_cut_short_once_the_clock_bites():
     for elapsed in (HURRY_SECS, CLOSE_SECS, OVER_SECS):
-        for phase in ("p2_discover", "p3_value", "p4_structure"):
-            assert should_force_pivot(elapsed, phase) is True, (elapsed, phase)
+        for stage in ("discover", "value", "structure"):
+            assert should_force_pivot(elapsed, stage) is True, (elapsed, stage)
 
 
 def test_an_objection_is_never_abandoned_half_answered():
     """docs/03: evading a question a lead has actually asked is what loses a warm lead.
-    Cutting P6 off mid-answer to talk about slots is exactly that, and no amount of time
+    Cutting objection off mid-answer to talk about slots is exactly that, and no amount of time
     pressure makes it the right move."""
-    assert should_force_pivot(OVER_SECS, "p6_objection") is False
+    assert should_force_pivot(OVER_SECS, "objection") is False
 
 
 def test_the_opening_is_never_skipped():
     """Without the inquiry confirm there is nothing to book, and pivoting at a lead who has
     not yet agreed to talk is how a call becomes a complaint."""
-    assert should_force_pivot(OVER_SECS, "p1_open") is False
+    assert should_force_pivot(OVER_SECS, "open") is False
 
 
 def test_the_close_is_left_alone():
-    assert should_force_pivot(OVER_SECS, "p7_close") is False
-    assert should_force_pivot(OVER_SECS, "p5_pivot") is False
+    assert should_force_pivot(OVER_SECS, "close") is False
+    assert should_force_pivot(OVER_SECS, "pivot") is False

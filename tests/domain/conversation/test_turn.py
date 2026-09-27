@@ -1,6 +1,6 @@
 """Orchestrator integration (docs/03 + docs/06). Extraction is faked (no live API); the
-classifier and machine are the real ones. Covers the full P1→P7 win path, the objection
-loop + cap, the P2 turn-budget bail, and checkpoint-on-durable-events only.
+classifier and machine are the real ones. Covers the full open→close win path, the objection
+loop + cap, the discover turn-budget bail, and checkpoint-on-durable-events only.
 
 Async driven with asyncio.run (repo convention)."""
 
@@ -10,7 +10,7 @@ from datetime import datetime
 import pytest
 from roma.domain.appointments.slots import DiscoveryValue, TimeSlot
 from roma.domain.appointments.timeresolve import IST
-from roma.domain.conversation.machine import P2_MAX_TURNS
+from roma.domain.conversation.machine import DISCOVER_MAX_TURNS
 from roma.domain.conversation.pacing import CLOSE_SECS, HURRY_SECS, OVER_SECS
 from roma.domain.conversation.state import DISCOVERY_ORDER, CallState
 from roma.domain.conversation.turn import advance_turn, is_affirmation
@@ -43,57 +43,57 @@ def _advance(state, text, **kw):
     return asyncio.run(advance_turn(state, text, **kw))
 
 
-def test_full_p1_to_p7_win_path():
+def test_full_open_to_close_win_path():
     s = CallState(call_sid="CA_win")
 
-    assert _advance(s, "haan ji").next_phase == "p2_discover"
+    assert _advance(s, "haan ji").next_stage == "discover"
     # "Asha" first: the name is the opening discovery slot now that Roma is inbound.
     for answer in ["Asha", "12th", "2020", "student", "Vadodara"][: len(DISCOVERY_ORDER)]:
         _advance(s, answer)
-    assert s.phase == "p3_value"
+    assert s.stage == "value"
     assert s.filled_discovery_count() == len(DISCOVERY_ORDER)
 
     _advance(s, "achha")
-    assert s.phase == "p3_value"
+    assert s.stage == "value"
     _advance(s, "ye course kya hai")
-    assert s.phase == "p3_value"
+    assert s.stage == "value"
     _advance(s, "kitne mahine ka hai")
-    assert s.phase == "p3_value"
+    assert s.stage == "value"
     _advance(s, "iske baad kya kar sakte hain")
-    assert s.phase == "p4_structure"
+    assert s.stage == "structure"
     _advance(s, "theek")
-    assert s.phase == "p5_pivot"
+    assert s.stage == "pivot"
 
     t = _advance(s, "haan Monday accept hai")
-    assert s.phase == "p7_close" and s.accepted_slot is not None
+    assert s.stage == "close" and s.accepted_slot is not None
 
     t = _advance(s, "haan confirm theek hai")
     assert t.win is True and s.locked_slot == s.accepted_slot
 
 
-def test_p2_bails_to_p3_after_turn_budget_when_slots_never_fill():
-    s = CallState(call_sid="CA_evasive", phase="p2_discover")
-    for _ in range(P2_MAX_TURNS):
+def test_discover_bails_to_value_after_turn_budget_when_slots_never_fill():
+    s = CallState(call_sid="CA_evasive", stage="discover")
+    for _ in range(DISCOVER_MAX_TURNS):
         _advance(s, "hmm", extract_discovery=_fake_discovery_lowconf)
-    assert s.phase == "p2_discover", "the valve must not fire ON the budget turn"
+    assert s.stage == "discover", "the valve must not fire ON the budget turn"
     _advance(s, "hmm", extract_discovery=_fake_discovery_lowconf)
-    assert s.phase == "p3_value" and s.filled_discovery_count() == 0
+    assert s.stage == "value" and s.filled_discovery_count() == 0
 
 
-def test_objection_in_p5_routes_to_p6_then_back_to_p5():
-    s = CallState(call_sid="CA_obj", phase="p5_pivot")
-    assert _advance(s, "ye to bahut mehenga hai").next_phase == "p6_objection"
-    assert s.phase == "p6_objection" and s.objection_counts["cost"] == 1
-    assert _advance(s, "achha theek hai samajh gaya").next_phase == "p5_pivot"
-    assert s.phase == "p5_pivot"
+def test_objection_in_pivot_routes_to_objection_then_back_to_pivot():
+    s = CallState(call_sid="CA_obj", stage="pivot")
+    assert _advance(s, "ye to bahut mehenga hai").next_stage == "objection"
+    assert s.stage == "objection" and s.objection_counts["cost"] == 1
+    assert _advance(s, "achha theek hai samajh gaya").next_stage == "pivot"
+    assert s.stage == "pivot"
 
 
-def test_same_objection_twice_hard_pivots_to_p5():
-    s = CallState(call_sid="CA_hard", phase="p5_pivot")
+def test_same_objection_twice_hard_pivots_to_pivot():
+    s = CallState(call_sid="CA_hard", stage="pivot")
     _advance(s, "mehenga hai")
-    assert s.phase == "p6_objection"
+    assert s.stage == "objection"
     t = _advance(s, "phir bhi mehenga lagta hai")
-    assert t.next_phase == "p5_pivot" and t.hard_pivot is True
+    assert t.next_stage == "pivot" and t.hard_pivot is True
     assert s.objection_counts["cost"] == 2
 
 
@@ -109,7 +109,7 @@ def test_checkpoint_written_on_transition_and_slot_fill_not_on_noop():
             self.saves += 1
 
     store = _CountingStore()
-    s = CallState(call_sid="CA_ckpt", phase="p5_pivot")
+    s = CallState(call_sid="CA_ckpt", stage="pivot")
 
     _advance(s, "kitne log hote hain batch mein", store=store)
     assert store.saves == 1
@@ -130,18 +130,18 @@ def test_affirmation_covers_gujarati_hindi_and_roman(text):
     assert is_affirmation(text) is True
 
 
-def test_gujarati_affirmation_advances_p1_to_p2():
-    s = CallState(call_sid="CA_gu", phase="p1_open")
-    assert _advance(s, "હા જી").next_phase == "p2_discover"
+def test_gujarati_affirmation_advances_open_to_discover():
+    s = CallState(call_sid="CA_gu", stage="open")
+    assert _advance(s, "હા જી").next_stage == "discover"
 
 
-def test_a_caller_who_asks_who_picked_up_stays_in_p1():
-    """P1 is a BRANCH, not a script. Roma's opener is a cached "Hello, Weltec Institute"; a
+def test_a_caller_who_asks_who_picked_up_stays_in_open():
+    """open is a BRANCH, not a script. Roma's opener is a cached "Hello, Weltec Institute"; a
     caller who replies "કોણ બોલો છો" ("who's speaking?") did not catch it, and the only
-    correct reply is to say it again. Advancing them to P2 would answer "who are you?" with
+    correct reply is to say it again. Advancing them to discover would answer "who are you?" with
     "what's your name?", which is the rudest turn in the call."""
-    s = CallState(call_sid="CA_who", phase="p1_open")
-    assert _advance(s, "કોણ બોલો છો").next_phase == "p1_open"
+    s = CallState(call_sid="CA_who", stage="open")
+    assert _advance(s, "કોણ બોલો છો").next_stage == "open"
 
 
 def test_naming_us_back_is_a_question_not_a_confirmation():
@@ -150,8 +150,8 @@ def test_naming_us_back_is_a_question_not_a_confirmation():
 
     assert asks_who_we_are("Weltec hai")
     assert asks_who_we_are("kaun bol raha hai")
-    s = CallState(call_sid="CA_conf", phase="p1_open")
-    assert _advance(s, "haan Weltec hai").next_phase == "p1_open", (
+    s = CallState(call_sid="CA_conf", stage="open")
+    assert _advance(s, "haan Weltec hai").next_stage == "open", (
         "an affirmation wrapped around an identity question is still the question"
     )
 
@@ -162,12 +162,12 @@ def test_naming_us_inside_a_real_enquiry_is_not_an_identity_question():
     from roma.domain.conversation.turn import asks_who_we_are
 
     assert not asks_who_we_are("Weltec ke digital marketing course ke baare mein poochhna tha")
-    s = CallState(call_sid="CA_biz", phase="p1_open")
-    assert _advance(s, "Weltec ke course ke baare mein janna tha").next_phase == "p2_discover"
+    s = CallState(call_sid="CA_biz", stage="open")
+    assert _advance(s, "Weltec ke course ke baare mein janna tha").next_stage == "discover"
 
 
 def test_discovery_slot_not_reasked_after_fill():
-    s = CallState(call_sid="CA_slot", phase="p2_discover", lead_name="Asha")
+    s = CallState(call_sid="CA_slot", stage="discover", lead_name="Asha")
     _advance(s, "job karta hoon")
     assert s.current_status == "job karta hoon"
     assert s.next_discovery_slot() == "education"
@@ -221,11 +221,11 @@ def test_tag_particle_na_is_not_a_refusal():
     assert is_affirmation("ના") is False
 
 
-def test_p1_does_not_advance_on_a_polite_gujarati_refusal():
+def test_open_does_not_advance_on_a_polite_gujarati_refusal():
     """The end-to-end consequence, not just the predicate."""
-    s = CallState(call_sid="CA_refuse", phase="p1_open")
+    s = CallState(call_sid="CA_refuse", stage="open")
     _advance(s, "જી ના")
-    assert s.phase == "p1_open"
+    assert s.stage == "open"
 
 
 async def _six_am(client, text, *, offered=None):
@@ -233,38 +233,38 @@ async def _six_am(client, text, *, offered=None):
 
 
 def test_a_six_am_request_does_not_accept_a_slot_and_says_why():
-    s = CallState(call_sid="CA_6am", phase="p5_pivot")
+    s = CallState(call_sid="CA_6am", stage="pivot")
     _advance(s, "kal subah chhe baje aa jaunga", extract_time=_six_am)
 
     assert s.accepted_slot is None
-    assert s.phase == "p5_pivot"
+    assert s.stage == "pivot"
     assert s.slot_status == "out_of_hours"
 
 
 def test_the_refusal_is_visible_in_the_prompt_the_model_will_read():
     """The state field is only half the fix; the value of it is that it renders into the
-    phase prompt. Assert on what the model actually sees."""
+    stage prompt. Assert on what the model actually sees."""
     from roma.domain.conversation.prompts import assemble_system_prompt
 
-    s = CallState(call_sid="CA_6am", phase="p5_pivot")
+    s = CallState(call_sid="CA_6am", stage="pivot")
     _advance(s, "kal subah chhe baje aa jaunga", extract_time=_six_am)
 
-    prompt = assemble_system_prompt(s.as_prompt_vars(), s.phase)
+    prompt = assemble_system_prompt(s.as_prompt_vars(), s.stage)
     assert "confirm bilkul mat karo" in prompt
 
 
 def test_an_accepted_slot_reaches_the_close_prompt_as_a_readable_day_and_time():
     from roma.domain.conversation.prompts import assemble_system_prompt
 
-    s = CallState(call_sid="CA_ok", phase="p5_pivot")
+    s = CallState(call_sid="CA_ok", stage="pivot")
     _advance(s, "haan Monday accept hai")
 
     assert s.slot_status == "accepted"
-    assert "Sunday 26 July, 5:00 PM" in assemble_system_prompt(s.as_prompt_vars(), s.phase)
+    assert "Sunday 26 July, 5:00 PM" in assemble_system_prompt(s.as_prompt_vars(), s.stage)
 
 
 def test_locking_the_slot_sets_the_locked_status():
-    s = CallState(call_sid="CA_lock", phase="p5_pivot")
+    s = CallState(call_sid="CA_lock", stage="pivot")
     _advance(s, "haan Monday accept hai")
     _advance(s, "haan confirm theek hai")
     assert s.locked_slot is not None and s.slot_status == "locked"
@@ -277,9 +277,9 @@ async def _extractor_that_misses_the_confirm(client, text, *, offered=None):
 
 
 def _at_close(**kw):
-    s = CallState(call_sid="CA_rb", phase="p5_pivot")
+    s = CallState(call_sid="CA_rb", stage="pivot")
     _advance(s, "haan Monday accept hai", **kw)
-    assert s.phase == "p7_close" and s.accepted_slot is not None
+    assert s.stage == "close" and s.accepted_slot is not None
     return s
 
 
@@ -311,129 +311,129 @@ def test_a_refusal_at_the_readback_does_NOT_lock():
 def test_the_fallback_cannot_invent_a_slot_that_was_never_accepted():
     """The lock still requires an `accepted_slot` the resolver already validated — the
     fallback loosens the CONFIRM detector, never the slot itself."""
-    s = CallState(call_sid="CA_noslot", phase="p7_close")
+    s = CallState(call_sid="CA_noslot", stage="close")
     t = _advance(s, "haan bilkul confirm", extract_time=_extractor_that_misses_the_confirm)
     assert t.win is False and s.locked_slot is None
 
 
 def test_the_extractor_still_wins_when_it_does_report_a_confirm():
     """The fallback is an OR, not a replacement — the model-backed path is unchanged."""
-    s = CallState(call_sid="CA_both", phase="p5_pivot")
+    s = CallState(call_sid="CA_both", stage="pivot")
     _advance(s, "haan Monday accept hai")
     assert _advance(s, "confirm").win is True
 
 
 def test_the_clock_is_recorded_on_state_so_the_prompt_can_read_it():
-    s = CallState(call_sid="CA_clock", phase="p2_discover")
+    s = CallState(call_sid="CA_clock", stage="discover")
     _advance(s, "BCom", elapsed_secs=42.0)
     assert s.elapsed_secs == 42.0
     assert "TIME:" not in s.as_prompt_vars()["pacing"]
 
 
 def test_discovery_is_cut_short_once_the_call_runs_long():
-    """Five unfilled slots would normally keep the machine in P2. Past the hurry band the
+    """Five unfilled slots would normally keep the machine in discover. Past the hurry band the
     booking is worth more than the sixth question."""
-    s = CallState(call_sid="CA_hurry", phase="p2_discover")
+    s = CallState(call_sid="CA_hurry", stage="discover")
     t = _advance(s, "hmm", extract_discovery=_fake_discovery_lowconf, elapsed_secs=HURRY_SECS)
-    assert t.next_phase == "p5_pivot" and t.hard_pivot is True
-    assert s.phase == "p5_pivot"
+    assert t.next_stage == "pivot" and t.hard_pivot is True
+    assert s.stage == "pivot"
 
 
 def test_the_same_turn_stays_in_discovery_when_there_is_time():
     """The mirror of the test above, differing ONLY in the clock — otherwise the assertion
     above could pass for the wrong reason."""
-    s = CallState(call_sid="CA_calm", phase="p2_discover")
+    s = CallState(call_sid="CA_calm", stage="discover")
     t = _advance(s, "hmm", extract_discovery=_fake_discovery_lowconf, elapsed_secs=10.0)
-    assert t.next_phase == "p2_discover" and t.hard_pivot is False
+    assert t.next_stage == "discover" and t.hard_pivot is False
 
 
 def test_the_value_pitch_is_skipped_when_the_clock_has_run_out():
-    s = CallState(call_sid="CA_skip", phase="p2_discover")
+    s = CallState(call_sid="CA_skip", stage="discover")
     for slot in ("education", "passing_year", "current_status", "city", "timing_constraint"):
         setattr(s, slot, "x")
     t = _advance(s, "haan", elapsed_secs=CLOSE_SECS)
-    assert t.next_phase == "p5_pivot"
+    assert t.next_stage == "pivot"
 
 
-def test_an_objection_still_routes_to_p6_however_late_it_is():
+def test_an_objection_still_routes_to_objection_however_late_it_is():
     """A lead who raises a real objection at five minutes gets an answer. Cutting them off
     to re-offer slots is evasion, and it is the one thing docs/03 says loses a warm lead.
 
-    Started from P5 because that is where the objection classifier actually runs —
-    `advance_turn` only classifies in P5/P6/P7, so an objection raised during discovery is
+    Started from pivot because that is where the objection classifier actually runs —
+    `advance_turn` only classifies in pivot/objection/close, so an objection raised during discovery is
     not detected at all. That predates the budget and is untouched by it."""
-    s = CallState(call_sid="CA_late_obj", phase="p5_pivot")
+    s = CallState(call_sid="CA_late_obj", stage="pivot")
     t = _advance(s, "ye to bahut mehenga hai", elapsed_secs=OVER_SECS)
-    assert t.next_phase == "p6_objection"
+    assert t.next_stage == "objection"
     assert s.objection_counts["cost"] == 1
 
 
-def test_a_forced_pivot_does_not_bounce_the_call_out_of_p6():
-    """The turn AFTER the forced pivot must not immediately re-force. P6 is excluded, so a
+def test_a_forced_pivot_does_not_bounce_the_call_out_of_objection():
+    """The turn AFTER the forced pivot must not immediately re-force. objection is excluded, so a
     lead still being answered stays answered."""
-    s = CallState(call_sid="CA_p6_stay", phase="p6_objection")
+    s = CallState(call_sid="CA_objection_stay", stage="objection")
     t = _advance(s, "achha theek hai samajh gayi", elapsed_secs=OVER_SECS)
-    assert t.next_phase == "p5_pivot"
+    assert t.next_stage == "pivot"
     assert t.hard_pivot is False
 
 
 def test_the_close_is_never_dragged_backwards_by_the_clock():
-    """P7 with an accepted slot is one confirm away from the win. A forced pivot here would
+    """close with an accepted slot is one confirm away from the win. A forced pivot here would
     throw the booking away at the last moment."""
-    s = CallState(call_sid="CA_late_close", phase="p5_pivot")
+    s = CallState(call_sid="CA_late_close", stage="pivot")
     _advance(s, "haan Monday accept hai", elapsed_secs=10.0)
-    assert s.phase == "p7_close"
+    assert s.stage == "close"
     t = _advance(s, "haan confirm theek hai", elapsed_secs=OVER_SECS)
-    assert t.next_phase == "p7_close" and t.win is True
+    assert t.next_stage == "close" and t.win is True
 
 
 def test_the_default_is_a_call_that_has_just_started():
     """Every pre-existing caller omits `elapsed_secs`; none of them may start pivoting."""
-    s = CallState(call_sid="CA_default", phase="p2_discover")
+    s = CallState(call_sid="CA_default", stage="discover")
     _advance(s, "hmm", extract_discovery=_fake_discovery_lowconf)
-    assert s.phase == "p2_discover" and s.elapsed_secs == 0.0
+    assert s.stage == "discover" and s.elapsed_secs == 0.0
 
 
-@pytest.mark.parametrize("phase", ["p1_open", "p3_value", "p4_structure"])
-def test_an_objection_routes_to_p6_from_any_phase(phase):
-    s = CallState(call_sid=f"CA_obj_{phase}", phase=phase)
-    assert _advance(s, "ye to bahut mehenga hai").next_phase == "p6_objection"
+@pytest.mark.parametrize("stage", ["open", "value", "structure"])
+def test_an_objection_routes_to_objection_from_any_stage(stage):
+    s = CallState(call_sid=f"CA_obj_{stage}", stage=stage)
+    assert _advance(s, "ye to bahut mehenga hai").next_stage == "objection"
     assert s.objection_counts["cost"] == 1
 
 
 def test_an_answered_discovery_question_is_an_answer_not_an_objection():
     """The false positive that hoisting exposed. Roma asks "padh rahe ho ya job kar rahe
     ho?" and the lead says "job dhoondh raha hoon" — a perfectly good answer that the
-    topical objection lexicon reads as a placement objection. In P2 a reply that FILLED the
+    topical objection lexicon reads as a placement objection. In discover a reply that FILLED the
     slot Roma asked for is an answer, whatever words it used."""
     s = CallState(
-        call_sid="CA_p2_answer",
-        phase="p2_discover",
+        call_sid="CA_discover_answer",
+        stage="discover",
         lead_name="Asha",
         education="BCom",
         passing_year="2022",
     )
     t = _advance(s, "job dhoondh raha hoon")
-    assert t.next_phase == "p2_discover", "a discovery answer derailed the call into P6"
+    assert t.next_stage == "discover", "a discovery answer derailed the call into objection"
     assert s.current_status == "job dhoondh raha hoon"
     assert s.objection_counts == {}
 
 
-def test_a_p2_reply_that_answers_nothing_can_still_be_an_objection():
-    """The other half — without this the exception above would simply disable P2."""
-    s = CallState(call_sid="CA_p2_obj", phase="p2_discover")
+def test_a_discover_reply_that_answers_nothing_can_still_be_an_objection():
+    """The other half — without this the exception above would simply disable discover."""
+    s = CallState(call_sid="CA_discover_obj", stage="discover")
     t = _advance(s, "pehle fees batao kitni hai", extract_discovery=_fake_discovery_lowconf)
-    assert t.next_phase == "p6_objection"
+    assert t.next_stage == "objection"
     assert s.objection_counts
 
 
 def test_an_objection_and_an_acceptance_in_one_breath_record_both():
     """ "Tuesday time nathi, Monday chalega" tripped the objection lexicon, and the old
     `if not objection_recorded` short-circuit meant the Monday acceptance was never even
-    parsed. The machine still routes on the objection; the slot is waiting when P6 returns."""
-    s = CallState(call_sid="CA_both", phase="p5_pivot")
+    parsed. The machine still routes on the objection; the slot is waiting when objection returns."""
+    s = CallState(call_sid="CA_both", stage="pivot")
     t = _advance(s, "abhi time nahi hai lekin accept kar leta hoon")
-    assert t.next_phase == "p6_objection"
+    assert t.next_stage == "objection"
     assert s.objection_counts
     assert s.accepted_slot is not None, "the acceptance in the same breath was dropped"
 
@@ -453,7 +453,7 @@ async def _day_only(client, text, *, offered=None):
 
 
 def _at_pivot_with_offers(**kw):
-    s = CallState(call_sid="CA_offer", phase="p5_pivot")
+    s = CallState(call_sid="CA_offer", stage="pivot")
     _advance(s, "kaunsa slot", **kw)
     return s
 
@@ -465,13 +465,13 @@ def test_picking_an_offered_slot_books_it():
     t = _advance(s, "મેં Tuesday કુ આઉંગા", extract_time=_picks_offer_two)
     assert s.accepted_slot == offered[1], "the lead's choice was not recorded"
     assert s.slot_status == "accepted"
-    assert t.next_phase == "p7_close"
+    assert t.next_stage == "close"
 
 
 def test_a_day_with_no_time_keeps_the_day_instead_of_starting_over():
     """`unclear` told Roma to re-ask from scratch, throwing away a day the lead had named
     and making her sound like she was not listening."""
-    s = CallState(call_sid="CA_dayonly", phase="p5_pivot")
+    s = CallState(call_sid="CA_dayonly", stage="pivot")
     s.slots_offered = [TUE_11, TUE_17]
     _advance(s, "Tuesday", extract_time=_day_only)
     assert s.slot_status == "day_only"
@@ -480,7 +480,7 @@ def test_a_day_with_no_time_keeps_the_day_instead_of_starting_over():
 
 def test_a_day_with_only_one_offer_on_it_is_not_ambiguous():
     """ "Tuesday" when only one Tuesday slot was offered IS a choice."""
-    s = CallState(call_sid="CA_one", phase="p5_pivot")
+    s = CallState(call_sid="CA_one", stage="pivot")
     s.slots_offered = [TUE_17]
     _advance(s, "Tuesday", extract_time=_day_only)
     assert s.accepted_slot == TUE_17
@@ -495,7 +495,7 @@ def test_a_non_acceptance_writes_a_status_instead_of_vanishing():
     assert s.slot_status == "none", "a stale refusal survived the turn"
 
 
-def test_every_p5_turn_logs_a_verdict(caplog):
+def test_every_pivot_turn_logs_a_verdict(caplog):
     """The absence of this line on a slot-bearing turn must be impossible — it is what
     makes the failure greppable next time."""
     import logging
@@ -528,7 +528,7 @@ def test_a_new_time_at_the_readback_revises_rather_than_locking():
     s = _at_pivot_with_offers()
     offered = list(s.slots_offered)
     _advance(s, "doosra wala", extract_time=_picks_offer_two)
-    assert s.phase == "p7_close" and s.accepted_slot == offered[1]
+    assert s.stage == "close" and s.accepted_slot == offered[1]
 
     t = _advance(s, "haan pehla wala better rahega", extract_time=_revises_to_offer_one)
     assert s.accepted_slot == offered[0], "the revision was ignored"
@@ -545,7 +545,7 @@ def test_a_plain_confirm_still_locks():
 
 
 def test_a_mishear_at_the_readback_does_not_clobber_the_accepted_slot():
-    """An "ek minute" must not flip `slot_status` to unclear — that tells the p7 prompt she
+    """An "ek minute" must not flip `slot_status` to unclear — that tells the close prompt she
     has nothing to read back and sends her round to re-offer a slot already accepted."""
     s = _at_pivot_with_offers()
     _advance(s, "doosra wala", extract_time=_picks_offer_two)
@@ -570,7 +570,7 @@ def test_a_flat_refusal_cannot_book_a_slot():
     t = _advance(s, "નહીં નહીં કોઈ દૂસરા item ના દો", extract_time=_claims_offer_one)
     assert s.accepted_slot is None, "a refusal was recorded as a booking"
     assert s.slot_status == "none"
-    assert t.next_phase != "p7_close", "a refusal must not reach the readback"
+    assert t.next_stage != "close", "a refusal must not reach the readback"
 
 
 def test_a_refusal_carrying_a_time_is_still_an_acceptance():
@@ -608,7 +608,7 @@ def test_an_hour_with_no_day_lands_on_the_day_under_discussion():
     """THE regression. Roma had moved the visit to Wednesday; the lead said `નહીં મેં 3 બજે
     આઉંગા` and the machine booked MONDAY 15:00 — the stale day off the offer list — then
     told them the branch was closed then. The day the conversation is on is now remembered."""
-    s = CallState(call_sid="CA_anchor", phase="p5_pivot")
+    s = CallState(call_sid="CA_anchor", stage="pivot")
     _advance(s, "kaunsa slot")
     s.pending_day = "2026-07-29"
     _advance(s, "main teen baje aaunga", extract_time=_hour_only_three_pm)
@@ -620,13 +620,13 @@ def test_an_hour_with_no_day_and_no_anchor_stays_unresolved():
     """The anchor is memory, not a guess.
 
     Rewritten when the offers began seeding the anchor (CA4777470): "no anchor" can no
-    longer be produced by simply arriving at P5, because arriving at P5 puts a day on the
+    longer be produced by simply arriving at pivot, because arriving at pivot puts a day on the
     table. It IS produced when the two offers fall on DIFFERENT days — Roma proposes
     "today five, or tomorrow eleven" and the lead says "teen baje". That is genuinely
     ambiguous and Roma must ask which day rather than pick one.
     """
     midday = datetime(2026, 7, 25, 12, 0, tzinfo=IST)
-    s = CallState(call_sid="CA_noanchor", phase="p5_pivot")
+    s = CallState(call_sid="CA_noanchor", stage="pivot")
     _advance(s, "kaunsa slot", now=midday)
     assert len({iso[:10] for iso in s.slots_offered}) == 2, s.slots_offered
     assert s.pending_day is None, "an ambiguous offer pair must not anchor anything"
@@ -636,7 +636,7 @@ def test_an_hour_with_no_day_and_no_anchor_stays_unresolved():
 
 
 def test_naming_a_day_records_it_as_the_day_under_discussion():
-    s = CallState(call_sid="CA_pending", phase="p5_pivot")
+    s = CallState(call_sid="CA_pending", stage="pivot")
     s.slots_offered = [TUE_11, TUE_17]
     _advance(s, "Tuesday", extract_time=_day_only)
     assert s.pending_day == "2026-07-28"
@@ -645,7 +645,7 @@ def test_naming_a_day_records_it_as_the_day_under_discussion():
 def test_accepting_a_time_re_pins_the_offers_to_that_day():
     """The offers Roma speaks are also the offers the extractor is shown. A list left on
     the old day is what taught the model to answer "Wednesday" with Monday."""
-    s = CallState(call_sid="CA_repin", phase="p5_pivot")
+    s = CallState(call_sid="CA_repin", stage="pivot")
     _advance(s, "kaunsa slot")
     s.pending_day = "2026-07-29"
     _advance(s, "main teen baje aaunga", extract_time=_hour_only_three_pm)
@@ -683,7 +683,7 @@ def test_offers_on_two_different_days_anchor_nothing():
     past 11:00 it offers TODAY 17:00 and TOMORROW 11:00 — and "4 baje" against those is
     genuinely ambiguous. A coin toss on the lead's appointment is worse than a re-ask."""
     midday = datetime(2026, 7, 25, 12, 0, tzinfo=IST)
-    s = CallState(call_sid="CA_split", phase="p5_pivot")
+    s = CallState(call_sid="CA_split", stage="pivot")
     _advance(s, "kaunsa slot", now=midday)
     assert s.pending_day is None
 
@@ -791,14 +791,14 @@ def test_a_refusal_still_beats_an_inferred_claim():
     assert s.accepted_slot is None
 
 
-# --- inbound P1 exit (docs/decisions.md, LOCKED 2026-07-31) -------------------------------
+# --- inbound open exit (docs/decisions.md, LOCKED 2026-07-31) -------------------------------
 
 
-def test_a_caller_who_states_their_business_leaves_p1():
-    """The bug the inbound eval fixtures caught. P1 used to advance only on an affirmation,
+def test_a_caller_who_states_their_business_leaves_open():
+    """The bug the inbound eval fixtures caught. open used to advance only on an affirmation,
     because outbound asked a real question ("kya abhi 2 minute baat kar sakte hain?") and
     needed a real yes. An inbound caller says why they rang — "course ki information chahiye
-    thi" — which carries no affirmation cue at all, so the call sat in P1 for its whole
+    thi" — which carries no affirmation cue at all, so the call sat in open for its whole
     length while Roma re-greeted a person who had already explained themselves."""
     from roma.domain.conversation.turn import opened_the_conversation
 
@@ -820,7 +820,7 @@ def test_an_affirmation_still_opens_the_conversation():
 
 def test_a_wrong_number_does_not_get_walked_into_discovery():
     """A short bare negation is someone who dialled the wrong place, not an enquiry. Advancing
-    them to P2 would have Roma asking a stranger's name for no reason."""
+    them to discover would have Roma asking a stranger's name for no reason."""
     from roma.domain.conversation.turn import opened_the_conversation
 
     for wrong in ("nahi", "nahi ji", "ના જી", "जी नहीं"):
@@ -841,7 +841,7 @@ def test_a_negation_inside_a_real_sentence_still_opens():
 
 
 def test_the_name_is_captured_as_the_first_discovery_slot():
-    s = CallState(call_sid="CA_name", phase="p2_discover")
+    s = CallState(call_sid="CA_name", stage="discover")
     _advance(s, "Nikhil")
     assert s.lead_name == "Nikhil"
     assert s.next_discovery_slot() == "current_status"
@@ -849,18 +849,18 @@ def test_the_name_is_captured_as_the_first_discovery_slot():
 
 def test_a_refused_name_does_not_swallow_the_slots_behind_it():
     """Without the attempt cap the pointer stayed on lead_name and every later answer was
-    extracted against it, so P2 finished with an entirely empty profile."""
+    extracted against it, so discover finished with an entirely empty profile."""
     from roma.domain.conversation.state import SLOT_ATTEMPT_CAP
 
-    s = CallState(call_sid="CA_no_name", phase="p2_discover")
+    s = CallState(call_sid="CA_no_name", stage="discover")
     for _ in range(SLOT_ATTEMPT_CAP):
         _advance(s, "naam rehne dijiye", extract_discovery=_fake_discovery_lowconf)
     assert s.lead_name is None, "a declined name must not be invented"
     assert s.next_discovery_slot() == "current_status"
 
 
-def test_advance_turn_flags_a_dismissal_in_any_phase_and_never_clears_it():
-    """On 049f0dc1 the lead asked the call to stop in P3, not P1, so a P1-only check (the
+def test_advance_turn_flags_a_dismissal_in_any_stage_and_never_clears_it():
+    """On 049f0dc1 the lead asked the call to stop in value, not open, so a open-only check (the
     shape `declined_now` already had) would never have seen it. Once set it must survive
     later turns that say nothing about stopping — otherwise the sign-off guard resumes
     pushing on the next turn."""
@@ -870,18 +870,18 @@ def test_advance_turn_flags_a_dismissal_in_any_phase_and_never_clears_it():
     from roma.domain.conversation.turn import advance_turn
 
     s = CallState(branch="Vadodara")
-    s.phase = "p3_value"
+    s.stage = "value"
     asyncio.run(advance_turn(s, "आप चले जाओ यहाँ से", client=None, now=NOW))
     assert s.lead_wants_out is True
     asyncio.run(advance_turn(s, "achha", client=None, now=NOW))
     assert s.lead_wants_out is True, "the flag was cleared by a later, neutral turn"
 
 
-def test_a_course_question_moves_p2_to_p3_immediately():
-    """Live call 049f0dc1 (2026-08-01). The lead asked five separate times, in P2, what the
-    course was. P2 only exits when five slots fill or it times out after five turns, and the
+def test_a_course_question_moves_discover_to_value_immediately():
+    """Live call 049f0dc1 (2026-08-01). The lead asked five separate times, in discover, what the
+    course was. discover only exits when five slots fill or it times out after five turns, and the
     lead was complaining rather than answering — so neither happened for SIX turns and Roma
-    answered from the P2 prompt, which forbids pitching and carries no course content. She
+    answered from the discover prompt, which forbids pitching and carries no course content. She
     improvised the same three facts out of the persona's phrase list, over and over.
 
     The lead asking what the course is IS the cue to go explain it."""
@@ -891,13 +891,13 @@ def test_a_course_question_moves_p2_to_p3_immediately():
     from roma.domain.conversation.turn import advance_turn
 
     s = CallState(branch="Vadodara")
-    s.phase = "p2_discover"
+    s.stage = "discover"
     asyncio.run(advance_turn(s, "मुझे course के बारे में बताइए", client=None, now=NOW))
-    assert s.phase == "p3_value", "the course question did not move the machine to VALUE"
+    assert s.stage == "value", "the course question did not move the machine to VALUE"
 
 
 def test_answering_the_status_question_with_the_word_course_does_not_skip_discovery():
-    """The precision half. P2's own status question is "padh rahe hain, koi course kar rahe
+    """The precision half. discover's own status question is "padh rahe hain, koi course kar rahe
     hain, ya job kar rahe hain?" — so "course" lands in the ANSWER constantly. Advancing on
     that would skip discovery for a lead who never asked anything."""
     import asyncio
@@ -906,9 +906,9 @@ def test_answering_the_status_question_with_the_word_course_does_not_skip_discov
     from roma.domain.conversation.turn import advance_turn
 
     s = CallState(branch="Vadodara")
-    s.phase = "p2_discover"
+    s.stage = "discover"
     asyncio.run(advance_turn(s, "haan main koi course kar raha hoon", client=None, now=NOW))
-    assert s.phase == "p2_discover"
+    assert s.stage == "discover"
 
 
 def test_roma_is_told_what_day_it_is_from_the_same_clock_the_resolver_uses():
@@ -966,7 +966,7 @@ def test_insistence_is_counted_consecutively_and_resets():
     from roma.domain.conversation.state import CallState
     from roma.domain.conversation.turn import advance_turn
 
-    state = CallState(phase="p3_value")
+    state = CallState(stage="value")
 
     asyncio.run(advance_turn(state, "kab aa sakta hoon?", client=None, now=NOW))
     assert state.lead_time_asks == 1
@@ -975,18 +975,18 @@ def test_insistence_is_counted_consecutively_and_resets():
     assert state.lead_time_asks == 0, "a non-time turn must reset the run"
 
 
-def test_two_consecutive_time_turns_pivot_out_of_p3():
+def test_two_consecutive_time_turns_pivot_out_of_value():
     """The end-to-end path: detector -> counter -> signal -> transition."""
     import asyncio
 
     from roma.domain.conversation.state import CallState
     from roma.domain.conversation.turn import advance_turn
 
-    state = CallState(phase="p3_value")
+    state = CallState(stage="value")
     asyncio.run(advance_turn(state, "toh main kab aa sakta hoon?", client=None, now=NOW))
     asyncio.run(advance_turn(state, "subah ka time milega?", client=None, now=NOW))
     assert state.lead_time_asks >= 2
-    assert state.phase == "p5_pivot", "four turns of course questions instead of an offer"
+    assert state.stage == "pivot", "four turns of course questions instead of an offer"
 
 
 def test_asking_to_book_in_words_is_detected_without_any_clock_word():
@@ -1018,9 +1018,9 @@ def test_one_explicit_ask_is_enough_no_second_turn_needed():
     from roma.domain.conversation.state import CallState
     from roma.domain.conversation.turn import advance_turn
 
-    state = CallState(phase="p3_value")
+    state = CallState(stage="value")
     asyncio.run(advance_turn(state, "mujhe visit schedule karni hai", client=None, now=NOW))
-    assert state.phase == "p5_pivot", "made a ready lead ask twice"
+    assert state.stage == "pivot", "made a ready lead ask twice"
 
 
 def test_a_lead_saying_goodbye_is_not_offered_a_slot():
@@ -1031,20 +1031,20 @@ def test_a_lead_saying_goodbye_is_not_offered_a_slot():
     from roma.domain.conversation.state import CallState
     from roma.domain.conversation.turn import advance_turn
 
-    state = CallState(phase="p3_value")
+    state = CallState(stage="value")
     asyncio.run(advance_turn(state, "baad mein milte hain", client=None, now=NOW))
-    assert state.phase != "p5_pivot", "pushed a booking at a lead who was leaving"
+    assert state.stage != "pivot", "pushed a booking at a lead who was leaving"
 
-    s2 = CallState(phase="p3_value")
+    s2 = CallState(stage="value")
     s2.lead_wants_out = True
     asyncio.run(advance_turn(s2, "visit schedule karo", client=None, now=NOW))
-    assert s2.phase != "p5_pivot", "lead_wants_out must veto the pivot"
+    assert s2.stage != "pivot", "lead_wants_out must veto the pivot"
 
 
 def test_the_exact_line_that_was_refused_on_call_56504a23():
     """Verbatim from the transcript. It contains "meeting", which is ALSO a standalone
     deferral cue ("abhi meeting mein hoon"), so `defers_the_call` fired on the very word
-    carrying the booking intent and vetoed the pivot. Roma stayed in P3 and answered with
+    carrying the booking intent and vetoed the pivot. Roma stayed in value and answered with
     another course suggestion."""
     import asyncio
 
@@ -1058,9 +1058,9 @@ def test_the_exact_line_that_was_refused_on_call_56504a23():
     assert wants_to_book(line)
     assert defers_the_call(line), "the collision is real; the fix is precedence, not removal"
 
-    state = CallState(phase="p3_value")
+    state = CallState(stage="value")
     asyncio.run(advance_turn(state, line, client=None, now=NOW))
-    assert state.phase == "p5_pivot", "an explicit ask to book was read as a deferral"
+    assert state.stage == "pivot", "an explicit ask to book was read as a deferral"
 
 
 def test_meeting_alone_is_still_a_deferral_not_a_booking():
@@ -1093,7 +1093,7 @@ def test_an_unresolvable_revision_at_the_readback_never_locks_the_old_slot():
     from roma.domain.conversation.state import CallState
     from roma.domain.conversation.turn import _close_turn
 
-    state = CallState(phase="p7_close")
+    state = CallState(stage="close")
     state.accepted_slot = "2026-08-04T11:00:00+05:30"
     state.slot_status = "accepted"
 
@@ -1123,7 +1123,7 @@ def test_a_plain_affirmation_still_locks():
     from roma.domain.conversation.state import CallState
     from roma.domain.conversation.turn import _close_turn
 
-    state = CallState(phase="p7_close")
+    state = CallState(stage="close")
     state.accepted_slot = "2026-08-04T11:00:00+05:30"
     state.slot_status = "accepted"
     sig: dict = {}
@@ -1148,7 +1148,7 @@ def test_a_resolvable_revision_still_moves_the_slot():
     from roma.domain.conversation.state import CallState
     from roma.domain.conversation.turn import _close_turn
 
-    state = CallState(phase="p7_close")
+    state = CallState(stage="close")
     state.accepted_slot = "2026-08-04T11:00:00+05:30"
     state.slot_status = "accepted"
 

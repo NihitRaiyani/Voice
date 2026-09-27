@@ -2,8 +2,8 @@
 
 docs/03: "Use OpenAI structured output, NOT regex/dateparser" for the idiomatic code-mix
 values (`dhai baje`=2:30, `saanjhe`=evening, `kal`=tomorrow). This is the ONLY place a
-second model call happens, and it runs ONLY in the slot-bearing phases (P2 discovery,
-P5 pivot, P7 close) — `turn.py` gates it, honoring "one turn = one LLM call unless a phase
+second model call happens, and it runs ONLY in the slot-bearing stages (discover discovery,
+pivot pivot, close close) — `turn.py` gates it, honoring "one turn = one LLM call unless a stage
 provably needs one".
 
 Two hard rules from docs/03 live here:
@@ -58,10 +58,10 @@ class TimeSlot(BaseModel):
     )
     accepted: bool = Field(
         default=False,
-        description="true only if the lead AGREED to a slot (P5), not merely mentioned a time",
+        description="true only if the lead AGREED to a slot (pivot), not merely mentioned a time",
     )
     readback_confirmed: bool = Field(
-        default=False, description="true only if the lead CONFIRMED Roma's readback (P7)"
+        default=False, description="true only if the lead CONFIRMED Roma's readback (close)"
     )
     chose_offer: "int | None" = Field(
         default=None,

@@ -1,4 +1,4 @@
-"""P6 objection classifier — a lexicon, NOT a model (docs/03).
+"""objection objection classifier — a lexicon, NOT a model (docs/03).
 
 docs/03 is explicit: the objection classifier is "a small fast call or a lexicon — NOT
 the main LLM deciding its own state." We use a lexicon (dict + token match), mirroring

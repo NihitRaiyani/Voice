@@ -6,7 +6,7 @@ barge-in-READY and lock the guarantees so 5B is a safe flag flip:
 
 - cancellation routes THROUGH the pre-TTS filter — an InterruptionFrame never disables it,
   and no raw/blocked text can slip past during teardown;
-- the phase controller does not mis-advance on interruption/cancel frames;
+- the stage controller does not mis-advance on interruption/cancel frames;
 - the TTS sanitizer drops any half-sample on Interruption/Cancel/End, idempotently.
 """
 
@@ -25,8 +25,8 @@ from pipecat.tests.utils import run_test
 from roma.domain.conversation.prompts import assemble_system_prompt
 from roma.domain.conversation.state import CallState
 from roma.domain.safety import safe_output
-from roma.realtime.phase_controller import PhaseControllerProcessor
 from roma.realtime.pretts import PreTTSFilterProcessor
+from roma.realtime.stage_controller import StageControllerProcessor
 from roma.realtime.tts import TTSAudioSanitizer
 
 BLOCKED = "Fees pachaas hazaar hai."
@@ -51,28 +51,28 @@ def test_interruption_frame_passes_through_the_filter():
     assert any(isinstance(f, InterruptionFrame) for f in down)
 
 
-def test_phase_controller_does_not_advance_on_interruption_frame():
-    state = CallState(call_sid="CA_int", phase="p2_discover", education="12th")
-    proc = PhaseControllerProcessor(state, client=None)
+def test_stage_controller_does_not_advance_on_interruption_frame():
+    state = CallState(call_sid="CA_int", stage="discover", education="12th")
+    proc = StageControllerProcessor(state, client=None)
     down = _run(proc, [InterruptionFrame()])
-    assert state.phase == "p2_discover"
+    assert state.stage == "discover"
     assert state.turn_count == 0
     assert any(isinstance(f, InterruptionFrame) for f in down)
 
 
-def test_phase_controller_forwards_context_frame_unchanged_when_no_user_message():
-    state = CallState(call_sid="CA_int2", phase="p1_open", lead_name="ji")
-    proc = PhaseControllerProcessor(state, client=None)
+def test_stage_controller_forwards_context_frame_unchanged_when_no_user_message():
+    state = CallState(call_sid="CA_int2", stage="open", lead_name="ji")
+    proc = StageControllerProcessor(state, client=None)
     ctx = LLMContext(
         messages=[
             {
                 "role": "system",
-                "content": assemble_system_prompt(state.as_prompt_vars(), "p1_open"),
+                "content": assemble_system_prompt(state.as_prompt_vars(), "open"),
             }
         ]
     )
     _run(proc, [LLMContextFrame(ctx)])
-    assert state.phase == "p1_open" and state.turn_count == 0
+    assert state.stage == "open" and state.turn_count == 0
 
 
 from pipecat.processors.frame_processor import FrameDirection  # noqa: E402

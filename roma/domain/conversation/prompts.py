@@ -1,13 +1,13 @@
 """Prompt assembly for Roma's LLM turn (docs/11).
 
-The system prompt is persona -> hard_rules -> phase, in THAT order — load-bearing for
+The system prompt is persona -> hard_rules -> stage, in THAT order — load-bearing for
 OpenAI prefix caching: the static prefix is byte-identical across a call's turns while
 the variable conversation history is the message tail managed by the context
 aggregators (not part of this string). Template vars are filled from call-state; an
 unresolved var fails loud — never ship a literal placeholder to the model.
 
 `{{branch}}` is the only preloaded one. Roma is inbound, so nothing is known about the caller
-at connect: the name is captured in P2 and reaches the model through `{{known}}` (the PATA HAI
+at connect: the name is captured in discover and reaches the model through `{{known}}` (the PATA HAI
 line) rather than a `{{lead_name}}` substitution, which is what makes it survive a barge-in.
 """
 
@@ -15,28 +15,30 @@ import re
 from functools import cache
 from pathlib import Path
 
+from roma.domain.conversation.stage import ConversationStage
+
 _PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
 
 # NOT the lever for long turns, checked 2026-08-01 and recorded so it is not "fixed" again:
 # these are max_tokens CEILINGS, and on live call 049f0dc1 Roma's longest turn was 79
-# completion tokens against a P3 ceiling of 120 words (~480 tokens). The cap never binds, so
-# lowering it changes nothing about how long she talks. `p3_value` was already 70 once and
+# completion tokens against a value ceiling of 120 words (~480 tokens). The cap never binds, so
+# lowering it changes nothing about how long she talks. `value` was already 70 once and
 # was raised because it "bought one thin sentence"
-# (`test_the_value_phase_has_room_for_a_real_explanation`).
-PHASE_WORD_CAPS = {
-    "p1_open": 25,
-    "p2_discover": 20,
-    "p3_value": 120,
-    "p4_structure": 60,
-    "p5_pivot": 30,
-    "p6_objection": 45,
-    "p7_close": 25,
+# (`test_the_value_stage_has_room_for_a_real_explanation`).
+STAGE_WORD_CAPS = {
+    ConversationStage.OPEN: 25,
+    ConversationStage.DISCOVER: 20,
+    ConversationStage.VALUE: 120,
+    ConversationStage.STRUCTURE: 60,
+    ConversationStage.PIVOT: 30,
+    ConversationStage.OBJECTION: 45,
+    ConversationStage.CLOSE: 25,
 }
 _TOKENS_PER_WORD = 4
 
 _VAR = re.compile(r"\{\{(\w+)\}\}")
 
-# Roma's outbound opener, WORD FOR WORD as `phases/p1_open.md` orders it ("Say exactly this,
+# Roma's outbound opener, WORD FOR WORD as `stages/open.md` orders it ("Say exactly this,
 # with nothing added"). Held in code as well as in the prompt because on an outbound call it
 # is not generated — it is spoken straight from here.
 #
@@ -53,7 +55,7 @@ _VAR = re.compile(r"\{\{(\w+)\}\}")
 # like every other line (the pipeline order guarantees it) — this skips the LLM, never the
 # guardrail.
 #
-# `test_the_spoken_opener_matches_the_p1_fragment_word_for_word` holds these two in step.
+# `test_the_spoken_opener_matches_the_open_fragment_word_for_word` holds these two in step.
 OPENING_LINE_NAMED = (
     "Hello {name} ji, main Roma baat kar rahi hoon Weltec Institute se — "
     "kya abhi 2 minute baat ho sakti hai?"
@@ -80,7 +82,7 @@ def opening_line(lead_name: "str | None") -> str:
 # The files are packaged data — they cannot change while a call is in flight — so the read
 # is pure. `cache_clear()` is exposed for tests that write a fragment to a tmp dir.
 @cache
-def _read(rel: str) -> str:  # like in input comes p1_open
+def _read(rel: str) -> str:  # like in input comes open
     return (_PROMPTS_DIR / rel).read_text(encoding="utf-8").strip()
 
 
@@ -115,7 +117,7 @@ def cache_prefix(call_state) -> str:
 
     It is a function of `call_state` only through `{{branch}}` — the single variable in
     `persona.md`, constant for the life of a call. `hard_rules.md` has no variables at all.
-    Anything that varies per TURN belongs in the phase fragment, which is appended after
+    Anything that varies per TURN belongs in the stage fragment, which is appended after
     this and is deliberately outside the cached span. Measured: 93-96% cached input on the
     turns where the cache holds (`var/roma/spend.jsonl`, 296 gpt-4o requests).
     """
@@ -127,23 +129,25 @@ def cache_prefix(call_state) -> str:
     )
 
 
-def assemble_system_prompt(call_state, phase: str = "p1_open") -> str:
-    """persona -> hard_rules -> phase, vars substituted. Order is load-bearing (docs/11)."""
+def assemble_system_prompt(
+    call_state, stage: ConversationStage = ConversationStage.OPEN
+) -> str:
+    """persona -> hard_rules -> stage, vars substituted. Order is load-bearing (docs/11)."""
     return "\n\n".join(
-        (cache_prefix(call_state), _render(_read(f"phases/{phase}.md"), call_state))
+        (cache_prefix(call_state), _render(_read(f"stages/{stage}.md"), call_state))
     )
 
 
-def phase_max_tokens(phase: str) -> int:
-    """Safety ceiling (tokens) for a phase's response — caps monologuing (docs/02)."""
-    return PHASE_WORD_CAPS[phase] * _TOKENS_PER_WORD
+def stage_max_tokens(stage: ConversationStage) -> int:
+    """Safety ceiling (tokens) for a stage's response — caps monologuing (docs/02)."""
+    return STAGE_WORD_CAPS[stage] * _TOKENS_PER_WORD
 
 
 __all__ = [
     "assemble_system_prompt",
     "cache_prefix",
-    "phase_max_tokens",
-    "PHASE_WORD_CAPS",
+    "stage_max_tokens",
+    "STAGE_WORD_CAPS",
     "OPENING_LINE_NAMED",
     "OPENING_LINE_NAMELESS",
     "opening_line",

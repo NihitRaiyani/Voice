@@ -43,7 +43,7 @@ IN (this step):
 
 OUT (deferred — do NOT build here):
 - Adaptive endpointing (500/850/1300ms), continuation-marker list, **backchannel guard** →
-  docs/05 Layer 2 nuance, lands with the phase machine / barge-in (Steps 4–5).
+  docs/05 Layer 2 nuance, lands with the stage machine / barge-in (Steps 4–5).
 - **Barge-in / interruption** (docs/05 Layer 3) → Step 5.
 - LLM, sentence-chunk, filter-in-path, TTS → Step 3.
 - Smart-turn analyzer → arrives with the context aggregator in Step 3/4.

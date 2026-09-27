@@ -1,8 +1,8 @@
 """The OpenAI prefix-cache contract (docs/11): `persona -> hard_rules` is byte-identical.
 
-This property is load-bearing and, until this file, entirely untested. `phase_controller`
+This property is load-bearing and, until this file, entirely untested. `stage_controller`
 mutates the system message in place on every turn precisely so this span does not move
-(`phase_controller.py:7-9`), and `roma/spend.py` shows it working: across 296 live gpt-4o
+(`stage_controller.py:7-9`), and `roma/spend.py` shows it working: across 296 live gpt-4o
 requests, 71.6% of all input tokens billed as cached, 93-96% on the turns where the cache
 holds.
 
@@ -11,7 +11,7 @@ The failure this guards is silent and expensive. Adding one `{{var}}` to `person
 would move the prefix on every turn, drop cached input to near zero, and change NOTHING a
 test currently checks. Roma would sound identical and cost roughly double.
 
-The rule these tests encode: **anything that varies within a call belongs in the phase
+The rule these tests encode: **anything that varies within a call belongs in the stage
 fragment, which is appended after the cached span.** `{{branch}}` is the one variable
 allowed in the prefix because it is fixed for the life of a call.
 """
@@ -19,12 +19,12 @@ allowed in the prefix because it is fixed for the life of a call.
 import re
 
 from roma.domain.conversation.prompts import (
-    PHASE_WORD_CAPS,
+    STAGE_WORD_CAPS,
     assemble_system_prompt,
     cache_prefix,
 )
 from roma.domain.conversation.state import CallState
-from roma.realtime.phase_controller import _swap_system_prompt
+from roma.realtime.stage_controller import _swap_system_prompt
 
 _VAR = re.compile(r"\{\{(\w+)\}\}")
 
@@ -67,19 +67,19 @@ def _states():
     return [early, named, mid, late, refused]
 
 
-def test_the_prefix_is_byte_identical_across_every_phase_and_state():
+def test_the_prefix_is_byte_identical_across_every_stage_and_state():
     """The whole contract, in one assertion.
 
-    5 states x 7 phases = 35 assemblies that a real call moves through. Every one must open
+    5 states x 7 stages = 35 assemblies that a real call moves through. Every one must open
     with the same bytes, or the cache re-pays the prefix from that turn onward.
     """
     prefixes = {
-        cache_prefix(state.as_prompt_vars()) for state in _states() for _ in PHASE_WORD_CAPS
+        cache_prefix(state.as_prompt_vars()) for state in _states() for _ in STAGE_WORD_CAPS
     }
     assert len(prefixes) == 1, (
         "the persona->hard_rules prefix moved between turns of one call — OpenAI's prompt "
         "cache keys on this span, so a variable that changes per turn must live in the "
-        "phase fragment instead"
+        "stage fragment instead"
     )
 
 
@@ -92,10 +92,10 @@ def test_every_assembled_prompt_actually_starts_with_that_prefix():
     for state in _states():
         variables = state.as_prompt_vars()
         prefix = cache_prefix(variables)
-        for phase in PHASE_WORD_CAPS:
-            prompt = assemble_system_prompt(variables, phase)
+        for stage in STAGE_WORD_CAPS:
+            prompt = assemble_system_prompt(variables, stage)
             assert prompt.startswith(prefix), (
-                f"assemble_system_prompt({phase}) does not begin with cache_prefix() — "
+                f"assemble_system_prompt({stage}) does not begin with cache_prefix() — "
                 "the cached span and the sent prompt have diverged"
             )
 
@@ -105,7 +105,7 @@ def test_hard_rules_has_no_template_variables_at_all():
 
     assert _VAR.findall(_read("hard_rules.md")) == [], (
         "hard_rules.md is fully static and must stay that way; put per-turn state in the "
-        "phase fragment"
+        "stage fragment"
     )
 
 
@@ -119,7 +119,7 @@ def test_branch_is_the_only_variable_the_persona_may_carry():
 
     assert set(_VAR.findall(_read("persona.md"))) == {"branch"}, (
         "a new variable appeared in persona.md — if it can change mid-call it breaks the "
-        "prefix cache; move it to the phase fragment"
+        "prefix cache; move it to the stage fragment"
     )
 
 
@@ -132,7 +132,7 @@ def test_the_prefix_clears_openais_minimum_cacheable_length():
     )
 
 
-def test_the_phase_fragment_is_where_per_turn_state_actually_lands():
+def test_the_stage_fragment_is_where_per_turn_state_actually_lands():
     """The positive half of the contract: the volatile values ARE being sent, just later.
 
     Without this, a refactor could satisfy every assertion above by dropping the dynamic
@@ -142,12 +142,12 @@ def test_the_phase_fragment_is_where_per_turn_state_actually_lands():
 
     variables = _states()[3].as_prompt_vars()
     seen = set()
-    for phase in PHASE_WORD_CAPS:
-        tail = assemble_system_prompt(variables, phase)[len(cache_prefix(variables)) :]
+    for stage in STAGE_WORD_CAPS:
+        tail = assemble_system_prompt(variables, stage)[len(cache_prefix(variables)) :]
         # Each fragment declares which values it wants; every one it declares must arrive.
-        for name in _VAR.findall(_read(f"phases/{phase}.md")):
+        for name in _VAR.findall(_read(f"stages/{stage}.md")):
             assert variables[name] in tail, (
-                f"{phase} declares {{{{{name}}}}} but its rendered value is not in the "
+                f"{stage} declares {{{{{name}}}}} but its rendered value is not in the "
                 "uncached tail — the per-turn state is not reaching the model"
             )
             seen.add(name)
@@ -161,7 +161,7 @@ def test_swapping_the_system_prompt_mutates_in_place():
     `_swap_system_prompt` must edit the existing dict rather than rebuild the list. A
     reassignment would also "work" — same text to the model — while discarding the
     conversation history the aggregators appended, which is the bug the in-place write
-    exists to prevent (`phase_controller.py:95-104`).
+    exists to prevent (`stage_controller.py:95-104`).
     """
 
     class _Ctx:
