@@ -53,6 +53,7 @@ Application services
 - PostgreSQL schema for durable business records.
 - Redis-backed call status and conversation state.
 - Transactional appointment booking with slot locking and conflict handling.
+- Post-call recording and durable background jobs with retry, status, and dead-letter handling.
 - Offline tests for domain rules, repositories, Redis state, media behavior, and
   provider adapters.
 - Backend-only structure with no frontend dependency.
@@ -124,6 +125,47 @@ Examples:
 
 The project uses both because they solve different problems. PostgreSQL protects
 business history and relationships. Redis keeps live-call operations fast.
+
+## Background Processing
+
+After a call ends, Roma puts a small, phone-number-free message in Redis (or the local
+spool if Redis is unavailable). The recording worker stores any captured audio, then
+commits the completed call and its job intents together in PostgreSQL. It acknowledges
+the Redis message only after that commit. A second worker claims due PostgreSQL jobs with
+row locks and writes each result with its job acknowledgement in one transaction.
+
+```text
+call ends -> Redis/local spool -> recording worker
+                                -> PostgreSQL: call + job intents (one transaction)
+                                -> background worker: statistics, summary, lead update
+                                -> scheduled follow-up intent
+```
+
+The summary currently describes call metadata; it does not send a transcript to an AI
+provider. Lead updates require a linked caller, which outbound calls get when
+`PII_HASH_KEY` is configured. If identity is unavailable, the job is marked for review.
+Follow-up delivery is intentionally not active yet: the job records the intent without
+sending an SMS or making a paid provider call.
+
+Start both workers in separate terminals after the database migration:
+
+```bash
+uv run --extra telephony python scripts/run_postcall_worker.py
+uv run --extra telephony python scripts/run_background_worker.py
+```
+
+Run `--drain` on either script to process available work and exit. Inspect status in
+PostgreSQL with:
+
+```bash
+docker compose exec postgres psql -U roma_dev -d roma_dev -c \
+  "SELECT job_type, status, attempts, available_at, last_error FROM followup_jobs ORDER BY created_at DESC LIMIT 20;"
+```
+
+`followup_jobs` is the existing physical table used for post-call jobs and scheduled
+follow-ups. A unique idempotency key prevents duplicate intents on redelivery. The
+worker retries failed jobs with backoff, recovers expired leases, and leaves terminal
+failures in `dead_letter` for inspection.
 
 ## Appointment Booking
 

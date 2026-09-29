@@ -13,6 +13,11 @@ detail belongs in `LOG.md` or `docs/superpowers/`. Roadmap entries are not imple
 - Lead metadata is a Twilio Stream custom parameter, never a Stream URL query parameter.
 - The service is backend-only. The call and status APIs remain bearer-protected.
 - Redis holds call state, lead records, opener audio, status, and post-call work.
+- Post-call recording transport remains Redis with local-spool fallback. Its single worker
+  stores any audio and commits a completed call plus job intents in PostgreSQL before ack.
+  PostgreSQL's existing `followup_jobs` table is the durable ledger; workers claim due rows
+  with `SKIP LOCKED`, retry with backoff, and retain terminal failures. Follow-up delivery
+  is scheduled but inactive until contact and messaging consent are available.
 - `ConversationStage` supplies the seven stage names used by the controller, prompts, logs,
   evaluation fixtures, and new Redis checkpoints. The checkpoint reader accepts the old
   serialized shape until its four-hour TTL expires.

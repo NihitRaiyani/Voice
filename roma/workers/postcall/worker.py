@@ -10,7 +10,7 @@ docs/09's "a killed worker must never silently drop a recording".
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
@@ -52,6 +52,7 @@ class WorkerDeps:
     consent_ok: Callable[[], bool]
     retention_days: int
     spool: object = None
+    persist: Callable[[PostcallJob, str], Awaitable[None]] | None = None
     now_fn: Callable[[], datetime] = field(default=lambda: datetime.now(UTC))
 
 
@@ -72,6 +73,9 @@ async def handle_job(job: PostcallJob, deps: WorkerDeps) -> JobResult:
     4. **Store, then ack.** `store.put` returns only once both the WAV and the sidecar are
        fsynced and renamed.
     """
+    if job.recording_ref is None:
+        return JobResult.ACK
+
     raw_path = Path(deps.media_root) / job.recording_ref
 
     if not deps.consent_ok():
@@ -174,17 +178,36 @@ async def run_worker(
         stats.processed += 1
         consent_before = deps.consent_ok()
         result = await handle_job(job, deps)
+        recording_outcome = "not_requested"
+        if job.recording_ref is not None:
+            if not consent_before:
+                recording_outcome = "blocked_by_consent"
+            elif deps.store.already_stored(job):
+                recording_outcome = "stored"
+            else:
+                recording_outcome = "missing_capture"
+        if result is JobResult.ACK and deps.persist is not None:
+            try:
+                await deps.persist(job, recording_outcome)
+            except Exception as exc:  # noqa: BLE001 — keep the job recoverable
+                _log.error(
+                    "postcall: durable handoff failed for call_sid=%s (%s)",
+                    job.call_sid,
+                    type(exc).__name__,
+                )
+                result = JobResult.DEAD if job.attempts + 1 >= MAX_ATTEMPTS else JobResult.RETRY
 
         try:
             if result is JobResult.ACK:
                 await deps.queue.ack(job)
-                if consent_before:
+                if recording_outcome == "stored":
                     stats.stored += 1
-                else:
+                elif recording_outcome == "blocked_by_consent":
                     stats.blocked_by_consent += 1
             elif result is JobResult.RETRY:
                 await deps.queue.retry(job)
                 stats.retried += 1
+                await asyncio.sleep(min(30, 2 ** job.attempts))
             else:
                 await deps.queue.dead(job)
                 stats.dead_lettered += 1

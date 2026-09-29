@@ -165,9 +165,8 @@ def test_finalize_still_saves_state_when_recording_is_off():
     assert asyncio.run(store.load("CA_fin")) is not None
 
 
-def test_no_job_is_enqueued_when_nothing_was_captured(tmp_path):
-    """A call that captured no audio (an immediate hangup, or a failed recorder) must not
-    hand the worker a job whose file does not exist."""
+def test_metadata_job_is_enqueued_when_nothing_was_captured(tmp_path):
+    """The call record must survive even when there is no recording to process."""
     q = _Queue()
     status = _finalize(
         state=_state(),
@@ -176,12 +175,13 @@ def test_no_job_is_enqueued_when_nothing_was_captured(tmp_path):
         queue=q,
         media_root=tmp_path / "media",
     )
-    assert status == "skipped"
-    assert q.pushed == []
+    assert status == "queued"
+    assert len(q.pushed) == 1
+    assert q.pushed[0].recording_ref is None
 
 
-def test_no_job_is_enqueued_when_the_recorder_failed(tmp_path):
-    """A recorder that hit a disk error wrote nothing, so there is nothing to store."""
+def test_recorder_failure_does_not_block_call_metadata(tmp_path):
+    """A recorder error cannot erase the call outcome or create a missing-file job."""
     r = _recorder(tmp_path, audio=b"")
     r.failed = True
     q = _Queue()
@@ -192,7 +192,25 @@ def test_no_job_is_enqueued_when_the_recorder_failed(tmp_path):
         queue=q,
         media_root=tmp_path / "media",
     )
-    assert q.pushed == []
+    assert len(q.pushed) == 1
+    assert q.pushed[0].recording_ref is None
+
+
+def test_recording_off_still_enqueues_call_metadata(tmp_path):
+    q = _Queue()
+    status = _finalize(
+        state=_state(),
+        store=InMemoryCallStateStore(),
+        recorder=None,
+        queue=q,
+        now=NOW,
+        started_at=STARTED,
+        direction="outbound",
+    )
+    assert status == "queued"
+    assert q.pushed[0].recording_ref is None
+    assert q.pushed[0].direction == "outbound"
+    assert q.pushed[0].duration_secs == pytest.approx(360.0)
 
 
 def test_both_clients_are_closed(tmp_path):

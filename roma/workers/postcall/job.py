@@ -20,11 +20,9 @@ identifier and `locked_slot` is a time-of-day string; both are already logged el
 import json
 from dataclasses import dataclass, field
 
-JOB_VERSION = 1
+from roma.domain.postcall import OUTCOME_LOCKED, OUTCOME_NO_LOCK, OUTCOME_UNKNOWN
 
-OUTCOME_LOCKED = "locked"
-OUTCOME_NO_LOCK = "no_lock"
-OUTCOME_UNKNOWN = "unknown"
+JOB_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -36,7 +34,7 @@ class PostcallJob:
     """
 
     call_sid: str
-    recording_ref: str
+    recording_ref: str | None
     locked_slot: "str | None"
     started_at: str
     ended_at: str
@@ -46,6 +44,10 @@ class PostcallJob:
     sample_rate: int = 8000
     num_channels: int = 2
     attempts: int = 0
+    direction: str = "inbound"
+    final_stage: str | None = None
+    turn_count: int = 0
+    caller_digest: str | None = None
 
     raw: "str | None" = field(default=None, compare=False, repr=False)
 
@@ -63,6 +65,10 @@ class PostcallJob:
             "sample_rate": self.sample_rate,
             "num_channels": self.num_channels,
             "attempts": self.attempts,
+            "direction": self.direction,
+            "final_stage": self.final_stage,
+            "turn_count": self.turn_count,
+            "caller_digest": self.caller_digest,
         }
 
     def to_json(self) -> str:
@@ -74,7 +80,7 @@ class PostcallJob:
         d = json.loads(raw)
         return cls(
             call_sid=d["call_sid"],
-            recording_ref=d["recording_ref"],
+            recording_ref=d.get("recording_ref"),
             locked_slot=d.get("locked_slot"),
             started_at=d["started_at"],
             ended_at=d["ended_at"],
@@ -84,6 +90,10 @@ class PostcallJob:
             sample_rate=int(d.get("sample_rate", 8000)),
             num_channels=int(d.get("num_channels", 2)),
             attempts=int(d.get("attempts", 0)),
+            direction=d.get("direction", "inbound"),
+            final_stage=d.get("final_stage"),
+            turn_count=int(d.get("turn_count", 0)),
+            caller_digest=d.get("caller_digest", d.get("caller_phone_hash")),
             raw=raw,
         )
 

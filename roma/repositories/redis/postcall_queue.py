@@ -170,8 +170,11 @@ class RedisPostcallQueue:
             )
 
     async def retry(self, job: PostcallJob) -> None:
-        await self.ack(job)
-        await self.push(job.with_attempt())
+        raw = job.raw if job.raw is not None else job.to_json()
+        async with self._r.pipeline(transaction=True) as pipe:
+            pipe.lrem(INFLIGHT_KEY, 1, raw)
+            pipe.lpush(QUEUE_KEY, job.with_attempt().to_json())
+            await pipe.execute()
 
     async def dead(self, job: PostcallJob) -> None:
         raw = job.raw if job.raw is not None else job.to_json()
@@ -242,11 +245,13 @@ class SpoolPostcallQueue:
             path.unlink(missing_ok=True)
 
     async def retry(self, job: PostcallJob) -> None:
-        await self.ack(job)
-        await self.push(job.with_attempt())
+        self._spool.write(job.with_attempt())
+        self._inflight.pop(job.call_sid, None)
 
     async def dead(self, job: PostcallJob) -> None:
-        await self.ack(job)
+        path = self._inflight.pop(job.call_sid, None)
+        if path is not None:
+            self._spool.dead_letter(path)
         _log.error(
             "postcall: job dead-lettered after %d attempts, call_sid=%s",
             job.attempts,

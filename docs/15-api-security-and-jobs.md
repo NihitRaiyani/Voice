@@ -1,7 +1,7 @@
 # 15 — API, Security, and Background Jobs Tutorial
 
-**Status:** Current Twilio and bearer-protected call endpoints are implemented. The versioned admin
-API, human authentication/RBAC, and durable job architecture are planned.
+**Status:** Twilio and bearer-protected call endpoints and the post-call job foundation are
+implemented. The versioned admin API and human authentication/RBAC are planned.
 
 ## Versioned REST shape
 
@@ -67,23 +67,39 @@ validation, expected content types, and secret-safe failure logs remain required
 ## Background-job lifecycle
 
 ```text
-call ends
-   +-> commit call outcome
-   +-> enqueue recording job
-   +-> enqueue summary/analytics job
-   `-> enqueue follow-up job
+call ends -> Redis queue (local spool fallback)
+          -> recording worker stores audio if captured
+          -> one PostgreSQL transaction commits call + job intents
+          -> Redis message acknowledged
 
-worker: claim -> execute -> persist effect -> acknowledge
-                  | failure
-                  +-> retry with backoff -> dead-letter/attention after limit
+PostgreSQL worker -> SELECT ... FOR UPDATE SKIP LOCKED -> execute
+                  -> effect + succeeded status in one transaction
+                  -> retry with backoff or dead_letter on failure
 ```
 
-Every job needs an identity, payload schema/version, status, attempt count, timeout, retry policy,
-idempotency key, and observable failure. A retry must be safe after a worker crashes between the
-external effect and acknowledgement.
+The existing `followup_jobs` table is the physical job ledger. Each post-call intent has a
+versioned payload, call reference, unique idempotency key, status, attempts, due time, and
+lease owner/time. Repeated messages cannot create duplicate calls or jobs. An expired
+five-minute lease can be reclaimed after a worker crash. The active job types are
+`compute_statistics`, `summarize_call`, and `update_lead`. The recording worker also
+records `process_recording` status for captured audio. A `send_followup` intent is
+scheduled one hour after the call ends when a visit time was captured; no messaging worker claims it yet:
+phone contact and messaging consent are a separate task.
 
-Celery, Dramatiq, or ARQ are possible implementations, but choose only after defining the required
-semantics and fit with the existing async model. The queue library does not create idempotency.
+Statistics use duration, captured audio seconds, and turn count. The current summary is
+deterministic metadata, not an LLM-generated transcript summary. Outbound lead updates
+use a keyed phone hash to link to `callers`; an unlinked caller makes the job
+`dead_letter` with `caller_not_linked` so the missing effect stays visible. Redis remains
+the transient recording transport; PostgreSQL stores call history and job status.
+
+Recording retries use a bounded delay and then Redis/local-spool dead-letter storage.
+PostgreSQL jobs have a 60-second execution timeout and retry up to five attempts with
+exponential backoff capped at five minutes.
+Do not run multiple recording-worker processes: its startup recovery is designed for one
+consumer. The PostgreSQL worker can run in multiple processes because claims use row locks.
+
+No Celery, Dramatiq, or ARQ dependency was needed: the existing Redis transport and
+PostgreSQL job table cover this project's current volume and transactional requirements.
 
 ## Privacy and auditability
 

@@ -172,6 +172,34 @@ def test_spool_queue_runs_the_whole_path_without_redis(tmp_path):
     assert after_ack == 0
 
 
+def test_spool_retry_replaces_the_payload_without_a_delete_window(tmp_path):
+    async def run():
+        spool = JobSpool(tmp_path / "spool")
+        queue = SpoolPostcallQueue(spool)
+        await queue.push(_job())
+        first = await queue.reserve()
+        await queue.retry(first)
+        return spool.pending(), await queue.reserve()
+
+    paths, retried = asyncio.run(run())
+    assert len(paths) == 1
+    assert retried.attempts == 1
+
+
+def test_spool_dead_letter_keeps_the_terminal_job(tmp_path):
+    async def run():
+        spool = JobSpool(tmp_path / "spool")
+        queue = SpoolPostcallQueue(spool)
+        await queue.push(_job())
+        await queue.dead(await queue.reserve())
+        return spool.pending(), list((spool.directory / "dead").glob("*.json"))
+
+    pending, dead = asyncio.run(run())
+    assert pending == []
+    assert len(dead) == 1
+    assert PostcallJob.from_raw(dead[0].read_text()).call_sid == "CA_q"
+
+
 def _raw_pcm(tmp_path, frames=800):
     """Stereo PCM16: left = lead, right = Roma."""
     raw = tmp_path / "capture.s16le"

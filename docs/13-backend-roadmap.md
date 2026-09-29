@@ -42,13 +42,13 @@ network boundaries between modules.
 | Conversation state machine | **Implemented** | Seven stages and deterministic transitions |
 | Redis operational layer | **Implemented** | Live state, caches, status, counters, queue |
 | Recording workflow | **Implemented** | Capture, spool, worker, storage/retention controls |
-| PostgreSQL system of record | **Next** | Durable callers, calls, turns, slots, appointments |
+| PostgreSQL system of record | **Implemented** | Relational schema and repositories; post-call worker now persists completed calls |
 | Versioned CRUD/API resources | **Next** | `/api/v1` schemas, pagination, filtering, errors |
-| Appointment transaction engine | **Next** | One winner under concurrent booking attempts |
+| Appointment transaction engine | **Implemented** | Repository transaction, slot lock, conflict handling, and concurrent booking test; HTTP/live-call wiring remains separate |
 | Authentication and RBAC | **Planned** | Admin/Counsellor/Viewer permissions |
 | Safety and audit event ledger | **Planned** | Queryable policy and administrative evidence |
 | Provider usage and cost ledger | **Planned** | Per-turn/provider cost plus aggregates |
-| Durable background jobs | **Planned** | Retry, idempotency, status, dead-letter handling |
+| Durable background jobs | **Implemented** | Recording handoff; transactional call/job intents; leased PostgreSQL workers, retry, status, dead-letter; follow-up is scheduled only |
 | Analytics API | **Planned** | Conversion, latency, cost, language, safety metrics |
 | Structured observability | **Planned** | Correlated logs, metrics, traces, alerts |
 | Containerized environment and CI/CD | **Planned** | Reproducible local stack and quality gates |

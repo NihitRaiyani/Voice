@@ -26,12 +26,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from roma.core.config import get_settings
+from roma.core.database import Database
 from roma.core.logging import configure_logging
 from roma.domain.calls import CONSENT_LINE, consent_signed_off
+from roma.repositories.postgres.background_jobs import BackgroundJobStore
 from roma.repositories.redis.postcall_queue import (
     RedisPostcallQueue,
     SpoolPostcallQueue,
 )
+from roma.services.postcall_service import PostcallService
 from roma.workers.postcall.paths import job_spool_dir, media_dir, recordings_dir
 from roma.workers.postcall.spool import JobSpool
 from roma.workers.postcall.store import LocalRecordingStore, describe_permissions
@@ -58,6 +61,13 @@ def _parse_args(argv=None):
 
 async def _run(args) -> int:
     settings = get_settings()
+    database = (
+        Database.from_settings(settings)
+        if settings.database_url.get_secret_value()
+        else None
+    )
+    if database is None:
+        _log.warning("postcall: DATABASE_URL absent; durable call/job handoff is disabled")
     spool = JobSpool(job_spool_dir(settings))
     store = LocalRecordingStore(recordings_dir(settings))
 
@@ -94,6 +104,11 @@ async def _run(args) -> int:
         consent_ok=lambda: consent_signed_off(CONSENT_LINE),
         retention_days=settings.recording_retention_days,
         spool=spool_for_drain,
+        persist=(
+            PostcallService(BackgroundJobStore(database.session_factory)).persist
+            if database is not None
+            else None
+        ),
     )
 
     try:
@@ -102,6 +117,8 @@ async def _run(args) -> int:
         aclose = getattr(queue, "aclose", None)
         if aclose is not None:
             await aclose()
+        if database is not None:
+            await database.close()
 
     _log.info(
         "postcall: exiting — processed=%d stored=%d consent_blocked=%d retried=%d "

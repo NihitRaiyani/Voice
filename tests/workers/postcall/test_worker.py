@@ -6,6 +6,7 @@ crash, and a poison job that must not loop forever.
 """
 
 import asyncio
+import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -66,8 +67,16 @@ def test_placeholder_consent_refuses_to_store_and_deletes_the_capture(tmp_path, 
     job = _job()
     raw = _capture(deps, job)
 
-    with caplog.at_level("ERROR"):
-        result = asyncio.run(handle_job(job, deps))
+    logger = logging.getLogger("roma.workers.postcall")
+    was_disabled = logger.disabled
+    logger.disabled = False
+    logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level("ERROR"):
+            result = asyncio.run(handle_job(job, deps))
+    finally:
+        logger.removeHandler(caplog.handler)
+        logger.disabled = was_disabled
 
     assert result is JobResult.ACK
     assert not raw.exists(), "unconsented capture must not be left on disk"
@@ -142,8 +151,16 @@ def test_a_missing_capture_is_acked_not_looped_forever(tmp_path, caplog):
     """A poison job — nothing to store and nothing stored. It must leave the queue, or it
     blocks every subsequent job on every restart."""
     deps = _deps(tmp_path)
-    with caplog.at_level("ERROR"):
-        result = asyncio.run(handle_job(_job(), deps))
+    logger = logging.getLogger("roma.workers.postcall")
+    was_disabled = logger.disabled
+    logger.disabled = False
+    logger.addHandler(caplog.handler)
+    try:
+        with caplog.at_level("ERROR"):
+            result = asyncio.run(handle_job(_job(), deps))
+    finally:
+        logger.removeHandler(caplog.handler)
+        logger.disabled = was_disabled
 
     assert result is JobResult.ACK
     assert "missing" in caplog.text.lower()
@@ -172,6 +189,52 @@ def test_worker_processes_a_queued_job_end_to_end(tmp_path):
     assert stats.processed == 1 and stats.stored == 1
     assert deps.store.already_stored(job)
     assert deps.queue.inflight_depth() == 0, "a completed job must not stay inflight"
+
+
+def test_worker_hands_off_a_call_without_recording(tmp_path):
+    deps = _deps(tmp_path)
+    handed_off = []
+
+    async def persist(job, recording_outcome):
+        assert recording_outcome == "not_requested"
+        handed_off.append(job.call_sid)
+
+    deps.persist = persist
+
+    async def run():
+        await deps.queue.push(_job(recording_ref=None))
+        return await run_worker(deps, max_jobs=1)
+
+    stats = asyncio.run(run())
+    assert stats.processed == 1
+    assert stats.stored == 0
+    assert handed_off == ["CA_w"]
+    assert deps.queue.inflight_depth() == 0
+
+
+def test_failed_durable_handoff_retries_an_already_stored_recording(tmp_path):
+    deps = _deps(tmp_path)
+    job = _job()
+    _capture(deps, job)
+    attempts = []
+
+    async def persist(message, recording_outcome):
+        assert recording_outcome == "stored"
+        attempts.append(message.attempts)
+        if len(attempts) == 1:
+            raise ConnectionError("postgres unavailable")
+
+    deps.persist = persist
+
+    async def run():
+        await deps.queue.push(job)
+        return await run_worker(deps, max_jobs=2)
+
+    stats = asyncio.run(run())
+    assert attempts == [0, 1]
+    assert stats.retried == 1
+    assert deps.store.already_stored(job)
+    assert deps.queue.inflight_depth() == 0
 
 
 def test_worker_drains_the_spool_before_polling(tmp_path):

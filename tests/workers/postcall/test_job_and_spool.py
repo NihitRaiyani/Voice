@@ -8,6 +8,7 @@ import stat
 
 import pytest
 from roma.domain.conversation.state import CallState
+from roma.domain.persistence import hash_phone_e164
 from roma.workers.postcall.job import (
     OUTCOME_LOCKED,
     OUTCOME_NO_LOCK,
@@ -31,6 +32,10 @@ EXPECTED_KEYS = {
     "sample_rate",
     "num_channels",
     "attempts",
+    "direction",
+    "final_stage",
+    "turn_count",
+    "caller_digest",
 }
 
 
@@ -75,9 +80,15 @@ def test_job_contains_no_pii():
     place they should end up — it is persisted, logged, and read by another process."""
     state = CallState(call_sid="CA_pii", stage="close", lead_name="Rakesh")
     state.locked_slot = "2026-07-27T15:00:00+05:30"
-    payload = _job(call_sid=state.call_sid, outcome=outcome_for(state)).to_json()
+    number = "+919876543210"
+    payload = _job(
+        call_sid=state.call_sid,
+        outcome=outcome_for(state),
+        caller_digest=hash_phone_e164(number, "x" * 32),
+    ).to_json()
 
     assert "Rakesh" not in payload
+    assert number not in payload
     assert "phone" not in payload and "lead_name" not in payload
 
 

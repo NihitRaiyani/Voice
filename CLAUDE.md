@@ -12,10 +12,11 @@ Never describe roadmap work as implemented merely because it appears in document
 
 - **Implemented now:** Twilio bidirectional calling, Pipecat, Silero, Sarvam STT/TTS, OpenAI,
   deterministic safety filtering, a seven-stage controller, Redis live state/caches/status/queue,
-  recording workflow, cost controls, and extensive offline tests.
-- **Recommended next:** PostgreSQL + SQLAlchemy + Alembic, beginning with durable call/lead records
-  and transaction-safe appointment booking.
-- **Planned later:** versioned admin APIs, authentication/RBAC, idempotent workers, audit and cost
+  recording workflow, cost controls, PostgreSQL post-call job handoff and workers, and
+  extensive offline tests.
+- **Implemented foundation:** PostgreSQL schema/repositories, transaction-safe appointment booking,
+  and post-call job handoff. Live-call integration continues in focused increments.
+- **Planned later:** versioned admin APIs, authentication/RBAC, follow-up delivery, audit and cost
   ledgers, observability, load tests, Docker, and CI/CD.
 - **Optional only with evidence:** WebSocket supervisor UI, provider switching, circuit breakers,
   and distributed infrastructure.
@@ -29,10 +30,11 @@ Never describe roadmap work as implemented merely because it appears in document
 | VAD | Silero |
 | STT/TTS | Sarvam Saaras / Bulbul |
 | LLM | OpenAI |
-| Transient state/cache/queue | Redis |
+| Durable business records/jobs | PostgreSQL |
+| Transient state/cache/recording queue | Redis |
 | API runtime | FastAPI + Pydantic + Uvicorn |
 
-PostgreSQL is the target durable system of record; it does not replace Redis's transient role.
+PostgreSQL is the durable system of record; it does not replace Redis's transient role.
 
 ## Non-negotiable runtime boundaries
 

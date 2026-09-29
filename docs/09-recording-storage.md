@@ -6,13 +6,15 @@ implemented. Durable metadata, signed access, and deletion/anonymization workflo
 **Learning objective:** Design an at-least-once background workflow whose acknowledgement happens
 only after durable storage, while treating recordings as sensitive data.
 
-Scope is deliberately simple (per the v1 decision): **when a call ends, store the recording.
-That's it.** No transcription pipeline, no analytics, no dashboards in v1.
+The recording worker now also hands off the completed call to PostgreSQL background jobs.
+It still does no transcription or AI summarization.
 
 ## Flow
 ```
-call ends → pipeline pushes {call_sid, recording_ref} to queue:postcall
-          → post-call worker fetches the recording → stores it → acks the job
+call ends → pipeline pushes {call_sid, optional recording_ref, outcome} to queue:postcall
+          → post-call worker stores any recording
+          → PostgreSQL transaction saves call and job intents
+          → worker acks the Redis message
 ```
 
 ## Two ways to get the recording (pick one at build time)
@@ -40,8 +42,9 @@ faster to ship. Decide explicitly; don't leave it implicit.
 - Auto-transcription, WER scoring, scorecard generation, sentiment, search. These are v2 and
   build on the stored recordings — the point of storing simply now is to not block on them.
 
-## Roadmap bridge
+## Durable handoff
 
-The future worker should record job status and idempotency keys in durable storage. A repeated
-delivery may repeat processing, but it must not create a second business effect. Recording access
-should use short-lived authorization and a documented retention/deletion path.
+The worker records a `process_recording` result when audio was captured, and the same database
+transaction creates statistics, summary, and lead-update intents. Recording remains idempotent
+under redelivery. Recording access still needs short-lived authorization and a documented
+retention/deletion path.

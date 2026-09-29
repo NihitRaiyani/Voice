@@ -84,6 +84,20 @@ class JobSpool:
             return []
         return sorted(p for p in self._dir.iterdir() if p.suffix == _JOB_SUFFIX)
 
+    def dead_letter(self, path: Path) -> Path:
+        """Keep a terminal spool job for inspection and manual replay."""
+        dead_dir = ensure_private_dir(self._dir / "dead")
+        target = dead_dir / path.name
+        os.replace(path, target)
+        with contextlib.suppress(OSError):
+            fd = os.open(dead_dir, os.O_RDONLY)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        self._fsync_dir()
+        return target
+
     def load(self, path: Path) -> "PostcallJob | None":
         """Read one spooled job, or None if it is unreadable/corrupt (logged, not raised)."""
         try:

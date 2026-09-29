@@ -90,6 +90,7 @@ from roma.domain.conversation.prompts import (
 )
 from roma.domain.conversation.state import spoken_slot
 from roma.domain.costs.spend import SpendLedger, Usage
+from roma.domain.persistence import hash_phone_e164
 from roma.providers.calendar.google import build_calendar
 from roma.providers.telephony.twilio.auth import external_url, valid_twilio_signature
 from roma.realtime import canned
@@ -278,6 +279,9 @@ async def finalize_call(
     queue=None,
     media_root=None,
     now=None,
+    started_at=None,
+    direction="inbound",
+    caller_digest=None,
 ) -> str:
     """Everything that must happen once a call ends. Returns the post-call status string.
 
@@ -310,20 +314,29 @@ async def finalize_call(
     except Exception:  # noqa: BLE001
         _log.warning("final call-state save failed")
 
-    if queue is not None and recorder is not None and not recorder.is_empty():
+    if queue is not None:
         try:
-            started = recorder.started_at
+            started = recorder.started_at if recorder is not None else (started_at or ended_at)
+            recording_ref = (
+                recorder.relative_ref(media_root)
+                if recorder is not None and not recorder.is_empty() and not recorder.failed
+                else None
+            )
             job = PostcallJob(
                 call_sid=state.call_sid,
-                recording_ref=recorder.relative_ref(media_root),
+                recording_ref=recording_ref,
                 locked_slot=state.locked_slot,
                 started_at=started.isoformat(),
                 ended_at=ended_at.isoformat(),
                 duration_secs=max(0.0, (ended_at - started).total_seconds()),
-                audio_secs=recorder.audio_secs(),
+                audio_secs=recorder.audio_secs() if recording_ref is not None else 0.0,
                 outcome=outcome_for(state),
                 sample_rate=RECORDING_SAMPLE_RATE,
                 num_channels=RECORDING_CHANNELS,
+                direction=direction,
+                final_stage=state.stage.value,
+                turn_count=state.turn_count,
+                caller_digest=caller_digest,
             )
             status = await queue.push(job) or "queued"
         except Exception:  # noqa: BLE001 — post-call bookkeeping never fails a teardown
@@ -1238,6 +1251,7 @@ def build_media_app(
         # The callee's "hello" window opens HERE, not when the pipeline finishes building —
         # see `PickupGreeter._remaining_wait`.
         connected_at = time.monotonic()
+        call_started_at = datetime.now(UTC)
 
         serializer = TwilioFrameSerializer(
             stream_sid=stream_sid,
@@ -1302,13 +1316,22 @@ def build_media_app(
         opening_guard = OpeningTurnGuard(opener_is_raw_audio=posture.opener_is_raw_audio)
         noise_gate = NoiseGate()
 
-        recorder = capture = queue = None
+        recorder = capture = None
+        queue = build_queue_fn(settings)
         if settings.recording_enabled:
             recorder = build_recorder(settings, call_sid or stream_sid)
             capture = attach_recorder(recorder)
-            queue = build_queue_fn(settings)
 
         store = build_store_fn(settings)
+        lead = await _load_triggered_lead(app, lead_token)
+        caller_digest = None
+        if lead is not None and settings.pii_hash_key.get_secret_value():
+            try:
+                caller_digest = hash_phone_e164(
+                    lead.phone, settings.pii_hash_key.get_secret_value()
+                )
+            except ValueError:
+                _log.warning("outbound lead identity could not be linked to durable storage")
         state = None
         if call_sid:
             try:
@@ -1320,7 +1343,6 @@ def build_media_app(
             # a FRESH state: a resumed call already carries what it learned, and re-seeding
             # would overwrite a name the lead corrected mid-call with the one the CRM had.
             seed = dict(DEFAULT_LEAD)
-            lead = await _load_triggered_lead(app, lead_token)
             if lead is not None:
                 seed.update(lead.as_state_seed())
                 _log.info(
@@ -1520,6 +1542,9 @@ def build_media_app(
                     recorder=recorder,
                     queue=queue,
                     media_root=media_dir(settings),
+                    started_at=call_started_at,
+                    direction="outbound" if is_outbound else "inbound",
+                    caller_digest=caller_digest,
                 )
                 _log.info(
                     "media stream ended: stream_sid=%s inbound_frames=%d inbound_bytes=%d "
