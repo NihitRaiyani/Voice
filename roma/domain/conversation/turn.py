@@ -211,18 +211,7 @@ def asks_about_course(text: str) -> bool:
 # deciding. Two in a row is the lead steering, and the call should follow them.
 LEAD_TIME_ASKS_BEFORE_PIVOT = 2
 
-# Asking to BOOK, as opposed to naming a clock time. `TIME_CUES` holds only times of day —
-# baje, kab, subah, shaam — so "mujhe visit schedule karni hai" matched nothing in it, and
-# on call ca529641 the lead asked three times while Roma answered:
-#
-#   "par is waqt main course ke details share kar rahi hoon visit abhi schedule nahi
-#    kar rahi. Aapko pehle course ki value clear honi chahiye."
-#   "visit abhi schedule wahi hota hai jab mujhe prompt ho."
-#
-# She was obeying the stage. The stage was wrong. A lead who already knows what they want
-# does not have to be walked through the pitch to earn a slot, and being refused one is the
-# fastest way to lose someone who was ready to book.
-# Unambiguous: none of these can mean "I am busy".
+
 _BOOKING_WORDS = frozenset(
     {
         "visit",
@@ -410,7 +399,7 @@ def defers_the_call(text: str) -> bool:
         return False
     if toks & _DEFERRAL_STANDALONE:
         return True
-    # "abhi nahi", "abhi nahi ho payega" — the time word plus a negation.
+    # "abhi nahi", "abhi nahi ho payega" — the time word plus a negation. this returns true
     return bool(toks & {"abhi", "अभी", "અત્યારે"} and toks & _NEGATIONS)
 
 
@@ -588,7 +577,7 @@ def _parse_offers(iso_slots) -> list:
     return out
 
 
-def _anchor_day(state: CallState):
+def _anchor_day(state: CallState): # converts the currently discussed day → date
     """`state.pending_day` as a date, or None. A malformed value is ignored, never raised
     on — a bad checkpoint must cost the anchor, not the turn."""
     if not state.pending_day:

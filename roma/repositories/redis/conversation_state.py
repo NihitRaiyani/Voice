@@ -16,7 +16,7 @@ from typing import Protocol, runtime_checkable
 
 from roma.domain.conversation.state import CallState
 
-STATE_TTL_SECONDS = 4 * 3600
+STATE_TTL_SECONDS = 1 * 3600 # call state stored in Redis automatically expires after 1 hours.
 
 
 def state_key(call_sid: str) -> str:

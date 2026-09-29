@@ -16,10 +16,29 @@ from roma.domain.conversation.stage import ConversationStage
 from roma.domain.conversation.state import DISCOVERY_ORDER, CallState
 
 DISCOVER_MAX_TURNS = len(DISCOVERY_ORDER)
+# Turn 1 → ask name
+# Turn 2 → ask current status
+# Turn 3 → ask education
+# Turn 4 → ask passing year
+# Turn 5 → ask city
 
 VALUE_MAX_TURNS = 4
+# means Roma can stay in the value stage for at most 4 turns.
+# VALUE turn 1 → explain course benefit
+# VALUE turn 2 → talk about placement
+# VALUE turn 3 → explain practical learning
+# VALUE turn 4 → final value point
 
 OBJECTION_ANSWER_CAP = 2
+# lapp ne 2 var aj tackle karse
+# Lead: Fees bahut zyada hai.
+
+# Roma answers objection       → 1
+
+# Lead: Still expensive hai.
+
+# Roma answers again           → 2
+
 
 
 @dataclass(frozen=True)
@@ -29,17 +48,13 @@ class TurnSignals:
     only sets what fired."""
 
     inquiry_confirmed: bool = False
-    # Outbound only: they answered the permission question with "not right now". Not a
-    # refusal and not an objection — the call is over for now (hard rule 6, one alternative
-    # then close). It is recorded rather than acted on here so open simply does not advance;
-    # what Roma SAYS to a deferral is the fragment's job.
+    
     declined_now: bool = False
+    
     discovery_slot_filled: bool = False
-    # The lead asked what the COURSE is. In discover this outranks the discovery queue — see
-    # `turn.asks_about_course` for the call that made it necessary.
+    
     asks_about_course: bool = False
-    # The lead has raised the visit time on two consecutive turns. In value/structure this outranks the
-    # turn budget — see `turn.raises_the_visit_time` for the call that made it necessary.
+    
     asks_to_book: bool = False
     slot_accepted: bool = False
     readback_confirmed: bool = False
@@ -65,19 +80,7 @@ def next_stage(state: CallState, signals: TurnSignals) -> Transition:
 
     stage = state.stage
 
-    # A lead who asks to book has said the one thing the whole call exists to produce, and
-    # every stage before the offer is a way of EARNING that sentence. Honouring it wherever
-    # the call happens to be beats walking someone who already decided through a pitch they
-    # did not ask for.
-    #
-    # open INCLUDED, and it is the case that made this necessary. On bde258d1 the lead asked to
-    # book twice while still in open; open was excluded, so the call advanced to discover instead, the
-    # time-talk guard substituted the course line there, and the lead's reply was "आप क्यों
-    # मुझे course के बारे में बता रहे हो". It took a third ask to get an offer.
-    #
-    # "Meeting fix karo" IS permission to talk — it is a stronger answer to "kya abhi 2 minute
-    # baat ho sakti hai?" than "haan" is. Only a DEFERRAL still holds open: hard rule 6 gives a
-    # busy lead one alternative and a warm close, never a slot.
+   
     if (
         signals.asks_to_book
         and not signals.declined_now
@@ -98,10 +101,7 @@ def next_stage(state: CallState, signals: TurnSignals) -> Transition:
         )
 
     if stage == ConversationStage.DISCOVER:
-        # Asking what the course is IS the cue to go explain it. discover carries no course
-        # content and forbids pitching, so holding the lead here to finish the slot queue
-        # means answering the question badly, from the wrong prompt, for as long as the
-        # timeout lasts (049f0dc1: six turns, five unanswered asks).
+        
         if signals.asks_about_course:
             return Transition(ConversationStage.VALUE)
         done = state.filled_discovery_count() >= len(DISCOVERY_ORDER) or (

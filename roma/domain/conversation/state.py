@@ -15,7 +15,7 @@ from datetime import datetime
 from roma.domain.conversation.facts import already_said_line
 from roma.domain.conversation.pacing import pacing_line
 from roma.domain.conversation.stage import ConversationStage
-
+                               # means it can be of any length, but the type of each element is ConversationStage
 STAGES: tuple[ConversationStage, ...] = tuple(ConversationStage)
 
 DISCOVERY_ORDER: tuple[str, ...] = (
@@ -26,18 +26,6 @@ DISCOVERY_ORDER: tuple[str, ...] = (
     "city",
 )
 
-# How many turns a single slot may be attempted before the machine gives up on it and moves
-# to the next one. Without this the pointer sticks: `next_discovery_slot` returns the first
-# unfilled slot forever, and it drives EXTRACTION only — it does not force the question. So a
-# caller who will not give their name leaves the pointer on `lead_name` while the model
-# sensibly asks about something else, and every later answer is extracted against a field
-# nobody was asked about, returns null, and fills nothing for the rest of discover.
-#
-# Two is deliberate: one re-ask is a normal misheard-reply recovery, a third is nagging.
-#
-# The trade: a capped slot is never retried, so a name volunteered later ("waise mera naam
-# Nikhil hai") is not captured. That is the right side of the trade — a stuck pointer costs
-# all four remaining slots — but it IS a real limitation. Do not "fix" it by removing the cap.
 SLOT_ATTEMPT_CAP = 2
 
 
@@ -163,14 +151,7 @@ class CallState:
 
     call_sid: str = ""
     branch: str = "Vadodara"
-    # Outbound only: "student" | "working_professional" | "unemployed", supplied by the
-    # trigger (dialer.leadstore.SEGMENTS). A VARIABLE, not a branch — one flow, one set of
-    # override rules. Empty on any call where we did not know, which is every inbound call.
-    #
-    # Carried into prompt vars here so the plumbing is done and testable; NO fragment reads
-    # `{{segment}}` yet. What it will change is exactly two things (discover's study-or-work
-    # question becoming a confirmation, and which value proof leads in value), and both are
-    # prompt work still awaiting sign-off.
+    
     segment: str = ""
     # None, not "": `next_discovery_slot` treats a non-None value as already filled, so an
     # empty-string default would mark the name permanently captured and Roma would never ask.
@@ -207,11 +188,7 @@ class CallState:
     inquiry_confirmed: bool = False
     readback_confirmed: bool = False
 
-    # STICKY, deliberately: set once the lead asks the call to stop, never cleared. Hard
-    # rule 6 is "offer one alternative, then close politely — never push twice", which is a
-    # statement about the whole call, not about one turn. Per-turn would let the sign-off
-    # guard start pushing again on the next silence, which is the bug it exists to fix
-    # (`confirmguard.safe_close`, live call 049f0dc1).
+   
     lead_wants_out: bool = False
 
     # ISO date of the call, set by `advance_turn` from the same `now` the slot resolver uses,
@@ -223,14 +200,7 @@ class CallState:
     # matters because an unstable line costs a prefix cache hit (docs/11).
     facts_said: "list[str]" = field(default_factory=list)
 
-    # Consecutive turns in which the LEAD raised the visit time. Reset the moment they talk
-    # about something else, so it counts insistence rather than a total.
-    #
-    # `confirmguard.is_premature_time_talk` exists to stop ROMA volunteering a time before
-    # the OFFER line. When the LEAD keeps raising it, that premise is inverted: the guard
-    # substitutes a course question, the lead asks about time again, and the call deadlocks.
-    # Call 0f09c8a3 spent four turns there (`time_talk_holds=4`) with Roma asking "course ke
-    # baare mein aur kya jaanna chahenge?" at a lead who was trying to book.
+   
     lead_time_asks: int = 0
 
     # Total off-topic turns this call (controller.offtopic). A running count, not
