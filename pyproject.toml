@@ -11,6 +11,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+workers = [
+    "dramatiq[redis]>=2.0,<3",
+]
 dev = [
     "fakeredis>=2.20",
     "pytest>=8.0",

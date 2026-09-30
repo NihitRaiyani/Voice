@@ -1,52 +1,29 @@
-"""Consume durable post-call jobs without starting the audio pipeline.
+"""Run the Dramatiq consumer: one process and four threads by default.
 
-uv run python scripts/run_background_worker.py
-uv run python scripts/run_background_worker.py --drain
+Extra arguments go to Dramatiq, e.g. --processes 2 --threads 8.
 """
 
-import argparse
-import asyncio
-import logging
-import signal
 import sys
 from pathlib import Path
 
+from dramatiq.cli import main as dramatiq_main
+from dramatiq.cli import make_argument_parser
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from roma.core.config import get_settings
-from roma.core.database import Database
-from roma.core.logging import configure_logging
-from roma.repositories.postgres.background_jobs import BackgroundJobStore
-from roma.workers.background import run_background_worker
 
-_log = logging.getLogger("roma.workers.background")
-
-
-async def _run(*, drain: bool) -> int:
-    settings = get_settings()
-    if not settings.database_url.get_secret_value():
-        raise RuntimeError("DATABASE_URL is required for background jobs")
-    database = Database.from_settings(settings)
-    stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop.set)
-    try:
-        count = await run_background_worker(
-            BackgroundJobStore(database.session_factory), stop=stop, drain=drain
-        )
-        _log.info("background worker stopped after %d job(s)", count)
-    finally:
-        await database.close()
-    return 0
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Roma durable background-job worker")
-    parser.add_argument("--drain", action="store_true", help="Process due jobs, then exit")
-    args = parser.parse_args()
-    configure_logging()
-    return asyncio.run(_run(drain=args.drain))
+def main(argv=None) -> int:
+    args = make_argument_parser().parse_args(
+        [
+            "roma.workers.dramatiq_worker:configure_worker_broker",
+            "--processes",
+            "1",
+            "--threads",
+            "4",
+            *(sys.argv[1:] if argv is None else argv),
+        ]
+    )
+    return dramatiq_main(args)
 
 
 if __name__ == "__main__":

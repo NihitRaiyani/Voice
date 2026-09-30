@@ -54,7 +54,8 @@ Application services
 - PostgreSQL schema for durable business records.
 - Redis-backed call status and conversation state.
 - Transactional appointment booking with slot locking and conflict handling.
-- Post-call recording and durable background jobs with retry, status, and dead-letter handling.
+- Post-call recording and Dramatiq/Redis background jobs with durable PostgreSQL status,
+  retry, and dead-letter handling.
 - Offline tests for domain rules, repositories, Redis state, media behavior, and
   provider adapters.
 - Backend-only structure with no frontend dependency.
@@ -148,13 +149,15 @@ See [the file flow, hands-on exercise, and interview questions](docs/18-webhook-
 After a call ends, Roma puts a small, phone-number-free message in Redis (or the local
 spool if Redis is unavailable). The recording worker stores any captured audio, then
 commits the completed call and its job intents together in PostgreSQL. It acknowledges
-the Redis message only after that commit. A second worker claims due PostgreSQL jobs with
-row locks and writes each result with its job acknowledgement in one transaction.
+the Redis message only after that commit. A dispatcher publishes ready job IDs to Dramatiq
+over Redis. Async workers claim those specific PostgreSQL rows and write each result with
+its durable job acknowledgement in one transaction.
 
 ```text
 call ends -> Redis/local spool -> recording worker
                                 -> PostgreSQL: call + job intents (one transaction)
-                                -> background worker: statistics, summary, lead update
+                                -> dispatcher -> Dramatiq/Redis -> async worker
+                                -> statistics, summary, lead update
                                 -> scheduled follow-up intent
 ```
 
@@ -164,15 +167,19 @@ provider. Lead updates require a linked caller, which outbound calls get when
 Follow-up delivery is intentionally not active yet: the job records the intent without
 sending an SMS or making a paid provider call.
 
-Start both workers in separate terminals after the database migration:
+Install the worker extra, then start these three processes in separate terminals:
 
 ```bash
-uv run --extra telephony python scripts/run_postcall_worker.py
-uv run --extra telephony python scripts/run_background_worker.py
+uv sync --extra telephony --extra dev --extra workers
+uv run --extra telephony --extra workers python scripts/run_postcall_worker.py
+uv run --extra telephony --extra workers python scripts/dispatch_background_jobs.py
+uv run --extra telephony --extra workers python scripts/run_background_worker.py
 ```
 
-Run `--drain` on either script to process available work and exit. Inspect status in
-PostgreSQL with:
+The recording worker still supports `--drain`. The dispatcher supports `--once` to publish
+one batch; the Dramatiq worker runs until stopped and finishes active work during shutdown.
+It defaults to one process/four worker threads for local development.
+Inspect the durable status in PostgreSQL with:
 
 ```bash
 docker compose exec postgres psql -U roma_dev -d roma_dev -c \
@@ -183,6 +190,8 @@ docker compose exec postgres psql -U roma_dev -d roma_dev -c \
 follow-ups. A unique idempotency key prevents duplicate intents on redelivery. The
 worker retries failed jobs with backoff, recovers expired leases, and leaves terminal
 failures in `dead_letter` for inspection.
+
+See [framework choice, file flow, and interview practice](docs/19-background-task-framework.md).
 
 ## Appointment Booking
 
@@ -317,7 +326,7 @@ This can place a real paid call. Use only approved test numbers.
 Run the main offline test suite:
 
 ```bash
-uv run --extra telephony --extra dev pytest -q
+uv run --extra telephony --extra dev --extra workers pytest -q
 ```
 
 Run linting:

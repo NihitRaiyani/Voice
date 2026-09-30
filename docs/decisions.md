@@ -15,8 +15,9 @@ detail belongs in `LOG.md` or `docs/superpowers/`. Roadmap entries are not imple
 - Redis holds call state, lead records, opener audio, status, and post-call work.
 - Post-call recording transport remains Redis with local-spool fallback. Its single worker
   stores any audio and commits a completed call plus job intents in PostgreSQL before ack.
-  PostgreSQL's existing `followup_jobs` table is the durable ledger; workers claim due rows
-  with `SKIP LOCKED`, retry with backoff, and retain terminal failures. Follow-up delivery
+  PostgreSQL's existing `followup_jobs` table is the durable ledger. A dispatcher publishes
+  ready IDs to Dramatiq/Redis; async actors claim those rows with `SKIP LOCKED`, retry with
+  backoff, and retain terminal failures. Follow-up delivery
   is scheduled but inactive until contact and messaging consent are available.
 - `ConversationStage` supplies the seven stage names used by the controller, prompts, logs,
   evaluation fixtures, and new Redis checkpoints. The checkpoint reader accepts the old
@@ -66,6 +67,22 @@ detail belongs in `LOG.md` or `docs/superpowers/`. Roadmap entries are not imple
   existing deterministic guardrails.
 
 ## Backend learning direction
+
+### Background framework choice (2026-09-30)
+
+- Choose Dramatiq/Redis for maintained framework functionality and optional AsyncIO actors.
+  ARQ is async-native but its repository is maintenance-only; Celery's broader workflow
+  tooling is not currently needed. Only one task framework is installed.
+- Keep job intents and outcomes in PostgreSQL; Redis carries only UUID delivery notifications.
+  Publishing does not claim jobs or increment attempts. Redis loss/outage is recoverable
+  by republishing ready database IDs; parallel delivery is fenced by database row claims.
+- Keep five business attempts, 60-second execution timeout, and five-minute lease recovery.
+  Exhausted crash retries become database dead letters instead of a sixth execution.
+- Initialize the async database pool inside the worker process/event loop and close it before
+  the AsyncIO middleware stops that loop. Use one process/four threads on the development laptop.
+- Retain the existing recording queue and local-spool fallback. Follow-up sending stays inactive.
+- The polling dispatcher can publish duplicates while consumers are offline; at current volume
+  simplicity is accepted. A larger deployment would need a measured publication/backpressure policy.
 
 - Evolve the repository as a modular monolith; split deployment units only for a demonstrated
   scaling or ownership reason.

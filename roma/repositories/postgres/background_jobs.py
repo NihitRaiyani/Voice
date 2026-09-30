@@ -113,35 +113,35 @@ class BackgroundJobStore:
                 )
         return call_id
 
-    async def claim(self, *, now: datetime, owner: str) -> ClaimedJob | None:
-        """Claim one due job; reclaim a crashed worker's expired lease."""
-        stale_before = now - timedelta(seconds=LEASE_SECS)
-        async with self._session_factory() as session, session.begin():
-            row = await session.scalar(
-                select(FollowupJob)
-                .where(
-                    FollowupJob.job_type.in_(ACTIVE_JOB_TYPES),
-                    FollowupJob.call_id.is_not(None),
-                    or_(
-                        and_(
-                            FollowupJob.status.in_(("pending", "failed")),
-                            FollowupJob.available_at <= now,
-                        ),
-                        and_(
-                            FollowupJob.status == "running",
-                            FollowupJob.locked_at <= stale_before,
-                        ),
-                    ),
+    async def dispatchable_ids(self, *, now: datetime, limit: int = 100) -> list[UUID]:
+        """Read ready job IDs without claiming them or assuming Redis accepted a message.
+
+        Republishing is safe. Only the consumer's database claim advances job attempts.
+        Failed publishing or Redis data loss therefore leaves the durable work retryable.
+        """
+        async with self._session_factory() as session:
+            return list(
+                await session.scalars(
+                    _eligible_jobs(now).with_only_columns(FollowupJob.id).limit(limit)
                 )
-                .order_by(
-                    FollowupJob.available_at,
-                    FollowupJob.created_at,
-                    FollowupJob.job_type,
-                )
-                .with_for_update(skip_locked=True)
-                .limit(1)
             )
+
+    async def claim(
+        self, *, now: datetime, owner: str, job_id: UUID | None = None
+    ) -> ClaimedJob | None:
+        """Claim one due job; reclaim a crashed worker's expired lease."""
+        async with self._session_factory() as session, session.begin():
+            statement = _eligible_jobs(now)
+            if job_id is not None:
+                statement = statement.where(FollowupJob.id == job_id)
+            row = await session.scalar(statement.with_for_update(skip_locked=True).limit(1))
             if row is None:
+                return None
+            if row.attempts >= MAX_ATTEMPTS:
+                row.status = "dead_letter"
+                row.last_error = "lease_retries_exhausted"
+                row.lock_owner = None
+                row.locked_at = None
                 return None
             row.attempts += 1
             row.status = "running"
@@ -215,6 +215,28 @@ class BackgroundJobStore:
             row.lock_owner = None
             row.locked_at = None
             return row.status
+
+
+def _eligible_jobs(now: datetime):
+    return (
+        select(FollowupJob)
+        .where(
+            FollowupJob.job_type.in_(ACTIVE_JOB_TYPES),
+            FollowupJob.call_id.is_not(None),
+            FollowupJob.deleted_at.is_(None),
+            or_(
+                and_(
+                    FollowupJob.status.in_(("pending", "failed")),
+                    FollowupJob.available_at <= now,
+                ),
+                and_(
+                    FollowupJob.status == "running",
+                    FollowupJob.locked_at <= now - timedelta(seconds=LEASE_SECS),
+                ),
+            ),
+        )
+        .order_by(FollowupJob.available_at, FollowupJob.created_at, FollowupJob.job_type)
+    )
 
 
 async def _owned_job(session: AsyncSession, job_id: UUID, owner: str) -> FollowupJob | None:

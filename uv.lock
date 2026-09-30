@@ -560,6 +560,20 @@ wheels = [
 ]
 
 [[package]]
+name = "dramatiq"
+version = "2.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/14/6d/d056a8ba251c216da054fc5db9ad7931bfb9ab28851e8b86acd770ce8867/dramatiq-2.2.1.tar.gz", hash = "sha256:f9fbbd2feea27b3fa4085446242a24d86f78288b20c78a93f9f0bdbd7d908cd5", size = 109994, upload-time = "2026-09-02T07:55:09.979Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8c/13/0550ff585ade7b423e2ecaac29c4ab88673a58ae92ef25b6629089a2b92c/dramatiq-2.2.1-py3-none-any.whl", hash = "sha256:4e2466d07d5a1c4910b49944e5b45704c123b82325384e1319f6d08d94559c46", size = 127754, upload-time = "2026-09-02T07:55:08.423Z" },
+]
+
+[package.optional-dependencies]
+redis = [
+    { name = "redis" },
+]
+
+[[package]]
 name = "fakeredis"
 version = "2.37.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2131,11 +2145,15 @@ telephony = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "websockets" },
 ]
+workers = [
+    { name = "dramatiq", extra = ["redis"] },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.16,<2" },
     { name = "asyncpg", specifier = ">=0.30,<1" },
+    { name = "dramatiq", extras = ["redis"], marker = "extra == 'workers'", specifier = ">=2.0,<3" },
     { name = "fakeredis", marker = "extra == 'dev'", specifier = ">=2.20" },
     { name = "fastapi", marker = "extra == 'telephony'", specifier = ">=0.139.2" },
     { name = "pipecat-ai", extras = ["sarvam", "silero", "openai"], marker = "extra == 'telephony'", specifier = ">=1.6.0" },
@@ -2149,7 +2167,7 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'telephony'", specifier = ">=0.51.0" },
     { name = "websockets", marker = "extra == 'telephony'", specifier = ">=16.1.1" },
 ]
-provides-extras = ["dev", "telephony"]
+provides-extras = ["workers", "dev", "telephony"]
 
 [[package]]
 name = "ruff"

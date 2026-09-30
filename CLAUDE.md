@@ -12,7 +12,7 @@ Never describe roadmap work as implemented merely because it appears in document
 
 - **Implemented now:** Twilio bidirectional calling, Pipecat, Silero, Sarvam STT/TTS, OpenAI,
   deterministic safety filtering, a seven-stage controller, Redis live state/caches/status/queue,
-  recording workflow, cost controls, PostgreSQL post-call job handoff and workers, and
+  recording workflow, cost controls, PostgreSQL post-call job handoff, Dramatiq/Redis workers, and
   extensive offline tests.
 - **Implemented foundation:** PostgreSQL schema/repositories, transaction-safe appointment booking,
   post-call job handoff, and transactional `/answer` webhook receipts/call events.

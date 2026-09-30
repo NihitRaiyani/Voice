@@ -87,7 +87,8 @@ call ends -> Redis queue (local spool fallback)
           -> one PostgreSQL transaction commits call + job intents
           -> Redis message acknowledged
 
-PostgreSQL worker -> SELECT ... FOR UPDATE SKIP LOCKED -> execute
+dispatcher -> ready PostgreSQL job IDs -> Dramatiq/Redis
+async actor -> SELECT specific job FOR UPDATE SKIP LOCKED -> execute
                   -> effect + succeeded status in one transaction
                   -> retry with backoff or dead_letter on failure
 ```
@@ -111,10 +112,16 @@ Recording retries use a bounded delay and then Redis/local-spool dead-letter sto
 PostgreSQL jobs have a 60-second execution timeout and retry up to five attempts with
 exponential backoff capped at five minutes.
 Do not run multiple recording-worker processes: its startup recovery is designed for one
-consumer. The PostgreSQL worker can run in multiple processes because claims use row locks.
+consumer. Dramatiq workers can run in multiple processes because specific job claims use row locks.
 
-No Celery, Dramatiq, or ARQ dependency was needed: the existing Redis transport and
-PostgreSQL job table cover this project's current volume and transactional requirements.
+Dramatiq with Redis is now the explicit framework for statistics, summary, and lead-update
+execution. Its AsyncIO middleware runs async actors on a shared event loop per worker process.
+PostgreSQL owns business attempts, scheduling, effects, and terminal status; Dramatiq retries
+delivery/database outages up to three times. Failed messages also remain recoverable through
+the durable PostgreSQL intent. The dispatcher republishes eligible IDs every five seconds
+(100 per pass); duplicate messages are harmless but can accumulate while consumers are offline.
+This deliberately simple dispatcher is suitable for the current volume, not a claim of a
+high-throughput publication protocol. See [the framework walkthrough](19-background-task-framework.md).
 
 ## Privacy and auditability
 

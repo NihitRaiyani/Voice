@@ -49,7 +49,7 @@ network boundaries between modules.
 | Authentication and RBAC | **Planned** | Admin/Counsellor/Viewer permissions |
 | Safety and audit event ledger | **Planned** | Queryable policy and administrative evidence |
 | Provider usage and cost ledger | **Planned** | Per-turn/provider cost plus aggregates |
-| Durable background jobs | **Implemented** | Recording handoff; transactional call/job intents; leased PostgreSQL workers, retry, status, dead-letter; follow-up is scheduled only |
+| Durable background jobs | **Implemented** | Recording handoff; transactional call/job intents; PostgreSQL-to-Dramatiq/Redis dispatcher; async workers, leases, retry, status, dead-letter; follow-up is scheduled only |
 | Analytics API | **Planned** | Conversion, latency, cost, language, safety metrics |
 | Structured observability | **Planned** | Correlated logs, metrics, traces, alerts |
 | Containerized environment and CI/CD | **Planned** | Reproducible local stack and quality gates |

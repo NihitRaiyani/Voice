@@ -6,7 +6,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from roma.repositories.postgres.background_jobs import BackgroundJobStore, ClaimedJob
 
@@ -52,6 +52,34 @@ def effect_for(job: ClaimedJob) -> JobEffect:
     raise ValueError(f"unsupported job type: {job.job_type}")
 
 
+async def execute_claimed_job(store, job: ClaimedJob, *, owner: str) -> bool:
+    """Share the same business effect/transaction boundary across queue consumers."""
+    effect = effect_for(job)
+    return await asyncio.wait_for(
+        store.complete(
+            job,
+            owner=owner,
+            now=datetime.now(UTC),
+            event_type=effect.event_type,
+            event_payload=effect.payload,
+            caller_status=effect.caller_status,
+        ),
+        timeout=JOB_TIMEOUT_SECS,
+    )
+
+
+async def process_background_job(store, job_id: UUID) -> None:
+    """Handle one framework delivery. PostgreSQL owns business retries and status."""
+    owner = str(uuid4())
+    job = await store.claim(now=datetime.now(UTC), owner=owner, job_id=job_id)
+    if job is None:
+        return  # Completed, not due, already owned, deleted, or unknown delivery.
+    try:
+        await execute_claimed_job(store, job, owner=owner)
+    except Exception as exc:  # noqa: BLE001 — persist retry policy without sensitive details
+        await store.fail(job, owner=owner, now=datetime.now(UTC), error_type=type(exc).__name__)
+
+
 async def run_background_worker(
     store: BackgroundJobStore,
     *,
@@ -80,18 +108,7 @@ async def run_background_worker(
             continue
         processed += 1
         try:
-            effect = effect_for(job)
-            settled = await asyncio.wait_for(
-                store.complete(
-                    job,
-                    owner=owner,
-                    now=datetime.now(UTC),
-                    event_type=effect.event_type,
-                    event_payload=effect.payload,
-                    caller_status=effect.caller_status,
-                ),
-                timeout=JOB_TIMEOUT_SECS,
-            )
+            settled = await execute_claimed_job(store, job, owner=owner)
             if not settled:
                 _log.warning("background job lost lease id=%s", job.id)
         except Exception as exc:  # noqa: BLE001 — retry with sanitized error type
