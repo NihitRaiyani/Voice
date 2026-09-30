@@ -42,6 +42,7 @@ If a tutorial describes a target design, the status label wins. Never infer that
 | [15 — API, security, and jobs](15-api-security-and-jobs.md) | REST, auth/RBAC, webhooks, idempotency, workers |
 | [16 — Observability, testing, delivery](16-observability-testing-and-delivery.md) | Logs, metrics, traces, test pyramid, load, Docker, CI/CD |
 | [17 — Placement study guide](17-placement-study-guide.md) | Study sequence, interview questions, proof portfolio |
+| [18 — Webhook idempotency](18-webhook-idempotency.md) | Implemented transaction boundary, duplicate delivery, rollback, hands-on practice |
 
 ## Supporting records
 

@@ -21,10 +21,8 @@ carries the same default for the __main__ path below.
 
 import uvicorn
 from fastapi import FastAPI
-from roma.api.v1.calls import mount_web_api
-from roma.core.config import require_reachable_base_url
-from roma.core.logging import configure_logging
-from roma.realtime.pipeline import build_media_app, sole_call
+from roma.main import create_app as create_backend_app
+from roma.realtime.pipeline import sole_call
 
 
 def create_app() -> FastAPI:
@@ -34,11 +32,9 @@ def create_app() -> FastAPI:
     construct that directly and localhost is right for them. What must never boot unreachable
     is the thing a carrier is about to call.
     """
-    configure_logging()
-    require_reachable_base_url()
     # `<Connect><Stream>` keeps Twilio attached to the bidirectional stream. Production turns
     # on Pipecat's REST hang-up so a finished pipeline cannot leave billed dead air behind.
-    app = build_media_app(auto_hang_up=True)
+    app = create_backend_app()
 
     @app.get("/debug/last-counter")
     async def _last_counter():
@@ -96,7 +92,6 @@ def create_app() -> FastAPI:
             "ttfb": u.ttfb_summary() if u is not None else None,
         }
 
-    mount_web_api(app)
     return app
 
 

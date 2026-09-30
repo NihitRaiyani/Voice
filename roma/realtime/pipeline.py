@@ -1091,11 +1091,16 @@ def build_media_app(
     build_slot_client_fn=build_slot_client,
     build_queue_fn=build_postcall_queue,
     build_calendar_fn=build_calendar,
+    webhook_service=None,
+    lifespan=None,
 ) -> FastAPI:
     """FastAPI app exposing Twilio's `/answer`, `/ws`, and `/health` routes.
 
     `auto_hang_up` controls whether Pipecat ends the Twilio call through the REST API when
     the pipeline finishes. Production enables it; offline tests leave it disabled.
+    `webhook_service` accepts durable answer events. Production injects PostgreSQL through
+    `roma.main`; offline HTTP tests inject a fake. Without it `/answer` returns 503.
+    `lifespan` lets the composition root close its database pool on server shutdown.
     `build_stt_fn` builds the STT stage per connection (injected so offline tests /
     verify_media can pass a stub instead of opening a live Sarvam socket).
     `build_vad_fn` builds the input VAD per connection; it returns an analyzer or
@@ -1115,7 +1120,8 @@ def build_media_app(
     thing it exists to notice.
     """
     _warn_if_logging_unconfigured()
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
+    app.state.webhook_service = webhook_service
     settings = get_settings()
     app.state.calls = {}
     app.state.calendar = build_calendar_fn(settings)

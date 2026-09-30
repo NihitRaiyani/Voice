@@ -1,6 +1,7 @@
 """Twilio HTTP and WebSocket callbacks must be signed and account-bound."""
 
 import json
+from unittest.mock import AsyncMock
 from xml.etree import ElementTree
 
 import pytest
@@ -32,7 +33,7 @@ def app(monkeypatch):
     get_settings.cache_clear()
     from roma.realtime.pipeline import build_media_app
 
-    yield build_media_app(auto_hang_up=False)
+    yield build_media_app(auto_hang_up=False, webhook_service=AsyncMock())
     get_settings.cache_clear()
 
 

@@ -38,6 +38,7 @@ network boundaries between modules.
 | Module | Status | Current evidence or target outcome |
 |---|---|---|
 | Twilio call transport | **Implemented** | Signed `/answer`, `/ws`, outbound Calls API |
+| Webhook idempotency | **Implemented** | `/answer` receipt + call + event in one PostgreSQL transaction; duplicates return TwiML; atomic Redis projection |
 | Realtime voice pipeline | **Implemented** | VAD, STT, controller, LLM, safety, TTS, barge-in |
 | Conversation state machine | **Implemented** | Seven stages and deterministic transitions |
 | Redis operational layer | **Implemented** | Live state, caches, status, counters, queue |

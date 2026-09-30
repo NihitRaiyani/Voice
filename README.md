@@ -46,6 +46,7 @@ Application services
 ## Current Capabilities
 
 - Twilio HTTP and WebSocket callback handling.
+- Durable `/answer` webhook idempotency with atomic call/event persistence.
 - Authenticated outbound call API.
 - Real-time media pipeline for speech, LLM response generation, and TTS playback.
 - Seven-stage conversation state machine:
@@ -125,6 +126,22 @@ Examples:
 
 The project uses both because they solve different problems. PostgreSQL protects
 business history and relationships. Redis keeps live-call operations fast.
+
+## Webhook Idempotency
+
+Repeated signed `POST /answer` requests create one durable call-answer event. PostgreSQL
+commits a unique `webhook_receipts.provider_event_id`, the call, and its event together.
+Duplicates return the same TwiML for the same input and configuration; failed transactions
+roll back and return HTTP 503. Redis status updates are atomic and cannot reopen an ended call.
+
+`DATABASE_URL` and migration `20260930_0002` are now required for successful answer webhooks.
+Apply `uv run --extra dev alembic upgrade head` before restarting the backend. An unavailable
+database returns 503; the application does not acknowledge an unrecorded event as successful.
+Configure Twilio's retry policy to retry the relevant failures; a 503 alone does not configure
+provider retries. Receipts are retained independently of call deletion, without raw webhook
+bodies or lead tokens. No additional provider callbacks or SMS delivery are introduced.
+
+See [the file flow, hands-on exercise, and interview questions](docs/18-webhook-idempotency.md).
 
 ## Background Processing
 

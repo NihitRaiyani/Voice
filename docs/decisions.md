@@ -38,6 +38,23 @@ detail belongs in `LOG.md` or `docs/superpowers/`. Roadmap entries are not imple
   stable public HTTPS/WSS origin near callers.
 - Automated tests and the synthetic media probe never place a live call.
 
+## Durable answer-webhook identity (2026-09-30)
+
+- One logical Twilio answer is identified by account + Call SID + endpoint event kind. Delivery
+  attempt headers are not business identities. Future callback kinds need their own identities.
+- Claim `webhook_receipts.provider_event_id` with a unique constraint and commit the receipt,
+  call, and answer event in one transaction. No separately committed "processed" marker.
+- Compare a digest of normalized business input on duplicates; mismatched input is a conflict.
+  Never persist raw payloads, phone numbers, lead tokens, or TwiML containing lead tokens.
+- `/answer` requires a migrated PostgreSQL database. Failure/timeout returns 503; duplicates
+  return the deterministic TwiML for the same input/configuration. Provider retries must be
+  configured for the desired failures. Transactional acceptance is bounded to three seconds.
+- Redis status is a separately retryable projection; atomic updates preserve terminal status
+  and leave duplicate TTL/outcome unchanged. Redis outage does not invalidate a durable commit.
+- Keep minimal receipts independently of call retention so deleting calls cannot resurrect
+  them through webhook replay. No automatic receipt purge is introduced in this milestone.
+- This guarantee covers durable database effects, not exactly-once Twilio/LLM/SMS execution.
+
 ## Safety and compliance
 
 - Never log credentials, phone numbers, or lead tokens.

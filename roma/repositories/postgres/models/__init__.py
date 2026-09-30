@@ -6,6 +6,7 @@ from .calls import Call, Caller, CallEvent, CallTurn
 from .identity import Role, User, UserRole
 from .operations import AuditLog, CallCost, FollowupJob, ProviderUsage, Recording, SafetyEvent
 from .organization import Branch, BranchCourse, Counsellor, Course, Institute
+from .webhooks import WebhookReceipt
 
 __all__ = [
     "Base",
@@ -29,4 +30,5 @@ __all__ = [
     "Recording",
     "FollowupJob",
     "AuditLog",
+    "WebhookReceipt",
 ]

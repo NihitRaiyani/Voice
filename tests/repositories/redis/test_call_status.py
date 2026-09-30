@@ -153,6 +153,36 @@ def test_the_record_carries_a_ttl():
     assert status_ttl > 0 and index_ttl > 0, "status rows must expire, not accumulate"
 
 
+def test_duplicate_answer_cannot_reopen_an_ended_call_or_extend_retention():
+    async def run():
+        client = _client()
+        store = CallStatusStore(client=client)
+        await store.put_dialing(UUID, TOKEN, TO)
+        await store.mark_connected(TOKEN)
+        await store.mark_ended(TOKEN, "won")
+        await client.expire(status_key(UUID), 10)
+        before = await client.get(status_key(UUID))
+        await store.mark_connected(TOKEN)
+        await store.mark_ended(TOKEN, "")
+        assert await client.get(status_key(UUID)) == before
+        assert 0 < await client.ttl(status_key(UUID)) <= 10
+
+    asyncio.run(run())
+
+
+def test_concurrent_answer_retries_and_teardown_preserve_ended():
+    async def run():
+        store = CallStatusStore(client=_client())
+        await store.put_dialing(UUID, TOKEN, TO)
+        await asyncio.gather(
+            store.mark_ended(TOKEN, "won"),
+            *(store.mark_connected(TOKEN) for _ in range(20)),
+        )
+        assert await store.get(UUID) == {"status": ENDED, "reason": "won"}
+
+    asyncio.run(run())
+
+
 # --- hourly dial cap ---------------------------------------------------------------------
 
 

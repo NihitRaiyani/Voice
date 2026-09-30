@@ -68,6 +68,7 @@ class BackgroundJobStore:
                 ).scalar_one()
             updates = {
                 "status": "completed",
+                "started_at": call.started_at,
                 "ended_at": call.ended_at,
                 "final_stage": call.final_stage,
                 "updated_at": call.updated_at,

@@ -17,7 +17,7 @@ ACCOUNT_SID = "AC" + "1" * 32
 AUTH_TOKEN = "offline-test-token"
 PUBLIC_BASE_URL = "https://testserver"
 STREAM_SID = "MZ_synthetic"
-CALL_SID = "CA_synthetic"
+CALL_SID = "CA" + "2" * 32
 
 os.environ.setdefault("TWILIO_ACCOUNT_SID", ACCOUNT_SID)
 os.environ.setdefault("TWILIO_AUTH_TOKEN", AUTH_TOKEN)
@@ -44,9 +44,7 @@ class _EchoTTS(FrameProcessor):
         await self.push_frame(frame, direction)
         if isinstance(frame, InputAudioRawFrame):
             await self.push_frame(
-                OutputAudioRawFrame(
-                    audio=b"\x00\x00" * 160, sample_rate=8000, num_channels=1
-                ),
+                OutputAudioRawFrame(audio=b"\x00\x00" * 160, sample_rate=8000, num_channels=1),
                 FrameDirection.DOWNSTREAM,
             )
 
@@ -57,6 +55,8 @@ def _give_up() -> None:
 
 
 def main() -> int:
+    from unittest.mock import AsyncMock
+
     from roma.realtime.pipeline import build_media_app, sole_call
 
     timer = threading.Timer(WATCHDOG_SECS, _give_up)
@@ -68,13 +68,12 @@ def main() -> int:
         build_vad_fn=lambda _s: None,
         build_llm_fn=lambda _s: _Passthrough(),
         build_tts_fn=lambda _s, _cache=None: _EchoTTS(),
+        webhook_service=AsyncMock(),  # Offline media probe; PostgreSQL has separate tests.
     )
     validator = RequestValidator(AUTH_TOKEN)
     with TestClient(app) as client:
         params = {"AccountSid": ACCOUNT_SID, "CallSid": CALL_SID}
-        answer_signature = validator.compute_signature(
-            f"{PUBLIC_BASE_URL}/answer", params
-        )
+        answer_signature = validator.compute_signature(f"{PUBLIC_BASE_URL}/answer", params)
         answer = client.post(
             "/answer",
             data=params,

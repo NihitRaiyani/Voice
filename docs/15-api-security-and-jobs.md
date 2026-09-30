@@ -60,9 +60,24 @@ delivery 1 -> verify -> claim provider_event_id -> apply effect -> record succes
 delivery 2 -> verify -> provider_event_id already claimed -> acknowledge, no second effect
 ```
 
-Use a unique database constraint for durable event identity or an atomic Redis `SET ... NX` for an
-appropriately short-lived claim. Signature validation, replay-window checks, strict payload
-validation, expected content types, and secret-safe failure logs remain required.
+**Implemented for `POST /answer`:** signature/account validation precedes a three-second bounded
+transactional acceptance. `UNIQUE(webhook_receipts.provider_event_id)` claims the logical answer
+event; receipt, call creation, and `call_events` insertion commit or roll back together. The key
+is `twilio:<AccountSid>:<CallSid>:answer`; an answer request has no generic provider event ID.
+Changing delivery-attempt headers does not create another business event. The same identity
+with changed business input returns 409. A failed transaction or database outage returns 503.
+Duplicates return valid TwiML, not an empty response.
+
+Redis is an idempotent best-effort projection after commit. `WATCH`/`MULTI` prevents a late
+answer from reverting `ended` to `connected`; duplicates do not refresh retention or erase
+the outcome. An independent Redis `SET NX` followed by a PostgreSQL write would leave a crash
+window and is not used as the durable correctness boundary.
+
+The guarantee covers database business effects while receipts are retained. Raw webhook bodies,
+numbers, and lead tokens are not stored. Receipts currently remain indefinitely, independently
+of call deletion; deleting them permits reprocessing old deliveries. This is not timestamp-based
+replay rejection, external-provider exactly-once execution, or a guarantee of Redis availability.
+Configure provider retry behavior explicitly. See [the walkthrough](18-webhook-idempotency.md).
 
 ## Background-job lifecycle
 

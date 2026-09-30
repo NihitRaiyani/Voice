@@ -37,6 +37,7 @@ TABLES = {
     "roles",
     "user_roles",
     "audit_logs",
+    "webhook_receipts",
 }
 
 
@@ -126,6 +127,7 @@ def test_foreign_keys_preserve_history_and_limit_cascades(table, columns, target
         ("calls", "provider_call_id"),
         ("call_turns", "call_id,turn_number"),
         ("call_events", "idempotency_key"),
+        ("webhook_receipts", "provider_event_id"),
         ("appointment_slots", "branch_id,appointment_date,start_time"),
         ("provider_usage", "idempotency_key"),
         ("call_costs", "idempotency_key"),

@@ -84,16 +84,32 @@ class CallStatusStore:
         await self._client.set(token_index_key(lead_token), request_uuid, ex=self._ttl)
 
     async def _touch(self, lead_token: str, status: str, reason: str) -> None:
+        from redis.exceptions import WatchError
+
         uuid = await self._client.get(token_index_key(lead_token))
         if not uuid:
             # An inbound call, or one placed by the CLI before this store existed. Not an
             # error: most calls have no status row and never needed one.
             return
-        raw = await self._client.get(status_key(uuid))
-        record = json.loads(raw) if raw else {"at": time.time(), "to": ""}
-        record["status"] = status
-        record["reason"] = reason
-        await self._client.set(status_key(uuid), json.dumps(record), ex=self._ttl)
+        key = status_key(uuid)
+        for _ in range(3):
+            async with self._client.pipeline(transaction=True) as pipe:
+                try:
+                    await pipe.watch(key)
+                    raw = await pipe.get(key)
+                    if not raw:
+                        return  # Do not recreate an expired projection on redelivery.
+                    record = json.loads(raw)
+                    if record.get("status") in (ENDED, status):
+                        return  # Preserve final outcome and TTL on duplicates.
+                    record.update(status=status, reason=reason)
+                    pipe.multi()
+                    pipe.set(key, json.dumps(record), ex=self._ttl)
+                    await pipe.execute()
+                    return
+                except WatchError:
+                    continue  # Re-read if teardown or another delivery won the race.
+        raise WatchError("call status changed repeatedly")
 
     async def mark_connected(self, lead_token: "str | None") -> None:
         """The callee picked up — Twilio fetched `/answer` for this token."""

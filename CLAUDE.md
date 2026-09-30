@@ -15,7 +15,9 @@ Never describe roadmap work as implemented merely because it appears in document
   recording workflow, cost controls, PostgreSQL post-call job handoff and workers, and
   extensive offline tests.
 - **Implemented foundation:** PostgreSQL schema/repositories, transaction-safe appointment booking,
-  and post-call job handoff. Live-call integration continues in focused increments.
+  post-call job handoff, and transactional `/answer` webhook receipts/call events.
+  Successful answer webhooks require PostgreSQL and the latest migration.
+  Live-call integration continues in focused increments.
 - **Planned later:** versioned admin APIs, authentication/RBAC, follow-up delivery, audit and cost
   ledgers, observability, load tests, Docker, and CI/CD.
 - **Optional only with evidence:** WebSocket supervisor UI, provider switching, circuit breakers,
