@@ -60,11 +60,14 @@ def test_handle_interruption_holds_the_current_stage():
     assert state.stage_turn_count == 2
 
 
-def test_handle_objection_records_and_routes_to_objection_stage():
-    state = CallState(stage="pivot")
+@pytest.mark.parametrize("stage", list(ConversationStage))
+def test_handle_objection_records_and_routes_to_objection_stage(stage):
+    state = CallState(stage=stage)
     result = handle_objection(state, "fees")
     assert state.objection_counts == {"fees": 1}
     assert result.next_stage == "objection"
+    assert can_transition(stage, ConversationStage.OBJECTION)
+    assert state.stage == stage
 
 
 def test_repeated_objection_hard_pivots_without_reanswering():

@@ -23,7 +23,12 @@ class ConversationStateStore(Protocol):
 # frozenset is basically a set that cannot be modified after creation
 _ALLOWED_TRANSITIONS: dict[ConversationStage, frozenset[ConversationStage]] = {
     ConversationStage.OPEN: frozenset(
-        {ConversationStage.OPEN, ConversationStage.DISCOVER, ConversationStage.PIVOT}
+        {
+            ConversationStage.OPEN,
+            ConversationStage.DISCOVER,
+            ConversationStage.PIVOT,
+            ConversationStage.OBJECTION,
+        }
     ),
     ConversationStage.DISCOVER: frozenset(
         {

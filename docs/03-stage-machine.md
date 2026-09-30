@@ -84,13 +84,13 @@ with "what's your name?" is the rudest turn in the call.
 | value | after 4 turns (`VALUE_MAX_TURNS`) | structure |
 | structure | after 1 turn | pivot |
 | pivot | slot accepted | close |
-| pivot / close | objection classifier fires | objection |
+| any stage | objection classifier fires (below the repeat cap) | objection |
 | objection | objection answered | back to **pivot** (never backward) |
 | objection | same objection twice | pivot with HARD pivot, no re-answer |
 | close | locked_slot != null AND readback confirmed | **terminal = WIN** |
 
-The `pivot / close → objection` row is the one sanctioned index-backward move — an objection outranks
-every stage, including the close (the classifier runs before stage dispatch in
+Objection handling outranks normal progression in every stage, including the opening and close
+(the classifier runs before stage dispatch in
 `machine.next_stage`). "Never backward" is a claim about the **objection exit**: an answered
 objection returns to the booking, never to discovery or the pitch. Structure questions
 raised early do not move the stage at all — discover and objection carry a compact approved fact list
