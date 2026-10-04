@@ -29,17 +29,17 @@ The diagram shows current ownership. It does not show a committed appointment on
 | Layer | Responsibility / source |
 |---|---|
 | Composition | `roma/main.py` wires settings, database, services, media and routes |
-| API | `roma/api/v1/` parses/authenticates and maps responses; current URLs remain unversioned |
+| API | `roma/api/v1/` owns versioned `/api/v1` resources and shared envelopes while legacy compatibility routes continue to coexist |
 | Services | Call, webhook, post-call and dispatcher use cases |
 | Domain | Conversation, appointment time resolution, safety, cost and persistence contracts |
 | Repositories | PostgreSQL units of work/records and Redis transient adapters |
-| Providers | Twilio, calendar and Dramatiq SDK boundaries; local model contracts added at L1–5 |
+| Providers | Twilio, calendar and Dramatiq SDK boundaries; provider contracts exist since L1 section 7 and local adapters arrive at L2–5 |
 | Realtime | Pipecat processors, endpointing, streaming/cancellation, recorder and safe speech |
 | Workers | Recording finalization and database-authoritative background effects |
 
 Dependencies point inward toward domain rules. Do not move SDKs, FastAPI or SQL into the conversation policy merely to connect a feature. Retain the existing layered `roma/` package.
 
-The [backend architecture contract](22-backend-architecture-contract.md) maps the roadmap's `backend/app` example to current packages and records the enforceable Level 6 rules. The package rename itself is rejected as churn; boundary enforcement and module ownership are the useful work.
+The [backend architecture contract](22-backend-architecture-contract.md) maps the roadmap's `backend/app` example to current packages and records the enforceable section 6 rules. The package rename itself is rejected as churn; boundary enforcement and module ownership are the useful work.
 
 ## Transaction boundaries
 

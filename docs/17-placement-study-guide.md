@@ -68,9 +68,9 @@ by realtime composition, while the domain exposes only the checkpoint protocol
 and in-memory adapter; private file permission helpers live in `roma.core`
 instead of making the spend ledger depend on post-call workers.
 
-Explain what this does not finish: versioned public API schemas, provider
-contract mocks, type checking, CI/pre-commit and native one-command startup are
-still later Level 1 work.
+Explain what this does not finish: type checking, CI/pre-commit and native
+one-command startup are still later Level 1 work. Provider contract mocks and
+versioned public API schemas were completed in sections 7 and 8.
 
 ## Level 1 section 7 explanation
 
@@ -85,3 +85,24 @@ Defend the current limit: the Pipecat media pipeline still uses the existing
 OpenAI/Sarvam comparison path. Replacing it belongs with local inference,
 speech quality, latency and cancellation evidence, not with the Level 1
 contract foundation.
+
+## Level 1 section 8 explanation
+
+Show the `/api/v1` resource contract as the public business API: every success
+returns `{success, data, meta}` and every error returns `{success: false,
+error}` with a stable code and message. Explain how list endpoints expose
+pagination, filters and sort metadata so callers can replay exactly what the
+server applied.
+
+Trace route handlers into `RestApiService`. Defend why each request opens short
+units of work through the configured session factory instead of holding a
+database transaction across audio, inference or carrier operations. Map the
+important failures: missing/invalid bearer token is 401, appointment slot
+conflict is 409, Pydantic request/query validation is 422 and unavailable
+configured database access is 503.
+
+Explain why `/api/call` stays separate from `POST /api/v1/calls`: the legacy
+route performs the explicit carrier dial side effect, while the v1 call resource
+creates durable business records. Joining those flows needs a later tested
+client migration. Also state the current security limit clearly: Level 8 RBAC,
+sessions, revocation and callback replay policy are still pending.

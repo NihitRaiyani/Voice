@@ -1,6 +1,6 @@
 # Database migrations and separate demo data
 
-**Level 1 section 5.** SQLAlchemy 2.x defines the relational metadata; Alembic owns schema, constraints and indexes. [The schema catalog](20-relational-schema.md) explains their purpose. This workflow retains all existing revisions and the current single head. It does not apply changes to the configured working database during verification.
+**Level 1 section 5.** SQLAlchemy 2.x defines the relational metadata; Alembic owns schema, constraints and indexes. [The schema catalog](20-relational-schema.md) explains their purpose. This workflow retains all existing revisions and the current single head. Verification still uses disposable databases, while the configured `roma` database was upgraded to `20261004_0003 (head)` on 2026-10-04; every other intended environment must run the same upgrade before new schema consumers start.
 
 ## Preserved revision history
 
@@ -14,7 +14,7 @@ The roadmap's five numbered examples illustrate ordered migrations; they do not 
 
 ## Configuration and operator workflow
 
-Run from `/Users/nihitraiyani/Voice_Agent` with the locked virtual environment available. Migrations and demo seeding load database-only settings from `DATABASE_URL` or `.env`; they need no AI, carrier or Redis credentials. Both `postgresql://` and `postgresql+asyncpg://` normalize to the asyncpg driver. Keep real connection strings out of tracked files and command history. Explicit Alembic `Config` URLs remain supported for isolated tests. Migration connections use `NullPool`, and dispose even after failure; they are separate from the application pool budget.
+Run from `<project-root>` with the locked virtual environment available. Migrations and demo seeding load database-only settings from `DATABASE_URL` or `.env`; they need no AI, carrier or Redis credentials. Both `postgresql://` and `postgresql+asyncpg://` normalize to the asyncpg driver. Keep real connection strings out of tracked files and command history. Explicit Alembic `Config` URLs remain supported for isolated tests. Migration connections use `NullPool`, and dispose even after failure; they are separate from the application pool budget.
 
 ```bash
 source .venv/bin/activate
@@ -26,12 +26,12 @@ alembic current
 alembic check
 ```
 
-`heads`/`history` inspect files; `current` and `check` require PostgreSQL. The expected head is `20261004_0003`. `check` confirms no proposed metadata operations, not data integrity, service readiness or performance. Upgrade on the intended environment before code queries the new turn-language column. Alembic's [migration tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration) describes revision ordering and upgrade execution.
+`heads`/`history` inspect files; `current` and `check` require PostgreSQL. The expected head is `20261004_0003`; the configured `roma` database was confirmed at that head on 2026-10-04. `check` confirms no proposed metadata operations, not data integrity, service readiness or performance. Upgrade every other intended environment before code queries the new turn-language column. Alembic's [migration tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration) describes revision ordering and upgrade execution.
 
 Preview SQL without connecting to PostgreSQL:
 
 ```bash
-alembic upgrade head --sql > /private/tmp/roma-schema-review.sql
+alembic upgrade head --sql > "$TMPDIR/roma-schema-review.sql"
 ```
 
 This renders the base-to-head schema. For a database at the prior head, preview only the pending range with `alembic upgrade 20260930_0002:head --sql`. Offline rendering requires a database URL to choose the dialect; it does not apply changes. SQL review complements integration tests.
@@ -82,7 +82,7 @@ Approved real institute/course/counsellor data needs its own reviewed import and
 
 ## Verification and learning outcome
 
-The [Level 1 brief](levels/level-01.md) records current evidence and remaining gates. Tests verify the preserved single revision chain, offline schema/index SQL, metadata parity, database-only configuration, upgrade/downgrade/re-upgrade, seed-free schema creation, repeatable/concurrent seeds, preservation of existing data, atomic conflict rollback and production/implicit seed refusal. Integration checks use disposable PostgreSQL; the configured working database remains unchanged.
+The [Level 1 brief](levels/level-01.md) records current evidence and remaining gates. Tests verify the preserved single revision chain, offline schema/index SQL, metadata parity, database-only configuration, upgrade/downgrade/re-upgrade, seed-free schema creation, repeatable/concurrent seeds, preservation of existing data, atomic conflict rollback and production/implicit seed refusal. Integration checks use disposable PostgreSQL; the configured `roma` database state is verified separately with `alembic current` and was at `20261004_0003 (head)` on 2026-10-04.
 
 Students should explain why applied history is immutable, why generated migrations need review, why a downgrade can lose data, why indexes belong in schema history, and why demo content must remain separate from durable business facts.
 

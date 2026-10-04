@@ -130,7 +130,7 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
     tests/repositories/postgres/test_appointment_concurrency.py
 ```
 
-The new migration is ready for the intended environment and is not automatically applied to the working database. Upgrade before code uses the new turn-language column. Downgrade destroys new checkpoint/benchmark records and language metadata while preserving legacy records; coordinate backup/code compatibility before any real rollback. Fixture expiry durations are test data, not approved retention policy. Section 5 workflow results follow below; remaining section 9, Level 0 gaps and the full Level 1 gate remain pending.
+The new migration was verified on disposable databases and the configured `roma` database was upgraded to `20261004_0003 (head)` on 2026-10-04. Upgrade every other intended environment before code uses the new turn-language column, then verify with `alembic current` and `alembic check`. Downgrade destroys new checkpoint/benchmark records and language metadata while preserving legacy records; coordinate backup/code compatibility before any real rollback. Fixture expiry durations are test data, not approved retention policy. Section 5 workflow results follow below; remaining section 9, Level 0 gaps and the full Level 1 gate remain pending.
 
 ## Section 5 migration workflow and separate seeds
 
@@ -188,7 +188,7 @@ owns SDK adapters, `roma/realtime` owns the current voice pipeline and
 `knowledge/`, `benchmarks/` and static config directories arrive with their
 own later sections/levels when they have real consumers.
 
-The useful Level 6 change is enforceable dependency direction. Domain code must
+The useful section 6 change is enforceable dependency direction. Domain code must
 not import FastAPI, provider SDKs, SQLAlchemy, Redis clients, concrete
 repositories, realtime processors or workers. API handlers stay as transport
 mapping; business rules stay in domain/services; repositories and providers are
@@ -207,9 +207,10 @@ Two concrete leaks were removed:
 
 `tests/architecture/test_dependency_direction.py` locks the domain-layer rule
 so future work cannot accidentally pull transport/storage/provider concerns
-back into business modules. This section does not implement provider contract
-mocks, public `/api/v1` schemas, pre-commit/CI, type checking or native
-one-command startup; those are remaining section 9/full-gate work.
+back into business modules. Provider contract mocks and public `/api/v1` schemas were completed in
+sections 7 and 8; see the [provider contracts](../23-provider-contracts.md)
+and [REST API design](../24-rest-api-design.md). Type checking, pre-commit,
+CI and native one-command startup remain section 9/full-gate work.
 
 ## Section 6 verification evidence
 

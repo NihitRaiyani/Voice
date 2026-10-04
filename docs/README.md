@@ -49,7 +49,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [19 Worker framework](19-background-task-framework.md) | Implemented Dramatiq/SQL job ownership |
 | [20 Relational schema](20-relational-schema.md) | Complete table/key/constraint/index rationale, cascade and retention choices |
 | [21 Database migrations](21-database-migrations.md) | Preserved revision history, forward workflow, rollback impact and separate opt-in demo seeds |
-| [22 Backend architecture contract](22-backend-architecture-contract.md) | Modular monolith map, dependency direction and Level 6 boundary enforcement |
+| [22 Backend architecture contract](22-backend-architecture-contract.md) | Modular monolith map, dependency direction and section 6 boundary enforcement |
 | [23 Provider contracts](23-provider-contracts.md) | STT/LLM/TTS/embedding/telephony interfaces, mocks and config switching |
 
 ## Decisions, source and operation
