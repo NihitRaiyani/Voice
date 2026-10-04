@@ -19,6 +19,25 @@ class ConversationStateStore(Protocol):
 
     async def save(self, state: CallState) -> None: ...
 
+
+class InMemoryConversationStateStore:
+    """Process-local checkpoint store for domain tests and offline runs."""
+
+    def __init__(self) -> None:
+        self._data: dict[str, CallState] = {}
+
+    async def load(self, call_sid: str) -> CallState | None:
+        state = self._data.get(call_sid)
+        return CallState.from_dict(state.to_dict()) if state is not None else None
+
+    async def save(self, state: CallState) -> None:
+        self._data[state.call_sid] = CallState.from_dict(state.to_dict())
+
+
+CallStateStore = ConversationStateStore
+InMemoryCallStateStore = InMemoryConversationStateStore
+
+
 # dictionary is defining which conversation stages are allowed to move to which other stages.
 # frozenset is basically a set that cannot be modified after creation
 _ALLOWED_TRANSITIONS: dict[ConversationStage, frozenset[ConversationStage]] = {
@@ -110,8 +129,11 @@ def handle_missing_information(state: CallState) -> Transition:
 
 
 __all__ = [
+    "CallStateStore",
     "ConversationStage",
     "ConversationStateStore",
+    "InMemoryCallStateStore",
+    "InMemoryConversationStateStore",
     "can_transition",
     "get_state",
     "handle_interruption",

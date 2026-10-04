@@ -7,7 +7,7 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | ID | Decision | Engineering consequence |
 |---|---|---|
 | A01 | `Voice_Agent` is the working project; v4 replaces the prior curriculum | Verify repository root; no work in Weltec for this task |
-| A02 | Implement one explicitly requested level or section at a time | Current scope is L1 section 5 migration workflow, preserving sections 3–4 foundations; other sections, live calls and deployments require their own scope |
+| A02 | Implement one explicitly requested level or section at a time | Current scope is L1 section 6 architecture boundaries, preserving sections 3–5 foundations; other sections, live calls and deployments require their own scope |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
 | A04 | Retain Twilio/Pipecat cloud comparison path | Use the existing Twilio adapter through the v4 migration |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
@@ -28,6 +28,7 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | A20 | Checkpoint ownership cascades from call; benchmark results cascade from run and restrict model deletion | Explicit checkpoint expiry; non-PII benchmark metadata only; restoration/runner/cleanup consumers remain later-level work |
 | A21 | Preserve all three revisions; database commands need only database settings; synthetic seeds are separate and explicit | No renumbering or empty revision for section 5; dev/test-only head-checked atomic seeds preserve existing data; rollback guidance identifies lost data and compatible code |
 | A22 | Automatically commit and push after each completed user-requested level or section | Standing user authorization; verify checks and synchronize docs first, preserve unrelated edits/secrets, report the GitHub commit, never force-push or start the next level implicitly |
+| A23 | Treat `roma/` as the v4 backend app package rather than renaming to `backend/app` | Preserve import stability; enforce module ownership and domain dependency direction with tests |
 
 ## Preserved operational invariants
 

@@ -1,6 +1,6 @@
 # Voice_Agent documentation
 
-This is the project's canonical documentation entry point. v4 defines future development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–5 cover persistence/pool safeguards, relational foundations and migration/separate-demo workflow.
+This is the project's canonical documentation entry point. v4 defines future development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–6 cover persistence/pool safeguards, relational foundations, migration/separate-demo workflow and backend architecture boundaries.
 
 ## Level briefs
 
@@ -9,7 +9,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | Level | Brief | Current gate position |
 |---|---|---|
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
-| 1 | [Backend foundation](levels/level-01.md) | Sections 3–5 foundations; sections 6–9/full gate pending |
+| 1 | [Backend foundation](levels/level-01.md) | Sections 3–6 foundations; sections 7–9/full gate pending |
 | 2 | [Text/local LLM](levels/level-02.md) | Cloud controller present; local/durable gate pending |
 | 3 | [Transactional booking](levels/level-03.md) | Repository present; live/API integration pending |
 | 4 | [Audio/local ASR](levels/level-04.md) | Cloud baseline; local lab planned |
@@ -48,6 +48,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [19 Worker framework](19-background-task-framework.md) | Implemented Dramatiq/SQL job ownership |
 | [20 Relational schema](20-relational-schema.md) | Complete table/key/constraint/index rationale, cascade and retention choices |
 | [21 Database migrations](21-database-migrations.md) | Preserved revision history, forward workflow, rollback impact and separate opt-in demo seeds |
+| [22 Backend architecture contract](22-backend-architecture-contract.md) | Modular monolith map, dependency direction and Level 6 boundary enforcement |
 
 ## Decisions, source and operation
 

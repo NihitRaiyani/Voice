@@ -1,6 +1,6 @@
 # Architecture and module ownership
 
-**Present:** layered Python modular monolith with Twilio/Pipecat cloud media, Redis, PostgreSQL/Alembic, atomic answer acceptance and durable Dramatiq job processing. **Target:** validated local AI, complete transactional live booking, governed retrieval and production access/telemetry/deployment controls.
+**Present:** layered Python modular monolith with Twilio/Pipecat cloud media, Redis, PostgreSQL/Alembic, atomic answer acceptance, durable Dramatiq job processing and an enforced domain dependency rule. **Target:** validated local AI, complete transactional live booking, governed retrieval and production access/telemetry/deployment controls.
 
 ```mermaid
 flowchart LR
@@ -39,6 +39,8 @@ The diagram shows current ownership. It does not show a committed appointment on
 
 Dependencies point inward toward domain rules. Do not move SDKs, FastAPI or SQL into the conversation policy merely to connect a feature. Retain the existing layered `roma/` package.
 
+The [backend architecture contract](22-backend-architecture-contract.md) maps the roadmap's `backend/app` example to current packages and records the enforceable Level 6 rules. The package rename itself is rejected as churn; boundary enforcement and module ownership are the useful work.
+
 ## Transaction boundaries
 
 `/answer` commits receipt/call/event before successful TwiML; failure is 503. Post-call handling commits call/job intents before recording-queue ack. Background actors commit their effect and settlement together. The booking repository locks an existing slot and has active-slot uniqueness, but needs live use-case/API integration.
@@ -48,6 +50,8 @@ A short booking transaction can run in the turn; inference, audio, external sync
 ## Relational foundations
 
 The [schema catalog](20-relational-schema.md) owns the physical table/key/constraint/index and retention rationale. L1 section 4 adds checkpoint and model/benchmark evidence models; these tables are not yet live pipeline consumers. The additive migration preserves old keys/semantics and adds optional turn-language metadata. L1 section 5 adds the [migration workflow](21-database-migrations.md) and separate opt-in demo seeds; migration/seeding tools depend only on database settings and never initialize voice providers.
+
+L1 section 6 moves shared private-file primitives into `roma.core.private_files` and keeps concrete Redis checkpoint adapters out of the domain package export. A focused architecture test now prevents `roma/domain/**` from importing API, provider, repository, realtime, worker or SDK modules.
 
 ## Deployment and target
 

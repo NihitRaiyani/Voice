@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from roma.workers.postcall.paths import open_private
+from roma.core.private_files import open_private
 
 _log = logging.getLogger("roma.domain.costs.spend")
 

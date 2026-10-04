@@ -53,3 +53,21 @@ Describe migration compatibility: old rows/keys survive; optional turn language 
 Trace the preserved Alembic revision chain from initial schema to webhook receipts to checkpoint/benchmark extensions. Explain why an applied revision is immutable and why a reviewed future migration owns its indexes. Demonstrate offline SQL review, empty/legacy-populated upgrade, metadata parity and disposable downgrade/re-upgrade using the [migration guide](21-database-migrations.md).
 
 Run the opt-in demo command twice and explain stable identities, database uniqueness, the zero-row second insert and atomic rollback on conflict. Distinguish inactive synthetic offerings/role names from approved business data or user permissions. Explain why database-only operations need no AI/carrier keys, and why successful schema rollback does not recover dropped records.
+
+## Level 1 section 6 explanation
+
+Trace the modular monolith from `roma/main.py` to API adapters, services,
+domain rules, repositories, providers, realtime voice processors and workers.
+Explain why the v4 `backend/app` tree maps to existing packages rather than a
+rename, and why a package name is less important than dependency direction.
+
+Show the architecture test that keeps `roma/domain/**` free of FastAPI,
+provider SDKs, concrete repositories, realtime processors and workers. Defend
+the two cleanup changes: Redis checkpoint storage is a repository adapter used
+by realtime composition, while the domain exposes only the checkpoint protocol
+and in-memory adapter; private file permission helpers live in `roma.core`
+instead of making the spend ledger depend on post-call workers.
+
+Explain what this does not finish: versioned public API schemas, provider
+contract mocks, type checking, CI/pre-commit and native one-command startup are
+still later Level 1 work.

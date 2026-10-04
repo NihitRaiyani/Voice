@@ -82,7 +82,7 @@ from roma.api.v1.twilio_webhooks import mount_answer_route
 from roma.core.config import get_settings
 from roma.core.logging import RedactionFilter, current_call_sid
 from roma.domain.calls import consent_signed_off
-from roma.domain.conversation import CallState, ConversationStage, RedisCallStateStore
+from roma.domain.conversation import CallState, ConversationStage
 from roma.domain.conversation.prompts import (
     assemble_system_prompt,
     opening_line,
@@ -127,6 +127,7 @@ from roma.realtime.turntaking import (
     AdaptiveEndpointStopStrategy,
     BackchannelAwareUserTurnStartStrategy,
 )
+from roma.repositories.redis.conversation_state import RedisCallStateStore
 from roma.repositories.redis.leads import RedisLeadStore
 from roma.repositories.redis.opener_audio import OpenerStore
 from roma.repositories.redis.postcall_queue import RedisPostcallQueue

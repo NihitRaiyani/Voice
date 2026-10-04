@@ -1,6 +1,6 @@
 # Verification and acceptance evidence
 
-Latest verification for the [Level 1 sections 3–5 increments](levels/level-01.md): **1,657 tests passed, 23 warnings, no failures or skips**, including disposable PostgreSQL/Redis integration, and **10/10 offline evaluations** with zero findings. All changed Python files pass lint; the full repository retains **two existing I001 import-format findings** in `roma/domain/conversation/state.py` and `roma/repositories/postgres/models/base.py`.
+Latest complete-suite verification for the [Level 1 sections 3–5 increments](levels/level-01.md): **1,657 tests passed, 23 warnings, no failures or skips**, including disposable PostgreSQL/Redis integration, and **10/10 offline evaluations** with zero findings. Section 6 focused verification adds **31 passing architecture/domain tests** and changed-file lint pass. All changed Python files pass lint; the full repository retains **two existing I001 import-format findings** in `roma/domain/conversation/state.py` and `roma/repositories/postgres/models/base.py`.
 
 The earlier [Level 0 baseline report](roadmaps/level-00-baseline.md) remains historical evidence of 1,571 passing tests and five lint findings before this increment. Its test/identity record is not rewritten as current implementation evidence. L1 records capacity/pressure/timeout/cancellation and relational constraint/migration/legacy-compatibility and separate-seed workflow results and their limits; the full Level 1 gate remains pending.
 
@@ -19,6 +19,13 @@ Use the locked telephony/dev/workers environment, NLTK sentence data and disposa
 Section 4 metadata contracts passed 116 tests; focused relational/migration/repository/booking checks passed 46 tests. The complete suite includes these and Alembic schema parity; working-database migration and later restore/benchmark/cleanup features are not implied by those results. See the [relational catalog](20-relational-schema.md).
 
 Section 5 adds 18 tests for database-only migration settings, ordered/offline schema/index review, database-only upgrade/check/rollback/re-upgrade and separate atomic/repeatable/concurrent seed behavior, preservation, head/environment guards and CLI privacy/opt-in. The final full suite passed in 62.67 seconds after new module-owned PostgreSQL fixtures were shortened to module scope; session-long extra servers had exhausted macOS shared-memory IDs in the initial run (1,647 passed, ten setup errors). No application or PostgreSQL server setting was changed to resolve that test-resource issue. All three revision files and retained v4 source bytes remain unchanged. An end-to-end demo CLI run on fresh disposable PostgreSQL inserted seven rows, then zero on repeat; reference rows survived downgrade/re-upgrade and a third invocation inserted zero. Documentation verification covered 60 non-archive Markdown files and 262 local links with zero issues; all 25 changed Python files pass lint. See the [migration guide](21-database-migrations.md).
+
+Section 6 adds an architecture dependency test that prevents `roma/domain/**`
+from importing API, provider, repository, realtime, worker or SDK modules. It
+also verifies the domain conversation state facade and spend ledger privacy
+behavior after moving shared private-file helpers into `roma.core`. The
+configured `roma` database was upgraded to `20261004_0003 (head)` and `alembic
+check` reports no metadata drift; no seed data was inserted.
 
 ## Evidence rules
 

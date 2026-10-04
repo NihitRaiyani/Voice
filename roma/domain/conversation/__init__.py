@@ -16,6 +16,9 @@ from roma.domain.conversation.state import (
     CallState,
 )
 from roma.domain.conversation.state_machine import (
+    CallStateStore,
+    InMemoryCallStateStore,
+    InMemoryConversationStateStore,
     can_transition,
     get_state,
     handle_interruption,
@@ -26,11 +29,6 @@ from roma.domain.conversation.state_machine import (
     transition,
 )
 from roma.domain.conversation.turn import advance_turn
-from roma.repositories.redis.conversation_state import (
-    CallStateStore,
-    InMemoryCallStateStore,
-    RedisCallStateStore,
-)
 
 __all__ = [
     "CallState",
@@ -51,5 +49,5 @@ __all__ = [
     "advance_turn",
     "CallStateStore",
     "InMemoryCallStateStore",
-    "RedisCallStateStore",
+    "InMemoryConversationStateStore",
 ]

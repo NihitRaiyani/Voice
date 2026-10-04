@@ -1,6 +1,6 @@
 # Level 1 — Backend foundation
 
-**v4 sections:** 3–9. **Status:** Sections 3–5 persistence/pool, relational foundations and migration/separate-demo workflow implemented; remaining sections 6–9 and full gate pending.
+**v4 sections:** 3–9. **Status:** Sections 3–6 persistence/pool, relational foundations, migration/separate-demo workflow and architecture boundaries implemented; remaining sections 7–9 and full gate pending.
 
 ## Entry gate
 
@@ -26,6 +26,7 @@ Layered `roma/`, async SQLAlchemy pools/units of work, three Alembic migrations,
 - [x] Section 4: schema keys/constraints/indexes/deletion choices reviewed; empty and legacy-populated migration/rollback verified.
 - [x] Section 5: preserved Alembic history, database-only development workflow, tested rollback and separate opt-in synthetic seeds; approved real business-data imports remain owner-governed.
 - [x] Section 3: bounded pool configuration, process allocation and synthetic pressure/release/timeout/cancellation evidence; real deployment budget must be checked against its server.
+- [x] Section 6: modular monolith package map documented; domain dependency direction enforced; concrete Redis/worker leaks removed from domain exports.
 - [ ] Provider contract mocks and versioned API checks pass; CI is green.
 
 ## Boundaries and advanced work
@@ -84,7 +85,7 @@ Operator CLI measurements used a fresh disposable PostgreSQL server per measurem
 
 A separate unsafe-headroom CLI run returned exit 1 before load began. Real tests also prove all 100 repository units return their connections before simulated audio resumes, one held connection causes a bounded domain availability error in a one-connection pool, release restores operation, and cancellation returns its checkout. Existing schema upgrade/downgrade, durable-record round trips and the 100-attempt same-slot race passed.
 
-These cold-start synthetic read measurements do not select an optimal pool size or prove production audio/write latency, deployment throughput, live event collection, clean-machine setup or a full level gate. Retain current defaults. Before deployment/scaling, set the actual process topology/allocation and run capacity preflight against the intended database; benchmark representative writes and voice traffic separately. Other sections 6–9, Level 0 gaps and full-level reviewer/demo remain pending.
+These cold-start synthetic read measurements do not select an optimal pool size or prove production audio/write latency, deployment throughput, live event collection, clean-machine setup or a full level gate. Retain current defaults. Before deployment/scaling, set the actual process topology/allocation and run capacity preflight against the intended database; benchmark representative writes and voice traffic separately. Other sections 7–9, Level 0 gaps and full-level reviewer/demo remain pending.
 Existing foundations do not automatically pass the full gate. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
 
 ## Section 4 relational design and implementation
@@ -127,7 +128,7 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
     tests/repositories/postgres/test_appointment_concurrency.py
 ```
 
-The new migration is ready for the intended environment and is not automatically applied to the working database. Upgrade before code uses the new turn-language column. Downgrade destroys new checkpoint/benchmark records and language metadata while preserving legacy records; coordinate backup/code compatibility before any real rollback. Fixture expiry durations are test data, not approved retention policy. Section 5 workflow results follow below; sections 6–9, Level 0 gaps and the full Level 1 gate remain pending.
+The new migration is ready for the intended environment and is not automatically applied to the working database. Upgrade before code uses the new turn-language column. Downgrade destroys new checkpoint/benchmark records and language metadata while preserving legacy records; coordinate backup/code compatibility before any real rollback. Fixture expiry durations are test data, not approved retention policy. Section 5 workflow results follow below; sections 7–9, Level 0 gaps and the full Level 1 gate remain pending.
 
 ## Section 5 migration workflow and separate seeds
 
@@ -170,6 +171,72 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
     tests/repositories/postgres/test_relational_extensions.py
 ```
 
-Section 5 is complete for this bounded increment; sections 6–9, Level 0 prerequisites, deployment backup/restore timing and the full Level 1 gate remain pending.
+Section 5 is complete for this bounded increment; sections 7–9, Level 0 prerequisites, deployment backup/restore timing and the full Level 1 gate remain pending.
+
+## Section 6 backend architecture boundaries
+
+Preserve `roma/` as the actual backend application package. The v4 `backend/app`
+tree maps to existing packages rather than authorizing a broad rename:
+`roma/main.py` composes the app, `roma/api/v1` owns HTTP adapters,
+`roma/core` owns settings/logging/database/shared privacy helpers,
+`roma/domain` owns business rules and protocols, `roma/repositories` owns
+PostgreSQL/Redis adapters, `roma/services` owns use cases, `roma/providers`
+owns SDK adapters, `roma/realtime` owns the current voice pipeline and
+`roma/workers` owns retryable background effects. Future `roma/rag`,
+`knowledge/`, `benchmarks/` and static config directories arrive with their
+own later sections/levels when they have real consumers.
+
+The useful Level 6 change is enforceable dependency direction. Domain code must
+not import FastAPI, provider SDKs, SQLAlchemy, Redis clients, concrete
+repositories, realtime processors or workers. API handlers stay as transport
+mapping; business rules stay in domain/services; repositories and providers are
+adapters; workers are asynchronous execution boundaries.
+
+Two concrete leaks were removed:
+
+- `roma.domain.conversation` no longer re-exports `RedisCallStateStore`. It now
+  exposes the checkpoint protocol plus an in-memory adapter for tests/offline
+  runs; the realtime composition imports the Redis adapter from
+  `roma.repositories.redis.conversation_state`.
+- `roma.domain.costs.spend` no longer imports post-call worker path helpers.
+  Owner-only file creation/opening now lives in `roma.core.private_files`, while
+  `roma.workers.postcall.paths` remains the owner of post-call path names and
+  re-exports the helpers for compatibility.
+
+`tests/architecture/test_dependency_direction.py` locks the domain-layer rule
+so future work cannot accidentally pull transport/storage/provider concerns
+back into business modules. This section does not implement provider contract
+mocks, public `/api/v1` schemas, pre-commit/CI, type checking or native
+one-command startup; those are section 7-9/full-gate work.
+
+## Section 6 verification evidence
+
+Verified 2026-10-04 after upgrading the configured `roma` database to head
+(`20261004_0003`). The database upgrade is an operator action, not a code
+change; no demo rows were seeded.
+
+| Check | Actual outcome |
+|---|---|
+| Focused architecture/domain regression suite | **31 passed**, one pytest cache write warning from the restricted workspace |
+| Changed Python file lint | **Pass** after import ordering fix |
+| Live `roma` database schema | Alembic current **`20261004_0003 (head)`**; `alembic check` reports **No new upgrade operations detected** |
+| Live `roma` database inventory | **25** expected business tables, **74** indexes, **291** constraints, no missing/extra expected tables, all inspected business tables have **0** rows |
+
+Focused command:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q \
+    tests/architecture/test_dependency_direction.py \
+    tests/domain/conversation/test_state_machine_api.py \
+    tests/domain/costs/test_spend.py
+.venv/bin/ruff check --no-cache \
+    roma/core/private_files.py roma/domain/conversation/__init__.py \
+    roma/domain/conversation/state_machine.py roma/domain/costs/spend.py \
+    roma/realtime/pipeline.py roma/workers/postcall/paths.py \
+    tests/architecture/test_dependency_direction.py
+```
+
+Run the complete offline suite before claiming the full Level 1 gate. Existing
+whole-repository lint debt remains as recorded in [verification](../12-verification.md).
 
 Return to the [documentation index](../README.md).
