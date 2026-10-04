@@ -1,50 +1,23 @@
-# 09 — Recording Storage
+# Recording and post-call lifecycle
 
-**Status:** Local capture, queued post-call processing, spooling, and retention settings are
-implemented. Durable metadata, signed access, and deletion/anonymization workflows are planned.
+**Selected baseline:** local caller/agent stereo capture and post-call finalization. Carrier-side recording is not an unresolved default choice. Pending institute disclosure wording/audio causes captures to be discarded; do not weaken that gate.
 
-**Learning objective:** Design an at-least-once background workflow whose acknowledgement happens
-only after durable storage, while treating recordings as sensitive data.
+Under `Settings.roma_data_dir` (default `var/roma`), raw audio is `media/{date}/{call_sid}.s16le`, fallback jobs are under `spool/postcall/`, and finalized consent-approved WAV/JSON artifacts are under `recordings/{date}/`. Files/directories are owner-only, 0600/0700.
 
-The recording worker now also hands off the completed call to PostgreSQL background jobs.
-It still does no transcription or AI summarization.
+## Durability and ack
 
-## Flow
-```
-call ends → pipeline pushes {call_sid, optional recording_ref, outcome} to queue:postcall
-          → post-call worker stores any recording
-          → PostgreSQL transaction saves call and job intents
-          → worker acks the Redis message
-```
+1. Media teardown enqueues a phone-number-free post-call message, with disk spool on enqueue failure.
+2. One recording worker stores captured audio or completes a required policy discard. Calls with no capture still proceed through business handoff.
+3. PostgreSQL atomically commits the completed call and idempotent job intents.
+4. Only then acknowledge the recording message using its original raw payload identity.
+5. Dispatcher/actors process durable job IDs and settle each database effect/status together.
 
-## Two ways to get the recording (pick one at build time)
-1. **Twilio call recording** — enable recording on the call; Twilio stores it and gives a
-   recording URL/SID. The worker downloads it to your store. Simplest; recording lives on
-   Twilio first (mind retention + PII there).
-2. **Local capture from the media stream** — Pipecat/Twilio media frames are written to a file
-   as the call runs; the worker finalizes it on call end. Keeps audio on your infra (fits the
-   Vadodara self-host choice), no third-party copy.
+Finalized files use temporary writes, fsync and atomic replacement. Filesystem storage and PostgreSQL are separate failure boundaries; replay must detect already-stored artifacts and retry failed database handoff safely. A local write is not proof of host-loss recovery.
 
-Given the on-prem Vadodara decision and PII locality, option 2 aligns better — but option 1 is
-faster to ship. Decide explicitly; don't leave it implicit.
+## Privacy and remaining work
 
-## Storage rules
-- **Naming:** `{date}/{call_sid}.{ext}` — sortable, unique, ties back to call-state.
-- **Location:** access-controlled store (see `docs/07`). Not a public bucket. Not world-readable.
-- **Durability before ack:** the queue job is acked ONLY after the recording is durably
-  written. A killed worker must never silently drop a recording.
-- **Metadata (minimal):** alongside each recording, store `{call_sid, timestamp, duration,
-  outcome, locked_slot}` — enough to find it later. Nothing more in v1.
-- **Retention:** define a window (compliance + storage cost). PII-bearing; don't keep forever
-  by default.
+Retention default is 90 days and a local pruning path exists. Approved retention/deletion must cover raw capture, spool/dead letters, WAV/metadata, database records, replicas and backups. Define crash/poison cleanup and audited manual replay rather than deleting evidence blindly.
 
-## Explicitly out of v1
-- Auto-transcription, WER scoring, scorecard generation, sentiment, search. These are v2 and
-  build on the stored recordings — the point of storing simply now is to not block on them.
+L8 supplies role permissions, access audit and complete deletion policy. L10 integrates time-limited authorized playback and recording metadata as required. No public blob/URL access or carrier-recording enablement is implied by these docs. Summaries currently use deterministic call metadata, not paid transcript generation; follow-up delivery is inactive.
 
-## Durable handoff
-
-The worker records a `process_recording` result when audio was captured, and the same database
-transaction creates statistics, summary, and lead-update intents. Recording remains idempotent
-under redelivery. Recording access still needs short-lived authorization and a documented
-retention/deletion path.
+See [security](07-security.md), [jobs](19-background-task-framework.md) and [audio asset instructions](../roma/realtime/assets/README.md).

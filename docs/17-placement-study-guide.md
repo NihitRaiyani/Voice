@@ -1,100 +1,35 @@
-# 17 — Placement-Focused Study Guide
+# Placement and viva study guide
 
-**Status:** Active learning guide.
+Use v4's level sequence as a learning progression. Trace behavior, identify the invariant, reproduce a failure, show evidence and defend a trade-off. Do not memorize technology names or claim unmeasured scale.
 
-The repository is the laboratory; interviews are the explanation test. Study by tracing behavior,
-breaking assumptions in tests, and defending trade-offs—not by memorizing definitions.
+| Levels | Concepts to explain | Evidence |
+|---|---|---|
+| 0–1 | Async HTTP/WS/audio, modular monolith, contracts/mocks, ER/migrations/pools, versioned APIs | Call trace, clean setup, ER/contract and CI checks |
+| 2–3 | Deterministic stages, tokenization/decoding, TTFT, structured extraction, booking transactions/locks/uniqueness | Text/local model demo, restore/safety tests, race/cancel/conflict report |
+| 4–6 | PCM/μ-law/resampling, VAD versus endpointing, language tracking, WER/CER/RTF and first audio | Representative speech benchmarks and local voice demo |
+| 7–8 | Backpressure, CPU offload, cancellation, recovery, idempotency, leases/retries, auth/RBAC/privacy | Failure trace, queue tests, duplicate/crash tests and permission/data-flow map |
+| 9–10 | Embeddings, scoped retrieval, grounding/deferral, serving/GPU admission and carrier integration | Golden RAG report and authorized local-model live evidence |
+| 11–13 | Traces/metrics, SQL analytics/cost units, capacity/chaos/SLOs and deployment recovery | Real dashboard, capacity report, clean-host startup/rollback and recovery drill |
+| 14 | Quantization/fine-tuning/reranking/hybrid search trade-offs | Measured bottleneck and reproducible improvement |
 
-## Study loop for every module
+## Questions to defend
 
-1. **Trace it:** follow one request, call, turn, transition, or job through the code and docs.
-2. **Name the invariant:** state what must always be true.
-3. **Find the failure:** identify race, timeout, duplicate, crash, invalid input, or privacy leak.
-4. **Prove it:** point to a test, log, metric, constraint, or experiment.
-5. **Explain the trade-off:** name a reasonable alternative and why it was not chosen.
+1. Why do PostgreSQL and Redis have different authority/lifetimes?
+2. Why is a repository-safe booking not yet a truthful live confirmation?
+3. What prevents two active bookings and how does cancellation free both records?
+4. Why can a callback handler run repeatedly but commit one business effect?
+5. What happens after a commit succeeds but an HTTP/broker acknowledgement is lost?
+6. Why do recording and Dramatiq consumers have different scaling constraints?
+7. What does direct local inference teach before vLLM?
+8. How do Gujarati/code-mix WER/CER and TTS intelligibility differ from a few successful demos?
+9. Which queues can drop data and which cannot?
+10. What must be cancelled/cleared during barge-in?
+11. Why can retrieved text neither select a stage nor override safety?
+12. How do scope/version/status filters and no-evidence deferral prevent wrong answers?
+13. What do mock load tests fail to prove about GPU/carrier capacity?
+14. Why is Docker last and what makes a rollback safe for schema/jobs/model state?
+15. What measured problem would justify optional infrastructure or model optimization?
 
-## Four learning blocks
+Answer with context → invariant → design → failure → evidence → trade-off. Explain from actual code/tests, including gaps. For example, active-slot uniqueness exists today, but the controller still needs database integration; do not describe the full gate as complete.
 
-### Block 1 — Explain the existing realtime system
-
-- Trace Twilio `/answer` to `/ws` and the bidirectional media frames.
-- Explain VAD versus endpointing versus barge-in.
-- Explain why the conversation controller owns state and the LLM owns wording.
-- Demonstrate how the pre-TTS filter fails safe.
-- Explain Redis keys, TTLs, caches, queues, and per-call isolation.
-
-**Portfolio proof:** architecture diagram, one turn timeline, one interruption trace, and one safety
-test explained in your own words.
-
-### Block 2 — Build database depth
-
-- Design the relational schema and migrations.
-- Implement versioned resources through a service/repository boundary.
-- Prove appointment locking and uniqueness under contention.
-- Explain isolation, rollback, optimistic versus pessimistic control, and index choice.
-
-**Portfolio proof:** ER diagram, migration history, query plan, API contract, and concurrency report.
-
-### Block 3 — Build professional backend controls
-
-- Implement auth/RBAC and webhook security.
-- Design idempotent background jobs and audit/cost ledgers.
-- Apply PII masking, retention, and deletion rules.
-- Test provider failures using fakes instead of paid APIs.
-
-**Portfolio proof:** permission matrix, duplicate-delivery test, retry timeline, audit example, and
-privacy data-flow map.
-
-### Block 4 — Prove production readiness
-
-- Add structured logs, metrics, traces, and actionable alerts.
-- Run unit, integration, concurrency, evaluation, and load tests.
-- Reproduce the stack with containers and enforce checks in CI/CD.
-- Measure the bottleneck before proposing scale infrastructure.
-
-**Portfolio proof:** trace screenshot/export, metrics definition, load report, CI run, and an
-incident-style explanation of a provider failure.
-
-## Interview questions this project should answer
-
-1. Why use both Redis and PostgreSQL?
-2. How do you guarantee two callers cannot book the same slot?
-3. Why is async I/O not the same as parallel execution or horizontal scaling?
-4. What happens if a webhook or background job is delivered twice?
-5. Where do you place transaction boundaries, and why?
-6. How does barge-in cancel work already in flight without leaking audio?
-7. Why can prompt instructions not replace a deterministic safety filter?
-8. How do you test provider integrations without spending money?
-9. Which identifiers connect logs, metrics, and traces without exposing PII?
-10. When should a provider request be retried, failed fast, or degraded?
-11. What evidence supports a scalability claim?
-12. Why is a modular monolith the correct default here?
-13. What would justify microservices, Kafka, or Kubernetes later?
-14. How do schema migrations remain safe during deployment?
-15. How would you investigate rising P95 turn latency?
-
-## Answer pattern
-
-Use this structure instead of giving textbook definitions:
-
-```text
-Context -> invariant -> design -> failure mode -> evidence -> trade-off
-```
-
-Example: "For appointments, the invariant is one active booking per branch/date/time. An
-application availability check races, so PostgreSQL enforces uniqueness inside a transaction. A
-loser rolls back and receives 409. A 100-request concurrency test proves one winner. Row locking is
-an alternative; we choose based on contention and transaction shape."
-
-## Weekly review
-
-At the end of a learning cycle, update:
-
-- the status table in `docs/13-backend-roadmap.md`;
-- the relevant current-system chapter;
-- tests and verification evidence;
-- `docs/decisions.md` for durable trade-offs;
-- a concise résumé/interview bullet that names scale or evidence honestly.
-
-Never claim unmeasured traffic, unbuilt features, or production readiness from local happy-path
-testing.
+Each student should explain the full request flow even when ownership is divided across backend, database, models, retrieval, real-time and QA. Use [completion criteria](completion-contract.md) for final demonstrations/deliverables and [level briefs](README.md) for the current scope.

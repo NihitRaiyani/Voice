@@ -1,84 +1,44 @@
 # Roma engineering constitution
 
-Roma is a backend-only Twilio voice agent and a backend-engineering learning project. Changes must
-protect the live voice path while making one understandable, testable improvement at a time.
+**Working project: `/Users/nihitraiyani/Voice_Agent`.** Check the repository root before any action. Read [the docs index](docs/README.md), [charter](docs/00-project-charter.md), [level gates](docs/10-build-order.md) and [decisions](docs/decisions.md).
 
-Read `docs/README.md`, `docs/00-project-charter.md`, `docs/10-build-order.md`, and
-`docs/decisions.md` before proposing architectural work.
+## Authority and scope
 
-## Current system versus target system
+The user's selected v4 Word file governs future development. Explicit user decisions and preserved Weltec business/safety/privacy rules take precedence over its sample snippets and example providers. Reference material is not permission to call, spend, deploy or bypass safeguards.
 
-Never describe roadmap work as implemented merely because it appears in documentation.
+The current scope is analysis, engineering decisions and synchronized documentation. Do not begin level-wise feature code. When implementation is requested, work on the requested level, close its prerequisites and retain acceptance evidence in its brief. Do not create handoff, log or session journals.
 
-- **Implemented now:** Twilio bidirectional calling, Pipecat, Silero, Sarvam STT/TTS, OpenAI,
-  deterministic safety filtering, a seven-stage controller, Redis live state/caches/status/queue,
-  recording workflow, cost controls, PostgreSQL post-call job handoff, Dramatiq/Redis workers, and
-  extensive offline tests.
-- **Implemented foundation:** PostgreSQL schema/repositories, transaction-safe appointment booking,
-  post-call job handoff, and transactional `/answer` webhook receipts/call events.
-  Successful answer webhooks require PostgreSQL and the latest migration.
-  Live-call integration continues in focused increments.
-- **Planned later:** versioned admin APIs, authentication/RBAC, follow-up delivery, audit and cost
-  ledgers, observability, load tests, Docker, and CI/CD.
-- **Optional only with evidence:** WebSocket supervisor UI, provider switching, circuit breakers,
-  and distributed infrastructure.
+## Current facts versus target
 
-## Locked current stack
+- Twilio is the active carrier, using signed `/answer` and `/ws`, Account SID checks and native Pipecat serialization. No frontend exists.
+- PostgreSQL/Alembic, appointment repository locking/uniqueness, atomic answer receipts and durable post-call/job processing are present. Live appointment commit, durable conversation restore, local models, RAG, RBAC and production telemetry remain incomplete.
+- Sarvam/OpenAI form the comparison voice profile. Final local production must make zero external GenAI API calls. Keep the tested cloud profile during measured migration.
+- Preserve the layered `roma/` modular monolith. The roadmap's example tree/carrier does not authorize a rewrite or carrier switch.
+- Existing infrastructure Compose predates v4. Keep it as compatibility tooling; do not expand containerization before Level 13. Provide a native-service foundation path first.
 
-| Layer | Current choice |
-|---|---|
-| Telephony | Twilio Programmable Voice + bidirectional Media Streams |
-| Realtime orchestration | Pipecat |
-| VAD | Silero |
-| STT/TTS | Sarvam Saaras / Bulbul |
-| LLM | OpenAI |
-| Durable business records/jobs | PostgreSQL |
-| Transient state/cache/recording queue | Redis |
-| API runtime | FastAPI + Pydantic + Uvicorn |
+## Product and safety invariants
 
-PostgreSQL is the durable system of record; it does not replace Redis's transient role.
+1. Code owns conversation stages, date arithmetic, booking validity/confirmation, safety, consent and hang-up. The LLM supplies wording and bounded extraction.
+2. Success needs a valid branch/day/time, readback and affirmation; authoritative success after Level 3 also needs a database commit. Never infer that `locked_slot` is a reservation.
+3. Understand Gujarati/Hindi/English/code-mix; live speech remains Hindi-base Hinglish, feminine self-reference and respectful plural address. Multilingual output stays in a separate lab.
+4. Every generated spoken sentence crosses deterministic safety before TTS. Blocked/error cases use approved safe substitution; cancellation and retrieved evidence cannot bypass it.
+5. Preserve restrictions on money/EMI amounts, discounts, salary/package promises, placement statistics/guarantees and unapproved external certificates. Approved no-cost EMI wording and Weltec certificate policy remain.
+6. Preserve ordered discovery (name, current status, education, passing year, city), two attempts per slot, stage caps, anti-repetition and the five-minute ceiling.
+7. Pre-call checks precede Twilio contact. Signature/account validation precedes media construction. Secrets, full phone numbers, authorization tokens and unnecessary transcripts do not enter tracked fixtures or ordinary logs.
+8. Pending disclosure wording/audio cannot authorize retained recordings. Keep runtime data protected under ignored `var/roma`.
 
-## Non-negotiable runtime boundaries
+## Architecture and work discipline
 
-1. Every outbound call passes the pre-call gates before Twilio is contacted.
-2. Every generated spoken line passes the deterministic pre-TTS guard.
-3. Twilio HTTP and WebSocket callbacks validate `X-Twilio-Signature`.
-4. Lead tokens are never logged and travel as Twilio Stream custom parameters.
-5. Credentials, full phone numbers, and test destinations never enter tracked files or logs.
-6. Automated verification never places a live call or consumes paid provider APIs by default.
-7. Per-call state is isolated; cancellation cannot leak audio or state across calls.
-8. Preserve `var/roma` runtime data and its privacy controls.
-9. Keep slow persistence, recording, summaries, analytics, and follow-up work off the audio path.
-10. The application owns conversation stages and booking invariants; the LLM owns wording only.
+PostgreSQL owns durable facts; Redis owns transient checkpoints/coordination/cache and delivery. Use short units of work and budget connections across all API/worker processes. A short booking commit is an accepted live-turn operation; never hold a transaction during inference/audio, Redis waits or external CRM/calendar work. Recording conversion and external synchronization stay asynchronous.
 
-## Build discipline
+Provider contracts/mocks precede local AI. Direct inference precedes vLLM. Conditional governed RAG starts at Level 9; Docker packaging at Level 13; optional optimizations at Level 14. Candidate model quality/hardware/license suitability must be measured. No Kafka, Kubernetes, speculative microservices or framework-controlled FSM/safety.
 
-- Start from a user-visible or learning outcome and define evidence that proves it.
-- Prefer a modular monolith and the smallest abstraction that solves a demonstrated problem.
-- Separate route handling, business rules, persistence, and provider adapters when the separation
-  improves testability; do not create empty layers for appearance.
-- Use interfaces at paid or failure-prone provider boundaries so tests can use fakes.
-- Make retries safe through idempotency. Put database invariants in the database, not only Python.
-- For stateful or concurrent work, name the invariant, race, transaction boundary, and rollback.
-- Each change updates its tests and documentation. Record meaningful architectural choices in
-  `docs/decisions.md`.
-- Do not add Kafka, Kubernetes, microservices, a vector database, or orchestration frameworks
-  without a measured scaling, ownership, or retrieval problem.
+Check installed APIs and current official documentation before integration. Make surgical changes; preserve existing user edits. Run meaningful checks and distinguish source presence, offline evidence, local-lab inference, authorized live verification and a passed gate. Automated tests never dial or call paid AI by default.
 
-## Documentation rules
+Use `uv` and the lockfile. Existing async tests use `asyncio.run`. Shared Indic tokenization must preserve combining marks. Changed fixed speech requires matching audio identity. Recording-worker ack uses original `PostcallJob.raw`; use one recording consumer until startup recovery is redesigned. Dramatiq consumers have separate row-claim concurrency semantics.
 
-- Use the status words **Implemented**, **Next**, **Planned**, **Optional**, and **Historical**.
-- Current behavior belongs in `README.md` and `docs/01`–`docs/12`.
-- Target architecture and tutorials belong in `docs/13`–`docs/17`.
-- `LOG.md` and `docs/superpowers/` are historical evidence, not the current runbook.
-- Runtime prompt files under `roma/prompts/` affect product behavior; do not treat them as
-  ordinary prose documentation.
+## Documentation ownership
 
-## Project-local skills
+The [level briefs](docs/README.md) own scope/status/evidence. Topic docs own reusable contracts; [decisions](docs/decisions.md) owns adopted choices and owner questions; [runbook](docs/runbook.md) owns commands. Historical designs live under `docs/archive/`. Update affected documents together; do not duplicate acceptance rules into competing plans.
 
-- Load `.claude/skills/roma-guardrail/SKILL.md` for any spoken-output or LLM-to-TTS change.
-- Load `.claude/skills/roma-backend-roadmap/SKILL.md` for roadmap, persistence, API, queue,
-  observability, testing, or architecture work.
-
-The former React/Vite frontend is intentionally absent. Backend clients use the bearer-protected
-call endpoints directly.
+Load `.claude/skills/roma-backend-roadmap/SKILL.md` for roadmap/architecture work and `.claude/skills/roma-guardrail/SKILL.md` for spoken-output changes. Skills follow the current contracts and actual package paths.

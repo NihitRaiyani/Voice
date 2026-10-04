@@ -38,6 +38,7 @@ from roma.workers.postcall.job import PostcallJob
 
 _log = logging.getLogger("roma.workers.postcall")
 
+# These are Redis keys used to track the lifecycle of background jobs so tasks are never lost if a worker crashes
 QUEUE_KEY = "queue:postcall"
 INFLIGHT_KEY = "queue:postcall:inflight"
 DEAD_KEY = "queue:postcall:dead"
@@ -58,7 +59,7 @@ class PostcallProducer(Protocol):
 @runtime_checkable
 class PostcallQueue(PostcallProducer, Protocol):
     """The full surface the worker needs."""
-
+# ack --> acknowledge a job is done and remove it from inflight
     async def reserve(self, timeout: int = 5) -> "PostcallJob | None": ...  # noqa: ASYNC109
     async def ack(self, job: PostcallJob) -> None: ...
     async def retry(self, job: PostcallJob) -> None: ...

@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # Pre-TTS Filter Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -8,7 +10,7 @@
 
 **Tech Stack:** Python 3.11+, `re` + `unicodedata` (stdlib only — no new deps), pytest, `uv`.
 
-**Spec:** `docs/superpowers/specs/2026-07-20-pretts-filter-design.md`. Read it before starting.
+**Spec:** `docs/archive/pre-v4/specs/2026-07-20-pretts-filter-design.md`. Read it before starting.
 
 ---
 
@@ -736,75 +738,9 @@ git commit -m "feat(guardrails): add safe_output entrypoint, fail-safe test, pub
 
 ---
 
-## Task 6: Full suite + docs + session bookkeeping
+## Historical closeout
 
-**Files:**
-- Modify: `docs/decisions.md`
-- Modify: `LOG.md`
-- Modify: `SESSION.md`
-
-- [ ] **Step 1: Run the entire test suite**
-
-Run: `uv run pytest -v`
-Expected: PASS — the prior 18 scaffold tests plus the new guardrails tests, all green. If any pre-existing test broke, stop and fix before continuing.
-
-- [ ] **Step 2: Record decisions**
-
-In `docs/decisions.md`, under `## Locked`, append:
-
-```markdown
-- **Pre-TTS filter (Gate 0, docs/04):** standalone `src/roma/guardrails/` package
-  (normalize → lexicon → filter). Allow-case is **negation-gated pushback** (filter
-  reads Roma's line only; a cue within `NEGATION_WINDOW=3` tokens of a signal opens the
-  gate). Clauses split on `, ; ।` and a spaced dash — never an unspaced hyphen.
-  CERT is a real 5th category, `CERT_BLOCK_ENABLED=True` pending D1. Fail-safe hard-fails
-  the turn to a canned line; absence of the filter = absence of a callable build.
-  Spec: `docs/superpowers/specs/2026-07-20-pretts-filter-design.md`.
-```
-
-- [ ] **Step 3: Append to the build log**
-
-In `LOG.md`, add a new entry at the top (below the header line):
-
-```markdown
-## 2026-07-20 — Gate 0 second half: pre-TTS guardrail filter
-Brainstormed → approved spec → plan → TDD execution. `src/roma/guardrails/`:
-`normalize.py`, `lexicon.py` (the enforced config), `filter.py` (`screen`/`safe_output`).
-Four block categories + CERT, negation-gated pushback allow-case, per-category
-substitution lines, permitted-EMI allowlist, fail-safe hard-fail line. Full spec test
-table green (block / allow / pushback / negation-distance / hyphen / token-boundary /
-prior-quote injection / fail-safe). Stdlib only, no new deps.
-
----
-```
-
-- [ ] **Step 4: Update SESSION.md**
-
-Set `## Building now` to reflect: module complete and green; next sub-step is the
-skill-creator step (turn `docs/04` into an enforced skill pointing at `lexicon.py`),
-then STOP before Step 1. Set `## Half-done / careful` to note the skill-creator step is
-pending and the Step-1 stop gate still holds.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add docs/decisions.md LOG.md SESSION.md
-git commit -m "docs(guardrails): record pre-TTS filter decisions, log, session state"
-```
-
----
-
-## After the plan: skill-creator step (LAST — only after all tests green)
-
-Per the spec's task exit and `CLAUDE.md` skill wiring: invoke **skill-creator** to turn
-`docs/04-guardrails.md` into an enforced skill that points at `src/roma/guardrails/lexicon.py`,
-so the filter rules are loaded, not remembered — encoding the **verified** behavior now
-that the module is green. This is a separate step, not a task above.
-
-Then **STOP and confirm with the user** before starting Step 1 (telephony spine) in
-`docs/10-build-order.md`.
-
----
+Verify the full offline suite and current speech contract. Active workflow is now in the v4 briefs.
 
 ## Self-Review (completed by plan author)
 

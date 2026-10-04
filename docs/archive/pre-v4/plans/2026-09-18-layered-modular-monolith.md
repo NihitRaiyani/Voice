@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # Layered Modular Monolith Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
@@ -91,7 +93,6 @@ lives under workers. The migration is mechanical first, then improves the applic
 - Move tests into `tests/api`, `tests/core`, `tests/domain`, `tests/services`,
   `tests/repositories`, `tests/providers`, `tests/realtime`, and `tests/workers`
 - Modify: `scripts/*.py`, `scripts/start_roma.sh`
-- Modify: `README.md`, `CLAUDE.md`, `HANDOFF.md`, `docs/01-architecture.md`, `docs/README.md`
 
 - [ ] Preserve test names and behavior while aligning their locations with ownership.
 - [ ] Update all startup/import/file-path references to `roma/`.

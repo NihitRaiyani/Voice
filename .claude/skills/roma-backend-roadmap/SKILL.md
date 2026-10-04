@@ -10,11 +10,12 @@ description: >-
 
 # Roma backend roadmap
 
-Use this skill to turn one mentor-roadmap topic into a focused, testable backend increment. The
-authoritative project context is `CLAUDE.md`; the roadmap and tutorials are `docs/10-build-order.md`
-and `docs/13-backend-roadmap.md` through `docs/17-placement-study-guide.md`.
+Use this skill to turn one requested v4 level into a focused, testable backend increment. The
+authoritative project context is `CLAUDE.md`; the selected source and gates are `docs/roadmaps/README.md`, `docs/levels/` and `docs/10-build-order.md`. Topic contracts and readiness are indexed by `docs/README.md`.
 
 ## Start with status and scope
+
+Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Current user scope is documentation/design only; level feature implementation starts in a later requested task. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
 
 Before proposing a change:
 
@@ -30,8 +31,7 @@ handling, and operator guidance exist.
 
 - Default to a modular monolith.
 - Keep realtime audio, VAD, STT, LLM, safety, and TTS latency-sensitive.
-- Keep PostgreSQL transactions, recording persistence, summaries, analytics, and follow-up work
-  out of the spoken-turn hot path.
+- Keep recording persistence, summaries, analytics and external follow-up off the spoken-turn hot path. A short database booking commit is permitted; never hold a transaction during inference/audio/network waits.
 - PostgreSQL owns durable business facts; Redis owns active-call state, caches, locks, counters,
   and short-lived delivery state.
 - Put business rules in domain/application code, transport mapping at API boundaries, persistence
@@ -76,9 +76,7 @@ handling, and operator guidance exist.
 
 ## Complexity gate
 
-Do not add Kafka, Kubernetes, microservices, a vector database, a large RAG pipeline, LangGraph, or
-multiple databases unless measured scale, retrieval, deployment, or ownership pressure proves the
-modular monolith insufficient. Record the evidence and decision in `docs/decisions.md`.
+v4 deliberately adds conditional governed RAG with local embeddings/pgvector at Level 9. Provider contracts precede local models; direct inference precedes vLLM; full Docker packaging is Level 13. Existing Compose is compatibility tooling. Do not add Kafka, Kubernetes, microservices, a separate vector database or LangGraph without a measured need. Record the evidence and decision in `docs/decisions.md`.
 
 ## Completion checklist
 

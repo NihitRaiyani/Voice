@@ -1,94 +1,53 @@
-# Decisions and operational lessons
+# Engineering decisions and owner questions
 
-This file records decisions that still constrain the current or target system. Historical build
-detail belongs in `LOG.md` or `docs/superpowers/`. Roadmap entries are not implementation claims.
+These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve implemented foundations and distinguish source presence from verified level completion.
 
-## Locked architecture
+## Accepted decisions
 
-- Telephony is Twilio Programmable Voice with bidirectional Media Streams.
-- Twilio invokes `POST /answer`; Roma returns `<Connect><Stream>` for `/ws`.
-- HTTP and WebSocket requests validate `X-Twilio-Signature`; the WebSocket start event must
-  carry the configured Account SID.
-- Pipecat's native `TwilioFrameSerializer` owns the `media`, `clear`, and hang-up protocol.
-- Lead metadata is a Twilio Stream custom parameter, never a Stream URL query parameter.
-- The service is backend-only. The call and status APIs remain bearer-protected.
-- Redis holds call state, lead records, opener audio, status, and post-call work.
-- Post-call recording transport remains Redis with local-spool fallback. Its single worker
-  stores any audio and commits a completed call plus job intents in PostgreSQL before ack.
-  PostgreSQL's existing `followup_jobs` table is the durable ledger. A dispatcher publishes
-  ready IDs to Dramatiq/Redis; async actors claim those rows with `SKIP LOCKED`, retry with
-  backoff, and retain terminal failures. Follow-up delivery
-  is scheduled but inactive until contact and messaging consent are available.
-- `ConversationStage` supplies the seven stage names used by the controller, prompts, logs,
-  evaluation fixtures, and new Redis checkpoints. The checkpoint reader accepts the old
-  serialized shape until its four-hour TTL expires.
-- The pre-call gate and pre-TTS guard are mandatory and fail closed where safety requires it.
+| ID | Decision | Engineering consequence |
+|---|---|---|
+| A01 | `Voice_Agent` is the working project; v4 replaces the prior curriculum | Verify repository root; no work in Weltec for this task |
+| A02 | Documentation/design now; implementation later one requested level at a time | No feature, live-call, credential or deployment work in this pass |
+| A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
+| A04 | Retain Twilio/Pipecat cloud comparison path | Use the existing Twilio adapter through the v4 migration |
+| A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
+| A06 | Code owns stages, dates, booking, safety, consent and hang-up | Models supply wording/extraction; never business authority |
+| A07 | Live Hindi-base Hinglish; understand three languages/code-mix | User confirmed separate multilingual-output lab |
+| A08 | Provider contracts first, direct local inference before vLLM | Candidate Qwen/Indic quality/hardware/licenses require evidence |
+| A09 | Conditional governed RAG at L9, local embeddings and pgvector exact first | Booking/control/safety bypass retrieval; no separate vector DB by default |
+| A10 | Full Docker packaging at L13; L14 optional | Existing Compose is compatibility tooling, not foundation requirement or gate pass |
+| A11 | Final local production makes zero external GenAI API calls | Keep cloud comparison profile explicit during migration |
+| A12 | Short booking commit permitted in live turn; external sync/recording conversion asynchronous | No transaction spans inference/audio or network waits |
+| A13 | Reuse atomic answer receipt/call/event and durable job ledger | Complete remaining security/governance controls rather than rebuilding these paths |
+| A14 | One recording consumer; separate row-claimed Dramatiq concurrency | Startup inflight recovery is not multi-consumer safe |
+| A15 | Selected recording source is local stereo capture | Pending consent still blocks retention; carrier recording is separate work |
+| A16 | Level brief owns acceptance evidence; topic docs own shared contracts | No recurring handoff/log/session journals or competing active plans |
 
-## Lessons that still constrain the implementation
+## Preserved operational invariants
 
-- Store the lead before calling Twilio; a fast pickup can race any later Redis write.
-- Validate the public base URL before consuming the hourly dial allowance.
-- A status-store failure after Twilio accepts a call must not report that successful dial as
-  an HTTP 500. A lead-store failure before dialing must stop the dial and report our outage.
-- Do not derive identity from a missing Redis record. Presence of the Twilio custom lead
-  parameter establishes outbound direction even when Redis is temporarily unavailable.
-- Barge-in must emit Twilio `clear` before later queued audio reaches the carrier.
-- Logging must be configured before the media app so call evidence and secret redaction are
-  both active.
-- Cloudflare tunnels are development scaffolding, not architecture. Production needs a
-  stable public HTTPS/WSS origin near callers.
-- Automated tests and the synthetic media probe never place a live call.
+Store lead context before Twilio dialing; check public reachability before consuming hourly allowance. Fail before dialing if required lead storage fails. Cosmetic status-store failure after accepted dialing must not report the dial as failed. Outbound direction follows custom lead-parameter presence even on Redis degradation.
 
-## Durable answer-webhook identity (2026-09-30)
+Twilio HTTP/WS signature and start Account SID checks remain. Stream lead metadata uses custom parameters; the current answer callback URL still has a sensitive lead query token requiring log/proxy protection. Final safety/cancellation, Indic normalization, fixed-audio identity, ordered discovery, stage caps and the five-minute ceiling remain.
 
-- One logical Twilio answer is identified by account + Call SID + endpoint event kind. Delivery
-  attempt headers are not business identities. Future callback kinds need their own identities.
-- Claim `webhook_receipts.provider_event_id` with a unique constraint and commit the receipt,
-  call, and answer event in one transaction. No separately committed "processed" marker.
-- Compare a digest of normalized business input on duplicates; mismatched input is a conflict.
-  Never persist raw payloads, phone numbers, lead tokens, or TwiML containing lead tokens.
-- `/answer` requires a migrated PostgreSQL database. Failure/timeout returns 503; duplicates
-  return the deterministic TwiML for the same input/configuration. Provider retries must be
-  configured for the desired failures. Transactional acceptance is bounded to three seconds.
-- Redis status is a separately retryable projection; atomic updates preserve terminal status
-  and leave duplicate TTL/outcome unchanged. Redis outage does not invalidate a durable commit.
-- Keep minimal receipts independently of call retention so deleting calls cannot resurrect
-  them through webhook replay. No automatic receipt purge is introduced in this milestone.
-- This guarantee covers durable database effects, not exactly-once Twilio/LLM/SMS execution.
+Answer receipt/call/event commit together with a three-second acceptance bound; unavailable persistence is 503, changed-input identity is 409. Independent receipt retention prevents replay from recreating deleted calls. Redis status is a best-effort monotonic projection. Neither transaction guarantees exactly-once remote execution.
 
-## Safety and compliance
+Post-call storage/handoff precedes exact-payload ack. PostgreSQL owns job business retries/leases/effects; Dramatiq carries ID notifications and delivery retries. Follow-up intent exists but sending is inactive. See [webhooks](18-webhook-idempotency.md) and [jobs](19-background-task-framework.md).
 
-- Never log credentials, phone numbers, or lead tokens.
-- Never commit `.env` or a test destination.
-- The outbound API permits only valid Indian mobile numbers and retains the calling window,
-  denylist, spend cap, hourly cap, reachability preflight, and bearer authentication.
-- Recording remains gated by approved consent wording and retention controls.
-- Claims about course guarantees, money, certification, and outcomes stay behind the
-  existing deterministic guardrails.
+## Owner decisions and gates
 
-## Backend learning direction
+| ID | Decision / owner | Gate and safe default |
+|---|---|---|
+| D1 | Approved course/certificate facts — Weltec academic/business owner | Safety/L9; Weltec certificate only until approval |
+| D2 | Disclosure wording/audio, contact consent, retention/deletion/backup policy — institute privacy owner | L8/L10/production; pending marker means no retained audio |
+| D4 | Branch visiting hours, slot duration/capacity/cancellation and counsellor policy — counselling owner | L3; current active uniqueness supports one appointment per slot |
+| D5 | Local-model/GPU budget, licenses and approved evaluation corpus — engineering/institute owner | L2/L4/L5/L10; candidates unselected until benchmark/license review |
+| D6 | Production TLS origin/host, secrets, RTO/RPO and backup ownership — operations owner | L13; no host or recovery objective implied |
+| D7 | Roles/session/revocation, provider replay and token URL exposure policy — security/institute owner | L8; signature/idempotency do not complete user auth or replay policy |
+| D8 | Measured quality/latency/capacity SLOs — product/engineering owner | L12; roadmap numbers remain provisional |
+| D9 | Direction-specific opener/prompts and truthful committed confirmation — conversation/engineering owner | L3/L10; shared cloud wording is not local/live acceptance evidence |
 
-### Background framework choice (2026-09-30)
+D3 in older source comments refers to Gujarati-script recognition observations. Preserve first-class Indic matching; that historical label is not evidence of local ASR quality.
 
-- Choose Dramatiq/Redis for maintained framework functionality and optional AsyncIO actors.
-  ARQ is async-native but its repository is maintenance-only; Celery's broader workflow
-  tooling is not currently needed. Only one task framework is installed.
-- Keep job intents and outcomes in PostgreSQL; Redis carries only UUID delivery notifications.
-  Publishing does not claim jobs or increment attempts. Redis loss/outage is recoverable
-  by republishing ready database IDs; parallel delivery is fenced by database row claims.
-- Keep five business attempts, 60-second execution timeout, and five-minute lease recovery.
-  Exhausted crash retries become database dead letters instead of a sixth execution.
-- Initialize the async database pool inside the worker process/event loop and close it before
-  the AsyncIO middleware stops that loop. Use one process/four threads on the development laptop.
-- Retain the existing recording queue and local-spool fallback. Follow-up sending stays inactive.
-- The polling dispatcher can publish duplicates while consumers are offline; at current volume
-  simplicity is accepted. A larger deployment would need a measured publication/backpressure policy.
+## Remaining engineering gaps
 
-- Evolve the repository as a modular monolith; split deployment units only for a demonstrated
-  scaling or ownership reason.
-- PostgreSQL will be the durable system of record; Redis remains transient operational state.
-- Appointment booking is the primary transactions-and-concurrency teaching module.
-- Slow post-call work belongs in idempotent background jobs, never the realtime audio path.
-- Observability starts with named events and metrics, then tooling; dashboards are not evidence by
-  themselves.
-- Every roadmap feature must be labelled as implemented, next, planned, optional, or historical.
+Live transactional booking, durable conversation restore, provider-neutral local AI, native startup/expanded CI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry and measured capacity remain open at their respective levels. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).

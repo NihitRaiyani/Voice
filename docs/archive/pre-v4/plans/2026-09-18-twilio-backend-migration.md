@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # Twilio Backend Migration Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -27,7 +29,6 @@
 - `src/roma/telephony/dialer.py`, `src/roma/dialer/trigger.py`, `src/roma/telephony/webapi.py`, `scripts/place_test_call.py` and their tests — use Twilio's Calls API while retaining all gates and dependency injection.
 - `src/roma/telephony/media.py`, `scripts/serve_media.py`, and media tests — validate Twilio, parse Twilio start events/custom parameters, and use `TwilioFrameSerializer`.
 - `scripts/start_roma.sh`, `scripts/verify_media.py` — run and verify the backend-only Twilio service.
-- `README.md`, `CLAUDE.md`, `HANDOFF.md`, current `docs/*.md`, `skills/README.md`, and affected source/test comments — describe the active Twilio backend accurately.
 
 **Delete**
 
@@ -876,7 +877,6 @@ git commit -m "refactor: remove the frontend application"
 - Delete: `scripts/rtt_mumbai.py`
 - Modify: `README.md`
 - Modify: `CLAUDE.md`
-- Modify: `HANDOFF.md`
 - Modify: `docs/01-architecture.md`
 - Modify: `docs/02-pipeline.md`
 - Modify: `docs/03-stage-machine.md`
@@ -950,7 +950,7 @@ Keep historical lessons in `docs/decisions.md` only when they still explain a cu
 Run:
 
 ```bash
-rg -n -i --hidden -g '!.git/**' -g '!var/**' -g '!docs/superpowers/**' 'vobiz|VOBIZ_|vobiz_' .
+rg -n -i --hidden -g '!.git/**' -g '!var/**' -g '!docs/archive/pre-v4/**' 'vobiz|VOBIZ_|vobiz_' .
 rg -n --hidden -g '!.git/**' -g '!var/**' 'WEB_ORIGIN|VITE_|vite|React|browser UI|web UI' .
 ```
 
@@ -970,7 +970,6 @@ Expected: the synthetic probe reports inbound and outbound audio success; tests 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add README.md CLAUDE.md HANDOFF.md docs scripts src tests skills
 git commit -m "docs: describe the Twilio backend service"
 ```
 

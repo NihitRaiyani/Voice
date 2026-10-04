@@ -14,20 +14,17 @@ description: >-
 
 The pre-TTS filter is the single component **no callable build ships without**. It sits
 between the LLM (post sentence-chunk) and Bulbul TTS. It is a **router, not a censor**:
-on a catch it substitutes a safe line — it never deletes-and-leaves-dead-air. Sub-10ms,
-lexicon + compiled regex, **no model call**.
+on a catch it substitutes a safe line — it never deletes-and-leaves-dead-air. Deterministic lexicon + compiled regex, **no model call**; measure latency rather than assuming it.
 
-The behavior is already built and verified in `src/roma/guardrails/`.
-**Do not re-implement it.** Use the module. The rules below are the contract it enforces;
-the exhaustive, authoritative source is `docs/04-guardrails.md` and
-`src/roma/guardrails/lexicon.py`.
+The behavior is already built and verified in `roma/domain/safety/`.
+**Do not re-implement it.** Use the module. The rules below summarize current enforcement; lexical safety cannot prove every fact or caller provenance. Local models, RAG and cached speech preserve the same final gate. Live replies remain Hindi-base Hinglish. The policy contract is `docs/04-guardrails.md`; exact enforceable wording and patterns live in `roma/domain/safety/lexicon.py`.
 
 ## The one rule you must not break
 
 Everything Roma is about to speak goes through the filter first:
 
 ```python
-from roma.guardrails import safe_output
+from roma.domain.safety import safe_output
 
 line_to_speak = safe_output(llm_sentence_chunk)  # never raises; never returns raw LLM text
 tts.speak(line_to_speak)
@@ -59,9 +56,7 @@ triggers** on its own.
 
 ## The ONE allow-case — do not over-block, do not under-block
 
-A number the **lead** raised and Roma is **pushing back on** is allowed
-(`"wo ₹5000 fees nahi, offer message hai"`). A number **originating from Roma** is
-blocked. The filter reads Roma's line only, so this is **negation-gated**: a rebuttal cue
+The filter cannot establish whether a number originated with the caller; caller quotes never grant policy permission. Its current correction heuristic is **negation-gated**: a rebuttal cue
 (`nahi/नहीं/…`) within `NEGATION_WINDOW` (=3) tokens of the signal opens the gate; a bare
 affirmative always blocks. This is the highest false-positive risk — when you change it,
 run the negation-distance tests (`N1–N3`) and the prior-quote injection test.
@@ -82,7 +77,7 @@ Edit the wording there, not at call sites.
 
 On barge-in the in-flight generation is killed and Bulbul + Twilio buffers flushed. A
 half-generated blocked line must not leak to TTS during teardown — the filter sits on that
-path. When you build the cancellation lifecycle (Step 5), keep `safe_output()` on every
+path. When changing the cancellation lifecycle at Level 7, keep `safe_output()` on every
 branch that can still emit audio, including teardown.
 
 ## Fail-safe (never bypass)
@@ -95,7 +90,7 @@ that falls back to the raw LLM text.
 ## When you change the rules
 
 The lexicon and thresholds are the enforceable config. Change them in `lexicon.py`, add a
-row to the spec test table (`tests/guardrails/test_filter.py` mirrors
-`docs/superpowers/specs/2026-07-20-pretts-filter-design.md`), and keep the suite green.
+row to the spec test table (`tests/domain/safety/test_filter.py` mirrors
+`docs/archive/pre-v4/specs/2026-07-20-pretts-filter-design.md`), and keep the suite green.
 This skill encodes **verified** behavior — if you change behavior, re-verify, then update
 this contract. Do not invent rules that aren't in `docs/04`.

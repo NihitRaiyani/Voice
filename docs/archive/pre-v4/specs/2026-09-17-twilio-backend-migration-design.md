@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # Twilio Backend Migration Design
 
 **Date:** 2026-09-17  

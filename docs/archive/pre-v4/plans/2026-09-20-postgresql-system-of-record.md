@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # PostgreSQL System of Record Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

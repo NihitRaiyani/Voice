@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Place ONE live Twilio test call into the `<Stream>` /ws spine (docs/10 Step 1).
+"""Place ONE live Twilio test call into the `<Stream>` /ws spine (docs/runbook.md).
 
 The callee must be on the StubRegistry consented allowlist. Test numbers ONLY — never a
-real lead (HANDOFF landmine).
+real lead; see the authorized testing procedure in docs/runbook.md.
 
 Twilio fetches `<base>/answer` when the callee picks up and Roma returns XML pointing at
 `<base>/ws`, so the base must be publicly reachable over HTTPS — a cloudflared tunnel in dev,

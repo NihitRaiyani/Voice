@@ -1,102 +1,37 @@
-# 14 — Data, Transactions, and Concurrency Tutorial
+# Data, transactions and concurrency
 
-**Status:** Target design. Redis is implemented; PostgreSQL schemas and appointment transactions
-are **Next**.
+**Implemented foundation:** async PostgreSQL lifecycle, Alembic schema/repositories, slot locking/active-booking uniqueness and durable webhook/job transactions. **Pending:** live booking integration, durable conversation restore, cancellation and complete retention/API workflows.
 
-## Why two datastores
+## Schema ownership
 
-Redis and PostgreSQL answer different questions.
-
-| Question | Best owner |
+| Records | Present model role / remaining integration |
 |---|---|
-| What stage is this active call in for the next few minutes? | Redis |
-| Has this appointment been committed and must it survive restarts? | PostgreSQL |
-| Is this cached audio already rendered? | Redis |
-| Which safety rules fired last month? | PostgreSQL |
-| Has this short-lived rate limit been exceeded? | Redis |
-| Who changed an appointment and when? | PostgreSQL |
+| Callers, institute/branch/course/counsellor reference data | Durable identity/configuration; approval/seeding is separate from migrations |
+| Calls, turns, events | Lifecycle/turn narrative; answer and post-call paths write records, not all live milestones |
+| Appointment slots/appointments | Offerable slot and active booking constraints; live controller not yet wired |
+| Safety/usage/cost/recording models | Durable target entities; model existence does not prove live audit/usage collection |
+| `followup_jobs` | Existing physical ledger for background work and inactive follow-up intents |
+| Users/roles/audit | Data foundation, not implemented login/RBAC |
+| `webhook_receipts` | Independent retained event identity for answer acceptance |
 
-The learning outcome is the decision, not merely knowing two database products.
+The initial migration is `20260920_0001`; `20260930_0002` adds webhook receipts. Preserve migration history; add reviewed migrations rather than rewriting applied ones. Seeds/demo data stay separate. `roma/core/database.py` and `PostgresUnitOfWork` own session/transaction lifetimes.
 
-## Suggested relational model
+## Actual appointment invariant
 
-| Table | Responsibility | Important constraints/indexes |
-|---|---|---|
-| `callers` | Minimal caller profile | unique phone hash where appropriate |
-| `institutes`, `branches`, `courses` | Reference data | stable keys; branch/timezone indexes |
-| `calls` | One provider call lifecycle | unique provider call SID; status/time indexes |
-| `call_turns` | Caller/agent turns | unique `(call_id, turn_number)` |
-| `call_events` | Append-only lifecycle events | `(call_id, occurred_at)` index |
-| `appointment_slots` | Offerable branch times | unique branch/date/start time |
-| `appointments` | Confirmed/rescheduled/cancelled visits | one active booking per slot |
-| `safety_events` | Guardrail evidence | call, rule, and time indexes |
-| `provider_usage` | Raw STT/LLM/TTS/Twilio usage | provider/call/turn indexes |
-| `call_costs` | Normalized ledger entries | currency and pricing-version fields |
-| `recordings` | Metadata, not public blobs | retention/deletion status |
-| `followup_jobs` | Durable business jobs | unique idempotency key |
-| `users`, `roles` | Human access model | unique identity; role relationships |
-| `audit_logs` | Administrative actions | actor/action/resource/time indexes |
+Slots are unique by branch/date/start time. Appointments have a partial unique index on that tuple for statuses `booked` and `confirmed`, plus a matching-slot foreign key. `book()` locks the existing slot with `FOR UPDATE`, checks availability, inserts the appointment and marks the slot booked inside one unit of work.
 
-Students must decide primary keys, foreign keys, nullability, cascade behavior, indexes, retention,
-and which facts are mutable. A table existing is not proof that its model is correct.
+The schema has a positive `capacity` field, but the active-slot uniqueness currently enforces **one** active appointment. Do not claim capacity greater than one works. A cancelled appointment alone does not make a `booked` slot available; cancellation must atomically update both sides under policy.
 
-## Appointment invariant
+The 100-attempt repository test is `tests/repositories/postgres/test_appointment_concurrency.py`. It expects one winner and 99 domain conflicts. Test presence is not fresh execution evidence; consult [baseline evidence](roadmaps/level-00-baseline.md).
 
-Two callers can read the same free slot before either writes. "Check then insert" without a
-transaction is a race.
+## Level 3 integration
 
-```text
-Caller A reads free ----+                 +---- Caller B reads free
-                       |                 |
-                       +-- both attempt -+
-                                 |
-                    database invariant decides
-                                 |
-                     one commit, one conflict
-```
+Expose availability/booking through application services and map domain conflicts to 409. Live offers/readback/confirmation must use committed truth. Advisory Redis holds cannot replace a database transaction. Existing-slot locking does not protect absent rows; rely on constraints when introducing slot creation.
 
-Recommended invariant:
+Keep transactions short and release connections before inference/audio/Redis/external synchronization. Pool defaults are 5 + 10 overflow per process with 5-second wait; budget API and worker totals. Request idempotency, reschedule/cancellation and business visiting-hours policy must be explicit.
 
-```sql
-UNIQUE (branch_id, appointment_date, start_time)
-```
+## Durable conversation and recovery
 
-The booking use case should:
+Redis currently stores one-hour checkpoints. L2/L7 add durable stage/slot/confirmation milestones, session identity, schema version and tested restore/checkpoint lag. Never write every audio frame/token to PostgreSQL. Distinguish same-SID reconnect from new-SID redial and observe PostgreSQL appointment truth during restore.
 
-1. begin a transaction;
-2. select/lock or otherwise claim the candidate slot;
-3. re-check availability inside the transaction;
-4. create the appointment and mark the slot booked atomically;
-5. commit if the invariant holds;
-6. roll back and return a domain conflict mapped to HTTP `409` if it does not.
-
-Compare pessimistic row locking with optimistic/version-based control. Choose based on contention,
-transaction length, and database behavior—not fashion.
-
-## Durable conversation state
-
-Redis checkpoints keep a live call fast. PostgreSQL should later preserve the durable narrative:
-
-- call lifecycle and final outcome;
-- turn number, speaker, transcript policy, stage, route, and latency;
-- stage-transition events;
-- appointment offers, acceptance, and confirmation;
-- safety and provider-usage events.
-
-Do not write every audio frame or token to PostgreSQL. Persist business-significant checkpoints and
-events outside the latency-sensitive path.
-
-## Migrations
-
-Use Alembic so schema change is versioned and reviewable. A healthy migration sequence has forward
-behavior, a rollback or recovery strategy, indexes introduced deliberately, and seed/demo data
-separate from schema definition.
-
-## Required exercises
-
-1. Draw the ER diagram and justify every relationship.
-2. Run migrations against an empty database.
-3. Demonstrate an index with an actual query plan.
-4. Write an integration test that rolls back a failed booking.
-5. Launch 100 booking attempts for one slot and assert one success plus 99 conflicts.
-6. Explain why an application-level `if available` check cannot replace a database constraint.
+Learning exercises: inspect the ER constraints, run empty-database migration/rollback, explain a query plan, demonstrate a race/rollback, cancel and reuse a slot, and recover a checkpoint without inventing a booking. See [L1](levels/level-01.md), [L3](levels/level-03.md) and [webhooks](18-webhook-idempotency.md).

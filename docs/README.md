@@ -1,64 +1,59 @@
-# Roma documentation map
+# Voice_Agent documentation
 
-This directory is both the operating manual for the current voice backend and the curriculum for
-turning it into a production-grade backend platform.
+This is the project's canonical documentation entry point. v4 defines future development; actual source and verification define present capability. No level-wise feature implementation is started by this documentation redesign.
 
-## Status vocabulary
+## Level briefs
 
-| Status | Meaning |
+Read the [progression/gate policy](10-build-order.md) and [current readiness](13-backend-roadmap.md), then the requested brief.
+
+| Level | Brief | Current gate position |
+|---|---|---|
+| 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
+| 1 | [Backend foundation](levels/level-01.md) | Existing foundation; gaps pending |
+| 2 | [Text/local LLM](levels/level-02.md) | Cloud controller present; local/durable gate pending |
+| 3 | [Transactional booking](levels/level-03.md) | Repository present; live/API integration pending |
+| 4 | [Audio/local ASR](levels/level-04.md) | Cloud baseline; local lab planned |
+| 5 | [Local TTS](levels/level-05.md) | Cloud cache; local lab planned |
+| 6 | [Local voice prototype](levels/level-06.md) | Planned |
+| 7 | [Real-time reliability](levels/level-07.md) | Cloud seams; local-stack gate pending |
+| 8 | [Secure jobs/access](levels/level-08.md) | Signed answer/durable jobs present; full gate pending |
+| 9 | [Governed retrieval](levels/level-09.md) | Planned |
+| 10 | [Telephony/model serving](levels/level-10.md) | Twilio cloud baseline; local integration planned |
+| 11 | [Observability/analytics](levels/level-11.md) | Basic logs; full telemetry planned |
+| 12 | [Evaluation/capacity](levels/level-12.md) | Offline foundation; production report pending |
+| 13 | [Container deployment](levels/level-13.md) | Pre-v4 infrastructure only; full packaging planned |
+| 14 | [Optional optimization](levels/level-14.md) | No experiment selected |
+
+## Shared engineering contracts
+
+| Document | Owns |
 |---|---|
-| **Implemented** | Present in the repository and backed by code/tests or recorded runtime evidence |
-| **Next** | Recommended upcoming learning increment; not yet implemented |
-| **Planned** | Accepted future direction without an implementation commitment |
-| **Optional** | Add only when measurements or product needs justify it |
-| **Historical** | Preserved context; not current instructions |
+| [00 Charter](00-project-charter.md) | Product/learning outcomes and scope |
+| [01 Architecture](01-architecture.md) | Current/target ownership and dependency direction |
+| [02 Pipeline](02-pipeline.md) | Turn flow, safety and timing |
+| [03 Stage machine](03-stage-machine.md) | Deterministic transitions, confirmation and booking truth |
+| [04 Guardrails](04-guardrails.md) | Final speech policy and evidence limits |
+| [05 Audio/endpointing](05-endpointing-vad.md) | Codec, language, VAD and interruption measurement |
+| [06 State/cache](06-state-and-cache.md) | Datastore authority, lifetimes, pools and recovery |
+| [07 Security](07-security.md) | Auth/callback/PII/consent boundaries |
+| [08 Concurrency](08-concurrency.md) | Queues, cancellation, consumers and delivery |
+| [09 Recordings](09-recording-storage.md) | Capture, consent, durability and ack |
+| [11 Prompts](11-prompts.md) | Runtime wording/extraction versus code authority |
+| [12 Verification](12-verification.md) | Evidence rules and actual check limitations |
+| [14 Data/concurrency](14-data-and-concurrency.md) | Existing constraints and live-booking gap |
+| [15 API/security/jobs](15-api-security-and-jobs.md) | Compatibility/versioned API and identities |
+| [16 Observation/delivery](16-observability-testing-and-delivery.md) | Metrics, capacity, CI and packaging |
+| [17 Study guide](17-placement-study-guide.md) | Concept-to-module learning and viva |
+| [18 Webhooks](18-webhook-idempotency.md) | Implemented atomic answer acceptance |
+| [19 Worker framework](19-background-task-framework.md) | Implemented Dramatiq/SQL job ownership |
 
-If a tutorial describes a target design, the status label wins. Never infer that prose equals code.
+## Decisions, source and operation
 
-## Current-system track
+- [Decision register](decisions.md): adopted choices, owner decisions and known gaps.
+- [Runbook](runbook.md): baseline setup, migrations, workers and recovery procedures.
+- [v4 source mapping](roadmaps/README.md): unchanged Word file and section-to-level coverage.
+- [Baseline evidence](roadmaps/level-00-baseline.md): source/environment identity and fresh results.
+- [Completion contract](completion-contract.md): nine mandatory areas, final demo and student deliverables.
+- [Historical archive](archive/README.md): pre-v4 references, not active build instructions.
 
-| Document | What it answers |
-|---|---|
-| [00 — Project charter](00-project-charter.md) | Why the project exists and how learning is measured |
-| [01 — Architecture](01-architecture.md) | What runs during a call and where boundaries live |
-| [02 — Pipeline and latency](02-pipeline.md) | Where turn latency and provider cost come from |
-| [03 — Stage machine](03-stage-machine.md) | How software—not the LLM—owns conversation state |
-| [04 — Guardrails](04-guardrails.md) | How unsafe claims are stopped before speech |
-| [05 — Endpointing, VAD, barge-in](05-endpointing-vad.md) | How realtime turn-taking and cancellation work |
-| [06 — State and cache](06-state-and-cache.md) | What Redis owns today and what it must not own later |
-| [07 — Security](07-security.md) | Current trust boundaries, secrets, signatures, and PII |
-| [08 — Concurrency](08-concurrency.md) | Per-call isolation and asynchronous work |
-| [09 — Recording](09-recording-storage.md) | Recording lifecycle, durability, and retention |
-| [11 — Prompts](11-prompts.md) | Runtime prompt assembly and editing contract |
-| [12 — Verification](12-verification.md) | Evidence required before a live test |
-
-## Backend-learning track
-
-| Document | Main concepts |
-|---|---|
-| [10 — Build order](10-build-order.md) | Four levels, milestones, and five mandatory additions |
-| [13 — Backend roadmap](13-backend-roadmap.md) | Current-to-target architecture and module status |
-| [14 — Data and concurrency](14-data-and-concurrency.md) | PostgreSQL, Redis, schemas, transactions, locking |
-| [15 — API, security, and jobs](15-api-security-and-jobs.md) | REST, auth/RBAC, webhooks, idempotency, workers |
-| [16 — Observability, testing, delivery](16-observability-testing-and-delivery.md) | Logs, metrics, traces, test pyramid, load, Docker, CI/CD |
-| [17 — Placement study guide](17-placement-study-guide.md) | Study sequence, interview questions, proof portfolio |
-| [18 — Webhook idempotency](18-webhook-idempotency.md) | Implemented transaction boundary, duplicate delivery, rollback, hands-on practice |
-| [19 — Background task framework](19-background-task-framework.md) | Dramatiq/Redis choice, durable dispatch, async workers, retry ownership |
-
-## Supporting records
-
-- `decisions.md` contains current architectural decisions and durable operational lessons.
-- `LOG.md` at the repository root is append-only historical evidence.
-- `docs/superpowers/specs/` and `docs/superpowers/plans/` are historical designs and execution
-  plans. They may mention systems that were later replaced.
-- `HANDOFF.md` is the current short handoff; `SESSION.md` is the session template.
-
-## Source-of-truth order
-
-When documents disagree, use this order:
-
-1. tested current code and configuration contracts;
-2. `CLAUDE.md` safety and engineering boundaries;
-3. current-system documents (`README.md`, `docs/01`–`docs/12`, `docs/decisions.md`);
-4. target tutorials (`docs/13`–`docs/17`);
-5. historical logs, specifications, and plans.
+Runtime prompts under `roma/prompts/` affect speech and are not edited as ordinary prose. [Asset guidance](../roma/realtime/assets/README.md) governs matching fixed audio. [Project skill guidance](../skills/README.md) follows these contracts.

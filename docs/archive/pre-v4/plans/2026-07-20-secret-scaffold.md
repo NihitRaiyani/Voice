@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # Secret & Security Scaffold Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -14,7 +16,7 @@ record so "no secret in logs" is enforced by the system, not by discipline.
 
 **Tech Stack:** Python 3.11+, uv + pyproject (src layout), pydantic-settings v2, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-07-20-secret-scaffold-design.md` (enforces `docs/07-security.md`).
+**Spec:** `docs/archive/pre-v4/specs/2026-07-20-secret-scaffold-design.md` (enforces `docs/07-security.md`).
 
 ---
 
@@ -459,7 +461,3 @@ After Task 5, verify the success criteria from the spec:
 - [ ] `git ls-files | grep -i '\.env$'` returns nothing (only `.env.example` is tracked).
 - [ ] With a required key unset, `uv run python -c "from roma.config import get_settings; get_settings()"`
       raises `ValidationError` and the traceback shows no raw key values.
-
-Then update `SESSION.md` / `HANDOFF.md`: Gate 0 first half done, next task = the standalone
-pre-TTS filter (`docs/04`, Gate 0 second half), which imports this config.
-```

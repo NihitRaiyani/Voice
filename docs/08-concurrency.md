@@ -1,51 +1,27 @@
-# 08 — Concurrency
+# Concurrency, cancellation and delivery
 
-**Status:** Per-call async isolation and post-call queueing are implemented. Database transaction
-locking, idempotent webhook effects, and quantitative load tests are planned.
+Each call owns its Pipecat task/provider streams, controller state, aggregation, queues and recorder. Share only explicitly safe client pools/immutable data; never lead state. Async I/O does not make blocking CPU/GPU inference non-blocking. Offload it and measure event-loop lag.
 
-**Learning objective:** Identify shared state, races, cancellation boundaries, atomic operations,
-backpressure, and the difference between async concurrency and horizontal scalability.
+## Current concurrency guarantees and limits
 
-Roma runs many calls at once. The model is: **one call = one isolated async task; shared work
-is pushed to queues.**
+The appointment repository locks an existing slot and has active-slot uniqueness; `/answer` commits a unique receipt/call/event atomically. These are implemented database boundaries, not proof of live booking integration or measured call capacity.
 
-## The three pools
-1. **Dialer pool** — places outbound calls at a controlled rate. Bounded concurrency (respect
-   Twilio limits + calling-window/DND rules). Backpressure: don't dial faster than pipeline
-   capacity.
-2. **Pipeline tasks** — one async task per active call, each an isolated Pipecat instance.
-   No call-specific global state. All per-call data keyed by Call SID in Redis.
-3. **Post-call worker pool** — consumes `queue:postcall`: store recording, then CRM/calendar
-   write. Slow work lives here, never in the pipeline.
+Use **one recording queue consumer**: its startup inflight recovery assumes one consumer. Dramatiq consumers are a different pool and claim targeted PostgreSQL rows under locks. Do not infer arbitrary recording-worker scaling from atomic Redis list operations.
 
-## Isolation rules (what prevents cross-call bugs)
-- Nothing mutable is shared across calls except Redis (namespaced) and the queue (atomic ops).
-- Each pipeline owns its own Bulbul socket, its own STT stream, its own call-state key.
-- A crash in one call's task must not take down others — supervise tasks; isolate failures.
+Replica growth must review signature/external-URL handling, shared Redis coordination, per-process database pools, admission and shutdown. No source-only test establishes a supported number of real GPU calls.
 
-## The barge-in / cancellation hot spot
-This is where concurrency bugs hide. Within a single call, endpointing, LLM streaming, filter,
-and TTS run concurrently, and barge-in cancels across all of them mid-flight. Requirements:
-- Cancellation is **idempotent** — a double barge-in must not double-flush or deadlock.
-- Cancellation propagates **in order**: stop LLM → flush filter → flush Bulbul → Twilio
-  `clear`. Out-of-order flushing causes overtalk or leaked audio.
-- The filter stage must be cancellation-aware (see `docs/04`).
-- **Run code-review on every change to this path.** (Skill wiring in `skills/`.)
+## Level 7 real-time gate
 
-## Scaling
-- Vertical: more pipeline tasks per process until CPU/socket limits.
-- Horizontal: more replicas; Redis + queue are shared. Stateless replicas — all state in Redis.
-- Capacity is gated by the slowest real-time dependency (STT/LLM/TTS throughput), not CPU —
-  measure before assuming.
+Bound queues with capacities, high/low watermarks, age, timeout and explicit overflow behavior. Disposable data may have a documented drop policy; validated caller speech and committed business events cannot silently disappear. Capture pressure/drop/lag metrics.
 
-## Graceful shutdown
-- Drain: stop the dialer, let in-flight calls finish, flush the post-call queue, then exit.
-- A recording must never be lost because a worker was killed mid-job — jobs are ack'd only
-  after the recording is durably stored.
+Cancellation must be idempotent: stop generation, discard partial text, cancel TTS and send Twilio `clear` before stale audio can play. Test double interruption/disconnect, late callbacks and task/resource cleanup. Bounded retries/circuit/fallback must respect remaining turn/call budget and safety.
 
-## Roadmap bridge
+Measure PostgreSQL milestone lag and Redis failure/lock expiry behavior. Advanced turn epochs/event logs/outbox are follow-on work after core cancellation/recovery.
 
-Appointment booking becomes the main database-concurrency exercise: 100 clients may observe one
-slot, but a database uniqueness constraint and transaction must allow exactly one winner. The
-expected loser response is a domain conflict, not corrupted state. See
-`docs/14-data-and-concurrency.md`.
+## Current jobs and shutdown
+
+Recording conversion/retention and external sync stay off the spoken turn. Post-call worker stores or policy-discards audio, commits call/job intents, then acks the original `PostcallJob.raw` payload; reserialization breaks exact Redis removal.
+
+Dramatiq notifications carry job UUIDs; PostgreSQL owns leases, business attempts, effects and terminal state. Broker redelivery is at least once. Dispatcher duplicates are safe for business effects but need future publication/backpressure bounds. Dead-letter retention/replay needs explicit governance.
+
+Stop new calls first, allow or terminate active work through the cleanup contract, stop publishing, drain the recording queue and let actors settle before shutdown. Preserve pending database/spool intents. See [jobs](19-background-task-framework.md), [recordings](09-recording-storage.md) and [verification](12-verification.md).

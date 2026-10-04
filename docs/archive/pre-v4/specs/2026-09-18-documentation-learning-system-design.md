@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # Documentation and Learning System Design
 
 **Date:** 2026-09-18
@@ -39,7 +41,6 @@ Every roadmap item must carry one status:
 - `docs/11` and `docs/12` remain prompt and verification runbooks.
 - New roadmap chapters cover persistence/concurrency, API/security,
   observability/testing/deployment, and interview study.
-- `LOG.md` and `docs/superpowers/` remain historical records.
 - Project-local skills enforce the roadmap boundary and critical runtime invariants.
 
 ## Guardrails

@@ -1,108 +1,25 @@
-# 16 — Observability, Testing, and Delivery Tutorial
+# Observability, testing and delivery
 
-**Status:** Extensive offline tests and runtime timing logs are implemented. Structured telemetry,
-PostgreSQL integration tests, load testing, containers, and CI/CD are planned.
+**Present:** timing/cost logs, offline evaluations and database/worker integration test sources. **Pending:** production tracing/metrics dashboards, SQL analytics integration, real local-model capacity/chaos reports, CI hardening and full deployment packaging.
 
-## Observability begins with questions
+## Measurement design
 
-Instrumentation should answer:
+Start with a question: which call/turn/stage failed, where time was spent, what retried, what effect committed and what resource saturated? Use PII-safe correlation and stable event names. Do not use phone numbers/transcripts/tokens as trace or metric labels.
 
-- Which call, turn, stage, request, or job failed?
-- Where was latency spent?
-- Which provider and operation caused the error?
-- Did retries help or amplify the problem?
-- What did the call cost?
-- Can the answer be obtained without exposing PII?
+Measure endpoint/ASR/extraction/LLM first token/TTS first audio, conditional retrieval/fallback, end-to-end response, queues, event-loop lag, database pools, Redis, GPU, safety, job attempts and normalized carrier/hardware costs. SQL outcomes must reconcile with durable records.
 
-## Structured event contract
+L11 adds OpenTelemetry/Prometheus/Grafana; tools consume defined signals rather than inventing them. Optional supervisor PubSub/WS is best effort and requires role/security controls. A dashboard with sample data is not production evidence.
 
-```json
-{
-  "timestamp": "2026-09-18T12:00:00Z",
-  "level": "INFO",
-  "event": "llm.completed",
-  "call_id": "redacted-correlation-id",
-  "turn_id": 7,
-  "stage": "pivot",
-  "latency_ms": 734,
-  "language": "gu"
-}
-```
+## Tests and capacity
 
-Use consistent event names and correlation identifiers. Do not put transcript text, full phone
-numbers, tokens, or secrets into general logs.
+Unit/provider-fake/API/repository/worker/concurrency/evaluation tests make no paid calls. PostgreSQL tests need a disposable database; report skips and environment limits. Manual local-model/GPU and authorized carrier checks are separate evidence.
 
-## Metrics and traces
+L12 exercises slow providers, Redis loss, queue pressure, abrupt disconnect and RAG fallback. Separate mocked backend load from real GPU capacity. Grow 1/10/25/50/100 sessions only while agreed latency/error/resource gates hold; stop at measured saturation. Record P50/P95/P99, sample/configuration/hardware identity, queue wait, cold/warm state and failures.
 
-Measure at least:
+## Delivery and SLOs
 
-- `voice_endpoint_latency`;
-- `stt_latency`;
-- `brain_latency`;
-- `llm_first_token_latency`;
-- `tts_first_audio_latency`;
-- `safety_filter_latency`;
-- `total_turn_latency`;
-- API request rate/error/latency;
-- job queue depth/age/retries/failures;
-- Redis and PostgreSQL latency/connection pressure;
-- cost by call, turn, and provider.
+L1 introduces the expanded quality/CI skeleton; L12 adds security scans, migration/regression checks and zero-external-GenAI enforcement for the final local profile. L13 introduces full Docker/GPU Compose packaging, mounted weights/data, runtime secrets, readiness, clean-host startup, backup/restore and rollback.
 
-OpenTelemetry can connect a request/call/turn/job trace; Prometheus can aggregate numeric series;
-Grafana can visualize them. None replaces a clear event and metric contract.
+Existing database/Redis Compose predates v4 and does not complete L13. Native-service startup remains the foundation-learning path. Roadmap latency/event-loop/packet-loss numbers are provisional and transport-specific. Agree SLO/error-budget policy after measurements; recurring misses prioritize reliability.
 
-## Test strategy
-
-| Layer | Purpose | Paid providers? |
-|---|---|---:|
-| Unit | State transitions, safety, cost, validation, routing | No |
-| Provider contract/fake | Adapter behavior and error mapping | No |
-| API integration | FastAPI + database/cache boundaries | No |
-| Worker integration | Enqueue, claim, retry, idempotency, acknowledgement | No |
-| Concurrency | Booking races and shared-state isolation | No |
-| Evaluation | Conversation fixtures and safety canaries | No by default |
-| Load | Capacity, latency percentiles, resource pressure | No paid APIs by default |
-| Manual live call | Carrier/audio/provider reality | Yes; explicit approval |
-
-CI should run almost entirely without Twilio, Sarvam, or OpenAI charges.
-
-## Load-test ladder
-
-Run controlled stages at 1, 10, 25, 50, and 100 concurrent sessions. Record requests/turns per
-second, P50/P95/P99 latency, error rate, CPU, memory, Redis latency, database pool usage, and queue
-age. State whether the traffic is synthetic HTTP, simulated media, or real calls.
-
-A load test is useful only if it produces a bottleneck hypothesis and a repeatable report. Do not
-claim "supports 100 calls" from a test that bypasses the components used by real calls.
-
-## Reproducible delivery
-
-Target Docker Compose services:
-
-```text
-FastAPI | PostgreSQL | Redis | Worker | Prometheus | Grafana
-```
-
-Target CI sequence:
-
-```text
-lint -> type check -> unit tests -> integration tests -> security checks
-     -> migration check -> container build
-```
-
-Production deployment details should remain provider-neutral until a host is chosen. A development
-Cloudflare tunnel is not production architecture.
-
-## Reliability exercises
-
-- Inject STT/LLM/TTS/Twilio timeouts and verify safe domain behavior.
-- Show which operations may retry and which are too time-sensitive or unsafe.
-- Map provider exceptions to stable domain errors.
-- Demonstrate graceful degradation when an optional dependency is unavailable.
-- Explain when a circuit breaker would help and when it would only hide failures.
-
-## Completion evidence
-
-The production-engineering level is complete only when a clean environment is reproducible, CI
-blocks a real regression, traces explain a slow turn, alerts identify actionable failures, and the
-load report names the first capacity limit.
+See [verification](12-verification.md), [L11](levels/level-11.md), [L12](levels/level-12.md), [L13](levels/level-13.md) and [runbook](runbook.md).

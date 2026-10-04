@@ -1,59 +1,32 @@
-# 06 — State & Cache (Redis)
+# Durable state, Redis and cache
 
-**Status:** Redis usage is implemented for transient operational state. PostgreSQL durable state is
-the recommended next major addition.
+PostgreSQL is already the durable record/job foundation. Redis remains transient operational storage. Do not mark PostgreSQL planned globally or assume every modeled table already receives live events.
 
-**Learning objective:** Choose storage by lifetime and consistency needs. Redis is fast operational
-memory; it is not the future system of record for appointments, audit logs, or cost ledgers.
-
-Redis plays three roles: per-call state, cache, and the post-call job queue. Keep them in
-separate key namespaces.
-
-## 1. Per-call state (resume-on-drop)
-- **Key:** `call:{call_sid}:state` → the call-state object from `docs/03`.
-- **Written** on every stage transition and slot fill (not every token — durable checkpoints
-  only).
-- **TTL:** expire a few hours after call end; the post-call worker reads it before expiry.
-- **Resume:** if a call drops mid-flow and reconnects (or a retry dials back), load the last
-  checkpoint so Roma resumes at the stage reached, not from open. Discovery answers persist —
-  never re-ask a slot already filled.
-
-## 2. Cache (latency + cost)
-The same lines are spoken on every single call. Cache them.
-- **Fixed-phrase TTS cache:** pre-render Bulbul audio for lines that never change — greeting,
-  the four filter substitution lines, the readback template, "No-cost EMI available."
-  **Key:** `tts:{voice}:{hash(text)}` → audio bytes. Huge win: these skip STT→LLM→TTS
-  entirely on repeat.
-- **Filler-token cache:** the 200–300ms "achha…" / "haan ji…" clips. Always cached, never
-  live-generated.
-- **KB cache:** the DM course facts are static; cache the retrieved grounding so value/structure don't
-  re-fetch.
-- **Cache invalidation:** fixed-phrase and KB caches are versioned by a content hash — change
-  the line, the key changes, old entry is ignored. No manual purge needed.
-
-## 3. Post-call queue
-- **Key:** `queue:postcall` (Redis list or stream).
-- **Producer:** pipeline pushes a job `{call_sid, recording_ref, locked_slot}` on call end.
-- **Consumer:** the post-call worker (see `docs/08`, `docs/09`).
-- Decouples slow work (recording storage, CRM write) from the real-time loop.
-
-## What NOT to put in Redis
-- Raw audio streams (they flow through Pipecat, not Redis).
-- Secrets (see `docs/07` — secret store, not Redis).
-- Anything global-mutable shared across calls. All call data is namespaced by Call SID.
-
-## Concurrency safety
-- One writer per `call:{sid}` key (that call's task). No cross-call contention by design.
-- The queue is the only shared structure; Redis list/stream ops are atomic — safe for
-  multiple workers.
-
-## Roadmap bridge: Redis versus PostgreSQL
-
-| Keep in Redis | Move/add in PostgreSQL |
+| Data | Current / target owner |
 |---|---|
-| Active-call context and TTL checkpoints | Callers, calls, turns, and appointments |
-| Cached audio and grounded facts | Safety events and audit logs |
-| Short-lived counters and rate limits | Provider usage and normalized costs |
-| Distributed locks and job delivery state | Recording metadata and retention state |
+| Call answer receipt/call/event, post-call/job intents | PostgreSQL; implemented paths |
+| Appointment repository and constraints | PostgreSQL; live controller integration pending |
+| Live conversation checkpoint | Redis; durable milestone recovery pending L2/L7 |
+| Lead token lookup, call status, rate counters, opener cache | Redis with explicit lifetime |
+| Recording capture/finalization | Protected local filesystem; PostgreSQL metadata integration scope reviewed separately |
+| Governed knowledge/embeddings | PostgreSQL + pgvector at L9 |
 
-See `docs/14-data-and-concurrency.md` for the target schema and transaction exercises.
+## Lifetimes and recovery
+
+Current conversation checkpoint TTL is one hour; older four-hour notes are obsolete. Lead records default to 30 minutes. Reconnect with the same call SID differs from redial with a new SID; stable session/lead mapping is required before claiming redial restore.
+
+Durable milestones must preserve stage/slots/confirmation and schema/policy identity. Never restore a reservation from Redis when PostgreSQL says absent/cancelled. Measure checkpoint lag, lock ownership/TTL and recovery point limits; advanced event logs/outbox/replay follow core recovery.
+
+## Sessions and capacity
+
+`roma/core/database.py` uses async SQLAlchemy with short sessions, pre-ping and hidden SQL parameters. Source pool defaults are size 5, overflow 10, timeout 5 seconds. Budget their totals across API, recording and Dramatiq processes; extra workers multiply connection demand.
+
+Release sessions before inference, media, Redis waits or external sync. Separate migrations from seed/demo data. Restore/backup must cover actual business invariants, not only tables.
+
+## Cache contract
+
+Current phrase/opener clips use content/manifest identity and optional Redis mirroring. A synthesis cache hit does not skip all upstream work. Dynamic caller readbacks cannot reuse another caller's clip. Changed fixed text invalidates audio; no stale wording may be spoken.
+
+L5 expands keys to text/language/voice/model version. L9 evidence caching also includes scope/content/policy/eligibility versions and expiration. Inactive/stale documents must be excluded even on cache hits. Never store raw audio streams or secrets in Redis.
+
+Delivery queues are not durable business authority. PostgreSQL retains job intent; Redis/Dramatiq sends IDs and the dispatcher may republish. See [jobs](19-background-task-framework.md), [webhooks](18-webhook-idempotency.md) and [data](14-data-and-concurrency.md).

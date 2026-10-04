@@ -1,103 +1,26 @@
-# 05 — Endpointing, VAD & Barge-in
+# Audio, VAD, endpointing and language
 
-**Status:** Implemented and tuned from recorded/live evidence. Continuous production telemetry is
-planned.
+Twilio bidirectional media uses 8 kHz μ-law; the native Pipecat serializer owns transport messages. The offline L4 lab explicitly verifies 20 ms frames, PCM16 decoding, 16 kHz ASR resampling, sample/byte alignment and sequence handling. Do not infer SIP/RTP support from WebSocket media.
 
-**Learning objective:** Understand streaming state, cancellation, backpressure, timing budgets,
-and why a realtime conversation cannot be designed like an ordinary request/response endpoint.
+## Source baseline
 
-Thresholds derived from acoustic analysis of the 8 source-call recordings (403 pooled pauses).
-Treat every number as a **starting value to re-tune on real Twilio audio** — the recordings
-are WhatsApp-codec, not 8kHz μ-law.
+| Setting | Source default |
+|---|---|
+| Silero confidence / minimum volume | 0.8 / 0.7 |
+| VAD stop | 0.45 seconds |
+| Terminal / default / continuation endpoint | 0.50 / 0.85 / 1.30 seconds |
+| Backchannel maximum | 0.60 seconds |
 
-## Three layers (separate jobs — do not collapse into one silence timeout)
-```
-Layer 1  VAD          → is there speech this 20ms frame?   (Silero, model-based)
-Layer 2  Endpointing  → is the USER's turn finished?        (silence + semantic)
-Layer 3  Barge-in     → did user talk over Roma?            (interrupt + flush)
-```
+Effective environment values may differ; record resolved non-secret configuration with benchmarks. VAD end, endpoint delay and ASR final delivery are separate events. Do not replace contextual endpointing with an old global 850 ms rule. Verify existing carrier noise/echo behavior before adding processing.
 
-## Layer 1 — VAD
-**Model-based (Silero), never an energy/dB gate.** Forced by the recordings: the lead's audio
-is quiet and sits over a continuous noise floor (~1% true silence in the noisiest file). An
-energy gate misses the quiet lead or triggers on hiss. Frame = 20ms (Twilio native). Don't
-pre-AGC before VAD; Twilio's per-leg audio is cleaner than the mono mixes.
+## Local ASR and language
 
-**Noise suppression / AEC (acoustic echo cancellation).** The source audio showed a continuous
-noise floor and a quiet far-end, so the front-end matters. Two concerns: (a) background noise on
-the lead's side degrading STT, (b) Roma's own TTS echoing back into the input and false-
-triggering barge-in. Twilio applies some noise suppression / echo control at the carrier level —
-**verify what's already handled before adding our own**, so we don't double-process and distort
-the quiet lead further. If added, it sits before VAD in the input path. Do not over-engineer
-this until real Twilio audio shows a measured problem.
+At L4 benchmark candidate IndicConformer against Whisper on approved Gujarati/Hindi/English, code-mix and noisy phone audio. Report normalized WER/CER, RTF, finalization latency and failure cases. Language confidence/smoothing prevents switching on each fragment. Average accuracy cannot hide weak language/noise performance.
 
-**Resolved (2026-08):** concern (b) is measured absent on this stack. Across 20 recorded
-calls the lead-channel RMS while Roma speaks never exceeds 0.78x its RMS while she is
-silent — the carrier's per-leg separation already suppresses her voice on the inbound leg,
-so barge-in needs no AEC and `ENABLE_BARGE_IN` defaults on. Measure again before blaming
-echo (see the no-acoustic-echo note in `build_user_params`).
+Live Roma still replies Hindi-base Hinglish. Multilingual speech is a separate lab with native review. Use headphones for the L6 microphone experiment; do not assume separate transport legs eliminate all acoustic echo.
 
-## Layer 2 — Endpointing (the core number)
-**Default turn-final silence: 850ms.** Pause distribution: p50 0.48s, p75 0.66s, p90 0.90s,
-p95 1.15s. 52% of pauses are 0.3–0.5s; cutting at 500ms false-triggers on >half of natural
-pauses.
+## Interruption and buffering
 
-**Adaptive (better than fixed):**
-- ~500ms after a clear terminal answer ("haan", "Vadodara", "2025", "theek hai").
-- 850ms default.
-- ~1300ms after a continuation marker ("matlab…", "actually…", "ek minute…", "haan to…").
-  Build the marker list from the transcripts.
+Keep the configured barge-in behavior and Twilio `clear` ordering. Test backchannels, partial words, long silence, noisy tails, double interruption, overtalk and abrupt disconnect. Bounded jitter (40–60 ms is an example), overflow and resampling policies require measured evidence.
 
-**Backchannel guard (critical for code-mix):** `haan`, `ji`, `hmm`, `achha`, `haan haan`
-spoken WHILE Roma talks are NOT turn-takes. If a user-speech span is (a) < ~600ms AND (b) in
-the backchannel lexicon AND (c) Roma is mid-utterance → log it, keep talking. Else → barge-in.
-
-## Layer 3 — Barge-in
-On genuine user speech during Roma's turn:
-1. Cancel in-flight LLM generation.
-2. Flush Bulbul output buffer.
-3. Send Twilio Media Stream `clear` to drop already-buffered audio (else Roma overtalks ~1s).
-4. Cancellation routes THROUGH the pre-TTS filter, not around it.
-
-## Hiding the 850ms — filler token
-The instant endpointing fires, play a 200–300ms **cached** filler ("achha…", "haan ji…") from
-an audio cache (not a live TTS call), then stream the real sentence behind it.
-
-## Config summary (current values, re-tuned on live Twilio audio)
-| Param | Current | Env var | Source |
-|---|---|---|---|
-| VAD | Silero, 20ms | — | noise-floor finding |
-| VAD stop (hangover) | **450ms** (runs as 448ms — pipecat rounds to 32ms frames) | `VAD_STOP_SECS` | 2026-08-04 retune, call 932b6c88 (~288ms/turn recovered) |
-| Endpoint default | 850ms | `ENDPOINT_DEFAULT_SECS` | pause p90 |
-| Endpoint terminal | 500ms | `ENDPOINT_TERMINAL_SECS` | adaptive |
-| Endpoint continuation | 1300ms | `ENDPOINT_CONTINUATION_SECS` | adaptive |
-| Backchannel max | 600ms | `BACKCHANNEL_MAX_SECS` | transcripts |
-| Filler | 200–300ms cached | `ENABLE_FILLER` | latency mask |
-
-**`VAD_STOP_SECS` and the endpoint default were once the same 850ms knob; they are separate
-now.** The VAD hangover was re-tuned to 450ms on live μ-law audio while the endpoint default
-stayed at the pause-distribution 850ms. The adaptive endpoint values (500/850/1300) run on
-**both** barge-in branches — they were once gated behind `ENABLE_BARGE_IN` and every tuned
-value silently vanished with the flag, so the gate was removed (`build_user_params`). Only
-the backchannel guard itself needs the flag.
-
-**Tuning these (docs/10 Step 7).** All five are `Settings` fields, so re-tuning on the
-production origin is an env change, not a code edit. The reference values live beside the
-lexicons in `telephony/backchannel.py` (and `media.VAD_STOP_SECS`); tests pin them to the
-`Settings` defaults so the two cannot drift.
-
-Move **one** number per call and read the `endpoint timing:` line the teardown prints — it
-carries `vad_stop_secs`, `barge_in`, and the measured VAD-stop → final-transcript latency,
-so a run's timings are always attributable to the config that produced them.
-
-Measure before moving anything. Turn-final delay is `vad_stop_secs` (tunable) **plus**
-Sarvam's finalize latency (not). If the measured finalize time dominates, lowering 850ms
-cannot improve perceived response and the effort belongs elsewhere. `vad_stop_secs` is also
-not a free dial: it does triple duty as endpoint floor, Sarvam flush trigger, and the
-`effective_stt_wait` subtraction in pipecat's stop strategy.
-
-## Roadmap bridge
-
-Create repeatable latency experiments and concurrency/load scenarios before adding infrastructure.
-Any retry must respect the turn deadline; retrying a stale speech operation can be worse than
-failing fast with a safe fallback.
+Core L7 cancellation/pressure precedes advanced turn epochs/stale-audio rejection. UDP impairment, adaptive jitter and packet-loss concealment are optional advanced work when transport requirements justify them. See [pipeline](02-pipeline.md), [L4](levels/level-04.md) and [L7](levels/level-07.md).

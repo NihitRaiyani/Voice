@@ -1,420 +1,47 @@
 # Roma Voice Agent
 
-Roma is a backend-only voice-agent system for institute counselling and appointment
-booking. The project is built around one practical goal: handle real-time phone calls
-while teaching production backend engineering through a real codebase.
+Roma is a backend-only counselling voice agent for Weltec's Digital Marketing course. Its goal is a specific branch, day and time with explicit readback and caller confirmation. It understands Gujarati, Hindi, English and code-mix. Live replies remain Hindi-base Hinglish; multilingual output is evaluated separately.
 
-The system currently focuses on Twilio voice calls, a software-owned conversation
-state machine, PostgreSQL as the durable system of record, Redis for live transient
-state, and a concurrency-safe appointment booking module.
+**Working repository: `Voice_Agent`.** The [v4 roadmap](docs/roadmaps/AI_Voice_Agent_Unified_Roadmap_for_Student_Skill_Development_v4.docx) governs future level-by-level development. Start with the [documentation index](docs/README.md) and [engineering rules](CLAUDE.md).
 
-There is intentionally no web frontend in this repository.
+## Current system and accepted target
 
-## What This Project Does
+| Boundary | Present in this repository | v4 target / remaining work |
+|---|---|---|
+| Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
+| Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | Provider contracts, direct local LLM/ASR/TTS labs, then model serving |
+| Conversation | Seven deterministic stages, extraction, time resolver, speech safety | Durable milestone restore and structured safety audit |
+| Data | PostgreSQL schema, Alembic, repositories and booking locks/constraints | Complete live booking integration, cancellation and versioned APIs |
+| Transient state | Redis checkpoints, leads, status, caches and recording queue | Bounded pressure, checkpoint recovery and measured rate limits |
+| Webhooks | Atomic `/answer` receipt/call/event acceptance | Extend only to required callback kinds with explicit replay policy |
+| Jobs | Recording/spool handoff, PostgreSQL ledger, Dramatiq/Redis execution | Publication bounds, retention, audited replay and privacy controls |
+| Knowledge | Approved static facts | Conditional governed RAG with local embeddings/pgvector at Level 9 |
+| Deployment | Local scripts and pre-v4 infrastructure Compose | Non-container local learning first; full deployment packaging at Level 13 |
 
-Roma can receive and place Twilio voice calls, stream audio through the real-time
-pipeline, run conversation logic through backend-owned stages, persist durable
-business data in PostgreSQL, and keep short-lived operational state in Redis.
+The database booking repository is implemented, but the live controller still uses the static/read-only calendar and conversational `locked_slot`. A spoken win is not yet proof of a committed appointment. Schema tables also do not prove all corresponding runtime writes exist.
 
-The backend is designed as a learning-friendly modular monolith. A new developer
-should be able to understand which layer owns which responsibility without hunting
-through one large file.
+There is no frontend. Existing APIs are `/api/call`, `/api/call/{request_uuid}`, `/answer`, `/ws` and `/health`; the `api/v1` Python folder does not mean the public paths are versioned.
 
-```text
-Twilio call event
-    |
-    v
-FastAPI routes
-    |
-    v
-Application services
-    |
-    +--> Domain rules
-    |       appointment booking
-    |       conversation stage machine
-    |       safety and cost rules
-    |
-    +--> PostgreSQL
-    |       durable records:
-    |       callers, calls, turns, appointments, costs, audit logs
-    |
-    +--> Redis
-            live state:
-            active call context, conversation checkpoint, locks, cached data
-```
+## Run and verify
 
-## Current Capabilities
-
-- Twilio HTTP and WebSocket callback handling.
-- Durable `/answer` webhook idempotency with atomic call/event persistence.
-- Authenticated outbound call API.
-- Real-time media pipeline for speech, LLM response generation, and TTS playback.
-- Seven-stage conversation state machine:
-  `open`, `discover`, `value`, `structure`, `pivot`, `objection`, `close`.
-- PostgreSQL schema for durable business records.
-- Redis-backed call status and conversation state.
-- Transactional appointment booking with slot locking and conflict handling.
-- Post-call recording and Dramatiq/Redis background jobs with durable PostgreSQL status,
-  retry, and dead-letter handling.
-- Offline tests for domain rules, repositories, Redis state, media behavior, and
-  provider adapters.
-- Backend-only structure with no frontend dependency.
-
-## Architecture
-
-Roma follows a layered modular-monolith structure.
-
-```text
-roma/
-|-- api/             # FastAPI route adapters
-|-- core/            # configuration, database setup, logging
-|-- domain/          # provider-independent business rules
-|-- services/        # application use cases
-|-- repositories/    # PostgreSQL and Redis persistence adapters
-|-- providers/       # external provider integrations
-|-- realtime/        # latency-sensitive audio pipeline
-|-- workers/         # background/post-call processing
-|-- eval/            # offline evaluation tools
-|-- prompts/         # runtime prompt files
-`-- main.py          # application composition root
-```
-
-Dependency direction:
-
-```text
-api -> services -> domain
-services -> repositories / providers through clear boundaries
-domain -> no FastAPI, no Twilio, no Redis, no PostgreSQL
-```
-
-This keeps business logic outside route handlers and makes the system easier to
-test without paid provider calls.
-
-## PostgreSQL And Redis
-
-PostgreSQL is the durable system of record. It stores data the business must keep
-after a call ends.
-
-Examples:
-
-- callers
-- institutes
-- branches
-- courses
-- counsellors
-- calls
-- call turns
-- call events
-- appointments
-- appointment slots
-- safety events
-- provider usage
-- call costs
-- recordings
-- follow-up jobs
-- users, roles, and audit logs
-
-Redis is used for fast transient state during live operation.
-
-Examples:
-
-- active call context
-- current conversation checkpoint
-- call status polling
-- cached opener audio
-- short-lived counters and operational state
-- post-call queue state
-
-The project uses both because they solve different problems. PostgreSQL protects
-business history and relationships. Redis keeps live-call operations fast.
-
-## Webhook Idempotency
-
-Repeated signed `POST /answer` requests create one durable call-answer event. PostgreSQL
-commits a unique `webhook_receipts.provider_event_id`, the call, and its event together.
-Duplicates return the same TwiML for the same input and configuration; failed transactions
-roll back and return HTTP 503. Redis status updates are atomic and cannot reopen an ended call.
-
-`DATABASE_URL` and migration `20260930_0002` are now required for successful answer webhooks.
-Apply `uv run --extra dev alembic upgrade head` before restarting the backend. An unavailable
-database returns 503; the application does not acknowledge an unrecorded event as successful.
-Configure Twilio's retry policy to retry the relevant failures; a 503 alone does not configure
-provider retries. Receipts are retained independently of call deletion, without raw webhook
-bodies or lead tokens. No additional provider callbacks or SMS delivery are introduced.
-
-See [the file flow, hands-on exercise, and interview questions](docs/18-webhook-idempotency.md).
-
-## Background Processing
-
-After a call ends, Roma puts a small, phone-number-free message in Redis (or the local
-spool if Redis is unavailable). The recording worker stores any captured audio, then
-commits the completed call and its job intents together in PostgreSQL. It acknowledges
-the Redis message only after that commit. A dispatcher publishes ready job IDs to Dramatiq
-over Redis. Async workers claim those specific PostgreSQL rows and write each result with
-its durable job acknowledgement in one transaction.
-
-```text
-call ends -> Redis/local spool -> recording worker
-                                -> PostgreSQL: call + job intents (one transaction)
-                                -> dispatcher -> Dramatiq/Redis -> async worker
-                                -> statistics, summary, lead update
-                                -> scheduled follow-up intent
-```
-
-The summary currently describes call metadata; it does not send a transcript to an AI
-provider. Lead updates require a linked caller, which outbound calls get when
-`PII_HASH_KEY` is configured. If identity is unavailable, the job is marked for review.
-Follow-up delivery is intentionally not active yet: the job records the intent without
-sending an SMS or making a paid provider call.
-
-Install the worker extra, then start these three processes in separate terminals:
+Use the [operating guide](docs/runbook.md) for local PostgreSQL/Redis, migrations, configuration and worker commands. The backend composition root is:
 
 ```bash
-uv sync --extra telephony --extra dev --extra workers
-uv run --extra telephony --extra workers python scripts/run_postcall_worker.py
-uv run --extra telephony --extra workers python scripts/dispatch_background_jobs.py
-uv run --extra telephony --extra workers python scripts/run_background_worker.py
+uv run --extra telephony uvicorn roma.main:create_app --factory --host 127.0.0.1 --port 8020
 ```
 
-The recording worker still supports `--drain`. The dispatcher supports `--once` to publish
-one batch; the Dramatiq worker runs until stopped and finishes active work during shutdown.
-It defaults to one process/four worker threads for local development.
-Inspect the durable status in PostgreSQL with:
+A configured, migrated PostgreSQL database is required for successful `/answer` webhooks. `scripts/serve_media.py` adds development diagnostics; keep those private.
+
+Offline checks use fake providers and disposable data:
 
 ```bash
-docker compose exec postgres psql -U roma_dev -d roma_dev -c \
-  "SELECT job_type, status, attempts, available_at, last_error FROM followup_jobs ORDER BY created_at DESC LIMIT 20;"
+uv run --no-sync pytest -q
+uv run --no-sync ruff check roma tests scripts
+uv run --no-sync python scripts/run_eval.py
 ```
 
-`followup_jobs` is the existing physical table used for post-call jobs and scheduled
-follow-ups. A unique idempotency key prevents duplicate intents on redelivery. The
-worker retries failed jobs with backoff, recovers expired leases, and leaves terminal
-failures in `dead_letter` for inspection.
+See [verification](docs/12-verification.md) for environment requirements and what those results prove. No level-wise feature implementation, provider spending or live call is started by this documentation update.
 
-See [framework choice, file flow, and interview practice](docs/19-background-task-framework.md).
+## Code map
 
-## Appointment Booking
-
-Appointment booking is treated as the main database-concurrency module.
-
-The booking flow is:
-
-```text
-1. Check candidate slot availability.
-2. Begin a PostgreSQL transaction.
-3. Lock the selected appointment slot.
-4. Re-check availability inside the transaction.
-5. Create the appointment.
-6. Mark the slot as booked.
-7. Commit if the invariant still holds.
-8. Roll back and return a conflict if another caller already booked it.
-```
-
-The important backend invariant is that the same branch cannot confirm two active
-appointments for the same date and time.
-
-This is where the project teaches:
-
-- transactions
-- row-level locking
-- race conditions
-- rollback
-- atomic operations
-- conflict responses
-- database constraints as business protection
-
-## Conversation State Machine
-
-The language model does not own the business flow. The backend owns it.
-
-Valid conversation stages:
-
-```text
-open -> discover -> value -> structure -> pivot -> objection -> close
-```
-
-The state machine decides when the call can move forward, pause, handle an
-objection, recover from interruption, or return to missing information. The LLM
-generates wording inside these backend-owned guardrails.
-
-## Providers
-
-Roma keeps provider integrations at the edge of the system.
-
-Current provider areas:
-
-- Twilio for telephony.
-- Sarvam for STT/TTS configuration.
-- OpenAI for LLM responses.
-- Google Calendar adapter for calendar reads.
-
-The goal is to keep provider details out of core business logic so fake providers
-can be used in tests and real providers can be used in production.
-
-## Local Setup
-
-Install dependencies:
-
-```bash
-uv sync --extra telephony --extra dev
-```
-
-Copy the environment template:
-
-```bash
-cp .env.example .env
-```
-
-Important local values:
-
-```dotenv
-DATABASE_URL=postgresql+asyncpg://roma_dev:roma_dev_password@127.0.0.1:5432/roma_dev
-REDIS_URL=redis://:roma_dev_redis@127.0.0.1:6379/0
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_FROM_NUMBER=
-SARVAM_API_KEY=
-OPENAI_API_KEY=
-API_TOKEN=
-PUBLIC_BASE_URL=https://your-public-host.example
-PII_HASH_KEY=
-```
-
-Never commit `.env` or real credentials.
-
-Start local infrastructure:
-
-```bash
-docker compose up -d postgres redis
-```
-
-Apply database migrations:
-
-```bash
-uv run --extra dev alembic upgrade head
-```
-
-Run the backend:
-
-```bash
-./scripts/start_roma.sh
-```
-
-## API Surface
-
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /health` | Process health check |
-| `POST /answer` | Twilio voice webhook |
-| `WS /ws` | Twilio bidirectional media stream |
-| `POST /api/call` | Authenticated outbound-call request |
-| `GET /api/call/{request_uuid}` | Authenticated call-status lookup |
-
-Example outbound-call request:
-
-```bash
-curl -X POST http://127.0.0.1:8020/api/call \
-  -H "Authorization: Bearer $API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"to_number":"+91XXXXXXXXXX"}'
-```
-
-This can place a real paid call. Use only approved test numbers.
-
-## Testing
-
-Run the main offline test suite:
-
-```bash
-uv run --extra telephony --extra dev --extra workers pytest -q
-```
-
-Run linting:
-
-```bash
-uv run --extra telephony --extra dev ruff check roma tests scripts
-```
-
-Run PostgreSQL repository tests:
-
-```bash
-uv run --extra dev pytest -q tests/repositories/postgres
-```
-
-Run appointment-concurrency tests:
-
-```bash
-uv run --extra dev pytest -q tests/repositories/postgres/test_appointment_concurrency.py
-```
-
-Run conversation-state tests:
-
-```bash
-uv run --extra dev pytest -q tests/domain/conversation tests/repositories/redis/test_conversation_state.py
-```
-
-Automated tests should not place live calls or spend paid AI budget.
-
-## Useful Files
-
-| File | Why it matters |
-| --- | --- |
-| `roma/main.py` | FastAPI application composition |
-| `roma/core/config.py` | Environment-driven configuration |
-| `roma/core/database.py` | SQLAlchemy engine/session setup |
-| `roma/domain/persistence.py` | Durable domain records and repository contracts |
-| `roma/domain/conversation/stage.py` | Canonical conversation stage enum |
-| `roma/domain/conversation/state_machine.py` | State-machine API |
-| `roma/domain/conversation/turn.py` | Turn-level conversation advancement |
-| `roma/repositories/postgres/repositories.py` | PostgreSQL repository implementations |
-| `roma/repositories/postgres/unit_of_work.py` | Transaction boundary |
-| `roma/repositories/redis/conversation_state.py` | Redis-backed call-state checkpointing |
-| `roma/realtime/pipeline.py` | Live media pipeline orchestration |
-| `migrations/versions/` | Database schema history |
-| `compose.yaml` | Local PostgreSQL and Redis services |
-
-## Developer Learning Path
-
-Recommended order for understanding the codebase:
-
-1. Read this README.
-2. Inspect `roma/main.py` to see how the app is assembled.
-3. Read `roma/domain/conversation/stage.py` and
-   `roma/domain/conversation/state_machine.py`.
-4. Read `roma/domain/persistence.py`.
-5. Read `roma/repositories/postgres/repositories.py`.
-6. Read the appointment-concurrency test.
-7. Read `roma/realtime/pipeline.py` only after the backend layers make sense.
-8. Use `docs/` for deeper design notes and roadmap context.
-
-## Documentation
-
-Start here:
-
-- `docs/README.md`
-- `docs/00-project-charter.md`
-- `docs/01-architecture.md`
-- `docs/03-stage-machine.md`
-- `docs/10-build-order.md`
-- `docs/13-backend-roadmap.md`
-- `docs/17-placement-study-guide.md`
-
-## Project Status
-
-Implemented:
-
-- Backend-only project structure.
-- Twilio-based call entry points.
-- Redis-backed live call state.
-- PostgreSQL schema and repository layer.
-- Appointment booking concurrency protection.
-- Seven-stage conversation state machine.
-- Offline tests for core backend behavior.
-
-Still evolving:
-
-- Full appointment API integration.
-- Production deployment hardening.
-- Observability dashboards.
-- Complete fake-provider test mode for STT, LLM, TTS, and telephony.
-- Authentication and authorization expansion.
+`roma/main.py` composes `api`, `services`, `domain`, `repositories`, `providers`, `realtime` and `workers`. Business rules live in the domain; provider SDKs and storage remain at the edges. Runtime prompts live in `roma/prompts/` and affect speech directly. Read [architecture](docs/01-architecture.md) before changing those boundaries.

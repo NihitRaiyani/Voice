@@ -1,59 +1,19 @@
-# 00 — Product and Learning Charter
+# Project and learning charter
 
-**Status:** Implemented purpose; the backend expansion is planned in stages.
+Roma is a backend-only counselling/appointment system and a student engineering laboratory. A useful call is safe, interruptible, measurable and truthful about booking. Digital Marketing remains the active course; adding schema entities does not approve new course claims.
 
-## Product mission
+The selected [v4 roadmap](roadmaps/README.md) replaces the earlier curriculum. Progress uses Levels 0–14 and concrete acceptance gates. Current scope is documentation/design; implementation proceeds later one requested level at a time.
 
-Roma conducts multilingual counselling calls for Weltec Institute and aims to secure a specific
-day, time, and branch for an in-person visit. A good call is not merely fluent: it is safe,
-interruptible, recoverable, measurable, and ends with an explicit booking readback.
+## Learning outcomes
 
-## Learning mission
+Explain async HTTP/WebSocket/audio, deterministic conversation control, relational constraints/transactions, PostgreSQL versus Redis, provider dependency inversion, direct local model inference, multilingual ASR/TTS measurement, conditional grounded retrieval, idempotent jobs, security/privacy, telemetry and measured capacity.
 
-Use one realistic system to build deep backend judgement for placements. The goal is not to list
-technologies on a résumé. The goal is to explain why each component exists, which failure it
-prevents, where its state lives, and how evidence proves it works.
+Every increment needs working behavior, a protected invariant, meaningful verification and an explanation of the trade-off. Do not claim an installed dependency, schema table or diagram is a completed feature.
 
-By the end, a student should be able to discuss:
+## Product boundaries
 
-- FastAPI and Pydantic API design;
-- relational modelling, indexes, migrations, transactions, and locking;
-- Redis for transient state, caches, locks, counters, and queues;
-- finite-state machines and business invariants;
-- async workers, retry safety, and idempotency;
-- authentication, RBAC, webhook security, PII protection, and audit trails;
-- structured logs, metrics, traces, resilience, and provider boundaries;
-- unit, integration, concurrency, and load tests;
-- reproducible environments and CI/CD;
-- trade-offs between a modular monolith and distributed systems.
+Keep Twilio/Pipecat and cloud providers as the comparison baseline. Understand Gujarati/Hindi/English/code-mix; live replies stay Hindi-base Hinglish, with separately evaluated multilingual output. Code controls stages, slots, safety, consent and hang-up. All generated speech is filtered before synthesis.
 
-## Engineering principle
+The final local profile uses local AI with zero external GenAI API calls. Carrier/internal model-service APIs are allowed. PostgreSQL owns durable appointments and business records; Redis handles transient work. RAG is conditional at Level 9, full Docker packaging begins at Level 13 and advanced work requires measured need.
 
-Add a component only when it solves a concrete project problem and creates a testable learning
-outcome. A strong modular monolith is better than decorative microservices.
-
-Examples:
-
-- PostgreSQL earns its place because appointments and audit records require durable constraints.
-- Redis keeps its place because live-call state and short-lived counters need low latency.
-- A worker earns its place because recording and summaries must not delay the spoken turn.
-- Kafka or Kubernetes do not earn a place until measured scale or ownership boundaries require
-  them.
-
-## Definition of progress
-
-A roadmap task is complete only when all four forms of evidence exist:
-
-1. **Behavior:** the intended user or operator outcome works.
-2. **Invariant:** the rule that must always hold is encoded at the right boundary.
-3. **Verification:** automated tests or measurements would fail if the behavior regressed.
-4. **Explanation:** the student can defend the design and rejected alternatives without reading a
-   script.
-
-## Scope boundaries
-
-- Backend only; no product frontend is planned for the core curriculum.
-- The current Twilio/Sarvam/OpenAI voice layer remains intact unless a focused task changes it.
-- Paid live calls are manual, approved verification—not part of automated tests.
-- Safety, security, latency, privacy, and cost are first-class requirements.
-- Target architecture is guidance, not permission to implement the entire roadmap at once.
+Backend APIs are the product surface; no core frontend is required. Consent/certificate approval, deployment ownership, local-model licenses/hardware and final SLOs remain owner decisions. See [decisions](decisions.md), [completion contract](completion-contract.md) and [study guide](17-placement-study-guide.md).

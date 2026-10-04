@@ -1,64 +1,29 @@
-# 07 — Security (GATE-ZERO)
+# Security, privacy and production gates
 
-**Status:** Secret handling, bearer protection, Twilio signature validation, PII-aware logging, and
-fail-safe call gates are implemented. User authentication, RBAC, audit trails, rate-limit coverage,
-and formal retention workflows are planned.
+## Existing trust boundaries
 
-**Learning objective:** Draw trust boundaries and apply controls at ingress, authorization,
-storage, logs, provider callbacks, and destructive data-lifecycle operations.
+Validate `X-Twilio-Signature` against the exact configured external HTTP/WebSocket URL and verify start-event Account SID before constructing media. Human/client bearer authentication is distinct from carrier signature validation and worker access. The current service has no frontend; its static bearer API token is not a user/role/session system.
 
-Security is a build gate, not a later hardening pass. The scaffold below goes in before the
-first callable build.
+Keep secrets in environment-backed secret settings, hide SQL parameters and redact errors/logs. Full phone numbers, transcripts and authorization tokens do not belong in ordinary logs, metrics or fixtures. `var/roma`, Redis dumps and credentials remain ignored and access-controlled.
 
-## Secrets
-- Twilio, Sarvam, OpenAI keys, Redis auth → **environment / secret store only.** Never in
-  code, never committed, never logged.
-- No secret in error messages, stack traces, or call logs.
-- Rotate keys on a schedule; least-privilege API tokens (e.g. Twilio subaccount scoped to the
-  numbers Roma uses).
-- `.env` is gitignored; provide `.env.example` with key names only, no values.
+Stream metadata carries the lead token via TwiML `<Parameter>` and `start.customParameters`, not the Stream URL. **The current outbound answer callback URL does contain `?lead=...`.** Treat it as sensitive authorization data, suppress/redact proxy/access-log URLs and evaluate that exposure at L8; do not claim tokens never appear in any URL.
 
-## Twilio callback authentication
+## Dial safeguards and limits
 
-- Validate `X-Twilio-Signature` for both `/answer` and `/ws` using the exact external URL.
-- Verify the `accountSid` in the WebSocket start event matches `TWILIO_ACCOUNT_SID`.
-- Twilio Stream URLs do not carry query parameters; pass the opaque lead token through a
-  nested TwiML `<Parameter>` and read it from `start.customParameters`.
-- Reject callbacks before constructing the voice pipeline when authentication fails.
+The current API validates Indian mobiles, calling window (09:00–21:00 IST), configured denylist, OpenAI spend, public reachability and hourly cap (default 20), with bearer auth first. An empty denylist blocks nothing; no real DND/DLT feed is implied. Source ₹200 budget is a configured ceiling, not remaining provider credit; Sarvam readiness/credits are not covered by it.
 
-## PII (leads' data)
-- A lead's name, phone number, and transcript are PII. Treat accordingly.
-- **Do not** put PII in URL params, query strings, or third-party analytics.
-- Transcripts and recordings are access-controlled (see below). Retain only as long as needed
-  for the counselling follow-up; define a retention window.
-- Redis call-state holds PII → Redis must be auth'd + network-isolated, TTL'd, not public.
+Owner-approved contact/recording policy is required before real lead/production traffic. These code defaults do not establish legal clearance. Pending recording wording/audio causes capture discard rather than retained storage.
 
-## Call-recording consent (compliance — can block go-live independently)
-- **State recording at call start** ("call record ho raha hai" — the human counsellors already
-  do this; it doubles as a fee-deflection anchor).
-- **DND / TRAI scrubbing:** the dialer must respect India's DND registry and calling-window
-  rules before placing a call. Unsolicited-call compliance is legal, not optional.
-- This is Weltec's regulatory exposure — confirm their consent/DND process before real leads.
+## Level 8 target
 
-## Recording & transcript access
-- Recordings stored access-controlled (see `docs/09`); not world-readable, not a public bucket.
-- Least-privilege: the post-call worker can write recordings; only authorized staff can read.
+Implement user identity, short-lived JWT/session expiry, refresh/revocation and role permissions. Validate issuer/audience and deny access by default. Keep callback signing separate and define replay behavior using actual provider capabilities; Twilio signatures alone do not impose a timestamp freshness window.
 
-## The guardrail is a security control, not just product
-- The pre-TTS filter (`docs/04`) prevents the bot making unauthorized financial/outcome claims
-  — that is liability protection. It ships with the first callable build. Non-negotiable.
+Current `/answer` already has atomic durable receipt/call/event acceptance. Extend identity/lease/completion semantics only to required callbacks. A processing claim cannot mark an effect completed before its transaction commits. Signature verification and idempotency solve distinct problems.
 
-## Prompt-injection surface (in-conversation)
-- Treat lead claims as data, not instructions. The "someone already quoted me a fee" attack
-  (`docs/04`) is the live example: never let a lead's assertion unlock a rule violation.
-- Never let anything the lead says change a system rule, a cert claim, or a money boundary.
+Use shared rate limits where deployment requires them. Encrypt recoverable sensitive fields; use keyed phone hashing for identity matching rather than enumerable plain hashes. `PII_HASH_KEY` supports outbound caller linkage today, not a claim of complete encrypted storage.
 
-## Fail-safe posture
-- If any guardrail or secret dependency is unavailable, the safe action is to **not place /
-  hard-fail the call**, never to proceed unguarded.
+## Recordings and retention
 
-## Roadmap bridge
+Approved disclosure wording, matching audio and the institute's consent/retention policy precede retention. Source retention default is 90 days; local pruning exists, but complete raw/spool/database/backup deletion and audit remain future controls. Use authorized expiring playback access and audit reads/deletes; no public recording links.
 
-Add JWT/OAuth2-style authentication and role checks only with the future admin API. Twilio
-callbacks continue using provider signature validation rather than human-user JWTs. See
-`docs/15-api-security-and-jobs.md` for the planned trust model and role matrix.
+CI uses synthetic/redacted fixtures and fake paid providers. L12 adds security scans and final-local-profile enforcement. L13 injects secrets at runtime, excludes PII/model weights from images and verifies backup/rollback. See [decisions](decisions.md), [recordings](09-recording-storage.md) and [API tutorial](15-api-security-and-jobs.md).

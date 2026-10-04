@@ -32,16 +32,16 @@ class JobResult(Enum):
     RETRY = "retry"
     DEAD = "dead"
 
-
+# This is a metrics counter dataclass
 @dataclass
 class WorkerStats:
-    processed: int = 0
-    stored: int = 0
-    blocked_by_consent: int = 0
-    retried: int = 0
+    processed: int = 0 # Total jobs picked up from the queue.
+    stored: int = 0 # Total calls successfully written and committed to storage.
+    blocked_by_consent: int = 0 # Total calls discarded due to consent not being granted.
+    retried: int = 0 # Transient failures put back into the queue for another attempt.
     dead_lettered: int = 0
     pruned_days: int = 0
-    queue_errors: int = 0
+    queue_errors: int = 0 # Connection drops, timeouts, or unexpected crashes talking to Redis/queue.
 
 
 @dataclass

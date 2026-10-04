@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # Documentation and Learning System Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
@@ -76,8 +78,6 @@ skills that preserve the boundary between implemented and planned work.
 ### Task 5: Refresh working guidance and skills
 
 **Files:**
-- Modify: `HANDOFF.md`
-- Modify: `SESSION.md`
 - Modify: `skills/README.md`
 - Modify: `skills/sync-prompts.md`
 - Modify: `.claude/skills/roma-guardrail/SKILL.md`

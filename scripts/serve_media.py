@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Step-1 live-test harness: serve the Media Streams /ws app on :8020 (docs/10).
+"""Development diagnostics for the Twilio media app on :8020 (docs/runbook.md).
 
 Point uvicorn at `create_app` — NOT at `roma.realtime.pipeline:build_media_app`. The
 bare app factory never calls `configure_logging()`, so `roma.realtime` INFO lines —
@@ -7,7 +7,7 @@ including the teardown `media stream ended: ... inbound_frames=N` that PROVES au
 — are dropped (Python's last-resort handler emits WARNING+ only). `create_app()`
 configures logging (with secret redaction, docs/07) before building the app.
 
-For the live audio test it runs with `auto_hang_up=False` (the callee hangs up)
+It delegates to roma.main and enables `auto_hang_up=True` for carrier teardown
 and exposes a read-only `/debug/last-counter` route so audio-IN can be confirmed
 from the live inbound-frame counter without waiting for pipeline teardown. This is
 a TEST server, not the prod entrypoint.
@@ -15,7 +15,7 @@ a TEST server, not the prod entrypoint.
   uvicorn scripts.serve_media:create_app --factory --host 127.0.0.1 --port 8020
 
 127.0.0.1 is not incidental: /api/call rings real phones and spends real budget, and its
-bearer token is inlined into the browser bundle rather than being a session. `BIND_HOST`
+backend-client bearer token does not implement user identities or role permissions. `BIND_HOST`
 carries the same default for the __main__ path below.
 """
 

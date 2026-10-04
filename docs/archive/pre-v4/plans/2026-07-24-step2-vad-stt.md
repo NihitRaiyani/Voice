@@ -1,3 +1,5 @@
+> Historical pre-v4 reference. Not an active plan or present capability claim. Use the current v4 briefs/contracts; revalidate old paths, providers, dependency examples and acceptance instructions before reuse.
+
 # Step 2 — STT + VAD in (draft plan, for approval)
 
 ## Context / goal
@@ -7,7 +9,7 @@ into the existing Step-1 media spine so that **real transcripts arrive** on a li
 This is the "transcripts + measurement" slice — NOT the full endpointing/barge-in design.
 
 Step-1 gave us `transport.input() → InboundAudioCounter → transport.output()` in
-[media.py](src/roma/telephony/media.py). Step 2 inserts VAD + STT into that path.
+[pipeline.py](../../../../roma/realtime/pipeline.py). Step 2 inserts VAD + STT into that path.
 
 ## Current APIs (confirmed via context7 — not memory)
 - **VAD:** `pipecat.audio.vad.silero.SileroVADAnalyzer(sample_rate=8000, params=VADParams(...))`.
