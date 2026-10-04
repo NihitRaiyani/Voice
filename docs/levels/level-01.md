@@ -1,6 +1,6 @@
 # Level 1 — Backend foundation
 
-**v4 sections:** 3–9. **Status:** Sections 3–6 persistence/pool, relational foundations, migration/separate-demo workflow and architecture boundaries implemented; remaining sections 7–9 and full gate pending.
+**v4 sections:** 3–9. **Status:** Sections 3–7 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries and provider contracts implemented; remaining sections 8–9 and full gate pending.
 
 ## Entry gate
 
@@ -27,7 +27,8 @@ Layered `roma/`, async SQLAlchemy pools/units of work, three Alembic migrations,
 - [x] Section 5: preserved Alembic history, database-only development workflow, tested rollback and separate opt-in synthetic seeds; approved real business-data imports remain owner-governed.
 - [x] Section 3: bounded pool configuration, process allocation and synthetic pressure/release/timeout/cancellation evidence; real deployment budget must be checked against its server.
 - [x] Section 6: modular monolith package map documented; domain dependency direction enforced; concrete Redis/worker leaks removed from domain exports.
-- [ ] Provider contract mocks and versioned API checks pass; CI is green.
+- [x] Section 7: STT/LLM/TTS/embedding/telephony provider contracts, config switches and mock adapters verified.
+- [ ] Versioned API checks, native startup, type-check/pre-commit and CI are green.
 
 ## Boundaries and advanced work
 
@@ -238,5 +239,59 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q \
 
 Run the complete offline suite before claiming the full Level 1 gate. Existing
 whole-repository lint debt remains as recorded in [verification](../12-verification.md).
+
+## Section 7 provider abstraction
+
+STT, LLM, TTS, embeddings and telephony now expose narrow provider protocols
+under `roma.providers`. The request/result dataclasses are independent of
+Pipecat, OpenAI, Sarvam, Twilio and local inference runtimes:
+
+- `STTProvider.transcribe(STTRequest) -> STTResult`
+- `LLMProvider.generate(LLMRequest) -> AsyncIterator[LLMChunk]`
+- `TTSProvider.synthesize(TTSRequest) -> TTSResult`
+- `EmbeddingProvider.embed(EmbeddingRequest) -> EmbeddingResult`
+- `TelephonyProvider.place_call(PlaceCallRequest) -> PlaceCallResult`
+
+Config fields select providers: `STT_PROVIDER`, `LLM_PROVIDER`, `TTS_PROVIDER`,
+`EMBEDDING_PROVIDER` and `TELEPHONY_PROVIDER`. AI defaults are mocks so
+automated tests do not call paid providers. Telephony defaults to Twilio to
+preserve current runtime behavior; tests select the mock explicitly.
+
+Current concrete adapters are deterministic mocks plus named future adapters:
+`IndicConformerSTT`, `WhisperSTT`, `Qwen3TransformersLLM`,
+`Qwen3VLLMClient`, `IndicTTSProvider` and `LocalMultilingualEmbedding`. Future
+adapters raise `ProviderUnavailable` until their own level installs models,
+credentials, hardware checks and benchmarks. The [provider guide](../23-provider-contracts.md)
+owns the contract details.
+
+This section does not rewire the Pipecat media pipeline away from its current
+OpenAI/Sarvam processors. That replacement belongs with the local model levels
+where quality, latency, cancellation and GPU/serving behavior can be measured.
+
+## Section 7 verification evidence
+
+Verified 2026-10-04 with focused provider/config tests and changed-file lint.
+
+| Check | Actual outcome |
+|---|---|
+| Complete offline suite after section 7 | **1,666 passed, 23 warnings, no failures or skips** |
+| Provider/config contract tests | **38 passed** |
+| Changed provider/config Python lint | **Pass** |
+| Offline conversation evaluation | **10/10 passed, zero findings; filter canaries pass** |
+
+Focused command:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
+    tests/providers/ai/test_provider_contracts.py \
+    tests/providers/telephony/test_telephony_provider_contracts.py \
+    tests/core/test_config.py
+.venv/bin/ruff check --no-cache \
+    roma/providers/ai roma/providers/telephony/base.py \
+    roma/providers/telephony/mock.py roma/providers/telephony/registry.py \
+    roma/providers/telephony/__init__.py roma/core/config.py \
+    tests/providers/ai/test_provider_contracts.py \
+    tests/providers/telephony/test_telephony_provider_contracts.py
+```
 
 Return to the [documentation index](../README.md).

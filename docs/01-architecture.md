@@ -51,7 +51,7 @@ A short booking transaction can run in the turn; inference, audio, external sync
 
 The [schema catalog](20-relational-schema.md) owns the physical table/key/constraint/index and retention rationale. L1 section 4 adds checkpoint and model/benchmark evidence models; these tables are not yet live pipeline consumers. The additive migration preserves old keys/semantics and adds optional turn-language metadata. L1 section 5 adds the [migration workflow](21-database-migrations.md) and separate opt-in demo seeds; migration/seeding tools depend only on database settings and never initialize voice providers.
 
-L1 section 6 moves shared private-file primitives into `roma.core.private_files` and keeps concrete Redis checkpoint adapters out of the domain package export. A focused architecture test now prevents `roma/domain/**` from importing API, provider, repository, realtime, worker or SDK modules.
+L1 section 6 moves shared private-file primitives into `roma.core.private_files` and keeps concrete Redis checkpoint adapters out of the domain package export. A focused architecture test now prevents `roma/domain/**` from importing API, provider, repository, realtime, worker or SDK modules. L1 section 7 adds provider contracts for STT, LLM, TTS, embeddings and telephony; current realtime processors keep their cloud comparison path until later model levels replace them with measured adapters.
 
 ## Deployment and target
 

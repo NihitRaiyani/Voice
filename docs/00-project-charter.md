@@ -2,7 +2,7 @@
 
 Roma is a backend-only counselling/appointment system and a student engineering laboratory. A useful call is safe, interruptible, measurable and truthful about booking. Digital Marketing remains the active course; adding schema entities does not approve new course claims.
 
-The selected [v4 roadmap](roadmaps/README.md) replaces the earlier curriculum. Progress uses Levels 0–14 and concrete acceptance gates. Implementation proceeds one explicitly requested level or section at a time. Level 1 sections 3–6 cover persistence, relational foundations, migration/separate-demo workflow and architecture boundaries; other level gates remain independent.
+The selected [v4 roadmap](roadmaps/README.md) replaces the earlier curriculum. Progress uses Levels 0–14 and concrete acceptance gates. Implementation proceeds one explicitly requested level or section at a time. Level 1 sections 3–7 cover persistence, relational foundations, migration/separate-demo workflow, architecture boundaries and provider contracts; other level gates remain independent.
 
 ## Learning outcomes
 

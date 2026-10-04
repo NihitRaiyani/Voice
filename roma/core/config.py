@@ -6,6 +6,7 @@ at the exact API-client boundary.
 """
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -41,6 +42,12 @@ class Settings(BaseSettings):
     # Allocation after reserving capacity for PostgreSQL, other clients and ops.
     # Optional for compatibility; the capacity checker verifies the real server.
     database_connection_budget: int | None = Field(default=None, gt=0)
+
+    stt_provider: Literal["mock", "indic_conformer", "whisper"] = "mock"
+    llm_provider: Literal["mock", "qwen3_transformers", "qwen3_vllm"] = "mock"
+    tts_provider: Literal["mock", "indic_tts"] = "mock"
+    embedding_provider: Literal["mock", "local_multilingual"] = "mock"
+    telephony_provider: Literal["mock", "twilio"] = "twilio"
 
     @property
     def database_peak_connections(self) -> int:

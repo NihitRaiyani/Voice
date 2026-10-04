@@ -71,3 +71,17 @@ instead of making the spend ledger depend on post-call workers.
 Explain what this does not finish: versioned public API schemas, provider
 contract mocks, type checking, CI/pre-commit and native one-command startup are
 still later Level 1 work.
+
+## Level 1 section 7 explanation
+
+Show how `STTProvider`, `LLMProvider`, `TTSProvider`, `EmbeddingProvider` and
+`TelephonyProvider` hide SDK/runtime details behind small request/result types.
+Explain why mocks are the default AI providers for tests, why future Qwen/Indic
+classes fail fast until their model levels are complete, and why switching a
+provider should mean one adapter plus one config value rather than rewriting
+callers.
+
+Defend the current limit: the Pipecat media pipeline still uses the existing
+OpenAI/Sarvam comparison path. Replacing it belongs with local inference,
+speech quality, latency and cancellation evidence, not with the Level 1
+contract foundation.

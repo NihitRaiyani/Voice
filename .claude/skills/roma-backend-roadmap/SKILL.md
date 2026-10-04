@@ -15,7 +15,7 @@ authoritative project context is `CLAUDE.md`; the selected source and gates are 
 
 ## Start with status and scope
 
-Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment is Level 1 section 6 backend architecture boundaries, preserving sections 3–5 persistence/pool, relational foundations and migration workflow. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
+Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment is Level 1 section 7 provider abstraction, preserving sections 3–6 persistence/pool, relational foundations, migration workflow and architecture boundaries. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
 
 Before proposing a change:
 
