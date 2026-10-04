@@ -7,7 +7,10 @@ call gates and provider/repository orchestration live in ``roma.services``.
 import secrets
 
 from fastapi import HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 
+from roma.api.v1.responses import ApiError, api_error_handler, validation_error_handler
+from roma.api.v1.rest import router as rest_router
 from roma.core.config import get_settings
 from roma.providers.telephony.twilio.reachability import (
     base_url_reachable as _real_reachable,
@@ -20,10 +23,15 @@ from roma.services.call_service import (
 )
 
 
-def mount_web_api(app, *, reachable_fn=None) -> None:
-    """Mount the protected call command and query endpoints."""
+def mount_web_api(app, *, reachable_fn=None, session_factory=None) -> None:
+    """Mount protected legacy commands and versioned REST resources."""
     settings = get_settings()
     reachability_check = reachable_fn or _real_reachable
+    if session_factory is not None:
+        app.state.session_factory = session_factory
+    app.add_exception_handler(ApiError, api_error_handler)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
+    app.include_router(rest_router)
 
     def require_auth(request: Request) -> None:
         if settings.api_token is None or not settings.api_token.get_secret_value():

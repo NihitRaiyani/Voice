@@ -24,6 +24,9 @@ def test_redaction_filter_scrubs_secret_in_args():
 
 
 def test_configured_logging_redacts_all_twilio_credentials(capsys):
+    root = logging.getLogger()
+    saved_handlers = root.handlers[:]
+    saved_level = root.level
     account_sid = "test-twilio-account-sid"
     auth_token = "0123456789abcdef0123456789abcdef"
     from_number = "+919876543210"
@@ -37,13 +40,17 @@ def test_configured_logging_redacts_all_twilio_credentials(capsys):
         twilio_from_number=from_number,
     )
 
-    configure_logging(settings)
-    logging.getLogger("test").warning(
-        "Twilio account=%s token=%s caller=%s",
-        account_sid,
-        auth_token,
-        from_number,
-    )
+    try:
+        configure_logging(settings)
+        logging.getLogger("test").warning(
+            "Twilio account=%s token=%s caller=%s",
+            account_sid,
+            auth_token,
+            from_number,
+        )
+    finally:
+        root.handlers = saved_handlers
+        root.setLevel(saved_level)
 
     output = capsys.readouterr().err
     assert account_sid not in output

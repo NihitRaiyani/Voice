@@ -1,6 +1,6 @@
 # Verification and acceptance evidence
 
-Latest complete-suite verification for the [Level 1 section 7 increment](levels/level-01.md): **1,666 tests passed, 23 warnings, no failures or skips**, including disposable PostgreSQL/Redis integration, and **10/10 offline evaluations** with zero findings. Section 6 focused verification adds **31 passing architecture/domain tests** and changed-file lint pass. Section 7 focused verification adds **38 passing provider/config tests** and changed-file lint pass. All changed Python files pass lint; the full repository retains **two existing I001 import-format findings** in `roma/domain/conversation/state.py` and `roma/repositories/postgres/models/base.py`.
+Latest complete-suite verification for the [Level 1 section 8 increment](levels/level-01.md): **1,671 tests passed, 23 warnings, no failures or skips**, including disposable PostgreSQL/Redis integration, and **10/10 offline evaluations** with zero findings. Section 8 focused verification adds **5 passing REST resource tests**, **62 passing API tests** and changed-file lint pass. All changed Python files pass lint; the full repository retains **two existing I001 import-format findings** in `roma/domain/conversation/state.py` and `roma/repositories/postgres/models/base.py`.
 
 The earlier [Level 0 baseline report](roadmaps/level-00-baseline.md) remains historical evidence of 1,571 passing tests and five lint findings before this increment. Its test/identity record is not rewritten as current implementation evidence. L1 records capacity/pressure/timeout/cancellation and relational constraint/migration/legacy-compatibility and separate-seed workflow results and their limits; the full Level 1 gate remains pending.
 
@@ -32,6 +32,12 @@ telephony. Tests verify config defaults, provider factories, async streaming
 chunks, deterministic mock audio/embeddings, mock telephony and fast failure for
 future local adapters. No paid provider call is made by the provider-contract
 tests.
+
+Section 8 adds bearer-protected `/api/v1` JSON resources for durable calls,
+leads, appointments, analytics and safety events. Tests verify the shared
+success/error envelope, pagination/filter/sort metadata, Pydantic validation,
+OpenAPI path exposure, appointment conflict code mapping and production database
+session-factory wiring while preserving the legacy `/api/call` behavior.
 
 ## Evidence rules
 

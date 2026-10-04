@@ -7,6 +7,7 @@ RedactionFilter — which scrubs a fixed list of configured values — cannot se
 
 import logging
 
+import pytest
 from roma.core.logging import (
     LeadTokenFilter,
     RedactionFilter,
@@ -14,6 +15,21 @@ from roma.core.logging import (
 )
 from roma.services.call_service import build_answer_url
 
+
+@pytest.fixture(autouse=True)
+def _restore_logging_state():
+    root = logging.getLogger()
+    saved_handlers = root.handlers[:]
+    saved_level = root.level
+    uvicorn_loggers = ("uvicorn", "uvicorn.error", "uvicorn.access")
+    saved_filters = {name: logging.getLogger(name).filters[:] for name in uvicorn_loggers}
+    try:
+        yield
+    finally:
+        root.handlers = saved_handlers
+        root.setLevel(saved_level)
+        for name, filters in saved_filters.items():
+            logging.getLogger(name).filters = filters
 
 def _record(msg, args=()):
     return logging.LogRecord(

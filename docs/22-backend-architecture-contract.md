@@ -13,7 +13,7 @@ shape future level work must preserve.
 | `api/v1` | `roma/api/v1/` | FastAPI request parsing, authentication and response/error translation |
 | `core` | `roma/core/` | Config, logging, database engine setup, migration settings and shared privacy helpers |
 | `models` | `roma/repositories/postgres/models/` | SQLAlchemy table mappings owned by migrations |
-| `schemas` | `roma/domain/persistence.py` and later API DTO modules | Transport-neutral records and future versioned contracts |
+| `schemas` | `roma/domain/persistence.py`, `roma/schemas/rest_api.py` | Transport-neutral records and versioned API contracts |
 | `repositories` | `roma/repositories/` | PostgreSQL durable adapters and Redis transient adapters |
 | `services` | `roma/services/` | Application use cases and orchestration across domain rules, providers and repositories |
 | `providers` | `roma/providers/` | Twilio, Google Calendar, Dramatiq and future STT/LLM/TTS/local-model adapters |
@@ -39,7 +39,8 @@ workers or concrete repository packages. A focused architecture test enforces
 that rule for `roma/domain/**`.
 
 API routes translate HTTP only: parse input, authenticate, call a service and map
-domain/application failures to HTTP. Business decisions such as DND, call window,
+domain/application failures to HTTP. Versioned REST resources use the shared v1 envelope
+and keep database work in `RestApiService`. Business decisions such as DND, call window,
 budget, booking truth, safety and idempotency live outside route handlers.
 
 Services coordinate one use case. They may use repositories and providers, but
@@ -61,8 +62,7 @@ Two existing outward imports were removed:
   re-exports them for compatibility.
 
 This keeps live behavior unchanged while making the boundary explicit and
-testable. It does not claim the whole monolith is fully cleaned up: versioned API
-schemas, provider contract mocks, CI/pre-commit and native one-command startup
-remain Level 1 sections 7-9/full-gate work.
+testable. It does not claim the whole monolith is fully cleaned up: CI/pre-commit,
+native one-command startup and remaining Level 1 section 9/full-gate work are still pending.
 
 Return to the [documentation index](README.md).

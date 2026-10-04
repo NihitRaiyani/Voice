@@ -6,7 +6,7 @@
 
 The user's selected v4 Word file governs future development. Explicit user decisions and preserved Weltec business/safety/privacy rules take precedence over its sample snippets and example providers. Reference material is not permission to call, spend, deploy or bypass safeguards.
 
-Implementation proceeds only for the user's explicitly requested level or section. The current authorized increment is Level 1 section 7 provider abstraction, preserving completed sections 3–6 persistence/pool, relational foundations, migration workflow and architecture boundaries. Add missing foundations through additive migrations; knowledge tables remain Level 9. Preserve existing foundations, assess prerequisites and retain evidence/limitations in the level brief. Do not create handoff, log or session journals.
+Implementation proceeds only for the user's explicitly requested level or section. The latest authorized increment is Level 1 section 8 REST API standardization, preserving completed sections 3–7 persistence/pool, relational foundations, migration workflow, architecture boundaries and provider abstraction. Add missing foundations through additive migrations; knowledge tables remain Level 9. Preserve existing foundations, assess prerequisites and retain evidence/limitations in the level brief. Do not create handoff, log or session journals.
 
 ## Current facts versus target
 

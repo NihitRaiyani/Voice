@@ -11,7 +11,7 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
 | Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | Provider contracts, direct local LLM/ASR/TTS labs, then model serving |
 | Conversation | Seven deterministic stages, extraction, time resolver, speech safety | Durable milestone restore and structured safety audit |
-| Data | PostgreSQL schema, Alembic, repositories and booking locks/constraints | Bounded pools/process budget, checkpoint/model/benchmark schema and turn-language metadata; live booking, restoration and versioned APIs pending |
+| Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints and versioned resource API | Bounded pools/process budget, checkpoint/model/benchmark schema and turn-language metadata; live booking and restoration pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue | Bounded pressure, checkpoint recovery and measured rate limits |
 | Webhooks | Atomic `/answer` receipt/call/event acceptance | Extend only to required callback kinds with explicit replay policy |
 | Jobs | Recording/spool handoff, PostgreSQL ledger, Dramatiq/Redis execution | Publication bounds, retention, audited replay and privacy controls |
@@ -20,7 +20,7 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 
 The database booking repository is implemented, but the live controller still uses the static/read-only calendar and conversational `locked_slot`. A spoken win is not yet proof of a committed appointment. Schema tables also do not prove all corresponding runtime writes exist.
 
-There is no frontend. Existing APIs are `/api/call`, `/api/call/{request_uuid}`, `/answer`, `/ws` and `/health`; the `api/v1` Python folder does not mean the public paths are versioned.
+There is no frontend. Live telephony still uses `/api/call`, `/api/call/{request_uuid}`, `/answer`, `/ws` and `/health`. Durable business resources now use versioned `/api/v1/...` JSON routes with consistent envelopes.
 
 ## Run and verify
 
@@ -40,7 +40,7 @@ uv run --no-sync ruff check roma tests scripts
 uv run --no-sync python scripts/run_eval.py
 ```
 
-See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–5 now include persistence/pool safeguards, additive relational foundations and the [migration/separate-demo workflow](docs/21-database-migrations.md); remaining sections stay pending. Verification uses no provider spending or live calls.
+See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–8 now include persistence/pool safeguards, additive relational foundations, the [migration/separate-demo workflow](docs/21-database-migrations.md), provider contracts and the [versioned REST API](docs/24-rest-api-design.md); remaining section 9/full-gate work stays pending. Verification uses no provider spending or live calls.
 
 ## Code map
 

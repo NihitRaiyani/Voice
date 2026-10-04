@@ -1,6 +1,6 @@
 # Voice_Agent documentation
 
-This is the project's canonical documentation entry point. v4 defines future development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–7 cover persistence/pool safeguards, relational foundations, migration/separate-demo workflow, backend architecture boundaries and provider contracts.
+This is the project's canonical documentation entry point. v4 defines future development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–8 cover persistence/pool safeguards, relational foundations, migration/separate-demo workflow, backend architecture boundaries, provider contracts and versioned REST resources.
 
 ## Level briefs
 
@@ -9,7 +9,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | Level | Brief | Current gate position |
 |---|---|---|
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
-| 1 | [Backend foundation](levels/level-01.md) | Sections 3–7 foundations; sections 8–9/full gate pending |
+| 1 | [Backend foundation](levels/level-01.md) | Sections 3–8 foundations; section 9/full gate pending |
 | 2 | [Text/local LLM](levels/level-02.md) | Cloud controller present; local/durable gate pending |
 | 3 | [Transactional booking](levels/level-03.md) | Repository present; live/API integration pending |
 | 4 | [Audio/local ASR](levels/level-04.md) | Cloud baseline; local lab planned |
@@ -42,6 +42,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [12 Verification](12-verification.md) | Evidence rules and actual check limitations |
 | [14 Data/concurrency](14-data-and-concurrency.md) | Existing constraints and live-booking gap |
 | [15 API/security/jobs](15-api-security-and-jobs.md) | Compatibility/versioned API and identities |
+| [24 REST API design](24-rest-api-design.md) | v1 resource routes, envelopes, pagination/filtering/sorting and OpenAPI |
 | [16 Observation/delivery](16-observability-testing-and-delivery.md) | Metrics, capacity, CI and packaging |
 | [17 Study guide](17-placement-study-guide.md) | Concept-to-module learning and viva |
 | [18 Webhooks](18-webhook-idempotency.md) | Implemented atomic answer acceptance |

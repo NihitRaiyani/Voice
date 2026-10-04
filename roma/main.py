@@ -36,7 +36,7 @@ def create_app() -> FastAPI:
 
     service = WebhookService(WebhookRepository(database.session_factory)) if database else None
     app = build_media_app(auto_hang_up=True, webhook_service=service, lifespan=lifespan)
-    mount_web_api(app)
+    mount_web_api(app, session_factory=database.session_factory if database else None)
     return app
 
 

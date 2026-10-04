@@ -164,7 +164,13 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch):
         lambda: SimpleNamespace(database_url=SecretStr("postgresql+asyncpg://unused")),
     )
     monkeypatch.setattr(module.Database, "from_settings", lambda _settings: database)
-    monkeypatch.setattr(module, "mount_web_api", lambda _app: None)
+    mounted = {}
+
+    def mount_web_api(app, *, session_factory=None):
+        mounted["app"] = app
+        mounted["session_factory"] = session_factory
+
+    monkeypatch.setattr(module, "mount_web_api", mount_web_api)
 
     def build_app(**kwargs):
         app = FastAPI(lifespan=kwargs["lifespan"])
@@ -175,5 +181,6 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch):
     monkeypatch.setattr(module, "build_media_app", build_app)
     with TestClient(module.create_app()) as client:
         assert isinstance(client.app.state.webhook_service, WebhookService)
+        assert mounted == {"app": client.app, "session_factory": database.session_factory}
         database.close.assert_not_awaited()
     database.close.assert_awaited_once()

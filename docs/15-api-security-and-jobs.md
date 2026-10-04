@@ -2,9 +2,9 @@
 
 ## Current API versus Level 1 target
 
-Current external paths are `/health`, `/answer`, `/ws`, `/api/call` and `/api/call/{request_uuid}`. Routes being located in `roma/api/v1` does not version their URLs. The call API is bearer-protected; it is not an Admin/Counsellor/Viewer identity system.
+Current external paths include `/health`, `/answer`, `/ws`, `/api/call`, `/api/call/{request_uuid}` and the versioned `/api/v1/...` resource API. The call command and v1 resources are bearer-protected; this is not an Admin/Counsellor/Viewer identity system.
 
-L1 designs `/api/v1` resources for calls/leads/appointments and stable success/error envelopes, pagination/filter/sort and OpenAPI. Preserve compatibility routes until an explicit tested client migration. Use domain error codes such as slot-unavailable; provider SDK payloads stay internal.
+L1 now implements `/api/v1` resources for calls/leads/appointments/analytics/safety with stable success/error envelopes, pagination/filter/sort and OpenAPI. Preserve compatibility routes until an explicit tested client migration. Use domain error codes such as `APPOINTMENT_SLOT_UNAVAILABLE`; provider SDK payloads stay internal.
 
 The existing call service validates number/window/denylist/spend and public reachability before taking hourly allowance and contacting Twilio. Store lead metadata before dialing to avoid fast-pickup races. A pre-dial store failure blocks; a cosmetic status failure after accepted dialing must not turn the accepted call into HTTP 500.
 

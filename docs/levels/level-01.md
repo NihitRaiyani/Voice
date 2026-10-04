@@ -1,10 +1,10 @@
 # Level 1 — Backend foundation
 
-**v4 sections:** 3–9. **Status:** Sections 3–7 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries and provider contracts implemented; remaining sections 8–9 and full gate pending.
+**v4 sections:** 3–9. **Status:** Sections 3–8 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries, provider contracts and versioned REST resources implemented; remaining section 9 and full gate pending.
 
 ## Entry gate
 
-Level 0 remains pending clean-machine restore, representative timing and prerequisite review. The user explicitly authorized these bounded section 3/4/5 increments; it does not pass or waive those remaining gates.
+Level 0 remains pending clean-machine restore, representative timing and prerequisite review. The user explicitly authorized these bounded section 3–8 increments; they do not pass or waive those remaining gates.
 
 ## Full-level scope and remaining sections
 
@@ -14,11 +14,11 @@ Introduce Alembic migrations with tested upgrade/rollback strategy and separate 
 
 Design `/api/v1` envelopes/errors, pagination/filter/sort and OpenAPI without silently replacing compatibility routes. Establish pytest/Ruff/type-checking/pre-commit/CI incrementally, and a documented local-service startup without Docker.
 
-PostgreSQL/schema/layers already exist here. Review and fill their gate gaps; public routes remain unversioned despite the `api/v1` directory. Existing infrastructure Compose stays compatibility tooling; the new foundation startup path uses native services.
+PostgreSQL/schema/layers and versioned resource routes already exist here. Review and fill their gate gaps; live telephony commands remain on compatibility paths until an explicit client migration. Existing infrastructure Compose stays compatibility tooling; the new foundation startup path uses native services.
 
 ## Existing reuse in Voice_Agent
 
-Layered `roma/`, async SQLAlchemy pools/units of work, three Alembic migrations, FastAPI, repository contracts and pytest/Ruff. Complete gaps; do not rebuild these foundations.
+Layered `roma/`, async SQLAlchemy pools/units of work, three Alembic migrations, FastAPI, v1 resource routes, repository contracts and pytest/Ruff. Complete gaps; do not rebuild these foundations.
 
 ## Acceptance gate
 
@@ -28,7 +28,8 @@ Layered `roma/`, async SQLAlchemy pools/units of work, three Alembic migrations,
 - [x] Section 3: bounded pool configuration, process allocation and synthetic pressure/release/timeout/cancellation evidence; real deployment budget must be checked against its server.
 - [x] Section 6: modular monolith package map documented; domain dependency direction enforced; concrete Redis/worker leaks removed from domain exports.
 - [x] Section 7: STT/LLM/TTS/embedding/telephony provider contracts, config switches and mock adapters verified.
-- [ ] Versioned API checks, native startup, type-check/pre-commit and CI are green.
+- [x] Section 8: `/api/v1` calls/leads/appointments/analytics/safety resources use stable envelopes, validation, pagination/filter/sort and OpenAPI.
+- [ ] Native startup, type-check/pre-commit, CI and section 9 work are green.
 
 ## Boundaries and advanced work
 
@@ -86,7 +87,7 @@ Operator CLI measurements used a fresh disposable PostgreSQL server per measurem
 
 A separate unsafe-headroom CLI run returned exit 1 before load began. Real tests also prove all 100 repository units return their connections before simulated audio resumes, one held connection causes a bounded domain availability error in a one-connection pool, release restores operation, and cancellation returns its checkout. Existing schema upgrade/downgrade, durable-record round trips and the 100-attempt same-slot race passed.
 
-These cold-start synthetic read measurements do not select an optimal pool size or prove production audio/write latency, deployment throughput, live event collection, clean-machine setup or a full level gate. Retain current defaults. Before deployment/scaling, set the actual process topology/allocation and run capacity preflight against the intended database; benchmark representative writes and voice traffic separately. Other sections 7–9, Level 0 gaps and full-level reviewer/demo remain pending.
+These cold-start synthetic read measurements do not select an optimal pool size or prove production audio/write latency, deployment throughput, live event collection, clean-machine setup or a full level gate. Retain current defaults. Before deployment/scaling, set the actual process topology/allocation and run capacity preflight against the intended database; benchmark representative writes and voice traffic separately. Remaining section 9, Level 0 gaps and full-level reviewer/demo remain pending.
 Existing foundations do not automatically pass the full gate. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
 
 ## Section 4 relational design and implementation
@@ -129,7 +130,7 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
     tests/repositories/postgres/test_appointment_concurrency.py
 ```
 
-The new migration is ready for the intended environment and is not automatically applied to the working database. Upgrade before code uses the new turn-language column. Downgrade destroys new checkpoint/benchmark records and language metadata while preserving legacy records; coordinate backup/code compatibility before any real rollback. Fixture expiry durations are test data, not approved retention policy. Section 5 workflow results follow below; sections 7–9, Level 0 gaps and the full Level 1 gate remain pending.
+The new migration is ready for the intended environment and is not automatically applied to the working database. Upgrade before code uses the new turn-language column. Downgrade destroys new checkpoint/benchmark records and language metadata while preserving legacy records; coordinate backup/code compatibility before any real rollback. Fixture expiry durations are test data, not approved retention policy. Section 5 workflow results follow below; remaining section 9, Level 0 gaps and the full Level 1 gate remain pending.
 
 ## Section 5 migration workflow and separate seeds
 
@@ -172,7 +173,7 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
     tests/repositories/postgres/test_relational_extensions.py
 ```
 
-Section 5 is complete for this bounded increment; sections 7–9, Level 0 prerequisites, deployment backup/restore timing and the full Level 1 gate remain pending.
+Section 5 is complete for this bounded increment; remaining section 9, Level 0 prerequisites, deployment backup/restore timing and the full Level 1 gate remain pending.
 
 ## Section 6 backend architecture boundaries
 
@@ -208,7 +209,7 @@ Two concrete leaks were removed:
 so future work cannot accidentally pull transport/storage/provider concerns
 back into business modules. This section does not implement provider contract
 mocks, public `/api/v1` schemas, pre-commit/CI, type checking or native
-one-command startup; those are section 7-9/full-gate work.
+one-command startup; those are remaining section 9/full-gate work.
 
 ## Section 6 verification evidence
 
@@ -293,5 +294,55 @@ PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider \
     tests/providers/ai/test_provider_contracts.py \
     tests/providers/telephony/test_telephony_provider_contracts.py
 ```
+
+## Section 8 REST API standardization
+
+Roma now mounts versioned resource routes under `/api/v1` while preserving the
+legacy carrier-side-effect routes. The new resource API covers calls, leads,
+appointments, analytics overview and safety events. Every v1 route uses bearer
+authentication, Pydantic request/query validation and the shared success/error
+envelope documented in [versioned REST API design](../24-rest-api-design.md).
+
+`POST /api/v1/calls` creates a durable call record only; it does not dial
+Twilio. The existing `/api/call` endpoint remains the explicit outbound dial
+command until a later tested client migration joins durable call creation with
+carrier placement. Appointment creation reuses the row-locked booking repository
+and maps conflicts to `APPOINTMENT_SLOT_UNAVAILABLE`. List endpoints expose
+`limit`, `offset`, `total`, `sort` and applied filters in `meta`.
+
+This section does not implement Level 8 RBAC/session/revocation, provider
+callback replay windows, complete PII access policy or frontend workflows. Those
+remain in Level 8.
+
+## Section 8 verification evidence
+
+Verified 2026-10-04 with focused versioned REST API tests.
+
+| Check | Actual outcome |
+|---|---|
+| Complete offline suite after section 8 | **1,671 passed, 23 warnings, no failures or skips** |
+| Versioned REST API focused tests | **5 passed** |
+| Full API route group | **62 passed, 5 warnings** |
+| Changed REST/logging Python lint | **Pass** |
+| Offline conversation evaluation | **10/10 passed, zero findings; filter canaries pass** |
+
+Focused command:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest \
+    tests/api/v1/test_rest_resources.py -q -p no:cacheprovider
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest \
+    tests/api/v1 -q -p no:cacheprovider
+.venv/bin/ruff check --no-cache \
+    roma/api/v1/calls.py roma/api/v1/rest.py roma/api/v1/responses.py \
+    roma/main.py roma/schemas/rest_api.py roma/services/rest_api_service.py \
+    tests/api/v1/test_rest_resources.py tests/api/v1/test_webhook_idempotency.py \
+    tests/core/test_logging.py tests/core/test_logging_lead_token.py
+NLTK_DATA=/private/tmp/voice-agent-tokenizer PYTHONDONTWRITEBYTECODE=1 \
+    .venv/bin/python -m pytest -q -p no:cacheprovider
+NLTK_DATA=/private/tmp/voice-agent-tokenizer PYTHONDONTWRITEBYTECODE=1 \
+    .venv/bin/python scripts/run_eval.py
+```
+
 
 Return to the [documentation index](../README.md).
