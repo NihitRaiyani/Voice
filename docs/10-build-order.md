@@ -22,9 +22,10 @@ The [level briefs](README.md) own detailed dependencies/scopes/gates. Isolated A
 3. Plan one bounded implementation in that level's context; preserve the comparison baseline.
 4. Implement only the requested level and run meaningful mocked/offline checks plus explicitly separated lab/live evidence.
 5. Record results/limitations and demonstrate the gate before advancing.
+6. After completing the requested level or section and its checks/docs, commit its scoped changes and push to the configured GitHub branch automatically. Report the commit link; preserve unrelated edits and exclude secrets/runtime data. This standing user authorization does not start the next level or authorize force-push.
 
 One level brief owns status/evidence; do not create competing active plans or recurring journals. Earlier designs live in [the archive](archive/README.md). Historical compatibility constraints are assessed against actual code rather than blindly replayed.
 
 Provider interfaces precede local integrations, direct inference precedes vLLM, RAG begins at Level 9 and full Docker packaging begins at Level 13. Retain existing PostgreSQL/Redis Compose as pre-v4 compatibility tooling without making it the native foundation requirement.
 
-Current task: documentation/design only. Level 0 gate remains pending; later levels have varying existing foundations and missing acceptance work. See [readiness](13-backend-roadmap.md).
+Current authorized task: Level 1 section 5 migration workflow, preserving sections 3–4 persistence/pool and relational foundations. Sections 6–9 remain pending. Level 0 gate remains pending; later levels have varying existing foundations and missing acceptance work. See [readiness](13-backend-roadmap.md).

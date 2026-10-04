@@ -235,3 +235,35 @@ def test_unit_of_work_rejects_repository_and_session_access_after_exit():
             await uow.rollback()
 
     asyncio.run(use_then_access_closed_uow())
+
+
+def test_nested_reentry_cannot_replace_and_leak_an_active_session():
+    session = FakeAsyncSession()
+    factory = FakeSessionFactory(session)
+    uow = PostgresUnitOfWork(factory)
+
+    async def enter_nested() -> None:
+        async with uow:
+            with pytest.raises(RuntimeError, match="already active"):
+                async with uow:
+                    pass
+            await uow.commit()
+
+    asyncio.run(enter_nested())
+    assert factory.calls == 1
+    assert session.commits == 1
+    assert session.closes == 1
+
+
+def test_cancellation_rolls_back_and_closes_the_unit_of_work():
+    session = FakeAsyncSession()
+
+    async def cancel() -> None:
+        async with PostgresUnitOfWork(FakeSessionFactory(session)):
+            raise asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(cancel())
+    assert session.commits == 0
+    assert session.rollbacks == 1
+    assert session.closes == 1

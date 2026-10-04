@@ -10,6 +10,8 @@ Measure endpoint/ASR/extraction/LLM first token/TTS first audio, conditional ret
 
 L11 adds OpenTelemetry/Prometheus/Grafana; tools consume defined signals rather than inventing them. Optional supervisor PubSub/WS is best effort and requires role/security controls. A dashboard with sample data is not production evidence.
 
+`model_registry`, `benchmark_runs` and `benchmark_results` now provide the relational evidence foundation. Future runners must pin model/version and dataset identity, record hardware/configuration and meaningful units/sample counts, and keep PII/sample media out of these metadata rows. A schema row or `is_active` flag is not a license approval, completed benchmark or production selection. See the [schema catalog](20-relational-schema.md).
+
 ## Tests and capacity
 
 Unit/provider-fake/API/repository/worker/concurrency/evaluation tests make no paid calls. PostgreSQL tests need a disposable database; report skips and environment limits. Manual local-model/GPU and authorized carrier checks are separate evidence.

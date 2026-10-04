@@ -1,6 +1,6 @@
 # Voice_Agent documentation
 
-This is the project's canonical documentation entry point. v4 defines future development; actual source and verification define present capability. No level-wise feature implementation is started by this documentation redesign.
+This is the project's canonical documentation entry point. v4 defines future development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–5 cover persistence/pool safeguards, relational foundations and migration/separate-demo workflow.
 
 ## Level briefs
 
@@ -9,7 +9,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | Level | Brief | Current gate position |
 |---|---|---|
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
-| 1 | [Backend foundation](levels/level-01.md) | Existing foundation; gaps pending |
+| 1 | [Backend foundation](levels/level-01.md) | Sections 3–5 foundations; sections 6–9/full gate pending |
 | 2 | [Text/local LLM](levels/level-02.md) | Cloud controller present; local/durable gate pending |
 | 3 | [Transactional booking](levels/level-03.md) | Repository present; live/API integration pending |
 | 4 | [Audio/local ASR](levels/level-04.md) | Cloud baseline; local lab planned |
@@ -46,6 +46,8 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [17 Study guide](17-placement-study-guide.md) | Concept-to-module learning and viva |
 | [18 Webhooks](18-webhook-idempotency.md) | Implemented atomic answer acceptance |
 | [19 Worker framework](19-background-task-framework.md) | Implemented Dramatiq/SQL job ownership |
+| [20 Relational schema](20-relational-schema.md) | Complete table/key/constraint/index rationale, cascade and retention choices |
+| [21 Database migrations](21-database-migrations.md) | Preserved revision history, forward workflow, rollback impact and separate opt-in demo seeds |
 
 ## Decisions, source and operation
 

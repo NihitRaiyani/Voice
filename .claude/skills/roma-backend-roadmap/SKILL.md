@@ -15,7 +15,7 @@ authoritative project context is `CLAUDE.md`; the selected source and gates are 
 
 ## Start with status and scope
 
-Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Current user scope is documentation/design only; level feature implementation starts in a later requested task. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
+Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment is Level 1 section 5 migration workflow, preserving sections 3–4 persistence/pool and relational foundations. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
 
 Before proposing a change:
 
@@ -46,7 +46,7 @@ handling, and operator guidance exist.
 - One active appointment per branch/date/start-time slot.
 - Enforce uniqueness in PostgreSQL, not only with an application availability check.
 - Re-check inside a transaction; define lock strategy, rollback, and HTTP `409` behavior.
-- Migrations are versioned and reproducible; schema and seed/demo data remain separate.
+- Preserve applied Alembic history and append reviewed forward schema/index changes. Database tools use database-only settings; schema and opt-in dev/test demo data remain separate. Follow `docs/21-database-migrations.md` for rollback data loss and seed guards.
 - A 100-request same-slot test must produce one winner before claiming concurrency safety.
 
 ### APIs and security
@@ -85,4 +85,5 @@ v4 deliberately adds conditional governed RAG with local embeddings/pgvector at 
 - Failure, duplicate, timeout, cancellation, and privacy cases are covered as relevant.
 - Tests run without paid live calls by default.
 - Current docs and roadmap status are updated.
+- Commit the completed requested level/section changes and push to the configured GitHub branch automatically under the user's standing authorization. Verify checks first, exclude unrelated edits/secrets/runtime data, never force-push, and report the commit link. Do not start the next level implicitly.
 - The student can explain context, invariant, design, failure mode, evidence, and trade-off.

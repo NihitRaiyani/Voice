@@ -121,6 +121,7 @@ class CallTurnRecord:
     latency_ms: int | None = None
     retention_until: datetime | None = None
     transcript_deleted_at: datetime | None = None
+    language: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

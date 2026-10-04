@@ -33,3 +33,23 @@ Use v4's level sequence as a learning progression. Trace behavior, identify the 
 Answer with context → invariant → design → failure → evidence → trade-off. Explain from actual code/tests, including gaps. For example, active-slot uniqueness exists today, but the controller still needs database integration; do not describe the full gate as complete.
 
 Each student should explain the full request flow even when ownership is divided across backend, database, models, retrieval, real-time and QA. Use [completion criteria](completion-contract.md) for final demonstrations/deliverables and [level briefs](README.md) for the current scope.
+
+## Level 1 section 3 explanation
+
+PostgreSQL keeps durable business facts with relationships, constraints and atomic commits. Redis serves fast operational context whose expiry/reconstruction is expected; enabling Redis disk persistence does not make it the business authority. If Redis loses an active checkpoint, consult durable records rather than inventing an appointment or erasing a completed call.
+
+Trace one unit of work from session creation through query/write, explicit commit or rollback and closure. Then show that inference/audio waits occur after exit. Explain why 100 active calls need short shared connection checkouts rather than 100 minute-long transactions, and why reusing one session across concurrent tasks is unsafe.
+
+With size 5, overflow 10 and four engine-owning processes, retained capacity is 20 but peak is 60. Compare peak with PostgreSQL capacity after reserved slots, other clients and operational headroom. Demonstrate bounded timeout, recovery after release, cancellation cleanup and the difference between synthetic pool evidence and real voice capacity. See [L1 results](levels/level-01.md) and the [operator checker](runbook.md#database-capacity-and-pool-pressure).
+
+## Level 1 section 4 explanation
+
+Use the [relational catalog](20-relational-schema.md) to justify each key, check and index. Show a duplicate checkpoint/result rejection, an orphan-reference rejection, call-to-checkpoint ownership cascade, run-to-result cascade and model deletion blocked by measured results. Explain why relational booking truth stays outside flexible checkpoint JSON, why duplicate metric rows cannot silently replace a measurement, and why a signed finite metric is valid while NaN is not.
+
+Describe migration compatibility: old rows/keys survive; optional turn language remains unknown for old rows; deleting the new tables during rollback loses their new data. Explain required checkpoint expiry, benchmark metadata without raw PII/audio, pending cleanup/restore/runner integration, and Level 9 knowledge-table deferral. Schema foundation and operational feature completion are different evidence.
+
+## Level 1 section 5 explanation
+
+Trace the preserved Alembic revision chain from initial schema to webhook receipts to checkpoint/benchmark extensions. Explain why an applied revision is immutable and why a reviewed future migration owns its indexes. Demonstrate offline SQL review, empty/legacy-populated upgrade, metadata parity and disposable downgrade/re-upgrade using the [migration guide](21-database-migrations.md).
+
+Run the opt-in demo command twice and explain stable identities, database uniqueness, the zero-row second insert and atomic rollback on conflict. Distinguish inactive synthetic offerings/role names from approved business data or user permissions. Explain why database-only operations need no AI/carrier keys, and why successful schema rollback does not recover dropped records.

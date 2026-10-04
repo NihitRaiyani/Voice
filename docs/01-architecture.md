@@ -45,6 +45,10 @@ Dependencies point inward toward domain rules. Do not move SDKs, FastAPI or SQL 
 
 A short booking transaction can run in the turn; inference, audio, external sync and recording conversion cannot hold it open. PostgreSQL sessions are short-lived and process pool totals must remain within the database budget.
 
+## Relational foundations
+
+The [schema catalog](20-relational-schema.md) owns the physical table/key/constraint/index and retention rationale. L1 section 4 adds checkpoint and model/benchmark evidence models; these tables are not yet live pipeline consumers. The additive migration preserves old keys/semantics and adds optional turn-language metadata. L1 section 5 adds the [migration workflow](21-database-migrations.md) and separate opt-in demo seeds; migration/seeding tools depend only on database settings and never initialize voice providers.
+
 ## Deployment and target
 
 Keep Twilio and the existing Pipecat comparison profile. Direct local inference precedes model serving; embeddings/pgvector arrive with conditional RAG at L9. Final local production permits carrier/internal services while using zero external GenAI APIs.

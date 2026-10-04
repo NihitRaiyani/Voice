@@ -11,7 +11,7 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
 | Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | Provider contracts, direct local LLM/ASR/TTS labs, then model serving |
 | Conversation | Seven deterministic stages, extraction, time resolver, speech safety | Durable milestone restore and structured safety audit |
-| Data | PostgreSQL schema, Alembic, repositories and booking locks/constraints | Complete live booking integration, cancellation and versioned APIs |
+| Data | PostgreSQL schema, Alembic, repositories and booking locks/constraints | Bounded pools/process budget, checkpoint/model/benchmark schema and turn-language metadata; live booking, restoration and versioned APIs pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue | Bounded pressure, checkpoint recovery and measured rate limits |
 | Webhooks | Atomic `/answer` receipt/call/event acceptance | Extend only to required callback kinds with explicit replay policy |
 | Jobs | Recording/spool handoff, PostgreSQL ledger, Dramatiq/Redis execution | Publication bounds, retention, audited replay and privacy controls |
@@ -40,7 +40,7 @@ uv run --no-sync ruff check roma tests scripts
 uv run --no-sync python scripts/run_eval.py
 ```
 
-See [verification](docs/12-verification.md) for environment requirements and what those results prove. No level-wise feature implementation, provider spending or live call is started by this documentation update.
+See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–5 now include persistence/pool safeguards, additive relational foundations and the [migration/separate-demo workflow](docs/21-database-migrations.md); remaining sections stay pending. Verification uses no provider spending or live calls.
 
 ## Code map
 

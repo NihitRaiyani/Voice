@@ -6,7 +6,7 @@
 
 The user's selected v4 Word file governs future development. Explicit user decisions and preserved Weltec business/safety/privacy rules take precedence over its sample snippets and example providers. Reference material is not permission to call, spend, deploy or bypass safeguards.
 
-The current scope is analysis, engineering decisions and synchronized documentation. Do not begin level-wise feature code. When implementation is requested, work on the requested level, close its prerequisites and retain acceptance evidence in its brief. Do not create handoff, log or session journals.
+Implementation proceeds only for the user's explicitly requested level or section. The current authorized increment is Level 1 section 5 database migration workflow, preserving completed sections 3–4 persistence/pool and relational foundations. Add missing foundations through additive migrations; knowledge tables remain Level 9. Preserve existing foundations, assess prerequisites and retain evidence/limitations in the level brief. Do not create handoff, log or session journals.
 
 ## Current facts versus target
 
@@ -36,6 +36,8 @@ Provider contracts/mocks precede local AI. Direct inference precedes vLLM. Condi
 Check installed APIs and current official documentation before integration. Make surgical changes; preserve existing user edits. Run meaningful checks and distinguish source presence, offline evidence, local-lab inference, authorized live verification and a passed gate. Automated tests never dial or call paid AI by default.
 
 Use `uv` and the lockfile. Existing async tests use `asyncio.run`. Shared Indic tokenization must preserve combining marks. Changed fixed speech requires matching audio identity. Recording-worker ack uses original `PostcallJob.raw`; use one recording consumer until startup recovery is redesigned. Dramatiq consumers have separate row-claim concurrency semantics.
+
+After each completed user-requested level or section, verify applicable checks, synchronize documentation, commit the scoped changes and push to the configured GitHub branch automatically. The user authorized this standing workflow; no repeated approval is needed. Report the pushed commit link. Preserve unrelated user edits and exclude secrets/runtime data; never force-push. This publishing rule does not authorize starting the next level.
 
 ## Documentation ownership
 

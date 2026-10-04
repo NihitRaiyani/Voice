@@ -93,6 +93,8 @@ class PostgresUnitOfWork:
         return self._require_repository(self._reference_data, "reference data")
 
     async def __aenter__(self) -> PostgresUnitOfWork:
+        if self._session is not None:
+            raise RuntimeError("PostgreSQL unit of work is already active")
         self._committed = False
         self._rolled_back = False
         self._closed = False

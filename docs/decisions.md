@@ -7,7 +7,7 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | ID | Decision | Engineering consequence |
 |---|---|---|
 | A01 | `Voice_Agent` is the working project; v4 replaces the prior curriculum | Verify repository root; no work in Weltec for this task |
-| A02 | Documentation/design now; implementation later one requested level at a time | No feature, live-call, credential or deployment work in this pass |
+| A02 | Implement one explicitly requested level or section at a time | Current scope is L1 section 5 migration workflow, preserving sections 3–4 foundations; other sections, live calls and deployments require their own scope |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
 | A04 | Retain Twilio/Pipecat cloud comparison path | Use the existing Twilio adapter through the v4 migration |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
@@ -22,6 +22,12 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | A14 | One recording consumer; separate row-claimed Dramatiq concurrency | Startup inflight recovery is not multi-consumer safe |
 | A15 | Selected recording source is local stereo capture | Pending consent still blocks retention; carrier recording is separate work |
 | A16 | Level brief owns acceptance evidence; topic docs own shared contracts | No recurring handoff/log/session journals or competing active plans |
+| A17 | Bound pool settings and budget peak including overflow across all DB-owning processes | Explicit allocation validation plus real-server capacity preflight; preserve existing 5/10/5 defaults |
+| A18 | Reuse existing durable entities/migrations and short units of work for L1 section 3 | Add pressure/timeout/cancellation evidence and reject nested active UoW reuse; live turn audit integration stays with L2/L7/L8 |
+| A19 | Add conversation checkpoint, model registry and benchmark schema through `20261004_0003` | Preserve old migrations/keys/semantics; add nullable turn language with no guessed historical backfill |
+| A20 | Checkpoint ownership cascades from call; benchmark results cascade from run and restrict model deletion | Explicit checkpoint expiry; non-PII benchmark metadata only; restoration/runner/cleanup consumers remain later-level work |
+| A21 | Preserve all three revisions; database commands need only database settings; synthetic seeds are separate and explicit | No renumbering or empty revision for section 5; dev/test-only head-checked atomic seeds preserve existing data; rollback guidance identifies lost data and compatible code |
+| A22 | Automatically commit and push after each completed user-requested level or section | Standing user authorization; verify checks and synchronize docs first, preserve unrelated edits/secrets, report the GitHub commit, never force-push or start the next level implicitly |
 
 ## Preserved operational invariants
 

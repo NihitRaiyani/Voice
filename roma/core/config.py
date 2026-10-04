@@ -7,10 +7,11 @@ at the exact API-client boundary.
 
 from functools import lru_cache
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
- # BaseSettings automatically reads values from environment variable
+
+# BaseSettings automatically reads values from environment variables.
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -31,9 +32,33 @@ class Settings(BaseSettings):
     redis_url: SecretStr
     database_url: SecretStr = SecretStr("")
     pii_hash_key: SecretStr = SecretStr("")
-    database_pool_size: int = 5
-    database_max_overflow: int = 10
-    database_pool_timeout_secs: float = 5.0
+    database_pool_size: int = Field(default=5, gt=0)
+    database_max_overflow: int = Field(default=10, ge=0)
+    database_pool_timeout_secs: float = Field(default=5.0, gt=0, allow_inf_nan=False)
+    # Count every process owning an engine: API, recording worker, dispatcher,
+    # and Dramatiq workers. Threads/tasks within one engine share its pool.
+    database_pool_processes: int = Field(default=1, gt=0)
+    # Allocation after reserving capacity for PostgreSQL, other clients and ops.
+    # Optional for compatibility; the capacity checker verifies the real server.
+    database_connection_budget: int | None = Field(default=None, gt=0)
+
+    @property
+    def database_peak_connections(self) -> int:
+        return (
+            self.database_pool_size + self.database_max_overflow
+        ) * self.database_pool_processes
+
+    @model_validator(mode="after")
+    def validate_database_connection_budget(self) -> "Settings":
+        if (
+            self.database_connection_budget is not None
+            and self.database_peak_connections > self.database_connection_budget
+        ):
+            raise ValueError(
+                "database pool peak exceeds DATABASE_CONNECTION_BUDGET; "
+                "include overflow and all database-owning processes"
+            )
+        return self
 
     @field_validator("database_url")
     @classmethod

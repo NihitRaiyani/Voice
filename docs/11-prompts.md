@@ -1,6 +1,6 @@
 # Runtime prompts and provider contract
 
-Runtime text in `roma/prompts/` changes product behavior. This documentation update does not modify that text. `ConversationStage` names and `stages/*.md` stay synchronized with the controller/checkpoints/tests.
+Runtime text in `roma/prompts/` changes product behavior. The Level 1 persistence increment preserves that text. `ConversationStage` names and `stages/*.md` stay synchronized with the controller/checkpoints/tests.
 
 ## Assembly and speech
 

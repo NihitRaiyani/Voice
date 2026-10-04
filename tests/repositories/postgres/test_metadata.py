@@ -38,6 +38,10 @@ TABLES = {
     "user_roles",
     "audit_logs",
     "webhook_receipts",
+    "conversation_states",
+    "model_registry",
+    "benchmark_runs",
+    "benchmark_results",
 }
 
 
@@ -94,6 +98,9 @@ def test_complete_schema_has_named_primary_keys_and_postgres_uuid_defaults():
         ("followup_jobs", "call_id", "calls.id", "SET NULL"),
         ("followup_jobs", "appointment_id", "appointments.id", "SET NULL"),
         ("audit_logs", "actor_user_id", "users.id", "SET NULL"),
+        ("conversation_states", "call_id", "calls.id", "CASCADE"),
+        ("benchmark_results", "run_id", "benchmark_runs.id", "CASCADE"),
+        ("benchmark_results", "model_id", "model_registry.id", "RESTRICT"),
     ],
 )
 def test_foreign_keys_preserve_history_and_limit_cascades(table, columns, target, ondelete):
@@ -133,6 +140,10 @@ def test_foreign_keys_preserve_history_and_limit_cascades(table, columns, target
         ("call_costs", "idempotency_key"),
         ("recordings", "storage_provider,object_key"),
         ("followup_jobs", "idempotency_key"),
+        ("conversation_states", "call_id"),
+        ("model_registry", "provider,name,version,task"),
+        ("benchmark_runs", "run_key"),
+        ("benchmark_results", "run_id,model_id,language,metric"),
     ],
 )
 def test_business_keys_have_named_unique_constraints(table, columns):
@@ -221,6 +232,12 @@ def test_named_checks_enforce_business_invariants(table, check, expression):
         ("followup_jobs", "status,available_at"),
         ("audit_logs", "actor_user_id,occurred_at"),
         ("audit_logs", "resource_type,resource_id,occurred_at"),
+        ("conversation_states", "retention_until"),
+        ("model_registry", "task,is_active"),
+        ("benchmark_runs", "status,created_at"),
+        ("benchmark_runs", "dataset_name,dataset_version,created_at"),
+        ("benchmark_runs", "retention_until"),
+        ("benchmark_results", "model_id,language,metric"),
     ],
 )
 def test_query_indexes_are_named_and_ordered(table, columns):

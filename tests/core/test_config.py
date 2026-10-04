@@ -52,8 +52,47 @@ def test_database_settings_are_secret_and_use_safe_defaults(monkeypatch):
     assert settings.database_pool_size == 5
     assert settings.database_max_overflow == 10
     assert settings.database_pool_timeout_secs == 5.0
+    assert settings.database_pool_processes == 1
+    assert settings.database_connection_budget is None
+    assert settings.database_peak_connections == 15
     assert "password" not in repr(settings)
     assert "test-pii-hash-key" not in repr(settings)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("database_pool_size", 0),
+        ("database_pool_size", -1),
+        ("database_max_overflow", -1),
+        ("database_pool_timeout_secs", 0),
+        ("database_pool_timeout_secs", float("inf")),
+        ("database_pool_timeout_secs", float("nan")),
+        ("database_pool_processes", 0),
+        ("database_connection_budget", 0),
+    ],
+)
+def test_database_pool_rejects_unbounded_or_invalid_values(monkeypatch, field, value):
+    _set_full_env(monkeypatch)
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **{field: value})
+
+
+def test_database_budget_includes_overflow_and_worker_processes(monkeypatch):
+    _set_full_env(monkeypatch)
+    settings = Settings(
+        _env_file=None, database_pool_processes=4, database_connection_budget=60
+    )
+    assert settings.database_peak_connections == 60
+
+    with pytest.raises(ValidationError, match="pool peak exceeds") as error:
+        Settings(
+            _env_file=None,
+            database_url="postgresql+asyncpg://roma:private-password@localhost/roma",
+            database_pool_processes=4,
+            database_connection_budget=59,
+        )
+    assert "private-password" not in str(error.value)
 
 
 def test_non_async_postgres_database_url_is_rejected(monkeypatch):

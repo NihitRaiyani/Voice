@@ -83,6 +83,7 @@ class CallTurn(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     speaker: Mapped[str] = mapped_column(String(16))
     transcript: Mapped[str | None] = mapped_column(Text)
     conversation_stage: Mapped[str | None] = mapped_column(String(64))
+    language: Mapped[str | None] = mapped_column(String(32))
     route: Mapped[str | None] = mapped_column(String(128))
     latency_ms: Mapped[int | None]
     retention_until: Mapped[datetime | None]

@@ -16,13 +16,50 @@ For the v4 foundation use native PostgreSQL/Redis services, each bound to the in
 
 Existing `compose.yaml` starts PostgreSQL/Redis as pre-v4 compatibility tooling. It is optional for restoring that baseline, not the Level 1 learning requirement or a completed Level 13 deployment. The current startup helper does not start PostgreSQL, so migrate/start it separately. A complete native one-command startup remains an L1 deliverable.
 
-Apply existing migrations to the development database before answer-webhook testing:
+Apply existing migrations to the intended development database before answer-webhook testing. Database commands need only `DATABASE_URL` from the environment or `.env`, without voice-provider/Redis credentials. Follow the [migration guide](21-database-migrations.md) for forward changes, SQL review and revision-specific rollback:
 
 ```bash
 uv run --no-sync alembic upgrade head
 ```
 
-Latest head is `20260930_0002`. Keep seed/demo data separate. Do not downgrade a working database merely to demonstrate rollback; tests use disposable databases.
+Latest head is `20261004_0003`; it adds four checkpoint/model/benchmark tables and nullable turn-language metadata. Applied migrations `20260920_0001` and `20260930_0002` remain unchanged. Seed/demo data now has a [separate opt-in command](21-database-migrations.md#seeds-stay-outside-schema-history): `APP_ENV=dev python scripts/seed_demo.py --demo`. It requires head, preserves existing data, inserts only inactive synthetic offerings plus role vocabulary, and creates no accounts. Keep schema upgrades seed-free. Do not downgrade a working database merely to demonstrate rollback; tests use disposable databases.
+
+The new migration is verified on empty and legacy-populated disposable databases; it is not automatically applied to the configured working database. Run `alembic upgrade head` in the intended environment before starting code that queries turn-language metadata, and use `alembic current`/`alembic check` to verify its state. Existing rows retain NULL language; schema migrations seed no historical guesses or sample records; the separate demo command is explicit.
+
+A rollback to `20260930_0002` drops the four new tables and the new language column, destroying only data introduced through this increment. Export/backup any new evidence/checkpoints and coordinate compatible code before a real rollback. Tests exercise downgrade/re-upgrade only on disposable data; existing calls/turns survive both directions. [Schema rationale and retention](20-relational-schema.md) define what future producers may store. Knowledge tables/extensions remain Level 9.
+
+## Database capacity and pool pressure
+
+Keep the engine defaults unless measurement warrants tuning. These new non-secret settings describe the entire deployment sharing this database:
+
+```dotenv
+DATABASE_POOL_SIZE=5
+DATABASE_MAX_OVERFLOW=10
+DATABASE_POOL_TIMEOUT_SECS=5.0
+DATABASE_POOL_PROCESSES=4
+DATABASE_CONNECTION_BUDGET=60
+```
+
+This example counts one API process, one recording worker, one dispatcher and one Dramatiq process: retained capacity 20, peak 60. Four Dramatiq threads share its process pool. Scale replicas/processes by updating the count on every process; configuration cannot discover or enforce a cluster-wide semaphore. Mixed pool configurations require summing each group's peak and allocating independently. Positive pool size/finite timeout and nonnegative overflow are enforced; budget mismatch fails settings validation before engine use. An omitted budget retains compatibility but is not production sizing approval.
+
+Check the actual server before starting/scaling:
+
+```bash
+uv run --no-sync python scripts/check_database_pool.py --headroom 10
+```
+
+The command reads `max_connections`, `superuser_reserved_connections` and `reserved_connections` (zero if unavailable), subtracts headroom for other clients/operations, and exits nonzero when planned peak does not fit. Increase `--headroom` to cover all other applications, migration/inspection tools and operational margin; its default 10 is an example, not observed demand. It prints only non-secret sizing data and does not write business rows. It uses existing environment settings; offline setup can supply unused cloud-key placeholders because this tool invokes no AI/carrier providers.
+
+Run synthetic pressure on a dedicated development/disposable database:
+
+```bash
+uv run --no-sync python scripts/check_database_pool.py --headroom 10 \
+    --run-load --concurrency 100 --units-per-call 3 --audio-wait-ms 10
+```
+
+Each simulated call opens a short session/transaction, runs `SELECT 1`, commits/closes, then waits outside the session. Output includes completed units, timeouts/errors, peak/final checked-out connections and P50/P95 unit latency (checkout + query + commit/close). Capacity preflight must pass before load runs. This measures one process and simulated media waits; benchmark representative writes/real audio and the full process topology before claiming production capacity. Do not increase pools solely to hide long transactions. Consider PgBouncer when measured process fan-out needs it; validate asyncpg prepared statements and pooling mode first.
+
+A live call has many independent units of work. Do not pass an ORM session into the media pipeline, await inference/audio/Redis or make external provider calls inside a unit of work. Use plain domain records after exit. Existing repository writes require explicit commit; omitted commit, exceptions and cancellation rollback/close, and active nested reuse is rejected.
 
 ## Backend and private diagnostics
 

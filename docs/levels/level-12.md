@@ -16,7 +16,7 @@ Harden CI/CD with dependency/security scans, golden regressions and enforcement 
 
 ## Existing reuse in Voice_Agent
 
-Extensive offline tests/evals, real PostgreSQL/Redis test fixtures and each earlier level's lab/benchmark evidence.
+Extensive offline tests/evals, real PostgreSQL/Redis test fixtures and each earlier level's lab/benchmark evidence, plus L1 model registry/run/result schema. Actual benchmark producers, data approval and report integration remain pending.
 
 ## Acceptance gate
 

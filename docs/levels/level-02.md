@@ -16,7 +16,7 @@ Evaluate 30–50 prompts with native review across Gujarati/Hindi/English/code-m
 
 ## Existing reuse in Voice_Agent
 
-Canonical `ConversationStage`, domain state-machine facade, time resolver, prompt assembly, Indic normalization and final speech safety; Redis checkpoint restore is transient.
+Canonical `ConversationStage`, domain state-machine facade, time resolver, prompt assembly, Indic normalization and final speech safety; Redis checkpoint restore is transient. L1 now provides `conversation_states` schema and model/benchmark metadata; durable writes/restore/optimistic revision checks and direct-inference runners still need implementation.
 
 ## Acceptance gate
 

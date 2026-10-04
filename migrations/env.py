@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from logging.config import fileConfig
 
-from alembic import context # basically Alembic's current migration environment
-from roma.core.config import get_settings
+from alembic import context
+from roma.core.migration_settings import MigrationSettings, asyncpg_url
 from roma.repositories.postgres.models import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-config = context.config # Now this Python file can access Alembic settings. connects with alembic.ini
+config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -26,21 +25,12 @@ def _configured_database_url() -> str:
     if injected:
         return _asyncpg_url(injected)
 
-    from_environment = os.environ.get("DATABASE_URL")
-    if from_environment:
-        return _asyncpg_url(from_environment)
-
-    from_settings = get_settings().database_url.get_secret_value()
-    if from_settings:
-        return _asyncpg_url(from_settings)
-
-    raise RuntimeError("DATABASE_URL is required for Alembic migrations")
+    return MigrationSettings().require_url()
 
 
 def _asyncpg_url(url: str) -> str:
-    if url.startswith("postgresql://"):
-        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return url
+    return asyncpg_url(url)
+
 
 # Offline migration
 def run_migrations_offline() -> None:
@@ -54,6 +44,7 @@ def run_migrations_offline() -> None:
 
     with context.begin_transaction():
         context.run_migrations()
+
 
 # Online migration
 def do_run_migrations(connection: Connection) -> None:
@@ -74,13 +65,14 @@ async def run_async_migrations() -> None:
         section,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        hide_parameters=True,
     )
-    
-#Here you actually connect to PostgreSQL.
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
 
-    await connectable.dispose()
+    try:
+        async with connectable.connect() as connection:
+            await connection.run_sync(do_run_migrations)
+    finally:
+        await connectable.dispose()
 
 
 def run_migrations_online() -> None:

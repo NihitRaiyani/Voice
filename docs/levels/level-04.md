@@ -14,7 +14,7 @@ Benchmark candidate IndicConformer against a Whisper baseline using approved mul
 
 ## Existing reuse in Voice_Agent
 
-Twilio native codec/media serializer, Silero/contextual endpointing, shared Indic normalization and audio tests.
+Twilio native codec/media serializer, Silero/contextual endpointing, shared Indic normalization and audio tests. L1 model/benchmark schema can store approved lab evidence when its runner is implemented; no local ASR is enabled by these tables.
 
 ## Acceptance gate
 

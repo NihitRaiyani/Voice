@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping # key → value structure mapping
+from collections.abc import Mapping  # key → value structure mapping
 from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select # stmt = select(Caller) roughly means SELECT * FROM callers; like a select query
+from sqlalchemy import (
+    select,  # stmt = select(Caller) roughly means SELECT * FROM callers; like a select query
+)
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -141,6 +143,7 @@ def _turn_record(row: CallTurn) -> CallTurnRecord:
         latency_ms=row.latency_ms,
         retention_until=row.retention_until,
         transcript_deleted_at=row.transcript_deleted_at,
+        language=row.language,
         created_at=row.created_at,
     )
 
@@ -497,6 +500,7 @@ class CallPostgresRepository:
             latency_ms=record.latency_ms,
             retention_until=record.retention_until,
             transcript_deleted_at=record.transcript_deleted_at,
+            language=record.language,
             created_at=record.created_at,
         )
         self._session.add(row)
