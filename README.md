@@ -11,7 +11,7 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
 | Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | Provider contracts, direct local LLM/ASR/TTS labs, then model serving |
 | Conversation | Seven deterministic stages, extraction, time resolver, speech safety | Durable milestone restore and structured safety audit |
-| Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints and versioned resource API | Bounded pools/process budget, checkpoint/model/benchmark schema and turn-language metadata; live booking and restoration pending |
+| Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints, bounded pools/process budget, checkpoint/model/benchmark schema, turn-language metadata and versioned resource API | Live booking and restoration pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue | Bounded pressure, checkpoint recovery and measured rate limits |
 | Webhooks | Atomic `/answer` receipt/call/event acceptance | Extend only to required callback kinds with explicit replay policy |
 | Jobs | Recording/spool handoff, PostgreSQL ledger, Dramatiq/Redis execution | Publication bounds, retention, audited replay and privacy controls |
@@ -24,10 +24,10 @@ There is no frontend. Live telephony still uses `/api/call`, `/api/call/{request
 
 ## Run and verify
 
-Use the [operating guide](docs/runbook.md) for local PostgreSQL/Redis, migrations, configuration and worker commands. The backend composition root is:
+Use the [operating guide](docs/runbook.md) for local PostgreSQL/Redis, migrations, configuration and worker commands. The Level 1 native startup path is:
 
 ```bash
-uv run --extra telephony uvicorn roma.main:create_app --factory --host 127.0.0.1 --port 8020
+make app-start
 ```
 
 A configured, migrated PostgreSQL database is required for successful `/answer` webhooks. `scripts/serve_media.py` adds development diagnostics; keep those private.
@@ -35,12 +35,12 @@ A configured, migrated PostgreSQL database is required for successful `/answer` 
 Offline checks use fake providers and disposable data:
 
 ```bash
-uv run --no-sync pytest -q
-uv run --no-sync ruff check roma tests scripts
+make ci
+make test
 uv run --no-sync python scripts/run_eval.py
 ```
 
-See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–8 now include persistence/pool safeguards, additive relational foundations, the [migration/separate-demo workflow](docs/21-database-migrations.md), provider contracts and the [versioned REST API](docs/24-rest-api-design.md); remaining section 9/full-gate work stays pending. Verification uses no provider spending or live calls.
+See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–9 now include persistence/pool safeguards, additive relational foundations, the [migration/separate-demo workflow](docs/21-database-migrations.md), provider contracts, the [versioned REST API](docs/24-rest-api-design.md) and day-one testing/CI skeleton. Hosted CI status is checked after pushing workflow changes. Verification uses no provider spending or live calls.
 
 ## Code map
 

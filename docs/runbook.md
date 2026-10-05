@@ -1,25 +1,35 @@
 # Operating guide for Voice_Agent
 
-Commands describe the existing comparison backend. Local-model/versioned-API/container-deployment commands will be added only when implemented. No live calls or provider spending are part of documentation maintenance.
+Commands describe the existing comparison backend and the Level 1 native foundation path. Local-model/container-deployment commands will be added only when implemented. No live calls or provider spending are part of documentation maintenance.
 
 ## Environment and local services
 
-Use the locked project environment with telephony/dev/workers extras:
+Use the locked project environment with telephony/dev/workers extras, or let the Makefile run the same locked tooling:
 
 ```bash
-uv sync --locked --extra telephony --extra dev --extra workers
+make sync
 ```
 
 Use `.env.example` as the settings reference; do not overwrite an existing `.env`. Configure local PostgreSQL and Redis endpoints, Twilio/Sarvam/OpenAI settings as needed by the selected baseline, `API_TOKEN`, public HTTPS base and keyed caller identity. Do not print or commit their values.
 
 For the v4 foundation use native PostgreSQL/Redis services, each bound to the intended local/private interface with persistent data outside source. `DATABASE_URL` uses `postgresql+asyncpg://`; `REDIS_URL` matches the configured private Redis service. Use the installed service's administrator tools to create a dedicated development database/user; credentials are local secrets.
 
-Existing `compose.yaml` starts PostgreSQL/Redis as pre-v4 compatibility tooling. It is optional for restoring that baseline, not the Level 1 learning requirement or a completed Level 13 deployment. The current startup helper does not start PostgreSQL, so migrate/start it separately. A complete native one-command startup remains an L1 deliverable.
+Existing `compose.yaml` starts PostgreSQL/Redis as pre-v4 compatibility tooling. It is optional for restoring that baseline, not the Level 1 learning requirement or a completed Level 13 deployment.
+
+For the Level 1 native path, install PostgreSQL and Redis with the teacher-approved system package manager first, then use the Makefile. It creates project-local service state under ignored `var/dev-services/` and uses only local development credentials:
+
+```bash
+make services-up
+make db-upgrade
+make app-start
+```
+
+`make app-start` is the one-command development startup: it starts native PostgreSQL/Redis if needed, applies Alembic migrations and runs `roma.main:create_app` on `127.0.0.1:8020`. Override `HOST`/`PORT` for a local smoke check. Stop local services with `make services-down`. The older `scripts/start_roma.sh` remains the live-call/tunnel helper and still requires real carrier settings.
 
 Apply existing migrations to the intended development database before answer-webhook testing. Database commands need only `DATABASE_URL` from the environment or `.env`, without voice-provider/Redis credentials. Follow the [migration guide](21-database-migrations.md) for forward changes, SQL review and revision-specific rollback:
 
 ```bash
-uv run --no-sync alembic upgrade head
+make db-upgrade
 ```
 
 Latest head is `20261004_0003`; it adds four checkpoint/model/benchmark tables and nullable turn-language metadata. Applied migrations `20260920_0001` and `20260930_0002` remain unchanged. Seed/demo data now has a [separate opt-in command](21-database-migrations.md#seeds-stay-outside-schema-history): `APP_ENV=dev python scripts/seed_demo.py --demo`. It requires head, preserves existing data, inserts only inactive synthetic offerings plus role vocabulary, and creates no accounts. Keep schema upgrades seed-free. Do not downgrade a working database merely to demonstrate rollback; tests use disposable databases.
@@ -97,8 +107,8 @@ Do not replay dead letters until the business effect/idempotency/privacy consequ
 ## Offline checks
 
 ```bash
-uv run --no-sync pytest -q
-uv run --no-sync ruff check roma tests scripts
+make ci
+make test
 uv run --no-sync python scripts/run_eval.py
 ```
 

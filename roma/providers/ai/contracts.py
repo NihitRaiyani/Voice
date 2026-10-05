@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, field
 from typing import Literal, Protocol, runtime_checkable
 
+# if other role comes then this then it will be invalid role and will raise error
 Role = Literal["system", "user", "assistant"]
 
 
@@ -68,7 +69,7 @@ class LLMChunk:
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    async def generate(self, request: LLMRequest) -> AsyncIterator[LLMChunk]: ...
+    def generate(self, request: LLMRequest) -> AsyncIterator[LLMChunk]: ...
 
 
 @dataclass(frozen=True)

@@ -1,16 +1,16 @@
 # Verification and acceptance evidence
 
-Latest complete-suite verification for the [Level 1 section 8 increment](levels/level-01.md): **1,671 tests passed, 23 warnings, no failures or skips**, including disposable PostgreSQL/Redis integration, and **10/10 offline evaluations** with zero findings. Section 8 focused verification adds **5 passing REST resource tests**, **62 passing API tests** and changed-file lint pass. All changed Python files pass lint; the full repository retains **two existing I001 import-format findings** in `roma/domain/conversation/state.py` and `roma/repositories/postgres/models/base.py`.
+Latest complete-suite verification after the [Level 1 section 9 increment](levels/level-01.md): **1,671 tests passed, 23 warnings, no failures or skips**. The new `make ci` skeleton starts native local services, runs Ruff, runs mypy on the Level 1 contract surface, applies Alembic to the local database, passes **38 provider/config tests** and passes **11 mocked API/architecture/migration-settings tests**. Pre-commit hooks pass across all files.
 
-The earlier [Level 0 baseline report](roadmaps/level-00-baseline.md) remains historical evidence of 1,571 passing tests and five lint findings before this increment. Its test/identity record is not rewritten as current implementation evidence. L1 records capacity/pressure/timeout/cancellation and relational constraint/migration/legacy-compatibility and separate-seed workflow results and their limits; the full Level 1 gate remains pending.
+The earlier [Level 0 baseline report](roadmaps/level-00-baseline.md) remains historical evidence of 1,571 passing tests and five lint findings before this increment. Its test/identity record is not rewritten as current implementation evidence. L1 records capacity/pressure/timeout/cancellation, relational constraint/migration/legacy-compatibility, separate-seed workflow results and the section 9 workflow skeleton. Hosted CI status is checked after pushing the workflow commit; Level 0 clean-machine evidence remains separate.
 
 Tests needed explicit tokenizer data and permission for disposable local database shared memory. Passing after those setup corrections does not prove clean-machine reproduction, local-model quality, live latency or production readiness. Level 0 remains pending prerequisite review, reproducible setup and representative P50/P95 timing.
 
 ## Commands and environment
 
 ```bash
-uv run --no-sync pytest -q
-uv run --no-sync ruff check roma tests scripts
+make ci
+make test
 uv run --no-sync python scripts/run_eval.py
 ```
 
@@ -38,6 +38,15 @@ leads, appointments, analytics and safety events. Tests verify the shared
 success/error envelope, pagination/filter/sort metadata, Pydantic validation,
 OpenAPI path exposure, appointment conflict code mapping and production database
 session-factory wiring while preserving the legacy `/api/call` behavior.
+
+Section 9 adds the Level 1 workflow skeleton: `Makefile`, native
+`./scripts/dev_services.sh`, mypy config, local pre-commit hooks and GitHub
+Actions. `make app-start` starts native PostgreSQL/Redis, upgrades the schema
+and boots the FastAPI app; a smoke run returned `/health` successfully. The CI
+slice is intentionally bounded to mocked/unit checks plus empty-database
+migration because the full disposable-integration suite creates its own database
+clusters. The full suite remains `make test` and passed separately after local
+services were stopped.
 
 ## Evidence rules
 

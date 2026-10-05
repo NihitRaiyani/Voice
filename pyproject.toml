@@ -16,6 +16,8 @@ workers = [
 ]
 dev = [
     "fakeredis>=2.20",
+    "mypy>=2.4.0",
+    "pre-commit>=4.6.2",
     "pytest>=8.0",
     "ruff>=0.9",
     "testcontainers[postgres]>=4.12,<5",
@@ -41,6 +43,20 @@ testpaths = ["tests"]
 markers = [
     "postgres: requires a disposable PostgreSQL database",
 ]
+
+
+[tool.mypy]
+python_version = "3.11"
+files = [
+    "roma/providers/ai",
+    "roma/providers/telephony",
+    "roma/api/v1/responses.py",
+    "roma/schemas/rest_api.py",
+]
+ignore_missing_imports = true
+show_error_codes = true
+pretty = true
+warn_unused_ignores = true
 
 [tool.ruff]
 # 96 not 88: the guardrail and turn-taking modules carry long explanatory comments and

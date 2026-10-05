@@ -28,4 +28,4 @@ One level brief owns status/evidence; do not create competing active plans or re
 
 Provider interfaces precede local integrations, direct inference precedes vLLM, RAG begins at Level 9 and full Docker packaging begins at Level 13. Retain existing PostgreSQL/Redis Compose as pre-v4 compatibility tooling without making it the native foundation requirement.
 
-Latest authorized task: Level 1 section 8 REST API standardization, preserving sections 3–7 persistence/pool, relational foundations, migration workflow, architecture boundaries and provider contracts. Section 9 remains pending. Level 0 gate remains pending; later levels have varying existing foundations and missing acceptance work. See [readiness](13-backend-roadmap.md).
+Latest authorized task: Level 1 section 9 testing/linting/native startup and CI skeleton, preserving sections 3–8 persistence/pool, relational foundations, migration workflow, architecture boundaries, provider contracts and versioned REST resources. Level 0 gate remains pending; later levels have varying existing foundations and missing acceptance work. See [readiness](13-backend-roadmap.md).

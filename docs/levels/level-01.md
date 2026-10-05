@@ -1,6 +1,6 @@
 # Level 1 — Backend foundation
 
-**v4 sections:** 3–9. **Status:** Sections 3–8 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries, provider contracts and versioned REST resources implemented; remaining section 9 and full gate pending.
+**v4 sections:** 3–9. **Status:** Sections 3–9 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries, provider contracts, versioned REST resources and day-one testing/CI skeleton implemented; hosted CI status is checked after push.
 
 ## Entry gate
 
@@ -14,7 +14,7 @@ Introduce Alembic migrations with tested upgrade/rollback strategy and separate 
 
 Design `/api/v1` envelopes/errors, pagination/filter/sort and OpenAPI without silently replacing compatibility routes. Establish pytest/Ruff/type-checking/pre-commit/CI incrementally, and a documented local-service startup without Docker.
 
-PostgreSQL/schema/layers and versioned resource routes already exist here. Review and fill their gate gaps; live telephony commands remain on compatibility paths until an explicit client migration. Existing infrastructure Compose stays compatibility tooling; the new foundation startup path uses native services.
+PostgreSQL/schema/layers, versioned resource routes and day-one workflow checks already exist here. Review and fill their gate gaps; live telephony commands remain on compatibility paths until an explicit client migration. Existing infrastructure Compose stays compatibility tooling; the new foundation startup path uses native services.
 
 ## Existing reuse in Voice_Agent
 
@@ -22,14 +22,14 @@ Layered `roma/`, async SQLAlchemy pools/units of work, three Alembic migrations,
 
 ## Acceptance gate
 
-- [ ] One documented command starts required development services without Docker.
+- [x] One documented command starts required development services without Docker.
 - [x] Section 4: schema keys/constraints/indexes/deletion choices reviewed; empty and legacy-populated migration/rollback verified.
 - [x] Section 5: preserved Alembic history, database-only development workflow, tested rollback and separate opt-in synthetic seeds; approved real business-data imports remain owner-governed.
 - [x] Section 3: bounded pool configuration, process allocation and synthetic pressure/release/timeout/cancellation evidence; real deployment budget must be checked against its server.
 - [x] Section 6: modular monolith package map documented; domain dependency direction enforced; concrete Redis/worker leaks removed from domain exports.
 - [x] Section 7: STT/LLM/TTS/embedding/telephony provider contracts, config switches and mock adapters verified.
 - [x] Section 8: `/api/v1` calls/leads/appointments/analytics/safety resources use stable envelopes, validation, pagination/filter/sort and OpenAPI.
-- [ ] Native startup, type-check/pre-commit, CI and section 9 work are green.
+- [x] Section 9: native Makefile startup, Ruff, mypy skeleton, pre-commit hooks and GitHub Actions workflow are in place; local CI-equivalent checks pass.
 
 ## Boundaries and advanced work
 
@@ -344,6 +344,53 @@ NLTK_DATA=/private/tmp/voice-agent-tokenizer PYTHONDONTWRITEBYTECODE=1 \
 NLTK_DATA=/private/tmp/voice-agent-tokenizer PYTHONDONTWRITEBYTECODE=1 \
     .venv/bin/python scripts/run_eval.py
 ```
+
+## Section 9 testing, linting and native startup skeleton
+
+Level 1 now has one Makefile-owned path for the early engineering loop. `make
+services-up` starts project-local native PostgreSQL and Redis under ignored
+`var/dev-services/`; it installs nothing, writes no secrets and prints the local
+`DATABASE_URL`/`REDIS_URL` values it uses. `make app-start` composes service
+startup, Alembic upgrade and the FastAPI backend. Docker remains Level 13; the
+existing Compose file stays compatibility tooling only.
+
+The day-one checks are intentionally small but enforceable. Ruff runs across
+`roma`, `tests` and `scripts`. Mypy is introduced on the stable Level 1 contract
+surface: AI/telephony providers, v1 response envelopes and REST schemas. The
+mock provider tests remain the default AI/telephony verification so automated
+checks do not call paid providers or place calls. Pre-commit uses local hooks for
+Ruff, the mypy skeleton and provider/config contract tests.
+
+GitHub Actions installs native PostgreSQL/Redis on the runner, syncs the locked
+`uv` environment, runs `make ci`, applies migrations to an empty local database
+and executes the mocked CI test slice. The full offline pytest suite remains
+`make test`; it is kept separate from the native-service migration smoke because
+some integration tests create their own disposable PostgreSQL clusters.
+
+Small cleanup was required to make the new checks meaningful: the LLM provider
+protocol now models an async iterator stream directly, unavailable local-model
+placeholders use `NoReturn`, and the two previously recorded Ruff import-order
+findings were normalized. These are type/lint fixes only; no schema, migration,
+provider runtime or conversation behavior changed.
+
+## Section 9 verification evidence
+
+Verified 2026-10-05 on the local native service path.
+
+| Check | Actual outcome |
+|---|---|
+| `make services-up` on a fresh repo-local service directory | Initialized PostgreSQL under `var/dev-services/postgres`, started PostgreSQL on `127.0.0.1:54329`, started Redis on `127.0.0.1:6380` |
+| `make app-start HOST=127.0.0.1 PORT=8031` smoke | `/health` returned `{"status":"ok","active_calls":0}`; services then stopped |
+| `make ci` | Ruff pass; mypy pass on 17 files; Alembic upgrade against local DB; **38 provider/config tests passed**; **11 mocked API/architecture/migration-settings tests passed, 1 warning** |
+| `uv run --no-sync pre-commit run --all-files` | Ruff, mypy skeleton and provider contract hooks passed |
+| Full offline suite after stopping native services | **1,671 passed, 23 warnings, no failures or skips** |
+
+A first `make ci` attempt also ran the entire offline suite while the new native
+PostgreSQL cluster was active. That reproduced the known macOS disposable-server
+resource conflict at the worker integration tests after **1,669 passed**. The
+final CI target keeps the Level 1 hosted check bounded and leaves the complete
+disposable-integration run as `make test`, which passed after the local services
+were stopped. Hosted GitHub Actions status is verified after pushing the commit.
 
 
 Return to the [documentation index](../README.md).

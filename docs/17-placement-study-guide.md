@@ -106,3 +106,22 @@ route performs the explicit carrier dial side effect, while the v1 call resource
 creates durable business records. Joining those flows needs a later tested
 client migration. Also state the current security limit clearly: Level 8 RBAC,
 sessions, revocation and callback replay policy are still pending.
+
+## Level 1 section 9 explanation
+
+Show the first-week engineering loop: `make services-up` starts native local
+PostgreSQL/Redis, `make db-upgrade` applies Alembic, `make app-start` boots the
+backend, `make ci` runs the bounded hosted-check equivalent and `make test` runs
+the full offline suite separately. Explain why Docker remains Level 13 and why
+local service state belongs under ignored `var/`, not in the repository.
+
+Defend the split between the CI skeleton and the full disposable integration
+suite. CI proves cheap day-one invariants: Ruff, mypy over stable contracts,
+empty-database migrations and mock-provider/interface tests. The full suite can
+still use heavier disposable PostgreSQL/Redis tests, but it should not fight the
+native migration smoke for local database resources.
+
+Explain the security rule: secrets stay in environment variables or `.env`, both
+outside Git. The defaults used by the Makefile are local mock/development values
+for tests and startup smoke only; they do not authorize paid provider calls,
+carrier dials or production credentials.

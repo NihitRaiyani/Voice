@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --no-sync ruff check --force-exclude
+        language: system
+        types_or: [python, pyi]
+      - id: mypy-skeleton
+        name: mypy skeleton
+        entry: uv run --no-sync mypy
+        language: system
+        pass_filenames: false
+      - id: provider-contract-tests
+        name: provider contract tests
+        entry: make test-provider-contracts
+        language: system
+        pass_filenames: false

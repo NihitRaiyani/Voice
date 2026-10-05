@@ -5,7 +5,7 @@ v4 is the active curriculum. The [level briefs](README.md) own acceptance gates;
 | Level | Existing reuse | Missing acceptance work |
 |---|---|---|
 | 0 | Current source, tests, evaluation and call trace | Clean-machine restore, representative timing and prerequisite review |
-| 1 | Layered monolith, enforced domain dependency rule, STT/LLM/TTS/embedding/telephony provider contracts with mocks, PostgreSQL/Alembic, bounded pools/process allocation, capacity checker, checkpoint/model/benchmark relational foundations, database-only migration/rollback workflow, separate atomic demo seeds, pressure/release tests, FastAPI, versioned resource API and pytest/Ruff | Type-check/pre-commit/CI, native one-command startup and remaining section 9 work |
+| 1 | Layered monolith, enforced domain dependency rule, STT/LLM/TTS/embedding/telephony provider contracts with mocks, PostgreSQL/Alembic, bounded pools/process allocation, capacity checker, checkpoint/model/benchmark relational foundations, database-only migration/rollback workflow, separate atomic demo seeds, pressure/release tests, FastAPI, versioned resource API, pytest/Ruff, mypy skeleton, pre-commit hooks, native Makefile startup and GitHub Actions workflow | Hosted CI confirmation after push, clean-host Level 0 evidence and full reviewer/demo evidence |
 | 2 | Deterministic stages, extraction/time resolver, prompt/safety logic | Direct local Qwen candidate, durable milestone restore and safety audit |
 | 3 | Row-locked appointment repository, partial active-slot uniqueness and race test | Live/API integration, cancellation/reuse, holds policy and truthful commit confirmation |
 | 4–5 | Carrier codecs, Silero/contextual endpointing, cloud speech/cache tests | Actual local ASR/TTS and language/noise/RTF benchmarks |
@@ -19,7 +19,7 @@ v4 is the active curriculum. The [level briefs](README.md) own acceptance gates;
 
 ## Next implementation boundary
 
-The user explicitly requested Level 1 sections 3–8 while the remaining Level 0 evidence stays pending. These bounded persistence/schema/migration-workflow/architecture/provider/API increments extend the existing foundation; they do not pass Level 0 or all of Level 1. Subsequent work should retain migrations, package layers, provider contracts, versioned API envelopes and carrier adapters. Each reused component must be assessed against the requested gate and current tests.
+The user explicitly requested Level 1 sections 3–9 while the remaining Level 0 evidence stays pending. These bounded persistence/schema/migration-workflow/architecture/provider/API/testing increments extend the existing foundation; they do not pass Level 0 or all of Level 1. Subsequent work should retain migrations, package layers, provider contracts, versioned API envelopes and carrier adapters. Each reused component must be assessed against the requested gate and current tests.
 
 At Level 3, wire the already-built repository into the conversation safely. At Level 8, retain the transactional webhook and job designs and close their actual access/replay/privacy/backpressure gaps. Keep operational commands in the [runbook](runbook.md), not in competing plans.
 

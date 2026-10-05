@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql+asyncpg://roma:roma@127.0.0.1:54329/roma
+      REDIS_URL: redis://127.0.0.1:6380/0
+      APP_ENV: test
+      API_TOKEN: ci-local-token
+      PII_HASH_KEY: ci-local-pii-hash-key-change-before-shared-use
+      STT_PROVIDER: mock
+      LLM_PROVIDER: mock
+      TTS_PROVIDER: mock
+      EMBEDDING_PROVIDER: mock
+      TELEPHONY_PROVIDER: mock
+      PUBLIC_BASE_URL: https://example.invalid
+      NLTK_DATA: /tmp/voice-agent-tokenizer
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install native PostgreSQL and Redis
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql redis-server
+      - name: Install locked dependencies
+        run: uv sync --locked --extra dev --extra telephony --extra workers
+      - name: Run Level 1 checks
+        run: make ci

@@ -15,7 +15,8 @@ from datetime import datetime
 from roma.domain.conversation.facts import already_said_line
 from roma.domain.conversation.pacing import pacing_line
 from roma.domain.conversation.stage import ConversationStage
-                               # means it can be of any length, but the type of each element is ConversationStage
+
+# Contains every valid conversation stage.
 STAGES: tuple[ConversationStage, ...] = tuple(ConversationStage)
 
 DISCOVERY_ORDER: tuple[str, ...] = (
