@@ -36,5 +36,19 @@ jobs:
           sudo apt-get install -y postgresql-16 redis-server
       - name: Install locked dependencies
         run: uv sync --locked --extra dev --extra telephony --extra workers
-      - name: Run Level 1 checks
-        run: make ci
+      - name: Start native services
+        run: make services-up
+      - name: Lint
+        run: make lint
+      - name: Type check
+        run: make type
+      - name: Apply migrations
+        run: make db-upgrade
+      - name: Provider contract tests
+        run: make test-provider-contracts
+      - name: Mocked unit/API checks
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 uv run --no-sync pytest -q -p no:cacheprovider \
+            tests/api/v1/test_rest_resources.py \
+            tests/architecture/test_dependency_direction.py \
+            tests/core/test_migration_settings.py
