@@ -12,7 +12,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://roma:roma@127.0.0.1:54329/roma
       REDIS_URL: redis://127.0.0.1:6380/0
-      APP_ENV: test
+      APP_ENV: dev
       API_TOKEN: ci-local-token
       PII_HASH_KEY: ci-local-pii-hash-key-change-before-shared-use
       STT_PROVIDER: mock
