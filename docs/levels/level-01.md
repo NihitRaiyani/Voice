@@ -1,6 +1,6 @@
 # Level 1 — Backend foundation
 
-**v4 sections:** 3–9. **Status:** Sections 3–9 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries, provider contracts, versioned REST resources and day-one testing/CI skeleton implemented; hosted CI status is checked after push.
+**v4 sections:** 3–9. **Status:** Sections 3–9 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries, provider contracts, versioned REST resources and day-one testing/CI skeleton implemented; hosted CI passed on 2026-10-05.
 
 ## Entry gate
 
@@ -29,7 +29,7 @@ Layered `roma/`, async SQLAlchemy pools/units of work, three Alembic migrations,
 - [x] Section 6: modular monolith package map documented; domain dependency direction enforced; concrete Redis/worker leaks removed from domain exports.
 - [x] Section 7: STT/LLM/TTS/embedding/telephony provider contracts, config switches and mock adapters verified.
 - [x] Section 8: `/api/v1` calls/leads/appointments/analytics/safety resources use stable envelopes, validation, pagination/filter/sort and OpenAPI.
-- [x] Section 9: native Makefile startup, Ruff, mypy skeleton, pre-commit hooks and GitHub Actions workflow are in place; local CI-equivalent checks pass.
+- [x] Section 9: native Makefile startup, Ruff, mypy skeleton, pre-commit hooks and GitHub Actions workflow are in place; local and hosted CI checks pass.
 
 ## Boundaries and advanced work
 
@@ -390,7 +390,7 @@ PostgreSQL cluster was active. That reproduced the known macOS disposable-server
 resource conflict at the worker integration tests after **1,669 passed**. The
 final CI target keeps the Level 1 hosted check bounded and leaves the complete
 disposable-integration run as `make test`, which passed after the local services
-were stopped. Hosted GitHub Actions status is verified after pushing the commit.
+were stopped. Hosted GitHub Actions passed for commit `ac99270` on 2026-10-05.
 
 
 Return to the [documentation index](../README.md).

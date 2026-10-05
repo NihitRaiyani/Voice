@@ -40,7 +40,7 @@ make test
 uv run --no-sync python scripts/run_eval.py
 ```
 
-See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–9 now include persistence/pool safeguards, additive relational foundations, the [migration/separate-demo workflow](docs/21-database-migrations.md), provider contracts, the [versioned REST API](docs/24-rest-api-design.md) and day-one testing/CI skeleton. Hosted CI status is checked after pushing workflow changes. Verification uses no provider spending or live calls.
+See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–9 now include persistence/pool safeguards, additive relational foundations, the [migration/separate-demo workflow](docs/21-database-migrations.md), provider contracts, the [versioned REST API](docs/24-rest-api-design.md) and day-one testing/CI skeleton. Hosted CI passed on 2026-10-05 for the Level 1 workflow. Verification uses no provider spending or live calls.
 
 ## Code map
 
