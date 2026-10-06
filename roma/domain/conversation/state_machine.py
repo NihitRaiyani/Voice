@@ -7,6 +7,7 @@ provider SDKs, SQLAlchemy, or Redis clients.
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Protocol
 
 from roma.domain.conversation.machine import Transition, TurnSignals, next_stage
@@ -18,6 +19,12 @@ class ConversationStateStore(Protocol):
     async def load(self, call_sid: str) -> CallState | None: ...
 
     async def save(self, state: CallState) -> None: ...
+
+
+class ConversationRoute(StrEnum):
+    DETERMINISTIC = "deterministic"
+    BOOKING = "booking"
+    KNOWLEDGE = "knowledge"
 
 
 class InMemoryConversationStateStore:
@@ -108,6 +115,28 @@ async def restore_state(store: ConversationStateStore, call_sid: str) -> CallSta
     return await store.load(call_sid)
 
 
+def route_intent(
+    state: CallState,
+    signals: TurnSignals | None = None,
+    *,
+    deterministic_reply: str | None = None,
+) -> ConversationRoute:
+    """Classify the next response path without asking the LLM.
+
+    ``knowledge`` is the model/RAG path. Level 2 still uses the existing prompt assembly;
+    Level 9 can replace that branch with retrieval without changing the stage machine.
+    """
+    if deterministic_reply is not None or state.lead_wants_out:
+        return ConversationRoute.DETERMINISTIC
+    if state.stage in {ConversationStage.PIVOT, ConversationStage.CLOSE}:
+        return ConversationRoute.BOOKING
+    if signals is not None and (
+        signals.asks_to_book or signals.slot_accepted or signals.readback_confirmed
+    ):
+        return ConversationRoute.BOOKING
+    return ConversationRoute.KNOWLEDGE
+
+
 def handle_interruption(state: CallState) -> Transition:
     """Barge-in/interruption does not advance the business stage."""
     return Transition(get_state(state))
@@ -131,6 +160,7 @@ def handle_missing_information(state: CallState) -> Transition:
 __all__ = [
     "CallStateStore",
     "ConversationStage",
+    "ConversationRoute",
     "ConversationStateStore",
     "InMemoryCallStateStore",
     "InMemoryConversationStateStore",
@@ -140,6 +170,7 @@ __all__ = [
     "handle_missing_information",
     "handle_objection",
     "restore_state",
+    "route_intent",
     "save_state",
     "transition",
 ]

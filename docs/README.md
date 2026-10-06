@@ -10,7 +10,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 |---|---|---|
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
 | 1 | [Backend foundation](levels/level-01.md) | Sections 3–9 foundations implemented; hosted CI green, full review evidence still separate |
-| 2 | [Text/local LLM](levels/level-02.md) | Cloud controller present; local/durable gate pending |
+| 2 | [Text/local LLM](levels/level-02.md) | Section 10 state machine/checkpoint adapter present; local inference/safety sections pending |
 | 3 | [Transactional booking](levels/level-03.md) | Repository present; live/API integration pending |
 | 4 | [Audio/local ASR](levels/level-04.md) | Cloud baseline; local lab planned |
 | 5 | [Local TTS](levels/level-05.md) | Cloud cache; local lab planned |

@@ -1,6 +1,6 @@
 # Data, transactions and concurrency
 
-**Implemented foundation:** async PostgreSQL lifecycle, Alembic schema/repositories, slot locking/active-booking uniqueness and durable webhook/job transactions. **Pending:** live booking integration, durable conversation restore, cancellation and complete retention/API workflows.
+**Implemented foundation:** async PostgreSQL lifecycle, Alembic schema/repositories, slot locking/active-booking uniqueness, durable webhook/job transactions and Level 2 latest conversation checkpoint save/restore. **Pending:** live booking integration, redial/session recovery, cancellation and complete retention/API workflows.
 
 ## Schema ownership
 
@@ -8,7 +8,7 @@
 |---|---|
 | Callers, institute/branch/course/counsellor reference data | Durable identity/configuration; approval/seeding is separate from migrations |
 | Calls, turns, events | Lifecycle/turn narrative; nullable turn language added; answer/post-call writes exist, not all live milestones |
-| Conversation states | Latest per-call checkpoint schema with revision/policy identity and required expiry; restore/writer pending L2/L7 |
+| Conversation states | Latest per-call checkpoint schema plus Level 2 repository/store adapter with revision increments, schema/policy checks and expiry refusal; redial/L7 recovery pending |
 | Model registry/benchmark runs/results | Candidate identity and reproducible measurement schema; runners/inference integration pending L2/L4/L5/L12 |
 | Appointment slots/appointments | Offerable slot and active booking constraints; live controller not yet wired |
 | Safety/usage/cost/recording models | Durable target entities; model existence does not prove live audit/usage collection |
@@ -34,6 +34,6 @@ Keep transactions short and release connections before inference/audio/Redis/ext
 
 ## Durable conversation and recovery
 
-Redis currently stores one-hour checkpoints. L2/L7 add durable stage/slot/confirmation milestones, session identity, schema version and tested restore/checkpoint lag. Never write every audio frame/token to PostgreSQL. Distinguish same-SID reconnect from new-SID redial and observe PostgreSQL appointment truth during restore.
+Redis currently stores one-hour checkpoints. Level 2 section 10 adds PostgreSQL latest-checkpoint save/restore for persisted provider call IDs, with schema version and policy identity. L7 still needs observed checkpoint lag, redial/session identity, degradation drills and recovery limits. Never write every audio frame/token to PostgreSQL. Distinguish same-SID reconnect from new-SID redial and observe PostgreSQL appointment truth during restore.
 
 Learning exercises: inspect the ER constraints, run empty-database migration/rollback, explain a query plan, demonstrate a race/rollback, cancel and reuse a slot, and recover a checkpoint without inventing a booking. See [L1](levels/level-01.md), [L3](levels/level-03.md) and [webhooks](18-webhook-idempotency.md).

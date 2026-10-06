@@ -11,7 +11,7 @@ Implementation proceeds only for the user's explicitly requested level or sectio
 ## Current facts versus target
 
 - Twilio is the active carrier, using signed `/answer` and `/ws`, Account SID checks and native Pipecat serialization. No frontend exists.
-- PostgreSQL/Alembic, appointment repository locking/uniqueness, atomic answer receipts and durable post-call/job processing are present. Live appointment commit, durable conversation restore, local models, RAG, RBAC and production telemetry remain incomplete.
+- PostgreSQL/Alembic, appointment repository locking/uniqueness, atomic answer receipts, durable post-call/job processing and the Level 2 section 10 conversation-state machine/checkpoint adapter are present. Live appointment commit, local models, RAG, RBAC, broader restore drills and production telemetry remain incomplete.
 - Sarvam/OpenAI form the comparison voice profile. Final local production must make zero external GenAI API calls. Keep the tested cloud profile during measured migration.
 - Preserve the layered `roma/` modular monolith. The roadmap's example tree/carrier does not authorize a rewrite or carrier switch.
 - Existing infrastructure Compose predates v4. Keep it as compatibility tooling; do not expand containerization before Level 13. Provide a native-service foundation path first.

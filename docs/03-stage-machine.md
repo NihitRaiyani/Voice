@@ -16,7 +16,7 @@ Discovery order is name → current status → education → passing year → ci
 
 ## Deterministic progression
 
-Normal flow is open → discover → value → structure → pivot → close. Objection detours return to pivot; repeat caps prevent loops. Explicit booking requests, deferrals, factual questions and pacing can take tested shortcuts. `machine.py`, `turn.py` and the state-machine facade own the executable conditions and event priority.
+Normal flow is open → discover → value → structure → pivot → close. Objection detours return to pivot; repeat caps prevent loops. Explicit booking requests, deferrals, factual questions and pacing can take tested shortcuts. `machine.py`, `turn.py` and the state-machine facade own the executable conditions and event priority. Level 2 section 10 exposes `get_state()`, `transition()`, `can_transition()`, `save_state()`, `restore_state()`, `handle_interruption()`, `handle_objection()`, `handle_missing_information()` and `route_intent()` so application code depends on the machine boundary rather than free-form prompt state.
 
 Inbound connects with a cached opener. Outbound lead custom parameters establish direction even if Redis lookup fails. Shared prompt/opening behavior must be validated together; do not assume all inbound/outbound policy claims in old docs remain true.
 
@@ -32,4 +32,4 @@ The PostgreSQL appointment repository locks an existing slot and enforces one ac
 
 At Level 3 wire short reservation/confirmation commits into the controller/application boundary and expose conflicts safely. Change always-available prompt claims and confirmation tests together. Success must reflect committed database truth; Redis holds never substitute for it. Complete cancellation/reuse semantics, slot capacity and request idempotency before passing the gate.
 
-At Levels 2/7 add durable milestone restore; a Redis checkpoint is not PostgreSQL recovery. See [data tutorial](14-data-and-concurrency.md) and [Level 3](levels/level-03.md).
+Level 2 section 10 adds PostgreSQL latest-checkpoint save/restore for compatible same-call state. A Redis checkpoint is still the hot path, and this does not claim redial recovery, appointment reservation restore or L7 recovery guarantees. See [data tutorial](14-data-and-concurrency.md) and [Level 3](levels/level-03.md).

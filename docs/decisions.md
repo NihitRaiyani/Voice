@@ -59,4 +59,4 @@ D3 in older source comments refers to Gujarati-script recognition observations. 
 
 ## Remaining engineering gaps
 
-Live transactional booking, durable conversation restore, provider-neutral local AI, native startup/expanded CI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry and measured capacity remain open at their respective levels. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
+Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; live text/local-model use still needs sections 11–12. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).

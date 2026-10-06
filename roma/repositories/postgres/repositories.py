@@ -24,6 +24,7 @@ from roma.domain.persistence import (
     CallEventRecord,
     CallRecord,
     CallTurnRecord,
+    ConversationStateRecord,
     CounsellorRecord,
     CourseRecord,
     FollowupJobRecord,
@@ -48,6 +49,7 @@ from .models import (
     Caller,
     CallEvent,
     CallTurn,
+    ConversationState,
     Counsellor,
     Course,
     FollowupJob,
@@ -157,6 +159,21 @@ def _event_record(row: CallEvent) -> CallEventRecord:
         payload=row.payload,
         occurred_at=row.occurred_at,
         idempotency_key=row.idempotency_key,
+    )
+
+
+def _conversation_state_record(row: ConversationState) -> ConversationStateRecord:
+    return ConversationStateRecord(
+        id=row.id,
+        call_id=row.call_id,
+        schema_version=row.schema_version,
+        revision=row.revision,
+        policy_version=row.policy_version,
+        conversation_stage=row.conversation_stage,
+        state=row.state,
+        retention_until=row.retention_until,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
     )
 
 
@@ -457,6 +474,12 @@ class CallPostgresRepository:
         row = await self._session.get(Call, call_id)
         return None if row is None else _call_record(row)
 
+    async def get_by_provider_call_id(self, provider_call_id: str) -> CallRecord | None:
+        row = await self._session.scalar(
+            select(Call).where(Call.provider_call_id == provider_call_id)
+        )
+        return None if row is None else _call_record(row)
+
     async def set_provider_call_id(self, call_id: UUID, provider_call_id: str) -> CallRecord:
         row = await self._lock_call(call_id)
         row.provider_call_id = provider_call_id
@@ -534,6 +557,65 @@ class CallPostgresRepository:
         if row is None:
             raise RecordNotFound("call does not exist")
         return row
+
+
+class ConversationStatePostgresRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_by_call_id(self, call_id: UUID) -> ConversationStateRecord | None:
+        row = await self._session.scalar(
+            select(ConversationState).where(ConversationState.call_id == call_id)
+        )
+        return None if row is None else _conversation_state_record(row)
+
+    async def get_by_provider_call_id(
+        self, provider_call_id: str
+    ) -> ConversationStateRecord | None:
+        row = await self._session.scalar(
+            select(ConversationState)
+            .join(Call, ConversationState.call_id == Call.id)
+            .where(Call.provider_call_id == provider_call_id)
+        )
+        return None if row is None else _conversation_state_record(row)
+
+    async def save_latest(
+        self, record: ConversationStateRecord, *, expected_revision: int | None = None
+    ) -> ConversationStateRecord:
+        row = await self._session.scalar(
+            select(ConversationState)
+            .where(ConversationState.call_id == record.call_id)
+            .with_for_update()
+        )
+        if row is None:
+            if expected_revision is not None:
+                raise PersistenceConflict("conversation checkpoint revision does not exist")
+            row = ConversationState(
+                id=record.id,
+                call_id=record.call_id,
+                schema_version=record.schema_version,
+                revision=record.revision,
+                policy_version=record.policy_version,
+                conversation_stage=record.conversation_stage,
+                state=_json(record.state),
+                retention_until=record.retention_until,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
+            self._session.add(row)
+        else:
+            if expected_revision is not None and row.revision != expected_revision:
+                raise PersistenceConflict("conversation checkpoint revision changed")
+            row.schema_version = record.schema_version
+            row.revision += 1
+            row.policy_version = record.policy_version
+            row.conversation_stage = record.conversation_stage
+            row.state = _json(record.state)
+            row.retention_until = record.retention_until
+            row.updated_at = record.updated_at
+        await _flush_or_conflict(self._session)
+        await self._session.refresh(row)
+        return _conversation_state_record(row)
 
 
 class AppointmentPostgresRepository:
@@ -977,6 +1059,7 @@ __all__ = [
     "AppointmentPostgresRepository",
     "CallPostgresRepository",
     "CallerPostgresRepository",
+    "ConversationStatePostgresRepository",
     "EvidencePostgresRepository",
     "ReferenceDataPostgresRepository",
 ]

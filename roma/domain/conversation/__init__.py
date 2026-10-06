@@ -17,6 +17,7 @@ from roma.domain.conversation.state import (
 )
 from roma.domain.conversation.state_machine import (
     CallStateStore,
+    ConversationRoute,
     InMemoryCallStateStore,
     InMemoryConversationStateStore,
     can_transition,
@@ -25,6 +26,7 @@ from roma.domain.conversation.state_machine import (
     handle_missing_information,
     handle_objection,
     restore_state,
+    route_intent,
     save_state,
     transition,
 )
@@ -35,12 +37,14 @@ __all__ = [
     "STAGES",
     "DISCOVERY_ORDER",
     "ConversationStage",
+    "ConversationRoute",
     "next_stage",
     "transition",
     "get_state",
     "can_transition",
     "save_state",
     "restore_state",
+    "route_intent",
     "handle_interruption",
     "handle_objection",
     "handle_missing_information",

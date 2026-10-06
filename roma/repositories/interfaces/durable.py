@@ -21,6 +21,7 @@ from roma.domain.persistence import (
     CallEventRecord,
     CallRecord,
     CallTurnRecord,
+    ConversationStateRecord,
     CounsellorRecord,
     CourseRecord,
     FollowupJobRecord,
@@ -56,6 +57,8 @@ class CallRepository(Protocol):
 
     async def get(self, call_id: UUID) -> CallRecord | None: ...
 
+    async def get_by_provider_call_id(self, provider_call_id: str) -> CallRecord | None: ...
+
     async def set_provider_call_id(self, call_id: UUID, provider_call_id: str) -> CallRecord: ...
 
     async def update_lifecycle(
@@ -73,6 +76,21 @@ class CallRepository(Protocol):
     async def list_turns(self, call_id: UUID) -> tuple[CallTurnRecord, ...]: ...
 
     async def add_event(self, record: CallEventRecord) -> CallEventRecord: ...
+
+
+@runtime_checkable
+class ConversationStateRepository(Protocol):
+    """Stores one durable latest conversation checkpoint per call."""
+
+    async def get_by_call_id(self, call_id: UUID) -> ConversationStateRecord | None: ...
+
+    async def get_by_provider_call_id(
+        self, provider_call_id: str
+    ) -> ConversationStateRecord | None: ...
+
+    async def save_latest(
+        self, record: ConversationStateRecord, *, expected_revision: int | None = None
+    ) -> ConversationStateRecord: ...
 
 
 @runtime_checkable
@@ -208,6 +226,9 @@ class DurableUnitOfWork(Protocol):
     def appointments(self) -> AppointmentRepository: ...
 
     @property
+    def conversation_states(self) -> ConversationStateRepository: ...
+
+    @property
     def evidence(self) -> EvidenceRepository: ...
 
     @property
@@ -231,6 +252,7 @@ __all__ = [
     "AppointmentRepository",
     "CallRepository",
     "CallerRepository",
+    "ConversationStateRepository",
     "DurableUnitOfWork",
     "EvidenceRepository",
     "ReferenceDataRepository",

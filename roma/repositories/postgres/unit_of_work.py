@@ -22,6 +22,7 @@ from roma.repositories.interfaces.durable import (
     AppointmentRepository,
     CallerRepository,
     CallRepository,
+    ConversationStateRepository,
     EvidenceRepository,
     ReferenceDataRepository,
 )
@@ -30,6 +31,7 @@ from .repositories import (
     AppointmentPostgresRepository,
     CallerPostgresRepository,
     CallPostgresRepository,
+    ConversationStatePostgresRepository,
     EvidencePostgresRepository,
     ReferenceDataPostgresRepository,
 )
@@ -69,6 +71,7 @@ class PostgresUnitOfWork:
         self._callers: CallerRepository | None = None
         self._calls: CallRepository | None = None
         self._appointments: AppointmentRepository | None = None
+        self._conversation_states: ConversationStateRepository | None = None
         self._evidence: EvidenceRepository | None = None
         self._reference_data: ReferenceDataRepository | None = None
 
@@ -83,6 +86,10 @@ class PostgresUnitOfWork:
     @property
     def appointments(self) -> AppointmentRepository:
         return self._require_repository(self._appointments, "appointments")
+
+    @property
+    def conversation_states(self) -> ConversationStateRepository:
+        return self._require_repository(self._conversation_states, "conversation states")
 
     @property
     def evidence(self) -> EvidenceRepository:
@@ -102,6 +109,7 @@ class PostgresUnitOfWork:
         self._callers = CallerPostgresRepository(self._session)
         self._calls = CallPostgresRepository(self._session)
         self._appointments = AppointmentPostgresRepository(self._session)
+        self._conversation_states = ConversationStatePostgresRepository(self._session)
         self._evidence = EvidencePostgresRepository(self._session)
         self._reference_data = ReferenceDataPostgresRepository(self._session)
         return self
@@ -179,6 +187,7 @@ class PostgresUnitOfWork:
             self._callers = None
             self._calls = None
             self._appointments = None
+            self._conversation_states = None
             self._evidence = None
             self._reference_data = None
             self._closed = True

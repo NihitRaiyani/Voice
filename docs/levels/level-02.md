@@ -1,6 +1,6 @@
 # Level 2 — Text conversation and local LLM
 
-**v4 sections:** 10–12. **Status:** Deterministic cloud text logic present; local inference/durable restore gate pending.
+**v4 sections:** 10–12. **Status:** Section 10 state machine/checkpoint adapter implemented; sections 11–12 local inference and structured safety audit pending.
 
 ## Entry gate
 
@@ -16,11 +16,12 @@ Evaluate 30–50 prompts with native review across Gujarati/Hindi/English/code-m
 
 ## Existing reuse in Voice_Agent
 
-Canonical `ConversationStage`, domain state-machine facade, time resolver, prompt assembly, Indic normalization and final speech safety; Redis checkpoint restore is transient. L1 now provides `conversation_states` schema and model/benchmark metadata; durable writes/restore/optimistic revision checks and direct-inference runners still need implementation.
+Canonical `ConversationStage`, domain state-machine facade, `route_intent()`, time resolver, prompt assembly, Indic normalization and final speech safety; Redis checkpoint restore remains the live hot path. Level 2 section 10 adds PostgreSQL latest-checkpoint save/restore through `PostgresConversationStateStore`, backed by `conversation_states` revision/schema/policy fields. Direct-inference runners and the structured safety audit still need implementation.
 
 ## Acceptance gate
 
-- [ ] Text flow and state restore preserve slots/phase without inventing a booking.
+- [x] Section 10 state-machine facade and latest checkpoint save/restore preserve stage/slots without inventing a booking.
+- [ ] Full text-flow demo wiring with local inference still needs sections 11–12.
 - [ ] Real local inference works without external AI calls; structured extraction is validated.
 - [ ] Blocked topics, prior quotes and prompt injection use safe substitution; safety events are PII-safe.
 - [ ] Native language-quality review and model/hardware limitations are recorded separately from live policy.
@@ -31,6 +32,8 @@ No telephony/audio integration, Ollama-first shortcut, vLLM, model-owned FSM or 
 
 ## Evidence
 
-Record revision, reproducible commands, environment/data/configuration identity, actual outcomes, demo/reviewer result and limitations here when this level is implemented. Existing foundations do not automatically pass the full gate. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
+Section 10 implementation is in source with these fresh checks: state-machine API tests passed **17/17**, focused PostgreSQL checkpoint tests passed **2/2**, Ruff passed across `roma`, `tests` and `scripts`, configured mypy passed, `make ci` passed its native-service/migration/mock-provider/API slice, the full offline suite passed **1,674 tests with 23 warnings**, and Markdown link/anchor verification covered **63 non-archive Markdown files and 274 local links/anchors with zero issues**.
+
+This evidence proves the finite-state-machine facade, route classification seam and compatible latest-checkpoint save/restore. It does not prove sections 11–12: local Qwen inference, structured safety-event audit, native language review, redial/session identity or L7 recovery drills. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
 
 Return to the [documentation index](../README.md).

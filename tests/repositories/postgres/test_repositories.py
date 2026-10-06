@@ -16,6 +16,7 @@ from roma.domain.persistence import (
     CallEventRecord,
     CallRecord,
     CallTurnRecord,
+    ConversationStateRecord,
     FollowupJobRecord,
     PersistenceConflict,
     ProviderUsageRecord,
@@ -827,5 +828,85 @@ def test_later_invalid_row_rolls_back_earlier_rows(session_factory):
 
         async with PostgresUnitOfWork(session_factory) as uow:
             assert await uow.callers.get_by_phone_hash(phone_hash) is None
+
+    asyncio.run(run())
+
+
+def test_conversation_state_repository_saves_latest_checkpoint(session_factory):
+    async def run() -> None:
+        _, call = await _add_caller_and_call(session_factory)
+        first = ConversationStateRecord(
+            id=uuid4(),
+            call_id=call.id,
+            schema_version=1,
+            revision=1,
+            policy_version="roma-v4-hinglish-1",
+            conversation_stage="discover",
+            state={"call_sid": call.provider_call_id, "stage": "discover", "city": None},
+            retention_until=_now(60),
+            created_at=_now(2),
+            updated_at=_now(2),
+        )
+        async with PostgresUnitOfWork(session_factory) as uow:
+            saved = await uow.conversation_states.save_latest(first)
+            assert saved.revision == 1
+            await uow.commit()
+
+        updated = ConversationStateRecord(
+            id=uuid4(),
+            call_id=call.id,
+            schema_version=1,
+            revision=1,
+            policy_version="roma-v4-hinglish-1",
+            conversation_stage="value",
+            state={"call_sid": call.provider_call_id, "stage": "value", "city": "Vadodara"},
+            retention_until=_now(61),
+            created_at=_now(3),
+            updated_at=_now(3),
+        )
+        async with PostgresUnitOfWork(session_factory) as uow:
+            saved = await uow.conversation_states.save_latest(updated, expected_revision=1)
+            assert saved.revision == 2
+            assert saved.conversation_stage == "value"
+            assert saved.state["city"] == "Vadodara"
+            assert await uow.conversation_states.get_by_provider_call_id(call.provider_call_id) == saved
+            await uow.commit()
+
+        async with PostgresUnitOfWork(session_factory) as uow:
+            with pytest.raises(PersistenceConflict, match="revision changed"):
+                await uow.conversation_states.save_latest(updated, expected_revision=1)
+
+    asyncio.run(run())
+
+
+def test_postgres_conversation_state_store_restores_compatible_checkpoint(session_factory):
+    from datetime import timedelta
+
+    from roma.domain.conversation.state import CallState
+    from roma.repositories.postgres.conversation_state import PostgresConversationStateStore
+
+    async def run() -> None:
+        _, call = await _add_caller_and_call(session_factory)
+        async with PostgresUnitOfWork(session_factory) as uow:
+            call = await uow.calls.set_provider_call_id(call.id, f"provider-{uuid4()}")
+            await uow.commit()
+        store = PostgresConversationStateStore(
+            session_factory,
+            retention_ttl=timedelta(hours=1),
+            clock=lambda: _now(5),
+        )
+        await store.save(
+            CallState(
+                call_sid=call.provider_call_id,
+                stage="structure",
+                lead_name="Amit",
+                city="Vadodara",
+            )
+        )
+        restored = await store.load(call.provider_call_id)
+        assert restored is not None
+        assert restored.stage == "structure"
+        assert restored.lead_name == "Amit"
+        assert restored.city == "Vadodara"
 
     asyncio.run(run())

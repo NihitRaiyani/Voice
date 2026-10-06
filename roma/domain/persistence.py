@@ -139,6 +139,23 @@ class CallEventRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class ConversationStateRecord:
+    id: UUID
+    call_id: UUID
+    schema_version: int
+    revision: int
+    policy_version: str
+    conversation_stage: str
+    state: Mapping[str, object]
+    retention_until: datetime
+    created_at: datetime
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        _freeze_mapping_fields(self, "state")
+
+
+@dataclass(frozen=True, slots=True)
 class AppointmentSlotRecord:
     id: UUID
     branch_id: UUID
@@ -365,6 +382,7 @@ __all__ = [
     "CallRecord",
     "CallTurnRecord",
     "CallerRecord",
+    "ConversationStateRecord",
     "CounsellorRecord",
     "CourseRecord",
     "FollowupJobRecord",

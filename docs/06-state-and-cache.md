@@ -6,7 +6,7 @@ PostgreSQL is already the durable record/job foundation: relationships, constrai
 |---|---|
 | Call answer receipt/call/event, post-call/job intents | PostgreSQL; implemented paths |
 | Appointment repository and constraints | PostgreSQL; live controller integration pending |
-| Live conversation checkpoint | Redis today; PostgreSQL `conversation_states` schema present, writer/restore pending L2/L7 |
+| Live conversation checkpoint | Redis for hot same-call state; PostgreSQL `conversation_states` now has a Level 2 latest-checkpoint writer/restore adapter keyed through `calls.provider_call_id` |
 | Model and benchmark evidence | PostgreSQL registry/runs/results schema present; benchmark runners pending |
 | Lead token lookup, call status, rate counters, opener cache | Redis with explicit lifetime |
 | Turns, safety events, provider usage/costs, audit | PostgreSQL models/repositories tested; complete live collection pending later levels |
@@ -18,7 +18,7 @@ PostgreSQL is already the durable record/job foundation: relationships, constrai
 
 Current conversation checkpoint TTL is one hour; older four-hour notes are obsolete. Lead records default to 30 minutes. Reconnect with the same call SID differs from redial with a new SID; stable session/lead mapping is required before claiming redial restore.
 
-`conversation_states` provides one latest row per call, positive schema/revision, policy identity, a canonical stage, object state and explicit expiry after creation. The schema alone performs no checkpoint writes, revision compare-and-swap, TTL enforcement or restore; L2/L7 consumers must validate compatible policy/schema, refuse expired state and consult appointment truth. Durable milestones must preserve stage/slots/confirmation and schema/policy identity. Never restore a reservation from Redis when PostgreSQL says absent/cancelled. Measure checkpoint lag, lock ownership/TTL and recovery point limits; advanced event logs/outbox/replay follow core recovery.
+`conversation_states` provides one latest row per call, positive schema/revision, policy identity, a canonical stage, object state and explicit expiry after creation. Level 2 section 10 adds a PostgreSQL adapter that saves/restores compatible latest `CallState` snapshots with schema/policy checks, expiry refusal and revision increments through short unit-of-work sessions. It does not create redial session identity, appointment-reservation restore, cleanup jobs or L7 recovery guarantees. Durable milestones must preserve stage/slots/confirmation and schema/policy identity. Never restore a reservation from Redis when PostgreSQL says absent/cancelled. Measure checkpoint lag, lock ownership/TTL and recovery point limits; advanced event logs/outbox/replay follow core recovery.
 
 ## Sessions and capacity
 

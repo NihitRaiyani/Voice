@@ -6,7 +6,7 @@ v4 is the active curriculum. The [level briefs](README.md) own acceptance gates;
 |---|---|---|
 | 0 | Current source, tests, evaluation and call trace | Clean-machine restore, representative timing and prerequisite review |
 | 1 | Layered monolith, enforced domain dependency rule, STT/LLM/TTS/embedding/telephony provider contracts with mocks, PostgreSQL/Alembic, bounded pools/process allocation, capacity checker, checkpoint/model/benchmark relational foundations, database-only migration/rollback workflow, separate atomic demo seeds, pressure/release tests, FastAPI, versioned resource API, pytest/Ruff, mypy skeleton, pre-commit hooks, native Makefile startup and GitHub Actions workflow | Clean-host Level 0 evidence and full reviewer/demo evidence |
-| 2 | Deterministic stages, extraction/time resolver, prompt/safety logic | Direct local Qwen candidate, durable milestone restore and safety audit |
+| 2 | Deterministic stages, state-machine facade/checkpoint adapter, extraction/time resolver, prompt/safety logic | Direct local Qwen candidate, text demo wiring and safety audit |
 | 3 | Row-locked appointment repository, partial active-slot uniqueness and race test | Live/API integration, cancellation/reuse, holds policy and truthful commit confirmation |
 | 4–5 | Carrier codecs, Silero/contextual endpointing, cloud speech/cache tests | Actual local ASR/TTS and language/noise/RTF benchmarks |
 | 6–7 | Pipecat turn pipeline, cancellation/isolation/Redis degradation seams | Local microphone loop, bounded local inference queues and tested checkpoint/pressure recovery |

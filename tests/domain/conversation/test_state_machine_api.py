@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 from roma.domain.conversation import (
+    ConversationRoute,
     ConversationStage,
     InMemoryCallStateStore,
     TurnSignals,
@@ -11,6 +12,7 @@ from roma.domain.conversation import (
     handle_missing_information,
     handle_objection,
     restore_state,
+    route_intent,
     save_state,
     transition,
 )
@@ -97,3 +99,17 @@ def test_save_and_restore_state_uses_the_store_boundary():
         assert restored.lead_name == "Asha"
 
     asyncio.run(run())
+
+
+def test_route_intent_sends_known_paths_to_the_right_controller():
+    assert route_intent(CallState(stage="discover")) == ConversationRoute.KNOWLEDGE
+    assert (
+        route_intent(CallState(stage="value"), TurnSignals(asks_to_book=True))
+        == ConversationRoute.BOOKING
+    )
+    assert route_intent(CallState(stage="pivot")) == ConversationRoute.BOOKING
+    assert (
+        route_intent(CallState(stage="close"), deterministic_reply="call end line")
+        == ConversationRoute.DETERMINISTIC
+    )
+    assert route_intent(CallState(lead_wants_out=True)) == ConversationRoute.DETERMINISTIC
