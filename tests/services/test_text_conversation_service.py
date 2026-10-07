@@ -33,7 +33,17 @@ def test_discovery_validates_slots_then_prompts_next_field_and_checkpoints():
         state = CallState(call_sid="lab", stage="discover")
         trace = await service.turn(state, "Mera naam Amit hai", now=NOW)
         assert state.lead_name == "Amit"
+        assert len(provider.requests) == 1
+        assert (
+            trace.final_response
+            == "Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"
+        )
         assert "current_status" in trace.prompt[-1]["content"]
+        assert (
+            "CURRENT CONTROLLER TASK: Ask whether the caller currently studies"
+            in trace.prompt[0]["content"]
+        )
+        assert "never restart discovery" in trace.prompt[0]["content"]
         assert trace.extracted_slots[0]["valid"]
         assert trace.state_before["lead_name"] is None
         assert (await restore_state(service.store, "lab")).lead_name == "Amit"
@@ -109,5 +119,43 @@ def test_time_extraction_uses_code_resolver_and_fixed_readback():
         assert "3:00 PM" in trace.final_response
         assert len(provider.requests) == 1
         assert not trace.booking_committed
+
+    asyncio.run(run())
+
+
+def test_known_profile_fields_cannot_be_reasked_by_model_wording():
+    async def missing():
+        provider = ScriptedProvider(['{"value":"2025","confidence":0.95}'])
+        state = CallState(
+            call_sid="lab",
+            stage="discover",
+            lead_name="Amit",
+            current_status="student",
+            education="BCom",
+        )
+        trace = await TextConversationService(provider).turn(
+            state, "2025 mein complete kiya", now=NOW
+        )
+        assert state.passing_year == "2025"
+        assert trace.final_response == "Aapka sheher kaunsa hai?"
+        assert len(provider.requests) == 1
+        assert state.lead_name == "Amit"
+
+    asyncio.run(missing())
+
+
+def test_profile_shortcut_preserves_a_question_in_the_same_turn():
+    async def run():
+        provider = ScriptedProvider(
+            ['{"value":"Amit","confidence":0.95}', "Subah aur shaam dono batch chalte hain."]
+        )
+        trace = await TextConversationService(provider).turn(
+            CallState(call_sid="lab", stage="discover"),
+            "Mera naam Amit hai, batch timing kya hai?",
+            now=NOW,
+        )
+        assert trace.state_after["lead_name"] == "Amit"
+        assert len(provider.requests) == 2
+        assert trace.raw_model_output == "Subah aur shaam dono batch chalte hain."
 
     asyncio.run(run())

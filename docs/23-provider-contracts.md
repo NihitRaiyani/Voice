@@ -10,17 +10,16 @@ yet.
 | Interface | Module | Method | Current adapters |
 |---|---|---|---|
 | `STTProvider` | `roma.providers.ai.contracts` | `transcribe(STTRequest) -> STTResult` | `MockSTTProvider`; `IndicConformerSTT` and `WhisperSTT` placeholders |
-| `LLMProvider` | `roma.providers.ai.contracts` | `generate(LLMRequest) -> AsyncIterator[LLMChunk]` | `MockLLMProvider`; `Qwen3TransformersLLM` direct adapter (L2 section 11); `Qwen3VLLMClient` placeholder |
+| `LLMProvider` | `roma.providers.ai.contracts` | `generate(LLMRequest) -> AsyncIterator[LLMChunk]` | `MockLLMProvider`; `Qwen3TransformersLLM` direct adapter (L2 section 11); `Qwen3MLXLLM` optional Apple INT4 adapter; `Qwen3VLLMClient` placeholder |
 | `TTSProvider` | `roma.providers.ai.contracts` | `synthesize(TTSRequest) -> TTSResult` | `MockTTSProvider`; `IndicTTSProvider` placeholder |
 | `EmbeddingProvider` | `roma.providers.ai.contracts` | `embed(EmbeddingRequest) -> EmbeddingResult` | `MockEmbeddingProvider`; `LocalMultilingualEmbedding` placeholder |
 | `TelephonyProvider` | `roma.providers.telephony.base` | `place_call(PlaceCallRequest) -> PlaceCallResult` | `MockTelephonyProvider`; `TwilioTelephonyProvider` |
 
 The remaining placeholder local/open-source classes are deliberately present but
 unavailable. These placeholders raise `ProviderUnavailable` with the level that must complete
-before use. `Qwen3TransformersLLM` now loads directly with Transformers in the
+before production promotion. `Qwen3MLXLLM` adds an optional pinned 1.7B INT4 Apple development profile. `Qwen3TransformersLLM` now loads directly with Transformers in the
 [section 11 lab](25-local-transformers-llm.md); it remains a candidate pending
-suitable-host/native quality evidence. That keeps config names stable without pretending model weights,
-runtime packages, GPU admission or benchmarks already exist.
+suitable-host/native quality evidence. Remaining placeholders keep config names stable without claiming their later-level runtimes or benchmark approval.
 
 ## Config switching
 

@@ -10,7 +10,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 |---|---|---|
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
 | 1 | [Backend foundation](levels/level-01.md) | Sections 3–9 foundations implemented; hosted CI green, full review evidence still separate |
-| 2 | [Text/local LLM](levels/level-02.md) | Sections 10–11 state/checkpoint, Transformers/text/language labs present; 8B hardware/native review and section 12 pending |
+| 2 | [Text/local LLM](levels/level-02.md) | Sections 10–11 state/checkpoint, Transformers and Apple INT4/text labs present; native review, live integration and section 12 pending |
 | 3 | [Transactional booking](levels/level-03.md) | Repository present; live/API integration pending |
 | 4 | [Audio/local ASR](levels/level-04.md) | Cloud baseline; local lab planned |
 | 5 | [Local TTS](levels/level-05.md) | Cloud cache; local lab planned |
@@ -51,7 +51,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [21 Database migrations](21-database-migrations.md) | Preserved revision history, forward workflow, rollback impact and separate opt-in demo seeds |
 | [22 Backend architecture contract](22-backend-architecture-contract.md) | Modular monolith map, dependency direction and section 6 boundary enforcement |
 | [23 Provider contracts](23-provider-contracts.md) | STT/LLM/TTS/embedding/telephony interfaces, mocks and config switching |
-| [25 Direct Transformers LLM](25-local-transformers-llm.md) | Local adapter, console, precision/device/metrics and native language gate |
+| [25 Local LLM runtimes](25-local-transformers-llm.md) | Direct Transformers plus pinned Apple INT4, console, metrics and native language gate |
 
 ## Decisions, source and operation
 

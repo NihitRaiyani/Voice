@@ -17,6 +17,9 @@ local-llm = [
     "accelerate>=1.6,<2",
     "psutil>=6,<8",
 ]
+local-llm-mac = [
+    "mlx-lm>=0.28,<1; sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
 local-llm-int4 = [
     "bitsandbytes>=0.46,<1; sys_platform == 'linux'",
 ]

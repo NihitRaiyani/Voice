@@ -7,7 +7,7 @@ import time
 from dataclasses import asdict
 from datetime import datetime
 
-from roma.core.local_llm_config import LocalLLMSettings
+from roma.core.local_llm_config import load_local_llm_settings
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.prompts import opening_line
 from roma.domain.conversation.state import CallState
@@ -17,9 +17,7 @@ from roma.services.text_conversation_service import TextConversationService
 
 
 async def run(args: argparse.Namespace) -> None:
-    settings = LocalLLMSettings()
-    if args.provider:
-        settings = settings.model_copy(update={"llm_provider": args.provider})
+    settings = load_local_llm_settings(args.profile, provider=args.provider)
     service = TextConversationService(
         build_llm_provider(settings),
         max_tokens=settings.local_llm_max_new_tokens,
@@ -48,5 +46,6 @@ async def run(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", choices=("mock", "qwen3_transformers"))
+    parser.add_argument("--provider", choices=("mock", "qwen3_transformers", "qwen3_mlx"))
+    parser.add_argument("--profile", help="non-secret local model profile JSON")
     asyncio.run(run(parser.parse_args()))

@@ -1,4 +1,5 @@
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 from roma.eval.local_language import lab_request, score_report
@@ -13,6 +14,7 @@ def reviews():
         {
             "id": c["id"],
             "language": c["language"],
+            "prompt": [asdict(m) for m in lab_request(c).messages],
             "reviewer": "Native reviewer",
             "correctness": 4,
             "naturalness": 4,
@@ -68,3 +70,17 @@ def test_missing_duplicate_or_mislabeled_cases_cannot_pass():
     rows = reviews()
     rows[0]["language"] = "en"
     assert score_report(rows, CASES, POLICY, real_model=True)["status"] == "invalid"
+
+
+def test_changed_prompt_or_corpus_cannot_reuse_old_native_scores():
+    rows = reviews()
+    rows[0]["prompt"][0]["content"] += " stale instruction"
+    assert score_report(rows, CASES, POLICY, real_model=True)["status"] == "stale-prompts"
+
+
+def test_discovery_cases_keep_city_unknown_in_state_and_caller_text():
+    for case in CASES:
+        if case["id"].endswith("-02"):
+            assert not case["state"].get("city")
+            assert "2025" in case["caller"]
+            assert not any(city in case["caller"] for city in ("Vadodara", "वडोदरा", "વડોદરા"))

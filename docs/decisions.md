@@ -32,6 +32,8 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | A24 | Provider contracts precede model/runtime integration | STT/LLM/TTS/embedding/telephony callers depend on protocols and mocks first; local/cloud adapters must pass their later level gates before use |
 | A25 | Versioned REST resources coexist with legacy dial commands | `/api/v1` exposes durable business resources with envelopes; `/api/call` remains the explicit carrier-side-effect path until a later client migration |
 
+| A26 | Pinned Qwen3-1.7B INT4 through optional Apple MLX for Mac development | Owner authorized the smaller candidate; preserve Transformers/cloud comparison, keep clear discovery questions code-owned, require native quality and measured voice latency before production promotion |
+
 ## Preserved operational invariants
 
 Store lead context before Twilio dialing; check public reachability before consuming hourly allowance. Fail before dialing if required lead storage fails. Cosmetic status-store failure after accepted dialing must not report the dial as failed. Outbound direction follows custom lead-parameter presence even on Redis degradation.
@@ -44,7 +46,7 @@ Post-call storage/handoff precedes exact-payload ack. PostgreSQL owns job busine
 
 ## Section 11 candidate decision
 
-Qwen3-8B remains the direct Transformers candidate. On 2026-10-07 the 8 GiB arm64 Mac is below its admission floor; suitable-host inference/native review remain pending. The owner accepted mean correctness/naturalness ≥4/5 per language, no score below 3/5 and zero unsafe final replies. [The local LLM guide](25-local-transformers-llm.md) owns the separate multilingual procedure; live output stays Hinglish.
+On 2026-10-07 the owner authorized Qwen3-1.7B INT4 or a suitable larger model. Select the pinned `mlx-community/Qwen3-1.7B-4bit` conversion through optional `Qwen3MLXLLM` for the 8 GiB Apple development host; native quality and live voice latency remain gates. Preserve direct Transformers for learning/comparison. Qwen3-8B remains a suitable-host candidate; this Mac is below its direct-inference admission floor. The trained 1.7B run works, but sample language/task errors prevent production approval. Clear validated discovery answers use code-owned next-field questions; mixed questions retain model wording. Larger candidates require measured headroom and better accepted responses, not parameter-count assumptions. The owner accepted mean correctness/naturalness ≥4/5 per language, no score below 3/5 and zero unsafe final replies. [The local LLM guide](25-local-transformers-llm.md) owns the separate multilingual procedure; live output stays Hinglish.
 
 ## Owner decisions and gates
 
@@ -63,4 +65,4 @@ D3 in older source comments refers to Gujarati-script recognition observations. 
 
 ## Remaining engineering gaps
 
-Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 sections 10–11 provide the durable latest checkpoint adapter, direct Transformers provider and text/language labs. Qwen3-8B suitable-host inference/native quality approval, section 12 durable safety audit and live integration remain pending. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
+Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 sections 10–11 provide the durable latest checkpoint adapter, direct Transformers and optional Apple INT4 providers with text/language labs. Qwen3-8B suitable-host inference/native quality approval, section 12 durable safety audit and live integration remain pending. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).

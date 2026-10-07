@@ -24,7 +24,7 @@
       "education": "BCom",
       "passing_year": "2025"
     },
-    "caller": "મારું શહેર વડોદરા છે.",
+    "caller": "મેં 2025માં BCom પૂર્ણ કર્યું છે.",
     "task": "Ask only for the next missing field (city), without inventing it."
   },
   {
@@ -162,7 +162,7 @@
       "education": "BCom",
       "passing_year": "2025"
     },
-    "caller": "मेरा शहर वडोदरा है।",
+    "caller": "मैंने 2025 में BCom पूरा किया है।",
     "task": "Ask only for the next missing field (city), without inventing it."
   },
   {
@@ -300,7 +300,7 @@
       "education": "BCom",
       "passing_year": "2025"
     },
-    "caller": "My city is Vadodara.",
+    "caller": "I completed BCom in 2025.",
     "task": "Ask only for the next missing field (city), without inventing it."
   },
   {
@@ -438,7 +438,7 @@
       "education": "BCom",
       "passing_year": "2025"
     },
-    "caller": "Mera city વડોદરા hai.",
+    "caller": "Maine 2025 mein BCom complete kiya hai.",
     "task": "Ask only for the next missing field (city), without inventing it."
   },
   {

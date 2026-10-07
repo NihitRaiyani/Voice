@@ -1,0 +1,12 @@
+{
+  "llm_provider": "qwen3_mlx",
+  "local_llm_model": "mlx-community/Qwen3-1.7B-4bit",
+  "local_llm_revision": "3b1b1768f8f8cf8351c712464f906e86c2b8269e",
+  "local_llm_device": "mps",
+  "local_llm_dtype": "int4",
+  "local_llm_local_files_only": true,
+  "local_llm_max_new_tokens": 128,
+  "local_llm_max_prompt_tokens": 8192,
+  "local_llm_temperature": 0.7,
+  "local_llm_generation_timeout_secs": 120
+}

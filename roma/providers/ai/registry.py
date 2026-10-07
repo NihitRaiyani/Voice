@@ -16,6 +16,7 @@ from roma.providers.ai.local import (
     Qwen3VLLMClient,
     WhisperSTT,
 )
+from roma.providers.ai.mlx_llm import Qwen3MLXLLM
 from roma.providers.ai.mocks import (
     MockEmbeddingProvider,
     MockLLMProvider,
@@ -41,6 +42,8 @@ def build_llm_provider(settings) -> LLMProvider:
             return MockLLMProvider()
         case "qwen3_transformers":
             return Qwen3TransformersLLM(settings)
+        case "qwen3_mlx":
+            return Qwen3MLXLLM(settings)
         case "qwen3_vllm":
             return Qwen3VLLMClient("Qwen3VLLMClient", "Level 10")
     raise ValueError(f"unknown LLM provider {settings.llm_provider!r}")
