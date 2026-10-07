@@ -13,6 +13,7 @@ from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.state import CallState
 from roma.providers.ai.contracts import LLMMessage, LLMRequest
 from roma.providers.ai.registry import build_llm_provider
+from roma.services.local_llm_prompts import local_dialogue_request
 from roma.services.text_conversation_service import TextConversationService, filter_response
 
 
@@ -38,10 +39,36 @@ async def run(args: argparse.Namespace) -> None:
         raise SystemExit("No trained generation metrics/tokens returned")
     raw = "".join(c.text for c in chunks)
     final, safety = filter_response(raw, CallState(stage="discover"))
+    cache_checks = []
+    if settings.llm_provider == "qwen3_mlx":
+        cache_request = local_dialogue_request(
+            CallState(stage="value"),
+            "What practical skills will I learn?",
+            "Explain one approved practical course benefit.",
+            max_tokens=64,
+            temperature=0,
+        )
+        # Same token sequence and greedy task, with and without cache. A mismatch
+        # fails this opt-in mechanics check; it is not a native-quality score.
+        for enabled in (False, True, True):
+            settings.local_llm_prefix_cache = enabled
+            generated = [c async for c in provider.generate(cache_request)]
+            cache_checks.append(
+                {
+                    "enabled": enabled,
+                    "raw": "".join(c.text for c in generated),
+                    "metrics": [asdict(c.metrics) for c in generated if c.metrics],
+                }
+            )
+        if (
+            len({item["raw"] for item in cache_checks}) != 1
+            or not cache_checks[-1]["metrics"][-1]["prefix_cache_hit"]
+        ):
+            raise SystemExit("Cached/uncached trained decoding check failed")
     service = TextConversationService(provider, temperature=0)
     state = CallState(call_sid="synthetic-trained-smoke", stage="discover")
     trace = await service.turn(
-        state, "Mera naam Amit hai.", now=datetime(2026, 10, 7, 10, tzinfo=IST)
+        state, "Amit bol raha hoon.", now=datetime(2026, 10, 7, 10, tzinfo=IST)
     )
     artifact = {
         "provider": settings.llm_provider,
@@ -51,6 +78,7 @@ async def run(args: argparse.Namespace) -> None:
         "safety": safety,
         "metrics": metrics,
         "turn": asdict(trace),
+        "cache_checks": cache_checks,
     }
     with open_private(Path(args.output), "w") as handle:
         handle.write(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n")

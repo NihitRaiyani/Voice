@@ -57,6 +57,7 @@ def test_streaming_metrics_and_non_thinking_template():
 
     # Real SDK returns a closable generator.
     def stream(*args, **kwargs):
+        seen["sampler"] = kwargs["sampler"]
         yield response()
         yield response(" world", 2, "stop")
 
@@ -64,6 +65,8 @@ def test_streaming_metrics_and_non_thinking_template():
     chunks = collect(provider)
     assert "".join(c.text for c in chunks) == "hello world"
     assert seen["enable_thinking"] is False
+    assert seen["sampler"]["top_p"] == 0.8
+    assert seen["sampler"]["top_k"] == 20
     assert chunks[-1].finish_reason == "stop"
     metrics = chunks[-1].metrics
     assert metrics.generated_tokens == 2 and metrics.prompt_tokens == 3
@@ -169,15 +172,18 @@ def test_loading_pins_cache_revision_and_secret_boundary(monkeypatch, tmp_path):
     seen = {}
     sdk = ModuleType("mlx_lm")
     model = SimpleNamespace(parameters=lambda: [], args=SimpleNamespace())
+    tokenizer = SimpleNamespace(chat_template="synthetic template")
 
     def load(path, **kwargs):
         seen["load"] = kwargs
-        return model, object()
+        return model, tokenizer
 
     sdk.load = load
     sdk.stream_generate = lambda *a, **k: None
     sample = ModuleType("mlx_lm.sample_utils")
     sample.make_sampler = lambda **kw: kw
+    cache_sdk = ModuleType("mlx_lm.models.cache")
+    cache_sdk.make_prompt_cache = lambda model: []
     hub = ModuleType("huggingface_hub")
 
     def snapshot(*args, **kwargs):
@@ -194,6 +200,7 @@ def test_loading_pins_cache_revision_and_secret_boundary(monkeypatch, tmp_path):
         "mlx.core": core,
         "mlx_lm": sdk,
         "mlx_lm.sample_utils": sample,
+        "mlx_lm.models.cache": cache_sdk,
         "huggingface_hub": hub,
     }.items():
         monkeypatch.setitem(sys.modules, name, module)
@@ -210,10 +217,15 @@ def test_loading_pins_cache_revision_and_secret_boundary(monkeypatch, tmp_path):
     provider._load()
     assert seen["snapshot"]["local_files_only"] is True
     assert seen["snapshot"]["revision"] == "a" * 40
+    assert "*.jinja" in seen["snapshot"]["allow_patterns"]
     assert seen["snapshot"]["token"] == "synthetic-secret"
     assert seen["load"]["tokenizer_config"]["trust_remote_code"] is False
     assert provider._revision == "a" * 40
     assert "synthetic-secret" not in repr(provider.settings)
+    tokenizer.chat_template = None
+    with pytest.raises(ProviderUnavailable, match="chat template is missing"):
+        Qwen3MLXLLM(provider.settings)._load()
+    tokenizer.chat_template = "synthetic template"
     # Check a mislabeled profile before the SDK can materialize its weights.
     (cache / "config.json").write_text(json.dumps({"quantization": {"bits": 8}}))
     seen.pop("load")
@@ -246,3 +258,161 @@ def test_repeated_requests_reuse_one_sdk_worker():
     asyncio.run(run())
     assert len(threads) == 3
     assert threads[0] is threads[1] is threads[2]
+
+
+def cached_fake():
+    provider = fake_provider()
+
+    class Model:
+        args = SimpleNamespace(max_position_embeddings=10000)
+
+        def __init__(self):
+            self.prefills = []
+
+        def __call__(self, ids, cache):
+            self.prefills.append(ids[0])
+            cache[0].state.extend(ids[0])
+
+    provider._model = Model()
+    provider._mx = SimpleNamespace(array=lambda ids: ids, eval=lambda ids: None)
+    provider._make_cache = lambda model: [SimpleNamespace(state=[])]
+    provider._tokenizer.apply_chat_template = lambda messages, **kw: "".join(
+        m["content"] + "|" for m in messages
+    )
+    provider._tokenizer.encode = lambda text: list(text.encode())
+    provider._stream = None
+    return provider
+
+
+def cached_request(policy="policy", caller="caller", **metadata):
+    return LLMRequest(
+        (LLMMessage("system", policy), LLMMessage("user", caller)),
+        metadata={"cache_prefix": "system-v1", **metadata},
+    )
+
+
+def test_cached_prefix_excludes_callers_and_generation_mutation():
+    provider = cached_fake()
+    seen = []
+
+    def stream(model, tokenizer, ids, **kwargs):
+        cache = kwargs["prompt_cache"]
+        assert cache[0].state == list(b"policy|")
+        seen.append(ids)
+        cache[0].state.extend([*ids, 99])
+        yield response(finish="stop")
+
+    provider._stream = stream
+    first = collect(provider, cached_request(caller="caller A"))[-1].metrics
+    second = collect(provider, cached_request(caller="caller B"))[-1].metrics
+    assert not first.prefix_cache_hit and first.cached_prompt_tokens == 0
+    assert second.prefix_cache_hit and second.cached_prompt_tokens == len(b"policy|")
+    assert provider._model.prefills == [list(b"policy|")]
+    assert seen == [list(b"caller A|"), list(b"caller B|")]
+    assert next(iter(provider._prefixes.values()))[0].state == list(b"policy|")
+
+
+def test_prefix_cache_is_bounded_and_invalidates_policy_and_model_identity():
+    provider = cached_fake()
+
+    def stream(*args, **kwargs):
+        yield response(finish="stop")
+
+    provider._stream = stream
+    for number in range(5):
+        assert not collect(provider, cached_request(policy=f"policy {number}"))[
+            -1
+        ].metrics.prefix_cache_hit
+    assert len(provider._prefixes) == 4
+    assert collect(provider, cached_request(policy="policy 4"))[-1].metrics.prefix_cache_hit
+    provider._revision = "changed revision"
+    assert not collect(provider, cached_request(policy="policy 4"))[-1].metrics.prefix_cache_hit
+
+
+@pytest.mark.parametrize("disabled", [True, False])
+def test_cache_requires_opt_in_and_configuration(disabled):
+    provider = cached_fake()
+    provider.settings.local_llm_prefix_cache = not disabled
+
+    def stream(*args, **kwargs):
+        assert "prompt_cache" not in kwargs
+        yield response(finish="stop")
+
+    provider._stream = stream
+    req = cached_request() if disabled else request()
+    assert not collect(provider, req)[-1].metrics.prefix_cache_hit
+    assert not provider._prefixes
+
+
+def test_failed_generation_cannot_poison_cached_prefix():
+    provider = cached_fake()
+
+    def stream(*args, **kwargs):
+        kwargs["prompt_cache"][0].state.append(999)
+        raise RuntimeError("synthetic failure")
+        yield
+
+    provider._stream = stream
+    with pytest.raises(ProviderUnavailable):
+        collect(provider, cached_request())
+    assert next(iter(provider._prefixes.values()))[0].state == list(b"policy|")
+
+
+def test_token_boundary_mismatch_does_not_reuse_cache():
+    provider = cached_fake()
+    provider._tokenizer.encode = lambda text: [len(text)]
+
+    def stream(*args, **kwargs):
+        assert "prompt_cache" not in kwargs
+        yield response(finish="stop")
+
+    provider._stream = stream
+    assert collect(provider, cached_request())
+    assert not provider._prefixes
+
+
+def test_timed_out_prefix_prefill_is_not_published():
+    provider = cached_fake()
+    provider.settings.local_llm_generation_timeout_secs = 0.001
+    original = provider._model
+
+    class SlowModel:
+        args = original.args
+
+        def __call__(self, ids, cache):
+            time.sleep(0.01)
+            original(ids, cache)
+
+    provider._model = SlowModel()
+    with pytest.raises(ProviderUnavailable, match="time budget"):
+        collect(provider, cached_request())
+    assert not provider._prefixes
+
+
+def test_cancelled_suffix_never_enters_next_call_cache():
+    provider = cached_fake()
+    closed = threading.Event()
+
+    def stream(*args, **kwargs):
+        assert kwargs["prompt_cache"][0].state == list(b"policy|")
+        kwargs["prompt_cache"][0].state.append(999)
+        try:
+            for n in range(100):
+                time.sleep(0.001)
+                yield response(count=n + 1)
+        finally:
+            closed.set()
+
+    provider._stream = stream
+
+    async def run():
+        first = provider.generate(cached_request(caller="caller A"))
+        await anext(first)
+        await first.aclose()
+        assert closed.is_set()
+        second = provider.generate(cached_request(caller="caller B"))
+        await anext(second)
+        await second.aclose()
+
+    asyncio.run(run())
+    assert next(iter(provider._prefixes.values()))[0].state == list(b"policy|")

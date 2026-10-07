@@ -10,6 +10,12 @@ Current caps are open 25, discover 20, value 120, structure 60, pivot 30, object
 
 Live speech remains Hindi-base Hinglish with feminine Roma self-reference and respectful caller address, short relevant turns and no invented facts. Separate multilingual lab configuration requires native review and does not change live policy.
 
+## Local text prompt assembly
+
+The Level 2 text console and separate language lab use `roma/services/local_llm_prompts.py`, not the full cloud manual. `compact-v1` places concise immutable policy/language in the first system message and current-stage/task/relevant facts plus escaped caller/state data in the user message. Ordinary requests target 300–500 tokenizer-measured tokens; the profiles reject overflow beyond 1,024 without truncating safety. Exact token identity governs the bounded MLX prefix cache; mutable call state is never shared between requests.
+
+Critical JSON extraction precedes controller decisions; dialogue stays plain text. Conservative explicit-profile parsing and existing code-owned questions/readback avoid unnecessary generation. Native quality, audio-workload performance and voice approval are later phases. See [the local inference contract](25-local-transformers-llm.md#compact-local-prompt-contract).
+
 ## Code authority
 
 Code supplies stage, pending question, valid proposals, facts and confirmation state. Models cannot advance stages, perform relative-date arithmetic, reserve slots, authorize consent or override safety. Main wording and bounded structured extraction both need provider interfaces; migrate neither implicitly.

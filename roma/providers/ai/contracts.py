@@ -74,6 +74,9 @@ class LLMGenerationMetrics:
     generation_secs: float
     tokens_per_second: float
     peak_cuda_bytes: int | None = None
+    cached_prompt_tokens: int = 0
+    prefix_cache_hit: bool = False
+    peak_mlx_bytes: int | None = None
 
 
 @dataclass(frozen=True)

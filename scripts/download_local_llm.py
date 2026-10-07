@@ -36,6 +36,7 @@ def main() -> None:
             "--include",
             "*.json",
             "*.safetensors",
+            "*.jinja",
             "merges.txt",
             "--max-workers",
             "4",

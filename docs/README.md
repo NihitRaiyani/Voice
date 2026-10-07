@@ -51,7 +51,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [21 Database migrations](21-database-migrations.md) | Preserved revision history, forward workflow, rollback impact and separate opt-in demo seeds |
 | [22 Backend architecture contract](22-backend-architecture-contract.md) | Modular monolith map, dependency direction and section 6 boundary enforcement |
 | [23 Provider contracts](23-provider-contracts.md) | STT/LLM/TTS/embedding/telephony interfaces, mocks and config switching |
-| [25 Local LLM runtimes](25-local-transformers-llm.md) | Direct Transformers plus pinned Apple INT4, console, metrics and native language gate |
+| [25 Local LLM runtimes](25-local-transformers-llm.md) | Direct Transformers, pinned 1.7B/4B Apple INT4 comparison, compact prompts/cache and deferred native language gate |
 
 ## Decisions, source and operation
 

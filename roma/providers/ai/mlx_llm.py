@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import math
 import platform
 import queue
 import threading
 import time
+from collections import OrderedDict
 from collections.abc import AsyncIterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -39,6 +41,10 @@ class Qwen3MLXLLM:
         self._tokenizer: Any = None
         self._stream: Any = None
         self._sampler: Any = None
+        self._mx: Any = None
+        self._make_cache: Any = None
+        # Immutable system prefixes only: four bounded entries, never transcripts.
+        self._prefixes: OrderedDict[tuple, Any] = OrderedDict()
         self._load_secs = 0.0
         self._revision = self.settings.local_llm_revision
 
@@ -55,6 +61,7 @@ class Qwen3MLXLLM:
             import mlx.core as mx
             from huggingface_hub import snapshot_download
             from mlx_lm import load, stream_generate
+            from mlx_lm.models.cache import make_prompt_cache
             from mlx_lm.sample_utils import make_sampler
         except ImportError:
             raise ProviderUnavailable(
@@ -67,7 +74,7 @@ class Qwen3MLXLLM:
                 revision=self.settings.local_llm_revision,
                 local_files_only=self.settings.local_llm_local_files_only,
                 token=self.settings.hf_token.get_secret_value() or False,
-                allow_patterns=["*.json", "*.safetensors", "merges.txt"],
+                allow_patterns=["*.json", "*.safetensors", "*.jinja", "merges.txt"],
             )
             # Check the stored format before materializing weights.
             quant = json.loads((Path(path) / "config.json").read_text()).get("quantization")
@@ -75,6 +82,10 @@ class Qwen3MLXLLM:
                 raise ProviderUnavailable("Selected MLX model is not 4-bit quantized")
             loaded = load(path, tokenizer_config={"trust_remote_code": False})
             model, tokenizer = loaded[0], loaded[1]
+            if not getattr(tokenizer, "chat_template", None):
+                raise ProviderUnavailable(
+                    "Model chat template is missing; rerun the pinned download including *.jinja data"
+                )
             mx.eval(model.parameters())
         except ProviderUnavailable:
             raise
@@ -85,7 +96,52 @@ class Qwen3MLXLLM:
         self._revision = Path(path).name
         self._model, self._tokenizer = model, tokenizer
         self._stream, self._sampler = stream_generate, make_sampler
+        self._mx, self._make_cache = mx, make_prompt_cache
         self._load_secs = time.perf_counter() - started
+
+    def _cached_prefix(self, request, messages, token_ids, check_prefill):
+        if (
+            not self.settings.local_llm_prefix_cache
+            or request.metadata.get("cache_prefix") != "system-v1"
+            or messages[0]["role"] != "system"
+            or self._make_cache is None
+        ):
+            return token_ids, None, 0, False
+        # Token identity matters: separately encoded text may merge at a boundary.
+        prefix = self._tokenizer.apply_chat_template(
+            messages[:1],
+            tokenize=False,
+            add_generation_prompt=False,
+            enable_thinking=False,
+        )
+        prefix_ids = self._tokenizer.encode(prefix)
+        if (
+            not prefix_ids
+            or token_ids[: len(prefix_ids)] != prefix_ids
+            or len(prefix_ids) >= len(token_ids)
+        ):
+            return token_ids, None, 0, False
+        key = (self.settings.local_llm_model, self._revision, tuple(prefix_ids))
+        hit = key in self._prefixes
+        if not hit:
+            cache = self._make_cache(self._model)
+            for start in range(0, len(prefix_ids), 256):
+                check_prefill(start, len(prefix_ids))
+                self._model(self._mx.array([prefix_ids[start : start + 256]]), cache=cache)
+                self._mx.eval([entry.state for entry in cache])
+            check_prefill(len(prefix_ids), len(prefix_ids))
+            self._prefixes[key] = cache
+            if len(self._prefixes) > 4:
+                self._prefixes.popitem(last=False)
+        self._prefixes.move_to_end(key)
+        # Generation mutates its cache. A fresh copy prevents any caller suffix,
+        # cancellation or generated token from contaminating the reusable prefix.
+        return (
+            token_ids[len(prefix_ids) :],
+            copy.deepcopy(self._prefixes[key]),
+            len(prefix_ids),
+            hit,
+        )
 
     def _run(self, request: LLMRequest, maximum: int, stop, events) -> None:
         try:
@@ -122,14 +178,22 @@ class Qwen3MLXLLM:
                 ):
                     raise ProviderUnavailable("Local generation exceeded its time budget")
 
+            suffix, prefix_cache, cached_tokens, cache_hit = self._cached_prefix(
+                request,
+                messages,
+                token_ids,
+                check_prefill,
+            )
+            cache_options = {"prompt_cache": prefix_cache} if prefix_cache is not None else {}
             stream = self._stream(
                 self._model,
                 self._tokenizer,
-                token_ids,
+                suffix,
                 max_tokens=maximum,
-                sampler=self._sampler(temp=request.temperature),
+                sampler=self._sampler(temp=request.temperature, top_p=0.8, top_k=20),
                 prefill_step_size=256,
                 prompt_progress_callback=check_prefill,
+                **cache_options,
             )
             try:
                 for result in stream:
@@ -162,6 +226,9 @@ class Qwen3MLXLLM:
                         ttft_ms=(first - started) * 1000 if first else None,
                         generation_secs=elapsed,
                         tokens_per_second=count / elapsed if elapsed else 0,
+                        cached_prompt_tokens=cached_tokens if cache_hit else 0,
+                        prefix_cache_hit=cache_hit,
+                        peak_mlx_bytes=int(getattr(result, "peak_memory", 0) * 1e9),
                     ),
                 )
             )

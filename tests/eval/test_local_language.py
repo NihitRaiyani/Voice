@@ -15,6 +15,12 @@ def reviews():
             "id": c["id"],
             "language": c["language"],
             "prompt": [asdict(m) for m in lab_request(c).messages],
+            "generation": {
+                "max_tokens": 256,
+                "temperature": 0.7,
+                "prompt_version": "compact-v1",
+                "sampling_policy": "qwen-nonthinking-p08-k20",
+            },
             "reviewer": "Native reviewer",
             "correctness": 4,
             "naturalness": 4,
@@ -37,7 +43,7 @@ def test_corpus_covers_all_stages_in_each_language_and_lab_removes_only_live_lan
             "close",
         }
     prompt = lab_request(CASES[0]).messages[0].content
-    assert "Reply in natural Gujarati script" in prompt
+    assert "Reply only in natural Gujarati script" in prompt
     assert "ALWAYS ANSWER IN HINDI" not in prompt
     assert "NO PROMISES" in prompt
     assert "MONEY" in prompt

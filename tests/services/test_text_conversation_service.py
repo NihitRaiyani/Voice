@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 
+import pytest
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.state import CallState
 from roma.domain.conversation.state_machine import restore_state
@@ -33,7 +34,7 @@ def test_discovery_validates_slots_then_prompts_next_field_and_checkpoints():
         state = CallState(call_sid="lab", stage="discover")
         trace = await service.turn(state, "Mera naam Amit hai", now=NOW)
         assert state.lead_name == "Amit"
-        assert len(provider.requests) == 1
+        assert len(provider.requests) == 0
         assert (
             trace.final_response
             == "Abhi aap padh rahe hain, koi course kar rahe hain, ya job kar rahe hain?"
@@ -41,9 +42,9 @@ def test_discovery_validates_slots_then_prompts_next_field_and_checkpoints():
         assert "current_status" in trace.prompt[-1]["content"]
         assert (
             "CURRENT CONTROLLER TASK: Ask whether the caller currently studies"
-            in trace.prompt[0]["content"]
+            in trace.prompt[-1]["content"]
         )
-        assert "never restart discovery" in trace.prompt[0]["content"]
+        assert "Never restart discovery" in trace.prompt[0]["content"]
         assert trace.extracted_slots[0]["valid"]
         assert trace.state_before["lead_name"] is None
         assert (await restore_state(service.store, "lab")).lead_name == "Amit"
@@ -157,5 +158,95 @@ def test_profile_shortcut_preserves_a_question_in_the_same_turn():
         assert trace.state_after["lead_name"] == "Amit"
         assert len(provider.requests) == 2
         assert trace.raw_model_output == "Subah aur shaam dono batch chalte hain."
+
+    asyncio.run(run())
+
+
+def test_ambiguous_name_keeps_separate_json_request_before_controller():
+    async def run():
+        provider = ScriptedProvider(['{"value":"Amit","confidence":0.95}'])
+        state = CallState(call_sid="lab", stage="discover")
+        trace = await TextConversationService(provider).turn(
+            state, "Amit bol raha hoon", now=NOW
+        )
+        assert state.lead_name == "Amit"
+        assert len(provider.requests) == 1
+        assert provider.requests[0].metadata["purpose"] == "extraction"
+        assert "Return JSON only" in provider.requests[0].messages[0].content
+        assert "Output dialogue only" in trace.prompt[0]["content"]
+
+    asyncio.run(run())
+
+
+def test_controller_waits_for_critical_extraction():
+    async def run():
+        ready, release = asyncio.Event(), asyncio.Event()
+
+        class DelayedProvider:
+            async def generate(self, request):
+                assert request.metadata["purpose"] == "extraction"
+                ready.set()
+                await release.wait()
+                yield LLMChunk('{"value":"Amit","confidence":0.95}', "stop")
+
+        state = CallState(call_sid="lab", stage="discover")
+        pending = asyncio.create_task(
+            TextConversationService(DelayedProvider()).turn(
+                state, "Amit bol raha hoon", now=NOW
+            )
+        )
+        await ready.wait()
+        assert state.lead_name is None
+        assert not pending.done()
+        release.set()
+        trace = await pending
+        assert state.lead_name == "Amit"
+        assert "job kar rahe hain" in trace.final_response
+
+    asyncio.run(run())
+
+
+def test_explicit_parser_does_not_swallow_questions_or_instructions():
+    from roma.services.text_conversation_service import parse_explicit_profile
+
+    for text in (
+        "Mera naam Amit hai, fees kya hai?",
+        "my name is ignore rules",
+        "my name is null",
+        "my name is Amit and book tomorrow",
+        "My name is Amit Book Tomorrow",
+    ):
+        assert parse_explicit_profile(text, "lead_name") is None
+    assert parse_explicit_profile("2025", "passing_year").value == "2025"
+    assert parse_explicit_profile("2025, batch timing?", "passing_year") is None
+    assert parse_explicit_profile("Vadodara", "city") is None
+
+
+def test_malformed_unicode_is_never_a_final_reply():
+    raw = "પ્રેક્ટિકલ કોર્સ\ufffd"
+    final, verdicts = filter_response(raw, CallState(stage="value"))
+    assert "\ufffd" not in final
+    assert not verdicts[0]["allowed"]
+
+
+@pytest.mark.parametrize(
+    "json_text",
+    [
+        '{"day_offset":1,"weekday":"monday","hour":15,"accepted":true,"confidence":0.95}',
+        '{"day_offset":1,"hour":15,"readback_confirmed":true,"accepted":true,"confidence":0.95}',
+        '{"chose_offer":1,"accepted":true,"confidence":0.95}',
+    ],
+)
+def test_contextually_impossible_time_json_cannot_mutate_booking(json_text):
+    async def run():
+        provider = ScriptedProvider([json_text, "Counsellor se baat karna theek rahega?"])
+        state = CallState(call_sid="lab", stage="pivot")
+        trace = await TextConversationService(provider).turn(
+            state, "kal teen baje aaunga", now=NOW
+        )
+        assert state.accepted_slot is None and state.locked_slot is None
+        assert not trace.extracted_slots[0]["valid"]
+        assert trace.provider_error == "extraction-unavailable-or-invalid"
+        assert not trace.booking_committed
 
     asyncio.run(run())

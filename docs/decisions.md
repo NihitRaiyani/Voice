@@ -32,7 +32,11 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | A24 | Provider contracts precede model/runtime integration | STT/LLM/TTS/embedding/telephony callers depend on protocols and mocks first; local/cloud adapters must pass their later level gates before use |
 | A25 | Versioned REST resources coexist with legacy dial commands | `/api/v1` exposes durable business resources with envelopes; `/api/call` remains the explicit carrier-side-effect path until a later client migration |
 
-| A26 | Pinned Qwen3-1.7B INT4 through optional Apple MLX for Mac development | Owner authorized the smaller candidate; preserve Transformers/cloud comparison, keep clear discovery questions code-owned, require native quality and measured voice latency before production promotion |
+| A26 | Pinned 1.7B default plus explicit 4B INT4 Apple text comparison | Preserve Transformers/cloud comparison; compact current-stage prompts, isolated prefix cache and critical validated extraction; native/voice approval deferred to later phases |
+
+## Compact-prompt follow-up scope
+
+The owner approved steps 1–4 on 2026-10-07: current-stage compact local prompts, immutable MLX prefix caching, separate critical extraction and a pinned 1.7B/4B text comparison. Keep native scoring and full voice/audio/interruption approval for later phases. The existing controller and cloud voice profile remain; no new stage machine, background booking extraction or automatic model promotion is introduced. Ordinary prompts target 300–500 actual tokens; the 1,024-token ceiling fails closed instead of truncating. Exact-prefix caches are bounded and cloned before request-specific generation. The [local inference contract](25-local-transformers-llm.md) owns commands and semantics; [Level 2](levels/level-02.md) owns measured evidence.
 
 ## Preserved operational invariants
 

@@ -19,7 +19,7 @@ export EMBEDDING_PROVIDER ?= mock
 export TELEPHONY_PROVIDER ?= mock
 export PUBLIC_BASE_URL ?= https://example.invalid
 
-.PHONY: local-llm-sync local-llm-mac-sync local-llm-download text-console text-console-mock language-lab help sync services-up services-down db-upgrade app-start lint type test test-ci test-provider-contracts ci pre-commit-install
+.PHONY: local-llm-compare local-llm-sync local-llm-mac-sync local-llm-download text-console text-console-mock language-lab help sync services-up services-down db-upgrade app-start lint type test test-ci test-provider-contracts ci pre-commit-install
 
 help:
 	@printf '%s\n' \
@@ -28,6 +28,7 @@ help:
 	  'make local-llm-download      download pinned trained Mac model' \
 	  'make text-console            run trained Qwen3-1.7B INT4 on Apple silicon' \
 	  'make text-console-mock       run deterministic offline console' \
+	  'make local-llm-compare        compare pinned 1.7B/4B using compact text prompts' \
 	  'make language-lab            generate 40 multilingual review cases' \
 	  'make sync                    install locked dev/telephony/worker dependencies' \
 	  'make services-up             start native local PostgreSQL and Redis; no Docker' \
@@ -55,6 +56,9 @@ text-console:
 
 text-console-mock:
 	$(UV) run --no-sync python scripts/local_llm_console.py --provider mock
+
+local-llm-compare:
+	$(UV) run --no-sync python scripts/compare_local_llms.py
 
 language-lab:
 	$(UV) run --no-sync python scripts/local_llm_language_eval.py --profile "$(LLM_PROFILE)"
@@ -95,7 +99,9 @@ test-ci: test-provider-contracts
 		tests/architecture/test_dependency_direction.py \
 		tests/core/test_migration_settings.py \
 		tests/services/test_text_conversation_service.py \
-		tests/eval/test_local_language.py
+		tests/eval/test_local_language.py \
+		tests/eval/test_local_comparison.py \
+		tests/services/test_local_llm_prompts.py
 
 test:
 	NLTK_DATA=$(NLTK_DATA) PYTHONDONTWRITEBYTECODE=1 \

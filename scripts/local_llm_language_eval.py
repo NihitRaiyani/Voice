@@ -3,6 +3,9 @@
 import argparse
 import asyncio
 import json
+import platform
+import resource
+import subprocess
 from pathlib import Path
 
 from roma.core.local_llm_config import load_local_llm_settings
@@ -12,6 +15,21 @@ from roma.providers.ai.contracts import ProviderUnavailable
 from roma.providers.ai.registry import build_llm_provider
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def host_resources() -> dict:
+    snapshot = {
+        "peak_process_rss_bytes": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        * (1 if platform.system() == "Darwin" else 1024)
+    }
+    if platform.system() == "Darwin":
+        for label, command in (
+            ("system_swap", ["sysctl", "-n", "vm.swapusage"]),
+            ("system_vm", ["vm_stat"]),
+        ):
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+            snapshot[label] = result.stdout.strip() if result.returncode == 0 else "unavailable"
+    return snapshot
 
 
 async def run(args: argparse.Namespace) -> None:
@@ -30,6 +48,7 @@ async def run(args: argparse.Namespace) -> None:
             raise SystemExit(1)
         return
     settings = load_local_llm_settings(args.profile, provider=args.provider)
+    resources_before = host_resources()
     provider = build_llm_provider(settings)
     results = []
     try:
@@ -45,6 +64,11 @@ async def run(args: argparse.Namespace) -> None:
         "revision": settings.local_llm_revision,
         "policy": policy,
         "results": results,
+        "resources": {
+            "before": resources_before,
+            "after": host_resources(),
+            "scope": "process RSS + MLX allocator; swap/vm are system-wide snapshots, not audio-load approval",
+        },
     }
     with open_private(Path(args.output), "w") as handle:
         handle.write(json.dumps(artifact, ensure_ascii=False, indent=2) + "\n")

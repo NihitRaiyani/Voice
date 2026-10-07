@@ -43,3 +43,13 @@ def test_profile_values_are_validated(tmp_path):
     profile.write_text(json.dumps({"local_llm_dtype": "invalid"}))
     with pytest.raises(ValidationError):
         load_local_llm_settings(profile)
+
+
+def test_4b_profile_is_explicit_pinned_and_does_not_replace_default():
+    candidate = load_local_llm_settings(ROOT / "configs/local-llm-mac-4b.json")
+    default = load_local_llm_settings(ROOT / "configs/local-llm-mac.json")
+    assert candidate.local_llm_model == "mlx-community/Qwen3-4B-Instruct-2507-4bit"
+    assert candidate.local_llm_revision == "50d427756c6b1b2fe0c0a10f67fbda1fc8e82c1b"
+    assert candidate.local_llm_prefix_cache
+    assert candidate.local_llm_max_prompt_tokens == 1024
+    assert default.local_llm_model == "mlx-community/Qwen3-1.7B-4bit"

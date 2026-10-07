@@ -17,7 +17,7 @@ yet.
 
 The remaining placeholder local/open-source classes are deliberately present but
 unavailable. These placeholders raise `ProviderUnavailable` with the level that must complete
-before production promotion. `Qwen3MLXLLM` adds an optional pinned 1.7B INT4 Apple development profile. `Qwen3TransformersLLM` now loads directly with Transformers in the
+before production promotion. `Qwen3MLXLLM` adds pinned 1.7B and explicit 4B INT4 Apple development profiles, immutable-prefix caching and cache/memory metrics. Text comparison does not approve native quality or voice latency. `Qwen3TransformersLLM` now loads directly with Transformers in the
 [section 11 lab](25-local-transformers-llm.md); it remains a candidate pending
 suitable-host/native quality evidence. Remaining placeholders keep config names stable without claiming their later-level runtimes or benchmark approval.
 

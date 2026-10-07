@@ -25,6 +25,7 @@ class LocalLLMSettings(BaseSettings):
     local_llm_local_files_only: bool = True
     local_llm_max_new_tokens: int = Field(default=128, ge=1, le=512)
     local_llm_max_prompt_tokens: int = Field(default=8192, ge=64, le=32768)
+    local_llm_prefix_cache: bool = True
     local_llm_temperature: float = Field(default=0.7, ge=0, le=2, allow_inf_nan=False)
     local_llm_generation_timeout_secs: float = Field(default=120, gt=0, allow_inf_nan=False)
     hf_token: SecretStr = Field(
