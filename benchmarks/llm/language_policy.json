@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "agreed_on": "2026-10-07",
+  "agreed_by": "project owner",
+  "cases": 40,
+  "languages": [
+    "gu",
+    "hi",
+    "en",
+    "code_mix"
+  ],
+  "mean_correctness_min": 4,
+  "mean_naturalness_min": 4,
+  "individual_score_min": 3,
+  "unsafe_final_replies_max": 0,
+  "reviewer_status": "native-speaker assignment pending",
+  "model_status": "candidate; not approved"
+}

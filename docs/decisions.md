@@ -7,7 +7,7 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | ID | Decision | Engineering consequence |
 |---|---|---|
 | A01 | `Voice_Agent` is the working project; v4 replaces the prior curriculum | Verify repository root; no work in Weltec for this task |
-| A02 | Implement one explicitly requested level or section at a time | Current scope is L1 section 8 REST API standardization, preserving sections 3–7 foundations; other sections, live calls and deployments require their own scope |
+| A02 | Implement one explicitly requested level or section at a time | Current scope is L2 section 11 direct Transformers/text/language lab, preserving section 10 and L1 sections 3–9 foundations; other sections, live calls and deployments require their own scope |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
 | A04 | Retain Twilio/Pipecat cloud comparison path | Use the existing Twilio adapter through the v4 migration |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
@@ -42,6 +42,10 @@ Answer receipt/call/event commit together with a three-second acceptance bound; 
 
 Post-call storage/handoff precedes exact-payload ack. PostgreSQL owns job business retries/leases/effects; Dramatiq carries ID notifications and delivery retries. Follow-up intent exists but sending is inactive. See [webhooks](18-webhook-idempotency.md) and [jobs](19-background-task-framework.md).
 
+## Section 11 candidate decision
+
+Qwen3-8B remains the direct Transformers candidate. On 2026-10-07 the 8 GiB arm64 Mac is below its admission floor; suitable-host inference/native review remain pending. The owner accepted mean correctness/naturalness ≥4/5 per language, no score below 3/5 and zero unsafe final replies. [The local LLM guide](25-local-transformers-llm.md) owns the separate multilingual procedure; live output stays Hinglish.
+
 ## Owner decisions and gates
 
 | ID | Decision / owner | Gate and safe default |
@@ -59,4 +63,4 @@ D3 in older source comments refers to Gujarati-script recognition observations. 
 
 ## Remaining engineering gaps
 
-Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; live text/local-model use still needs sections 11–12. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
+Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 sections 10–11 provide the durable latest checkpoint adapter, direct Transformers provider and text/language labs. Qwen3-8B suitable-host inference/native quality approval, section 12 durable safety audit and live integration remain pending. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).

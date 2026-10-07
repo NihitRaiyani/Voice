@@ -15,7 +15,7 @@ authoritative project context is `CLAUDE.md`; the selected source and gates are 
 
 ## Start with status and scope
 
-Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment is Level 1 section 7 provider abstraction, preserving sections 3–6 persistence/pool, relational foundations, migration workflow and architecture boundaries. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
+Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment is Level 2 section 11 direct Transformers inference/text lab, preserving section 10 state-machine/checkpoint work and Level 1 sections 3–9 foundations. The adapter and language tooling do not prove Qwen3-8B suitable-host inference or native quality approval. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
 
 Before proposing a change:
 

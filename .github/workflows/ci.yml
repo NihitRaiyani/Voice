@@ -51,4 +51,6 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 uv run --no-sync pytest -q -p no:cacheprovider \
             tests/api/v1/test_rest_resources.py \
             tests/architecture/test_dependency_direction.py \
-            tests/core/test_migration_settings.py
+            tests/core/test_migration_settings.py \
+            tests/services/test_text_conversation_service.py \
+            tests/eval/test_local_language.py

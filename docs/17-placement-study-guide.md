@@ -76,8 +76,8 @@ versioned public API schemas were completed in sections 7 and 8.
 
 Show how `STTProvider`, `LLMProvider`, `TTSProvider`, `EmbeddingProvider` and
 `TelephonyProvider` hide SDK/runtime details behind small request/result types.
-Explain why mocks are the default AI providers for tests, why future Qwen/Indic
-classes fail fast until their model levels are complete, and why switching a
+Explain why mocks are the default AI providers for tests, why remaining future Indic/vLLM
+classes fail fast until their model levels are complete (Qwen Transformers is now implemented in section 11), and why switching a
 provider should mean one adapter plus one config value rather than rewriting
 callers.
 
@@ -131,4 +131,12 @@ Show the seven-stage machine as business state, not prompt wording: `OPEN -> DIS
 
 Trace checkpoint persistence through `save_state()`/`restore_state()`: Redis remains the hot same-call cache, while `PostgresConversationStateStore` writes the latest compatible `CallState` to `conversation_states` through short unit-of-work sessions. The row carries schema version, policy version, revision, canonical stage, JSON state and expiry. Restore refuses missing calls, expired rows and schema/policy mismatches rather than replaying unsafe state.
 
-Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: text demo wiring, local Qwen inference, structured safety-event audit, redial/session identity and L7 recovery drills.
+Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: Qwen3-8B suitable-host inference/native review, structured safety-event audit, redial/session identity and L7 recovery drills. Section 11 now wires the text console and direct Transformers adapter.
+
+## Level 2 section 11 explanation
+
+Trace text → chat template/tokenizer → token IDs → device → model/logits → greedy or sampled tokens → decoded chunks. Show `Qwen3TransformersLLM` behind `LLMProvider` and explain lazy loading, `eval()` versus `inference_mode()`, BF16/FP16/FP32 versus INT4 storage/compute, and why Qwen thinking is disabled for narrow replies. Explain why an 8 GiB Mac cannot run full-precision Qwen3-8B and why an explicit smaller-model experiment is different evidence.
+
+Run the text console to show current state, schema-validated extracted slots, one narrow task/prompt, raw model output, deterministic safety and final reply. Demonstrate that malformed JSON cannot select a stage, code resolves dates, model failure uses safe fallback and a conversational lock is not a committed booking. Explain request serialization and stopping at token boundaries; Level 7 still owns production streaming/queue guarantees.
+
+Defend the metrics: TTFT is first generated token after loading/tokenization, not first printable word; tokens/second uses generated token count and elapsed generation time. Report cold load separately and CUDA peak memory only when available. Explain why a tiny random-weight smoke proves decoding mechanics but no language quality. The 40-case lab covers every stage in Gujarati/Hindi/English/code-mix; native correctness/naturalness must average ≥4/5 per language, every score ≥3/5, with zero unsafe final replies. Missing reviews and mock outputs cannot pass. Read [the local LLM guide](25-local-transformers-llm.md); suitable-host 8B/native evidence and section 12 safety audit remain pending.

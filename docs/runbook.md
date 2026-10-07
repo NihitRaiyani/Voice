@@ -123,3 +123,11 @@ Before a separately authorized test, verify destination/consent, all provider re
 Recovery drills at L8–13 cover GPU OOM/restart/admission, Redis reconstruction from durable checkpoints, PostgreSQL restore/PITR, safe job replay, immediate knowledge-version deactivation/cache exclusion and compatible API/worker/model rollback. Define RTO/RPO, stop new intake, preserve queue/spool/database state and record observed recovery evidence. These are future acceptance procedures, not guarantees of the present code.
 
 See [verification](12-verification.md), [security](07-security.md), [webhooks](18-webhook-idempotency.md), [jobs](19-background-task-framework.md) and [decisions](decisions.md).
+
+## Level 2 section 11 text/local LLM lab
+
+Use `make local-llm-sync` to install the optional locked Transformers runtime. `make text-console` starts with mocks by default; `LLM_PROVIDER=qwen3_transformers make text-console` selects direct local generation. Local-only settings load `.env` without requiring cloud/telephony/database keys. Keep any existing HF token in `.env`; do not print it. Cache-only model loading is default; explicitly set `LOCAL_LLM_LOCAL_FILES_ONLY=false` on suitable hardware to permit downloads.
+
+Run `LLM_PROVIDER=qwen3_transformers make language-lab` to generate the 40-case review artifact under ignored owner-only `var/roma/llm-lab/review.json`. Native reviewers fill their name, correctness/naturalness 1–5 and `unsafe_final` boolean. Score with `uv run --no-sync python scripts/local_llm_language_eval.py --score var/roma/llm-lab/review.json`; pending or failing review exits nonzero. Mock outputs cannot pass. Live Roma still replies in Hindi-base Hinglish. See [direct inference/device/precision/metrics guidance](25-local-transformers-llm.md).
+
+The 8 GiB arm64 development Mac does not meet Qwen3-8B admission. Use a suitable host; INT4 requires the explicit Linux CUDA/bitsandbytes extra. Do not claim real 8B/native quality from offline tests or a tiny random-model smoke. The console prints synthetic turn diagnostics and uses an in-memory checkpoint store; persisted calls can use section 10's injected PostgreSQL store. This text lab does not commit appointments or replace live carrier inference.

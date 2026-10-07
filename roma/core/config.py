@@ -9,11 +9,13 @@ from functools import lru_cache
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
+
+from roma.core.local_llm_config import LocalLLMSettings
 
 
 # BaseSettings automatically reads values from environment variables.
-class Settings(BaseSettings):
+class Settings(LocalLLMSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

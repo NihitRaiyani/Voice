@@ -6,12 +6,12 @@
 
 The user's selected v4 Word file governs future development. Explicit user decisions and preserved Weltec business/safety/privacy rules take precedence over its sample snippets and example providers. Reference material is not permission to call, spend, deploy or bypass safeguards.
 
-Implementation proceeds only for the user's explicitly requested level or section. The latest authorized increment is Level 1 section 9 testing/linting/native startup and CI skeleton, preserving completed sections 3–8 persistence/pool, relational foundations, migration workflow, architecture boundaries, provider abstraction and versioned REST API. Add missing foundations through additive migrations; knowledge tables remain Level 9. Preserve existing foundations, assess prerequisites and retain evidence/limitations in the level brief. Do not create handoff, log or session journals.
+Implementation proceeds only for the user's explicitly requested level or section. The latest authorized increment is Level 2 section 11 direct Transformers LLM, text console and separate language lab, preserving section 10 state-machine/checkpoint work and Level 1 sections 3–9 foundations. Qwen3-8B remains a candidate; suitable-host inference and native language review must be recorded before model approval. Add missing foundations through additive migrations; knowledge tables remain Level 9. Preserve existing foundations, assess prerequisites and retain evidence/limitations in the level brief. Do not create handoff, log or session journals.
 
 ## Current facts versus target
 
 - Twilio is the active carrier, using signed `/answer` and `/ws`, Account SID checks and native Pipecat serialization. No frontend exists.
-- PostgreSQL/Alembic, appointment repository locking/uniqueness, atomic answer receipts, durable post-call/job processing and the Level 2 section 10 conversation-state machine/checkpoint adapter are present. Live appointment commit, local models, RAG, RBAC, broader restore drills and production telemetry remain incomplete.
+- PostgreSQL/Alembic, appointment repository locking/uniqueness, atomic answer receipts, durable post-call/job processing and the Level 2 section 10 conversation-state machine/checkpoint adapter are present. The local Transformers adapter/text console/language lab are implemented; Qwen3-8B inference on suitable hardware and native review, live appointment commit, local speech models, RAG, RBAC, broader restore drills and production telemetry remain incomplete.
 - Sarvam/OpenAI form the comparison voice profile. Final local production must make zero external GenAI API calls. Keep the tested cloud profile during measured migration.
 - Preserve the layered `roma/` modular monolith. The roadmap's example tree/carrier does not authorize a rewrite or carrier switch.
 - Existing infrastructure Compose predates v4. Keep it as compatibility tooling; do not expand containerization before Level 13. Provide a native-service foundation path first.

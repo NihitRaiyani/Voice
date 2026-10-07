@@ -33,7 +33,7 @@ The diagram shows current ownership. It does not show a committed appointment on
 | Services | Call, webhook, post-call and dispatcher use cases |
 | Domain | Conversation, appointment time resolution, safety, cost and persistence contracts |
 | Repositories | PostgreSQL units of work/records and Redis transient adapters |
-| Providers | Twilio, calendar and Dramatiq SDK boundaries; provider contracts exist since L1 section 7 and local adapters arrive at L2–5 |
+| Providers | Twilio, calendar and Dramatiq SDK boundaries; provider contracts exist since L1 section 7; direct Transformers adapter/text lab exists at L2 section 11, local speech adapters arrive at L4–5 |
 | Realtime | Pipecat processors, endpointing, streaming/cancellation, recorder and safe speech |
 | Workers | Recording finalization and database-authoritative background effects |
 
@@ -58,3 +58,5 @@ L1 section 6 moves shared private-file primitives into `roma.core.private_files`
 Keep Twilio and the existing Pipecat comparison profile. Direct local inference precedes model serving; embeddings/pgvector arrive with conditional RAG at L9. Final local production permits carrier/internal services while using zero external GenAI APIs.
 
 Existing Compose is pre-v4 infrastructure tooling, not proof of Level 13. No production host/GPU/SLO is established by these docs. Replica growth requires measured capacity, shared coordination and route/auth checks; recording startup recovery currently supports one recording consumer. See [state](06-state-and-cache.md), [concurrency](08-concurrency.md) and [decisions](decisions.md).
+
+The [section 11 text lab](25-local-transformers-llm.md) composes `TextConversationService` with `LLMProvider` and the existing controller/safety modules. Model loading stays in the provider, corpus/scoring in `roma.eval`, console commands in `scripts`. Neither database sessions nor cloud calls surround local decoding. The live Pipecat path is unchanged until measured integration.

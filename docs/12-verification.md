@@ -1,6 +1,6 @@
 # Verification and acceptance evidence
 
-Latest complete-suite verification after the [Level 2 section 10 increment](levels/level-02.md): **1,674 tests passed, 23 warnings, no failures or skips**. The new `make ci` skeleton starts native local services, runs Ruff, runs mypy on the Level 1 contract surface, applies Alembic to the local database, passes **38 provider/config tests** and passes **11 mocked API/architecture/migration-settings tests**. Pre-commit hooks pass across all files.
+Latest complete-suite verification after the [Level 2 section 11 increment](levels/level-02.md): **1,705 tests passed, 23 warnings, no failures or skips**. The Level 1 `make ci` skeleton includes native-service startup and migrations. For section 11, fresh Ruff and mypy checks (21 source files) passed, and `make test-ci` passed **59 provider/config tests** and **21 mocked API/architecture/migration-settings/text/language tests**. Pre-commit uses the same lint/type/provider checks; see the level brief for the latest invocation.
 
 The earlier [Level 0 baseline report](roadmaps/level-00-baseline.md) remains historical evidence of 1,571 passing tests and five lint findings before this increment. Its test/identity record is not rewritten as current implementation evidence. L1 records capacity/pressure/timeout/cancellation, relational constraint/migration/legacy-compatibility, separate-seed workflow results and the section 9 workflow skeleton. Level 2 section 10 records the software-owned state-machine facade and durable latest-checkpoint adapter. Hosted GitHub Actions passed on 2026-10-05 for commit `ac99270`; Level 0 clean-machine evidence remains separate.
 
@@ -48,7 +48,7 @@ migration because the full disposable-integration suite creates its own database
 clusters. The full suite remains `make test` and passed separately after local
 services were stopped.
 
-Section 10 adds the Level 2 state-machine facade and durable latest-checkpoint adapter. Focused verification covers the public stage API, transition/objection/interruption/missing-information helpers, `route_intent()` classification, PostgreSQL latest-checkpoint revision increments and compatible `PostgresConversationStateStore` save/restore by provider call ID. This does not pass local inference, safety-audit, redial/session or L7 recovery gates.
+Section 10 adds the Level 2 state-machine facade and durable latest-checkpoint adapter. Focused verification covers the public stage API, transition/objection/interruption/missing-information helpers, `route_intent()` classification, PostgreSQL latest-checkpoint revision increments and compatible `PostgresConversationStateStore` save/restore by provider call ID. Section 11 adds the direct Transformers/text/language lab. Offline tests cover runtime selection, cache/revision/token boundaries, pre-download memory admission, streaming/token timing, timeout/cancellation cleanup, validated extraction, deterministic final safety and native scoring rejection. Console/lab mock smoke and real tiny-random Qwen3 Transformers SDK smoke pass; the real 8B admission check refuses this 8 GiB host before loading. This does not pass real 8B inference, native review, safety-audit, redial/session or L7 recovery gates. See [the local inference guide](25-local-transformers-llm.md).
 
 ## Evidence rules
 

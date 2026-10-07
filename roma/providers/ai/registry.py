@@ -40,7 +40,7 @@ def build_llm_provider(settings) -> LLMProvider:
         case "mock":
             return MockLLMProvider()
         case "qwen3_transformers":
-            return Qwen3TransformersLLM("Qwen3TransformersLLM", "Level 2")
+            return Qwen3TransformersLLM(settings)
         case "qwen3_vllm":
             return Qwen3VLLMClient("Qwen3VLLMClient", "Level 10")
     raise ValueError(f"unknown LLM provider {settings.llm_provider!r}")

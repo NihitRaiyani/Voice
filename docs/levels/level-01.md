@@ -259,8 +259,8 @@ Config fields select providers: `STT_PROVIDER`, `LLM_PROVIDER`, `TTS_PROVIDER`,
 automated tests do not call paid providers. Telephony defaults to Twilio to
 preserve current runtime behavior; tests select the mock explicitly.
 
-Current concrete adapters are deterministic mocks plus named future adapters:
-`IndicConformerSTT`, `WhisperSTT`, `Qwen3TransformersLLM`,
+At section 7, concrete adapters were deterministic mocks plus named future adapters. Level 2 section 11 now implements `Qwen3TransformersLLM`; remaining future adapters are:
+`IndicConformerSTT`, `WhisperSTT`,
 `Qwen3VLLMClient`, `IndicTTSProvider` and `LocalMultilingualEmbedding`. Future
 adapters raise `ProviderUnavailable` until their own level installs models,
 credentials, hardware checks and benchmarks. The [provider guide](../23-provider-contracts.md)
