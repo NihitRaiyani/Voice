@@ -76,8 +76,8 @@ versioned public API schemas were completed in sections 7 and 8.
 
 Show how `STTProvider`, `LLMProvider`, `TTSProvider`, `EmbeddingProvider` and
 `TelephonyProvider` hide SDK/runtime details behind small request/result types.
-Explain why mocks are the default AI providers for tests, why remaining future Indic/vLLM
-classes fail fast until their model levels are complete (Qwen Transformers is now implemented in section 11), and why switching a
+Explain why mocks are the default AI providers for tests, why future Qwen/Indic
+classes fail fast until their model levels are complete, and why switching a
 provider should mean one adapter plus one config value rather than rewriting
 callers.
 
@@ -131,22 +131,4 @@ Show the seven-stage machine as business state, not prompt wording: `OPEN -> DIS
 
 Trace checkpoint persistence through `save_state()`/`restore_state()`: Redis remains the hot same-call cache, while `PostgresConversationStateStore` writes the latest compatible `CallState` to `conversation_states` through short unit-of-work sessions. The row carries schema version, policy version, revision, canonical stage, JSON state and expiry. Restore refuses missing calls, expired rows and schema/policy mismatches rather than replaying unsafe state.
 
-Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: Qwen3-8B suitable-host inference/native review, structured safety-event audit, redial/session identity and L7 recovery drills. Section 11 wires the text console, direct Transformers and optional Apple Qwen3-1.7B INT4 adapter.
-
-## Level 2 section 11 explanation
-
-Trace text → chat template/tokenizer → token IDs → device → model/logits → greedy or sampled tokens → decoded chunks. Show `Qwen3TransformersLLM` behind `LLMProvider` and explain lazy loading, `eval()` versus `inference_mode()`, BF16/FP16/FP32 versus INT4 storage/compute, and why Qwen thinking is disabled for narrow replies. Explain why an 8 GiB Mac cannot run full-precision Qwen3-8B and why the owner-selected pinned 1.7B INT4 Apple profile is separate evidence. Explain that MLX packed 4-bit weights use a different backend from Transformers/CUDA bitsandbytes; both satisfy the same interface. A larger model earns selection through measured extraction, latency, memory and native quality.
-
-Run the text console to show current state, schema-validated extracted slots, one narrow task/prompt, raw model output, deterministic safety and final reply. Demonstrate that malformed JSON cannot select a stage, code resolves dates, model failure uses safe fallback and a conversational lock is not a committed booking. Explain request serialization and stopping at token boundaries; Level 7 still owns production streaming/queue guarantees.
-
-Defend the metrics: TTFT is first generated token after loading/tokenization, not first printable word; tokens/second uses generated token count and elapsed generation time. Report cold load separately and CUDA peak memory only when available. Explain why a tiny random-weight smoke proves decoding mechanics but no language quality. The 40-case lab covers every stage in Gujarati/Hindi/English/code-mix; native correctness/naturalness must average ≥4/5 per language, every score ≥3/5, with zero unsafe final replies. Missing reviews and mock outputs cannot pass. Read [the local LLM guide](25-local-transformers-llm.md); suitable-host 8B/native evidence and section 12 safety audit remain pending.
-
-The Mac 1.7B experiment demonstrates why fitting weights is only an entry check. Explain the observed wrong-language/task outputs, why clear discovery questions stay code-owned after validated extraction, why mixed questions still need wording, and why stale prompts cannot reuse a native review. Use [the measured evidence](levels/level-02.md#mac-development-candidate-verification); production language/voice approval remains open.
-
-## Section 11 compact-prompt follow-up explanation
-
-Explain why the code-owned state machine already solves flow authority but does not prevent overlong prompts. Show `local_llm_prompts.py`: immutable policy plus only the current task/stage, compact validated data and relevant approved facts. Compare actual token counts, not character counts. A 1,024-token rejection ceiling is different from the ordinary 300–500-token design target. Keep the original cloud fragments for their separate live profile.
-
-Trace exact-prefix KV reuse in MLX: model/revision/token identity, bounded entries, a fresh per-request cache copy and failure/cancellation isolation. Show why changed stage or caller data still needs processing and why cached and uncached greedy decoding must agree. Critical extraction is awaited before the next controller decision; backgrounding it can generate a reply from stale state. Explicit profile parsing is deliberately conservative; mixed questions and idiomatic visit times still need validated JSON extraction.
-
-Run `make local-llm-compare` to compare 1.7B and 4B in isolated processes. Interpret median/p95 model TTFT, cache misses and memory observations. Process RSS and MLX allocator figures overlap; system swap snapshots cannot attribute usage to Roma. Native scoring, audio-load benchmarking and complete voice/interruption approval are deferred by the owner, not passed by this text exercise. See [the inference contract](25-local-transformers-llm.md).
+Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: text demo wiring, local Qwen inference, structured safety-event audit, redial/session identity and L7 recovery drills.

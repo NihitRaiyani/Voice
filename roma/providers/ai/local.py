@@ -1,7 +1,7 @@
-"""Local provider exports and remaining open-source placeholders.
+"""Named local/open-source provider placeholders for later levels.
 
-Direct Qwen Transformers inference arrives at Level 2 section 11; remaining
-model integrations land in their own levels. Candidate quality needs native review.
+Level 1 owns dependency inversion and mockability. Actual model loading,
+hardware admission and quality benchmarks land in the model-specific levels.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ from roma.providers.ai.contracts import (
     TTSRequest,
     TTSResult,
 )
-from roma.providers.ai.transformers_llm import Qwen3TransformersLLM
 
 
 @dataclass(frozen=True)
@@ -44,6 +43,12 @@ class IndicConformerSTT(_UnavailableProvider):
 class WhisperSTT(_UnavailableProvider):
     async def transcribe(self, request: STTRequest) -> STTResult:
         self._raise()
+
+
+class Qwen3TransformersLLM(_UnavailableProvider):
+    async def generate(self, request: LLMRequest) -> AsyncIterator[LLMChunk]:
+        self._raise()
+        yield LLMChunk("")
 
 
 class Qwen3VLLMClient(_UnavailableProvider):

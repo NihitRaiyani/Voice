@@ -62,28 +62,9 @@ class LLMRequest:
 
 
 @dataclass(frozen=True)
-class LLMGenerationMetrics:
-    model: str
-    revision: str
-    device: str
-    dtype: str
-    load_secs: float
-    prompt_tokens: int
-    generated_tokens: int
-    ttft_ms: float | None
-    generation_secs: float
-    tokens_per_second: float
-    peak_cuda_bytes: int | None = None
-    cached_prompt_tokens: int = 0
-    prefix_cache_hit: bool = False
-    peak_mlx_bytes: int | None = None
-
-
-@dataclass(frozen=True)
 class LLMChunk:
     text: str
     finish_reason: str | None = None
-    metrics: LLMGenerationMetrics | None = None
 
 
 @runtime_checkable
@@ -136,7 +117,6 @@ __all__ = [
     "EmbeddingRequest",
     "EmbeddingResult",
     "LLMChunk",
-    "LLMGenerationMetrics",
     "LLMMessage",
     "LLMProvider",
     "LLMRequest",

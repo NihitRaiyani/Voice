@@ -7,7 +7,7 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | ID | Decision | Engineering consequence |
 |---|---|---|
 | A01 | `Voice_Agent` is the working project; v4 replaces the prior curriculum | Verify repository root; no work in Weltec for this task |
-| A02 | Implement one explicitly requested level or section at a time | Current scope is L2 section 11 direct Transformers/text/language lab, preserving section 10 and L1 sections 3–9 foundations; other sections, live calls and deployments require their own scope |
+| A02 | Implement one explicitly requested level or section at a time | Current scope is L1 section 8 REST API standardization, preserving sections 3–7 foundations; other sections, live calls and deployments require their own scope |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
 | A04 | Retain Twilio/Pipecat cloud comparison path | Use the existing Twilio adapter through the v4 migration |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
@@ -32,12 +32,6 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | A24 | Provider contracts precede model/runtime integration | STT/LLM/TTS/embedding/telephony callers depend on protocols and mocks first; local/cloud adapters must pass their later level gates before use |
 | A25 | Versioned REST resources coexist with legacy dial commands | `/api/v1` exposes durable business resources with envelopes; `/api/call` remains the explicit carrier-side-effect path until a later client migration |
 
-| A26 | Pinned 1.7B default plus explicit 4B INT4 Apple text comparison | Preserve Transformers/cloud comparison; compact current-stage prompts, isolated prefix cache and critical validated extraction; native/voice approval deferred to later phases |
-
-## Compact-prompt follow-up scope
-
-The owner approved steps 1–4 on 2026-10-07: current-stage compact local prompts, immutable MLX prefix caching, separate critical extraction and a pinned 1.7B/4B text comparison. Keep native scoring and full voice/audio/interruption approval for later phases. The existing controller and cloud voice profile remain; no new stage machine, background booking extraction or automatic model promotion is introduced. Ordinary prompts target 300–500 actual tokens; the 1,024-token ceiling fails closed instead of truncating. Exact-prefix caches are bounded and cloned before request-specific generation. The [local inference contract](25-local-transformers-llm.md) owns commands and semantics; [Level 2](levels/level-02.md) owns measured evidence.
-
 ## Preserved operational invariants
 
 Store lead context before Twilio dialing; check public reachability before consuming hourly allowance. Fail before dialing if required lead storage fails. Cosmetic status-store failure after accepted dialing must not report the dial as failed. Outbound direction follows custom lead-parameter presence even on Redis degradation.
@@ -47,10 +41,6 @@ Twilio HTTP/WS signature and start Account SID checks remain. Stream lead metada
 Answer receipt/call/event commit together with a three-second acceptance bound; unavailable persistence is 503, changed-input identity is 409. Independent receipt retention prevents replay from recreating deleted calls. Redis status is a best-effort monotonic projection. Neither transaction guarantees exactly-once remote execution.
 
 Post-call storage/handoff precedes exact-payload ack. PostgreSQL owns job business retries/leases/effects; Dramatiq carries ID notifications and delivery retries. Follow-up intent exists but sending is inactive. See [webhooks](18-webhook-idempotency.md) and [jobs](19-background-task-framework.md).
-
-## Section 11 candidate decision
-
-On 2026-10-07 the owner authorized Qwen3-1.7B INT4 or a suitable larger model. Select the pinned `mlx-community/Qwen3-1.7B-4bit` conversion through optional `Qwen3MLXLLM` for the 8 GiB Apple development host; native quality and live voice latency remain gates. Preserve direct Transformers for learning/comparison. Qwen3-8B remains a suitable-host candidate; this Mac is below its direct-inference admission floor. The trained 1.7B run works, but sample language/task errors prevent production approval. Clear validated discovery answers use code-owned next-field questions; mixed questions retain model wording. Larger candidates require measured headroom and better accepted responses, not parameter-count assumptions. The owner accepted mean correctness/naturalness ≥4/5 per language, no score below 3/5 and zero unsafe final replies. [The local LLM guide](25-local-transformers-llm.md) owns the separate multilingual procedure; live output stays Hinglish.
 
 ## Owner decisions and gates
 
@@ -69,4 +59,4 @@ D3 in older source comments refers to Gujarati-script recognition observations. 
 
 ## Remaining engineering gaps
 
-Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 sections 10–11 provide the durable latest checkpoint adapter, direct Transformers and optional Apple INT4 providers with text/language labs. Qwen3-8B suitable-host inference/native quality approval, section 12 durable safety audit and live integration remain pending. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
+Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; live text/local-model use still needs sections 11–12. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).

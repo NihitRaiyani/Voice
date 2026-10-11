@@ -11,18 +11,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-local-llm = [
-    "torch>=2.6,<3",
-    "transformers>=4.57,<5",
-    "accelerate>=1.6,<2",
-    "psutil>=6,<8",
-]
-local-llm-mac = [
-    "mlx-lm>=0.28,<1; sys_platform == 'darwin' and platform_machine == 'arm64'",
-]
-local-llm-int4 = [
-    "bitsandbytes>=0.46,<1; sys_platform == 'linux'",
-]
 workers = [
     "dramatiq[redis]>=2.0,<3",
 ]
@@ -61,11 +49,6 @@ markers = [
 python_version = "3.11"
 files = [
     "roma/providers/ai",
-    "roma/core/local_llm_config.py",
-    "roma/services/text_conversation_service.py",
-    "roma/services/local_llm_prompts.py",
-    "roma/eval/local_language.py",
-    "roma/eval/local_comparison.py",
     "roma/providers/telephony",
     "roma/api/v1/responses.py",
     "roma/schemas/rest_api.py",
