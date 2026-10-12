@@ -1,22 +1,22 @@
 # Engineering decisions and owner questions
 
-These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve implemented foundations and distinguish source presence from verified level completion.
+These decisions adapt the OpenAI roadmap to the actual `Voice_Agent` repository. They preserve implemented foundations and distinguish source presence from verified level completion.
 
 ## Accepted decisions
 
 | ID | Decision | Engineering consequence |
 |---|---|---|
-| A01 | `Voice_Agent` is the working project; v4 replaces the prior curriculum | Verify repository root; no work in Weltec for this task |
-| A02 | Implement one explicitly requested level or section at a time | Current scope is L1 section 8 REST API standardization, preserving sections 3–7 foundations; other sections, live calls and deployments require their own scope |
+| A01 | `Voice_Agent` is the working project; the OpenAI Word roadmap supersedes v4 | Verify repository root; no work in Weltec for this task |
+| A02 | Implement one explicitly requested level or section at a time | Current scope audits sections 1–10 against the OpenAI source and then implements section 11; preserve all earlier foundations; other sections, live calls and deployments require their own scope |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
-| A04 | Retain Twilio/Pipecat cloud comparison path | Use the existing Twilio adapter through the v4 migration |
+| A04 | Retain Twilio/Pipecat cloud comparison path | Keep the existing Twilio adapter and OpenAI LLM; local speech changes require later gates |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
 | A06 | Code owns stages, dates, booking, safety, consent and hang-up | Models supply wording/extraction; never business authority |
 | A07 | Live Hindi-base Hinglish; understand three languages/code-mix | User confirmed separate multilingual-output lab |
-| A08 | Provider contracts first, direct local inference before vLLM | Candidate Qwen/Indic quality/hardware/licenses require evidence |
+| A08 | Provider contracts first, OpenAI LLM and direct local speech inference | OpenAI quality/latency/budget and Indic speech/embedding quality/hardware/licenses require evidence |
 | A09 | Conditional governed RAG at L9, local embeddings and pgvector exact first | Booking/control/safety bypass retrieval; no separate vector DB by default |
 | A10 | Full Docker packaging at L13; L14 optional | Existing Compose is compatibility tooling, not foundation requirement or gate pass |
-| A11 | Final local production makes zero external GenAI API calls | Keep cloud comparison profile explicit during migration |
+| A11 | OpenAI is the only permitted external GenAI API in the target | Keep OpenAI for the LLM; replace cloud speech only after measured local ASR/TTS gates |
 | A12 | Short booking commit permitted in live turn; external sync/recording conversion asynchronous | No transaction spans inference/audio or network waits |
 | A13 | Reuse atomic answer receipt/call/event and durable job ledger | Complete remaining security/governance controls rather than rebuilding these paths |
 | A14 | One recording consumer; separate row-claimed Dramatiq concurrency | Startup inflight recovery is not multi-consumer safe |
@@ -31,6 +31,9 @@ These decisions adapt v4 to the actual `Voice_Agent` repository. They preserve i
 | A23 | Treat `roma/` as the v4 backend app package rather than renaming to `backend/app` | Preserve import stability; enforce module ownership and domain dependency direction with tests |
 | A24 | Provider contracts precede model/runtime integration | STT/LLM/TTS/embedding/telephony callers depend on protocols and mocks first; local/cloud adapters must pass their later level gates before use |
 | A25 | Versioned REST resources coexist with legacy dial commands | `/api/v1` exposes durable business resources with envelopes; `/api/call` remains the explicit carrier-side-effect path until a later client migration |
+
+| A26 | The OpenAI source supersedes the local-LLM plan | No Qwen runtime; local speech/embeddings remain later work; OpenAI is the only permitted target cloud GenAI provider |
+| A27 | Quota-safe section 11 validation | Use injected SDK transports/mocks; native scoring, paid latency, full voice approval and live integration remain separate gates |
 
 ## Preserved operational invariants
 
@@ -49,7 +52,7 @@ Post-call storage/handoff precedes exact-payload ack. PostgreSQL owns job busine
 | D1 | Approved course/certificate facts — Weltec academic/business owner | Safety/L9; Weltec certificate only until approval |
 | D2 | Disclosure wording/audio, contact consent, retention/deletion/backup policy — institute privacy owner | L8/L10/production; pending marker means no retained audio |
 | D4 | Branch visiting hours, slot duration/capacity/cancellation and counsellor policy — counselling owner | L3; current active uniqueness supports one appointment per slot |
-| D5 | Local-model/GPU budget, licenses and approved evaluation corpus — engineering/institute owner | L2/L4/L5/L10; candidates unselected until benchmark/license review |
+| D5 | Local speech/embedding GPU budget/licenses, OpenAI model/budget and approved evaluation corpus — engineering/institute owner | L2/L4/L5/L10; candidates unselected until benchmark/license review |
 | D6 | Production TLS origin/host, secrets, RTO/RPO and backup ownership — operations owner | L13; no host or recovery objective implied |
 | D7 | Roles/session/revocation, provider replay and token URL exposure policy — security/institute owner | L8; signature/idempotency do not complete user auth or replay policy |
 | D8 | Measured quality/latency/capacity SLOs — product/engineering owner | L12; roadmap numbers remain provisional |
@@ -59,4 +62,4 @@ D3 in older source comments refers to Gujarati-script recognition observations. 
 
 ## Remaining engineering gaps
 
-Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; live text/local-model use still needs sections 11–12. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
+Live transactional booking, provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; the new OpenAI provider/text seam is section 11; structured safety audit remains section 12. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).

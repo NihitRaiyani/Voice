@@ -1,6 +1,6 @@
 # Voice_Agent documentation
 
-This is the project's canonical documentation entry point. v4 defines future development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–9 cover persistence/pool safeguards, relational foundations, migration/separate-demo workflow, backend architecture boundaries, provider contracts, versioned REST resources and the day-one testing/CI skeleton.
+This is the project's canonical documentation entry point. The selected OpenAI roadmap defines development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–9 cover persistence/pool safeguards, relational foundations, migration/separate-demo workflow, backend architecture boundaries, provider contracts, versioned REST resources and the day-one testing/CI skeleton.
 
 ## Level briefs
 
@@ -10,7 +10,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 |---|---|---|
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
 | 1 | [Backend foundation](levels/level-01.md) | Sections 3–9 foundations implemented; hosted CI green, full review evidence still separate |
-| 2 | [Text/local LLM](levels/level-02.md) | Section 10 state machine/checkpoint adapter present; local inference/safety sections pending |
+| 2 | [Text/OpenAI LLM](levels/level-02.md) | Sections 10–11 state/checkpoints and OpenAI/mock text seam present; native/live quality and structured safety audit pending |
 | 3 | [Transactional booking](levels/level-03.md) | Repository present; live/API integration pending |
 | 4 | [Audio/local ASR](levels/level-04.md) | Cloud baseline; local lab planned |
 | 5 | [Local TTS](levels/level-05.md) | Cloud cache; local lab planned |
@@ -52,11 +52,13 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [22 Backend architecture contract](22-backend-architecture-contract.md) | Modular monolith map, dependency direction and section 6 boundary enforcement |
 | [23 Provider contracts](23-provider-contracts.md) | STT/LLM/TTS/embedding/telephony interfaces, mocks and config switching |
 
+| [25 OpenAI LLM](25-openai-llm.md) | Thin SDK adapter, text flow, failure/budget/privacy contract and deferred native review |
+
 ## Decisions, source and operation
 
 - [Decision register](decisions.md): adopted choices, owner decisions and known gaps.
 - [Runbook](runbook.md): baseline setup, migrations, workers and recovery procedures.
-- [v4 source mapping](roadmaps/README.md): unchanged Word file and section-to-level coverage.
+- [OpenAI source mapping](roadmaps/README.md): unchanged Word file and section-to-level coverage.
 - [Baseline evidence](roadmaps/level-00-baseline.md): source/environment identity and fresh results.
 - [Completion contract](completion-contract.md): nine mandatory areas, final demo and student deliverables.
 - [Historical archive](archive/README.md): pre-v4 references, not active build instructions.

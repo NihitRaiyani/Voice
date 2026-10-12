@@ -1,6 +1,6 @@
 # Level 3 — Transactional booking
 
-**v4 sections:** 13. **Status:** Repository foundation implemented; live/API commit, cancellation and full gate pending.
+**Roadmap sections:** 13. **Status:** Repository foundation implemented; live/API commit, cancellation and full gate pending.
 
 ## Entry gate
 

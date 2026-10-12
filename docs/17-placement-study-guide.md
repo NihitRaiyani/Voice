@@ -1,14 +1,14 @@
 # Placement and viva study guide
 
-Use v4's level sequence as a learning progression. Trace behavior, identify the invariant, reproduce a failure, show evidence and defend a trade-off. Do not memorize technology names or claim unmeasured scale.
+Use the OpenAI roadmap's level sequence as a learning progression. Trace behavior, identify the invariant, reproduce a failure, show evidence and defend a trade-off. Do not memorize technology names or claim unmeasured scale.
 
 | Levels | Concepts to explain | Evidence |
 |---|---|---|
 | 0–1 | Async HTTP/WS/audio, modular monolith, contracts/mocks, ER/migrations/pools, versioned APIs | Call trace, clean setup, ER/contract and CI checks |
-| 2–3 | Deterministic stages, tokenization/decoding, TTFT, structured extraction, booking transactions/locks/uniqueness | Text/local model demo, restore/safety tests, race/cancel/conflict report |
+| 2–3 | Deterministic stages, OpenAI streaming/budgets, TTFT, structured extraction, booking transactions/locks/uniqueness | OpenAI/mock text demo, restore/safety tests, race/cancel/conflict report |
 | 4–6 | PCM/μ-law/resampling, VAD versus endpointing, language tracking, WER/CER/RTF and first audio | Representative speech benchmarks and local voice demo |
 | 7–8 | Backpressure, CPU offload, cancellation, recovery, idempotency, leases/retries, auth/RBAC/privacy | Failure trace, queue tests, duplicate/crash tests and permission/data-flow map |
-| 9–10 | Embeddings, scoped retrieval, grounding/deferral, serving/GPU admission and carrier integration | Golden RAG report and authorized local-model live evidence |
+| 9–10 | Embeddings, scoped retrieval, grounding/deferral, serving/GPU admission and carrier integration | Golden RAG report and authorized local speech/OpenAI live evidence |
 | 11–13 | Traces/metrics, SQL analytics/cost units, capacity/chaos/SLOs and deployment recovery | Real dashboard, capacity report, clean-host startup/rollback and recovery drill |
 | 14 | Quantization/fine-tuning/reranking/hybrid search trade-offs | Measured bottleneck and reproducible improvement |
 
@@ -20,7 +20,7 @@ Use v4's level sequence as a learning progression. Trace behavior, identify the 
 4. Why can a callback handler run repeatedly but commit one business effect?
 5. What happens after a commit succeeds but an HTTP/broker acknowledgement is lost?
 6. Why do recording and Dramatiq consumers have different scaling constraints?
-7. What does direct local inference teach before vLLM?
+7. Why keep OpenAI behind a provider interface, with bounded retries and a spend cap?
 8. How do Gujarati/code-mix WER/CER and TTS intelligibility differ from a few successful demos?
 9. Which queues can drop data and which cannot?
 10. What must be cancelled/cleared during barge-in?
@@ -69,20 +69,20 @@ and in-memory adapter; private file permission helpers live in `roma.core`
 instead of making the spend ledger depend on post-call workers.
 
 Explain what this does not finish: type checking, CI/pre-commit and native
-one-command startup are still later Level 1 work. Provider contract mocks and
+one-command startup were completed in section 9. Provider contract mocks and
 versioned public API schemas were completed in sections 7 and 8.
 
 ## Level 1 section 7 explanation
 
 Show how `STTProvider`, `LLMProvider`, `TTSProvider`, `EmbeddingProvider` and
 `TelephonyProvider` hide SDK/runtime details behind small request/result types.
-Explain why mocks are the default AI providers for tests, why future Qwen/Indic
+Explain why mocks are the default AI providers for tests, why future Indic speech/embedding
 classes fail fast until their model levels are complete, and why switching a
 provider should mean one adapter plus one config value rather than rewriting
 callers.
 
 Defend the current limit: the Pipecat media pipeline still uses the existing
-OpenAI/Sarvam comparison path. Replacing it belongs with local inference,
+OpenAI/Sarvam comparison path. Replacing Sarvam speech belongs with local ASR/TTS inference,
 speech quality, latency and cancellation evidence, not with the Level 1
 contract foundation.
 
@@ -131,4 +131,12 @@ Show the seven-stage machine as business state, not prompt wording: `OPEN -> DIS
 
 Trace checkpoint persistence through `save_state()`/`restore_state()`: Redis remains the hot same-call cache, while `PostgresConversationStateStore` writes the latest compatible `CallState` to `conversation_states` through short unit-of-work sessions. The row carries schema version, policy version, revision, canonical stage, JSON state and expiry. Restore refuses missing calls, expired rows and schema/policy mismatches rather than replaying unsafe state.
 
-Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: text demo wiring, local Qwen inference, structured safety-event audit, redial/session identity and L7 recovery drills.
+Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: native/paid OpenAI quality/latency, structured safety-event audit, redial/session identity and L7 recovery drills.
+
+## Level 2 section 11 explanation
+
+Trace one text turn through locally parsed name or validated JSON extraction, `advance_turn()`, the selected state/task prompt, `OpenAILLM.generate()`, safety and checkpoint. The model never chooses the stage or commits a booking. A schema-valid answer can still be semantically wrong; show the conflicting-day/nonexistent-offer/out-of-stage readback checks and the deterministic date resolver.
+
+Explain why OpenAI is an adapter, not business logic. The SDK streams text and a final usage-only event; TTFT ends at first text rather than a role-only chunk. Disable SDK retries, retry only transient failures before text within the total deadline, and never retry quota/billing/auth errors or replay partial speech. On uncertainty retain the per-attempt budget reservation instead of claiming zero cost. Distinguish exact reported usage from conservative byte-based admission and estimated INR.
+
+Names stay local; prompts omit full call records and redact recognized identifiers. Raw console text is synthetic diagnostic data, not speech or ordinary logs. Mocks/HTTP transports prove mechanics without credit; they do not prove OpenAI quality, provider latency or a complete voice experience. Native scoring and voice approval remain deferred. Read [the OpenAI contract](25-openai-llm.md) and [the prerequisite audit](roadmaps/sections-01-10-review.md).

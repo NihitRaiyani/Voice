@@ -118,11 +118,10 @@ def test_mock_embedding_is_deterministic_and_shapes_vectors():
 
 def test_named_future_local_provider_fails_fast_until_its_level_is_implemented():
     async def run() -> None:
-        provider = build_llm_provider(_settings(llm_provider="qwen3_transformers"))
-        with pytest.raises(ProviderUnavailable, match="Level 2"):
-            async for _chunk in provider.generate(
-                LLMRequest(messages=(LLMMessage(role="user", content="hello"),))
-            ):
-                pass
+        provider = build_stt_provider(_settings(stt_provider="indic_conformer"))
+        with pytest.raises(ProviderUnavailable, match="Level 4"):
+            await provider.transcribe(
+                STTRequest(audio=b"", format=AudioFormat(sample_rate_hz=16000))
+            )
 
     asyncio.run(run())

@@ -1,6 +1,6 @@
 # Level 14 — Optional optimization
 
-**v4 sections:** 54–55. **Status:** Optional; no experiment selected.
+**Roadmap sections:** 54–55. **Status:** Optional; no experiment selected.
 
 ## Entry gate
 

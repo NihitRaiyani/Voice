@@ -1,6 +1,6 @@
 # Level 11 — Observability and analytics
 
-**v4 sections:** 45–48. **Status:** Basic logs/model foundations present; full telemetry/analytics planned.
+**Roadmap sections:** 45–48. **Status:** Basic logs/model foundations present; full telemetry/analytics planned.
 
 ## Entry gate
 
@@ -10,7 +10,7 @@ Integrated Level 10 path and Level 8 privacy/security.
 
 Add OpenTelemetry tracing and Prometheus/Grafana metrics across endpointing, models, retrieval, queues, database, carrier and GPU. Keep correlation meaningful while excluding PII/high-cardinality secrets.
 
-Normalize carrier/GPU/resource usage and costs with explicit units; local inference still has hardware/energy costs. Produce SQL-backed outcomes/booking/latency analytics and reconcile totals. Optional supervisor events may use Redis PubSub/WebSocket with explicit best-effort semantics.
+Normalize carrier/OpenAI-token/GPU/resource usage and costs with explicit units; local speech/embedding inference still has hardware/energy costs. Produce SQL-backed outcomes/booking/latency analytics and reconcile totals. Optional supervisor events may use Redis PubSub/WebSocket with explicit best-effort semantics.
 
 ## Existing reuse in Voice_Agent
 

@@ -1,6 +1,6 @@
 # Level 13 — Container deployment
 
-**v4 sections:** 53. **Status:** Pre-v4 infrastructure tooling present; full v4 packaging/deployment planned.
+**Roadmap sections:** 53. **Status:** Pre-v4 infrastructure tooling present; full v4 packaging/deployment planned.
 
 ## Entry gate
 
@@ -8,7 +8,7 @@ Level 12 production gates and owner-approved deployment/backup policies.
 
 ## Scope when implementation is requested
 
-Introduce Docker last. Provide Compose profiles for application, PostgreSQL, Redis, local-model/GPU services and observability as needed. Mount model weights/data; inject secrets at runtime and define health/readiness/resource limits.
+Introduce Docker last. Provide Compose profiles for application, PostgreSQL, Redis, local ASR/TTS/embedding GPU services and observability as needed. Mount model weights/data; inject secrets at runtime and define health/readiness/resource limits.
 
 Document clean-host one-command startup, migrations, smoke tests, backup/restore and rollback. Preserve source-controlled configuration identity and durable-data compatibility. Test upgrade/recovery with real persistence, not only container health.
 

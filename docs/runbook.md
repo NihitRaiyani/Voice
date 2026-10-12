@@ -123,3 +123,11 @@ Before a separately authorized test, verify destination/consent, all provider re
 Recovery drills at L8–13 cover GPU OOM/restart/admission, Redis reconstruction from durable checkpoints, PostgreSQL restore/PITR, safe job replay, immediate knowledge-version deactivation/cache exclusion and compatible API/worker/model rollback. Define RTO/RPO, stop new intake, preserve queue/spool/database state and record observed recovery evidence. These are future acceptance procedures, not guarantees of the present code.
 
 See [verification](12-verification.md), [security](07-security.md), [webhooks](18-webhook-idempotency.md), [jobs](19-background-task-framework.md) and [decisions](decisions.md).
+
+## OpenAI section 11 text workflow
+
+Read [the selected source](roadmaps/README.md) and [OpenAI adapter contract](25-openai-llm.md). `make text-console` is the safe synthetic/mock console command; `make language-lab` writes 40 mock cases with blank native reviews. Tests cover these commands through subprocesses and SDK HTTP mock transports. No live OpenAI call, carrier operation or appointment commit is needed for this verification.
+
+Real text generation is a later separately authorized action while quota is unavailable. It requires environment-only `OPENAI_API_KEY`, explicit `OPENAI_MODEL`, `--provider openai` and `--allow-paid-api`. Preserve an existing `.env`; `.env.example` documents output/temperature, prompt-byte, deadline/retry and per-call token/spend limits. Never print keys, raw caller information or remote error bodies. On a quota/billing error use the approved fallback without retries; transient retries are bounded and only before any text. Missing usage retains a conservative reservation. Budget exhaustion calls no SDK endpoint.
+
+Native language scores, real TTFT/cost measurements and full voice/interruption approval remain pending. No local LLM is installed. ASR/TTS/embedding and live audio integration remain their later phases. The working `roma` database remains at `20261004_0003`; the new text seam needs no schema change or seed.

@@ -1,6 +1,6 @@
 # Level 4 — Audio and local ASR
 
-**v4 sections:** 14–18. **Status:** Cloud audio baseline present; local ASR lab planned.
+**Roadmap sections:** 14–18. **Status:** Cloud audio baseline present; local ASR lab planned.
 
 ## Entry gate
 

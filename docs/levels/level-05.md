@@ -1,6 +1,6 @@
 # Level 5 — Local TTS
 
-**v4 sections:** 19. **Status:** Cloud synthesis/cache present; local TTS lab planned.
+**Roadmap sections:** 19. **Status:** Cloud synthesis/cache present; local TTS lab planned.
 
 ## Entry gate
 

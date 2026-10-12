@@ -6,6 +6,7 @@ from roma.providers.ai.contracts import (
     EmbeddingRequest,
     EmbeddingResult,
     LLMChunk,
+    LLMGenerationMetrics,
     LLMMessage,
     LLMProvider,
     LLMRequest,
@@ -23,6 +24,7 @@ from roma.providers.ai.mocks import (
     MockSTTProvider,
     MockTTSProvider,
 )
+from roma.providers.ai.openai_llm import OpenAILLM
 from roma.providers.ai.registry import (
     build_embedding_provider,
     build_llm_provider,
@@ -36,6 +38,7 @@ __all__ = [
     "EmbeddingRequest",
     "EmbeddingResult",
     "LLMChunk",
+    "LLMGenerationMetrics",
     "LLMMessage",
     "LLMProvider",
     "LLMRequest",
@@ -44,6 +47,7 @@ __all__ = [
     "MockSTTProvider",
     "MockTTSProvider",
     "ProviderUnavailable",
+    "OpenAILLM",
     "STTProvider",
     "STTRequest",
     "STTResult",

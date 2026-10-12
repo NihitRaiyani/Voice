@@ -1,6 +1,6 @@
 # Level 1 — Backend foundation
 
-**v4 sections:** 3–9. **Status:** Sections 3–9 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries, provider contracts, versioned REST resources and day-one testing/CI skeleton implemented; hosted CI passed on 2026-10-05.
+**Roadmap sections:** 3–9. **Status:** Sections 3–9 persistence/pool, relational foundations, migration/separate-demo workflow, architecture boundaries, provider contracts, versioned REST resources and day-one testing/CI skeleton implemented; hosted CI passed on 2026-10-05.
 
 ## Entry gate
 
@@ -260,14 +260,15 @@ automated tests do not call paid providers. Telephony defaults to Twilio to
 preserve current runtime behavior; tests select the mock explicitly.
 
 Current concrete adapters are deterministic mocks plus named future adapters:
-`IndicConformerSTT`, `WhisperSTT`, `Qwen3TransformersLLM`,
-`Qwen3VLLMClient`, `IndicTTSProvider` and `LocalMultilingualEmbedding`. Future
+`IndicConformerSTT`, `WhisperSTT`, `IndicTTSProvider` and
+`LocalMultilingualEmbedding`. The new roadmap replaces Qwen LLM placeholders
+with an OpenAI adapter in section 11. Future
 adapters raise `ProviderUnavailable` until their own level installs models,
 credentials, hardware checks and benchmarks. The [provider guide](../23-provider-contracts.md)
 owns the contract details.
 
 This section does not rewire the Pipecat media pipeline away from its current
-OpenAI/Sarvam processors. That replacement belongs with the local model levels
+OpenAI/Sarvam processors. The OpenAI provider text seam belongs to section 11; speech replacement belongs with the local ASR/TTS levels
 where quality, latency, cancellation and GPU/serving behavior can be measured.
 
 ## Section 7 verification evidence

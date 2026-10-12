@@ -6,15 +6,12 @@ hardware admission and quality benchmarks land in the model-specific levels.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import NoReturn
 
 from roma.providers.ai.contracts import (
     EmbeddingRequest,
     EmbeddingResult,
-    LLMChunk,
-    LLMRequest,
     ProviderUnavailable,
     STTRequest,
     STTResult,
@@ -45,18 +42,6 @@ class WhisperSTT(_UnavailableProvider):
         self._raise()
 
 
-class Qwen3TransformersLLM(_UnavailableProvider):
-    async def generate(self, request: LLMRequest) -> AsyncIterator[LLMChunk]:
-        self._raise()
-        yield LLMChunk("")
-
-
-class Qwen3VLLMClient(_UnavailableProvider):
-    async def generate(self, request: LLMRequest) -> AsyncIterator[LLMChunk]:
-        self._raise()
-        yield LLMChunk("")
-
-
 class IndicTTSProvider(_UnavailableProvider):
     async def synthesize(self, request: TTSRequest) -> TTSResult:
         self._raise()
@@ -71,7 +56,5 @@ __all__ = [
     "IndicConformerSTT",
     "IndicTTSProvider",
     "LocalMultilingualEmbedding",
-    "Qwen3TransformersLLM",
-    "Qwen3VLLMClient",
     "WhisperSTT",
 ]

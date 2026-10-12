@@ -1,6 +1,6 @@
 # Level 7 — Real-time reliability
 
-**v4 sections:** 22–25. **Status:** Cloud lifecycle/recovery seams present; local-stack reliability gate pending.
+**Roadmap sections:** 22–25. **Status:** Cloud lifecycle/recovery seams present; local-stack reliability gate pending.
 
 ## Entry gate
 

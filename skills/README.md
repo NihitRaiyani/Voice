@@ -4,10 +4,10 @@ Skills support the requested work; [the docs index](../docs/README.md), [level b
 
 | Local guidance | Use when |
 |---|---|
-| `.claude/skills/roma-backend-roadmap/SKILL.md` | v4 level planning, architecture, persistence, API, jobs, security, retrieval, measurement or delivery |
+| `.claude/skills/roma-backend-roadmap/SKILL.md` | OpenAI roadmap level planning, architecture, persistence, API, jobs, security, retrieval, measurement or delivery |
 | `.claude/skills/roma-guardrail/SKILL.md` | Spoken output, deterministic safety, sentence flushing or cancellation |
 
-These documents must reference the actual `roma/` package and current v4 contracts. They cannot override explicit user scope or describe implemented PostgreSQL/jobs as entirely planned.
+These documents must reference the actual `roma/` package and current OpenAI roadmap contracts. They cannot override explicit user scope or describe implemented PostgreSQL/jobs as entirely planned.
 
 Use relevant available design/planning, debugging, review and verification skills. Inspect installed APIs and current official provider/library docs before integrating them. No missing historical plugin is a build prerequisite; no skill automatically starts all levels or creates new project skills.
 

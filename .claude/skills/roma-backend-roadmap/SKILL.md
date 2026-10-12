@@ -15,7 +15,7 @@ authoritative project context is `CLAUDE.md`; the selected source and gates are 
 
 ## Start with status and scope
 
-Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment is Level 1 section 7 provider abstraction, preserving sections 3–6 persistence/pool, relational foundations, migration workflow and architecture boundaries. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
+Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment adopts the new OpenAI roadmap, audits sections 1–10 and implements section 11 OpenAI LLM/text-console work last, preserving all earlier foundations. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
 
 Before proposing a change:
 
@@ -76,7 +76,7 @@ handling, and operator guidance exist.
 
 ## Complexity gate
 
-v4 deliberately adds conditional governed RAG with local embeddings/pgvector at Level 9. Provider contracts precede local models; direct inference precedes vLLM; full Docker packaging is Level 13. Existing Compose is compatibility tooling. Do not add Kafka, Kubernetes, microservices, a separate vector database or LangGraph without a measured need. Record the evidence and decision in `docs/decisions.md`.
+v4 deliberately adds conditional governed RAG with local embeddings/pgvector at Level 9. Provider contracts precede local models; direct local speech inference precedes speech model serving; full Docker packaging is Level 13. Existing Compose is compatibility tooling. Do not add Kafka, Kubernetes, microservices, a separate vector database or LangGraph without a measured need. Record the evidence and decision in `docs/decisions.md`.
 
 ## Completion checklist
 

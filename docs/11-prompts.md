@@ -21,3 +21,9 @@ At L3 reconcile static always-available prompt statements with actual availabili
 Approved facts/direct safe responses remain the baseline. L9 introduces separately presented eligible evidence, grounding and no-evidence deferral. Caller/retrieved instructions cannot change hard rules. Booking/control/safety bypass retrieval.
 
 Version model/prompt/policy and document identity in benchmark reports. Test quote injections, wrong-stage questions, repetition, invented learner facts, stale confirmation and code-mix speech. Changed fixed lines require matching audio/cache manifests. See [conversation](03-stage-machine.md), [safety](04-guardrails.md) and [verification](12-verification.md).
+
+## Section 11 text seam
+
+`roma/services/conversation_prompts.py` builds a narrow current-stage request from existing approved facts, the controller task and selected state fields. Names remain locally parsed; known names and recognized phone/hash/email/recording identifiers are removed from outbound text. There is no full state dictionary or caller identity in SDK metadata. `OpenAILLM` applies another recognized-identifier filter at the API boundary. This is minimization, not proof that arbitrary prose is free of every kind of personal data.
+
+The text service awaits extraction before controller decisions and applies existing confirmation/time/sign-off/safety rules to final replies. It discards partial failed generation. This does not rewrite the legacy Pipecat prompts or claim that their existing caller-name/extraction flow now satisfies the new target privacy contract. Later live integration must apply and verify this boundary there too. See [the OpenAI contract](25-openai-llm.md).

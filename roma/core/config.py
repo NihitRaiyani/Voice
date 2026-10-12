@@ -9,11 +9,13 @@ from functools import lru_cache
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
+
+from roma.core.openai_llm_settings import OpenAILLMSettings
 
 
 # BaseSettings automatically reads values from environment variables.
-class Settings(BaseSettings):
+class Settings(OpenAILLMSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -44,7 +46,6 @@ class Settings(BaseSettings):
     database_connection_budget: int | None = Field(default=None, gt=0)
 
     stt_provider: Literal["mock", "indic_conformer", "whisper"] = "mock"
-    llm_provider: Literal["mock", "qwen3_transformers", "qwen3_vllm"] = "mock"
     tts_provider: Literal["mock", "indic_tts"] = "mock"
     embedding_provider: Literal["mock", "local_multilingual"] = "mock"
     telephony_provider: Literal["mock", "twilio"] = "twilio"

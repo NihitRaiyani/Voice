@@ -12,8 +12,6 @@ from roma.providers.ai.local import (
     IndicConformerSTT,
     IndicTTSProvider,
     LocalMultilingualEmbedding,
-    Qwen3TransformersLLM,
-    Qwen3VLLMClient,
     WhisperSTT,
 )
 from roma.providers.ai.mocks import (
@@ -22,6 +20,7 @@ from roma.providers.ai.mocks import (
     MockSTTProvider,
     MockTTSProvider,
 )
+from roma.providers.ai.openai_llm import OpenAILLM
 
 
 def build_stt_provider(settings) -> STTProvider:
@@ -39,10 +38,8 @@ def build_llm_provider(settings) -> LLMProvider:
     match settings.llm_provider:
         case "mock":
             return MockLLMProvider()
-        case "qwen3_transformers":
-            return Qwen3TransformersLLM("Qwen3TransformersLLM", "Level 2")
-        case "qwen3_vllm":
-            return Qwen3VLLMClient("Qwen3VLLMClient", "Level 10")
+        case "openai":
+            return OpenAILLM(settings)
     raise ValueError(f"unknown LLM provider {settings.llm_provider!r}")
 
 

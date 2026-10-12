@@ -2,15 +2,15 @@
 
 Roma is a backend-only counselling voice agent for Weltec's Digital Marketing course. Its goal is a specific branch, day and time with explicit readback and caller confirmation. It understands Gujarati, Hindi, English and code-mix. Live replies remain Hindi-base Hinglish; multilingual output is evaluated separately.
 
-**Working repository: `Voice_Agent`.** The [v4 roadmap](docs/roadmaps/AI_Voice_Agent_Unified_Roadmap_for_Student_Skill_Development_v4.docx) governs future level-by-level development. Start with the [documentation index](docs/README.md) and [engineering rules](CLAUDE.md).
+**Working repository: `Voice_Agent`.** The [OpenAI roadmap](docs/roadmaps/AI_VOICE_AGENT_openai_llm.docx) governs future level-by-level development. Start with the [documentation index](docs/README.md) and [engineering rules](CLAUDE.md).
 
 ## Current system and accepted target
 
-| Boundary | Present in this repository | v4 target / remaining work |
+| Boundary | Present in this repository | OpenAI roadmap target / remaining work |
 |---|---|---|
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
-| Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | Provider contracts, direct local LLM/ASR/TTS labs, then model serving |
-| Conversation | Seven deterministic stages, state-machine facade, durable latest checkpoint adapter, extraction, time resolver, speech safety | Text demo wiring, local inference and structured safety audit |
+| Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | OpenAI LLM provider, local ASR/TTS labs, then speech model serving |
+| Conversation | Seven deterministic stages, state-machine facade, durable latest checkpoint adapter, extraction, time resolver, speech safety | OpenAI text demo wiring and structured safety audit |
 | Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints, bounded pools/process budget, checkpoint/model/benchmark schema, turn-language metadata and versioned resource API | Live booking and restoration pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue; PostgreSQL now has compatible latest-checkpoint restore by call SID | Bounded pressure, redial/session mapping and measured rate limits |
 | Webhooks | Atomic `/answer` receipt/call/event acceptance | Extend only to required callback kinds with explicit replay policy |

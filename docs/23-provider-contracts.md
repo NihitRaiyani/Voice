@@ -10,7 +10,7 @@ yet.
 | Interface | Module | Method | Current adapters |
 |---|---|---|---|
 | `STTProvider` | `roma.providers.ai.contracts` | `transcribe(STTRequest) -> STTResult` | `MockSTTProvider`; `IndicConformerSTT` and `WhisperSTT` placeholders |
-| `LLMProvider` | `roma.providers.ai.contracts` | `generate(LLMRequest) -> AsyncIterator[LLMChunk]` | `MockLLMProvider`; `Qwen3TransformersLLM` and `Qwen3VLLMClient` placeholders |
+| `LLMProvider` | `roma.providers.ai.contracts` | `generate(LLMRequest) -> AsyncIterator[LLMChunk]` | `MockLLMProvider`; section 11 `OpenAILLM` with env-selected model/key and bounded SDK streaming |
 | `TTSProvider` | `roma.providers.ai.contracts` | `synthesize(TTSRequest) -> TTSResult` | `MockTTSProvider`; `IndicTTSProvider` placeholder |
 | `EmbeddingProvider` | `roma.providers.ai.contracts` | `embed(EmbeddingRequest) -> EmbeddingResult` | `MockEmbeddingProvider`; `LocalMultilingualEmbedding` placeholder |
 | `TelephonyProvider` | `roma.providers.telephony.base` | `place_call(PlaceCallRequest) -> PlaceCallResult` | `MockTelephonyProvider`; `TwilioTelephonyProvider` |
@@ -27,6 +27,7 @@ Provider names live in settings and `.env.example`:
 ```bash
 STT_PROVIDER=mock
 LLM_PROVIDER=mock
+# Select openai only for separately authorized runs with OPENAI_API_KEY and OPENAI_MODEL set
 TTS_PROVIDER=mock
 EMBEDDING_PROVIDER=mock
 TELEPHONY_PROVIDER=twilio
@@ -42,9 +43,7 @@ runtime behavior; tests select `TELEPHONY_PROVIDER=mock` explicitly.
 
 The contracts are ready for services and later model levels. The existing
 Pipecat media pipeline still uses its current OpenAI/Sarvam services directly;
-replacing those processors requires Level 2/4/5/10 work with quality and
-latency evidence. Section 7 does not load local models, start vLLM, add
-embeddings/pgvector or remove the cloud comparison path.
+Section 11 adds an SDK-level OpenAI text seam with mocks; the existing media processors remain until later audio/telephony integration has quality and latency evidence. Local speech and embeddings remain later work. Section 7 itself never installs model weights or adds RAG.
 
 Students should be able to write one adapter that satisfies a provider protocol
 and switch to it with one config value, while keeping tests on mocks by default.

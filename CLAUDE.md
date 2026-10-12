@@ -4,15 +4,15 @@
 
 ## Authority and scope
 
-The user's selected v4 Word file governs future development. Explicit user decisions and preserved Weltec business/safety/privacy rules take precedence over its sample snippets and example providers. Reference material is not permission to call, spend, deploy or bypass safeguards.
+The user's selected `AI_VOICE_AGENT_openai_llm.docx` governs development; see the source/hash in `docs/roadmaps/README.md`. The former v4 file is historical. Explicit user decisions and preserved Weltec business/safety/privacy rules take precedence over its sample snippets and example providers. Reference material is not permission to call, spend, deploy or bypass safeguards.
 
-Implementation proceeds only for the user's explicitly requested level or section. The latest authorized increment is Level 1 section 9 testing/linting/native startup and CI skeleton, preserving completed sections 3–8 persistence/pool, relational foundations, migration workflow, architecture boundaries, provider abstraction and versioned REST API. Add missing foundations through additive migrations; knowledge tables remain Level 9. Preserve existing foundations, assess prerequisites and retain evidence/limitations in the level brief. Do not create handoff, log or session journals.
+Implementation proceeds only for the user's explicitly requested level or section. The latest authorized increment adopts the OpenAI roadmap, audits sections 1–10 and implements section 11 OpenAI LLM/text-console work last; preserve earlier foundations and use offline tests while quota is unavailable. Add missing foundations through additive migrations; knowledge tables remain Level 9. Preserve existing foundations, assess prerequisites and retain evidence/limitations in the level brief. Do not create handoff, log or session journals.
 
 ## Current facts versus target
 
 - Twilio is the active carrier, using signed `/answer` and `/ws`, Account SID checks and native Pipecat serialization. No frontend exists.
-- PostgreSQL/Alembic, appointment repository locking/uniqueness, atomic answer receipts, durable post-call/job processing and the Level 2 section 10 conversation-state machine/checkpoint adapter are present. Live appointment commit, local models, RAG, RBAC, broader restore drills and production telemetry remain incomplete.
-- Sarvam/OpenAI form the comparison voice profile. Final local production must make zero external GenAI API calls. Keep the tested cloud profile during measured migration.
+- PostgreSQL/Alembic, appointment repository locking/uniqueness, atomic answer receipts, durable post-call/job processing and the Level 2 section 10 conversation-state machine/checkpoint adapter are present. Section 11 adds the OpenAI streaming/text seam with mock-only evidence. Live appointment commit, local speech/embedding models, RAG, RBAC, broader restore drills and production telemetry remain incomplete.
+- OpenAI remains the LLM. Local ASR/TTS/embeddings replace Sarvam only after their later gates; OpenAI is the only external GenAI provider permitted in the target. Keep the tested voice path during measured migration.
 - Preserve the layered `roma/` modular monolith. The roadmap's example tree/carrier does not authorize a rewrite or carrier switch.
 - Existing infrastructure Compose predates v4. Keep it as compatibility tooling; do not expand containerization before Level 13. Provide a native-service foundation path first.
 
@@ -31,7 +31,7 @@ Implementation proceeds only for the user's explicitly requested level or sectio
 
 PostgreSQL owns durable facts; Redis owns transient checkpoints/coordination/cache and delivery. Use short units of work and budget connections across all API/worker processes. A short booking commit is an accepted live-turn operation; never hold a transaction during inference/audio, Redis waits or external CRM/calendar work. Recording conversion and external synchronization stay asynchronous.
 
-Provider contracts/mocks precede local AI. Direct inference precedes vLLM. Conditional governed RAG starts at Level 9; Docker packaging at Level 13; optional optimizations at Level 14. Candidate model quality/hardware/license suitability must be measured. No Kafka, Kubernetes, speculative microservices or framework-controlled FSM/safety.
+Provider contracts/mocks precede local AI. Direct local speech inference precedes speech model serving. Conditional governed RAG starts at Level 9; Docker packaging at Level 13; optional optimizations at Level 14. Local speech/embedding quality/hardware/licenses and OpenAI quality/latency/cost must be measured. No Kafka, Kubernetes, speculative microservices or framework-controlled FSM/safety.
 
 Check installed APIs and current official documentation before integration. Make surgical changes; preserve existing user edits. Run meaningful checks and distinguish source presence, offline evidence, local-lab inference, authorized live verification and a passed gate. Automated tests never dial or call paid AI by default.
 

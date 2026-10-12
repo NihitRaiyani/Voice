@@ -1,6 +1,6 @@
 # Level 0 — Baseline and prerequisites
 
-**v4 sections:** 1–2. **Status:** Assessment recorded; gate pending.
+**Roadmap sections:** 1–2. **Status:** Assessment recorded; gate pending.
 
 ## Entry gate
 

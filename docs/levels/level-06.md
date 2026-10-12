@@ -1,6 +1,6 @@
 # Level 6 — Local voice prototype
 
-**v4 sections:** 20–21. **Status:** Planned; no local microphone/model demo performed.
+**Roadmap sections:** 20–21. **Status:** Planned; no local microphone/model demo performed.
 
 ## Entry gate
 
@@ -8,9 +8,9 @@ Levels 2, 3, 4 and 5 core gates.
 
 ## Scope when implementation is requested
 
-Connect microphone → local ASR → deterministic text controller/booking → local LLM/safety → local TTS → speaker. Use headphones for the microphone experiment. Save approved test turns and structured stage timings for replay.
+Connect microphone → local ASR → deterministic text controller/booking → OpenAI LLM/safety → local TTS → speaker. Use headphones for the microphone experiment. Save approved test turns and structured stage timings for replay.
 
-Use correlation IDs, language, policy/model identity and safe timing fields in logs. Keep raw PII and ordinary transcript content out of general logs. Demonstrate the pipeline without external GenAI calls.
+Use correlation IDs, language, policy/model identity and safe timing fields in logs. Keep raw PII and ordinary transcript content out of general logs. Demonstrate the pipeline with OpenAI as the only external GenAI API.
 
 ## Existing reuse in Voice_Agent
 

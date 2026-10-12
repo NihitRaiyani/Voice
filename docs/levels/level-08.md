@@ -1,6 +1,6 @@
 # Level 8 — Secure jobs and access
 
-**v4 sections:** 26–31. **Status:** Signed answer and durable jobs implemented; identity/privacy/replay/publication gate pending.
+**Roadmap sections:** 26–31. **Status:** Signed answer and durable jobs implemented; identity/privacy/replay/publication gate pending.
 
 ## Entry gate
 

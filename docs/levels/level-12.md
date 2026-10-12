@@ -1,6 +1,6 @@
 # Level 12 — Evaluation and measured capacity
 
-**v4 sections:** 49–52. **Status:** Offline test foundation present; production benchmarks/chaos/capacity gate pending.
+**Roadmap sections:** 49–52. **Status:** Offline test foundation present; production benchmarks/chaos/capacity gate pending.
 
 ## Entry gate
 
@@ -12,7 +12,7 @@ Run reproducible language/model/RAG/latency benchmarks with dataset/configuratio
 
 Exercise Redis loss, slow providers, pressure, abrupt disconnect and retrieval fallback. Increase 1/10/25/50/100 calls only while agreed resource/latency/error gates hold; stop at measured capacity. Set production SLOs from evidence.
 
-Harden CI/CD with dependency/security scans, golden regressions and enforcement that the final local profile cannot call external GenAI APIs. Preserve rollback compatibility and failure runbooks.
+Harden CI/CD with dependency/security scans, golden regressions and enforcement that the target profile permits OpenAI only for the LLM and uses local ASR/TTS/embeddings. Preserve rollback compatibility and failure runbooks.
 
 ## Existing reuse in Voice_Agent
 
@@ -23,7 +23,7 @@ Extensive offline tests/evals, real PostgreSQL/Redis test fixtures and each earl
 - [ ] Benchmark/capacity report includes percentiles, failures/fallbacks, saturation and stop criteria.
 - [ ] Chaos/degraded-state tests preserve safety, booking truth, cleanup and bounded resources.
 - [ ] Golden RAG/voice regressions and security/local-production policy checks pass.
-- [ ] Measured SLOs and operational responses are agreed; mock load is not presented as GPU capacity.
+- [ ] Measured SLOs and operational responses are agreed; mock load is not presented as speech GPU or OpenAI API capacity.
 
 ## Boundaries and advanced work
 

@@ -49,6 +49,11 @@ markers = [
 python_version = "3.11"
 files = [
     "roma/providers/ai",
+    "roma/core/openai_llm_settings.py",
+    "roma/core/prompt_privacy.py",
+    "roma/services/conversation_prompts.py",
+    "roma/services/text_conversation_service.py",
+    "roma/eval/openai_language.py",
     "roma/providers/telephony",
     "roma/api/v1/responses.py",
     "roma/schemas/rest_api.py",

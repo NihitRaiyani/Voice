@@ -1,11 +1,11 @@
-# v4 level progression and gate policy
+# OpenAI roadmap progression and gate policy
 
-Develop Levels 0–14 from the selected source. Introductory prose says 0–13, but its table/body include optional Level 14. Engineering levels are distinct from Roma's seven runtime conversation stages.
+Develop Levels 0–14 from the selected OpenAI source. Introductory prose says 0–13, but its table/body include optional Level 14. Engineering levels are distinct from Roma's seven runtime conversation stages.
 
 | Levels | Outcome |
 |---|---|
 | 0–1 | Baseline/prerequisites, durable backend, contracts/mocks, versioned API and CI foundation |
-| 2–3 | Direct local text inference, deterministic safety/state and truthful transactional booking |
+| 2–3 | OpenAI text inference, deterministic safety/state and truthful transactional booking |
 | 4–6 | Measured local ASR/TTS and end-to-end microphone prototype |
 | 7–8 | Bounded streaming/cancellation/recovery and secure idempotent jobs/access/privacy |
 | 9–10 | Conditional governed retrieval, local serving/GPU admission and Twilio integration |
@@ -26,6 +26,6 @@ The [level briefs](README.md) own detailed dependencies/scopes/gates. Isolated A
 
 One level brief owns status/evidence; do not create competing active plans or recurring journals. Earlier designs live in [the archive](archive/README.md). Historical compatibility constraints are assessed against actual code rather than blindly replayed.
 
-Provider interfaces precede local integrations, direct inference precedes vLLM, RAG begins at Level 9 and full Docker packaging begins at Level 13. Retain existing PostgreSQL/Redis Compose as pre-v4 compatibility tooling without making it the native foundation requirement.
+Provider interfaces precede integration; direct local ASR/TTS inference precedes speech model serving, RAG begins at Level 9 and full Docker packaging begins at Level 13. Retain existing PostgreSQL/Redis Compose as pre-v4 compatibility tooling without making it the native foundation requirement.
 
-Latest authorized task: Level 1 section 9 testing/linting/native startup and CI skeleton, preserving sections 3–8 persistence/pool, relational foundations, migration workflow, architecture boundaries, provider contracts and versioned REST resources. Level 0 gate remains pending; later levels have varying existing foundations and missing acceptance work. See [readiness](13-backend-roadmap.md).
+Latest authorized task: adopt the OpenAI roadmap, audit sections 1–10 and implement section 11 OpenAI LLM/text-console work last. Preserve earlier foundations. Quota is unavailable, so verification uses mocks/test files without paid calls. Level 0 teacher/timing gates and later-level acceptance remain separate. See [readiness](13-backend-roadmap.md).

@@ -1,6 +1,6 @@
 # Level 10 — Telephony and model serving
 
-**v4 sections:** 41–44. **Status:** Cloud Twilio path present; local-model serving/live integration planned.
+**Roadmap sections:** 41–44. **Status:** Cloud Twilio path present; local-model serving/live integration planned.
 
 ## Entry gate
 
@@ -10,9 +10,9 @@ Levels 7/8/9 plus earlier local-model and booking gates.
 
 Integrate conditional retrieval into the real-time budget/cancellation path and connect the validated local providers to the existing Twilio/Pipecat media lifecycle. Reconcile inbound/outbound opener and prompt behavior.
 
-Introduce vLLM only after direct inference benchmarks, with warm/readiness checks and measured GPU admission/capacity. Serve local ASR/TTS where justified; validate queueing and cold-start behavior.
+Serve local ASR/TTS only after direct inference benchmarks, with warm/readiness checks and measured GPU admission/capacity. OpenAI remains the LLM; budget its API rate limits, timeout/fallback and spend separately from speech GPU capacity.
 
-Keep local stereo capture/post-call conversion and add authorized audited time-limited recording access after consent approval. Demonstrate a separately authorized phone call with zero external GenAI API use.
+Keep local stereo capture/post-call conversion and add authorized audited time-limited recording access after consent approval. Demonstrate a separately authorized phone call with OpenAI as the only external GenAI API.
 
 ## Existing reuse in Voice_Agent
 
@@ -23,7 +23,7 @@ Twilio bidirectional adapter/native serializer, Pipecat media, lead custom param
 - [ ] Authorized local-model telephony call meets measured timing/quality and transport format contracts.
 - [ ] Retrieval/model timeouts and disconnect/barge-in clean up all work and carrier output.
 - [ ] Readiness/admission prevents overloaded or cold providers from accepting unusable calls.
-- [ ] Traffic evidence proves no external GenAI calls; recording access/consent rules hold.
+- [ ] Traffic evidence proves no external GenAI calls except OpenAI for the LLM; recording access/consent rules hold.
 
 ## Boundaries and advanced work
 

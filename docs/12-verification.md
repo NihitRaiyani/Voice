@@ -48,7 +48,7 @@ migration because the full disposable-integration suite creates its own database
 clusters. The full suite remains `make test` and passed separately after local
 services were stopped.
 
-Section 10 adds the Level 2 state-machine facade and durable latest-checkpoint adapter. Focused verification covers the public stage API, transition/objection/interruption/missing-information helpers, `route_intent()` classification, PostgreSQL latest-checkpoint revision increments and compatible `PostgresConversationStateStore` save/restore by provider call ID. This does not pass local inference, safety-audit, redial/session or L7 recovery gates.
+Section 10 adds the Level 2 state-machine facade and durable latest-checkpoint adapter. Focused verification covers the public stage API, transition/objection/interruption/missing-information helpers, `route_intent()` classification, PostgreSQL latest-checkpoint revision increments and compatible `PostgresConversationStateStore` save/restore by provider call ID. This does not pass OpenAI provider integration, safety-audit, redial/session or L7 recovery gates.
 
 ## Evidence rules
 
@@ -57,12 +57,12 @@ Each level records revision, environment/data/model/prompt/document identity, re
 | Gate | Required evidence |
 |---|---|
 | L1 | Empty DB migrations, native startup, provider contracts/mocks, versioned API, reviewed pool budget and green CI |
-| L2/L3 | Durable text restore, actual local inference/safety audit, committed live booking, 100-attempt race and cancellation/idempotency |
+| L2/L3 | Durable text restore, OpenAI streaming/text evidence and safety audit, committed live booking, 100-attempt race and cancellation/idempotency |
 | L4–6 | Approved language/noise WER/CER/RTF, TTS intelligibility/first audio and complete local voice lab |
 | L7 | Barge-in/double cancellation, late results/disconnect, Redis/provider loss, bounded pressure and event-loop lag |
 | L8 | Roles/token lifecycle, forged/stale/duplicate callback policy, job crash/replay/retention and PII/access approvals |
 | L9 | Eligible scoped/versioned evidence, local embeddings, golden Recall@K/MRR, grounding/deferral and final safety |
-| L10 | Authorized local-model carrier call, serving/readiness/GPU admission, retrieval cancellation and zero external GenAI traffic |
+| L10 | Authorized local-model carrier call, serving/readiness/GPU admission, retrieval cancellation and OpenAI-only external GenAI traffic |
 | L11/L12 | Real telemetry/reconciled analytics, mock versus GPU capacity, chaos/security/golden regressions and measured SLOs |
 | L13 | Clean-host startup/migrations/readiness, backup/restore and compatible rollback |
 
@@ -71,3 +71,7 @@ Each level records revision, environment/data/model/prompt/document identity, re
 Record sample count, hardware/concurrency, codec/noise/language mix, approved dataset, policy/model/document versions and warm/cold state. Measure user-stop-to-first-audio directly and report relevant P50/P95/P99, failures/fallbacks/queue wait/resource saturation. Do not add stage percentiles or promise roadmap example SLOs.
 
 Documentation maintenance checks links/fences, stale carrier/package/roadmap references, level/status consistency, scoped runtime/config changes, preserved prompt/audio assets and original Word-file identity. Inspect the diff and preserve pre-existing user edits. Offline evidence distinguishes the historical baseline from each requested implementation increment; documentation edits do not require paid/live checks.
+
+## OpenAI roadmap review and section 11
+
+The owner selected the OpenAI source on 2026-10-12. [The prerequisite audit](roadmaps/sections-01-10-review.md) records fresh sections 1–10 checks before new code, including read-only configured-DB schema parity. [Level 2](levels/level-02.md#section-11-implementation-and-evidence) records the final 1,716-test offline result and OpenAI SDK HTTP mock transport/console/lab evidence. Model TTFT/cost/native quality are unmeasured with exhausted quota; mock metrics are mechanics evidence only. Full voice and native approval remain deferred. No working DB migration/seed, local LLM installation or paid call ran.
