@@ -21,6 +21,6 @@ Full existing offline suite: **1,674 passed, 23 existing dependency warnings**, 
 
 Read-only configured database inspection confirmed `roma`, revision `20261004_0003 (head)`, **25 application tables and 0 application rows**. Every table's primary/foreign/check/unique constraint and index matches SQLAlchemy metadata. No working-database write, migration or seed ran. Retain the 2026-10-04 upgrade history; other environments must still upgrade before using turn-language.
 
-The baseline commit `124b178` has a completed successful [hosted CI run](https://github.com/NihitRaiyani/Voice/actions/runs/38161170164), confirmed read-only on 2026-10-12. The new section 11 commit must still run hosted CI after publishing.
+The baseline commit `124b178` has a completed successful [hosted CI run](https://github.com/NihitRaiyani/Voice/actions/runs/38161170164), confirmed read-only on 2026-10-12. The later section 11 implementation commit `f7df8e0` also passed [hosted CI](https://github.com/NihitRaiyani/Voice/actions/runs/38220411614) after publishing; its final evidence is in [Level 2](../levels/level-02.md#section-11-implementation-and-evidence).
 
 Main voice LLM remains OpenAI GPT-4o, with existing GPT-4o-mini extraction. The new section 11 text seam will use explicit environment model settings. No Qwen weights/runtime remain installed. OpenAI quota is unavailable; no provider, carrier or new live voice benchmark ran during this review. Native quality scores and voice approval stay pending.
