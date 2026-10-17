@@ -47,6 +47,11 @@ anyone noticed, and a compliance sentence must not fork on whether the router fi
 
 import logging
 
+from roma.domain.appointments.booking import (
+    BOOKING_UNAVAILABLE_LINE,
+    SLOT_CONFLICT_LINE,
+    confirmed_line,
+)
 from roma.domain.conversation.confirmguard import (
     SAFE_READBACK_HOLD_LINE,
     SAFE_SIGNOFF_LINE,
@@ -137,6 +142,24 @@ def canned_reply(state, user_text: str) -> "str | None":
         if category is not None:
             _log.info("short-circuit: %s, no completion", category.name)
             return SUBSTITUTIONS[category]
+
+        if getattr(state, "booking_required", False):
+            if state.appointment_id and state.locked_slot:
+                return confirmed_line(spoken_slot(state.locked_slot), state.branch)
+            if state.stage in ("pivot", "close") and not state.accepted_slot:
+                offers = [spoken_slot(iso) for iso in state.slots_offered if spoken_slot(iso)][
+                    :2
+                ]
+                if offers:
+                    prefix = "Woh visit abhi confirm nahi hua. " if state.booking_error else ""
+                    return (
+                        prefix + " ya ".join(offers) + " — aapke liye kaunsa time sahi rahega?"
+                    )
+                if state.booking_error == "APPOINTMENT_SLOT_UNAVAILABLE":
+                    return SLOT_CONFLICT_LINE
+                return BOOKING_UNAVAILABLE_LINE
+            if state.booking_error:
+                return BOOKING_UNAVAILABLE_LINE
 
         # A readback is pending only when there IS a slot to read back; `as_prompt_vars`
         # makes the same check before it will render an "accepted" status line.

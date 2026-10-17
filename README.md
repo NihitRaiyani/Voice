@@ -11,14 +11,14 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
 | Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | OpenAI LLM provider, local ASR/TTS labs, then speech model serving |
 | Conversation | Seven deterministic stages, checkpoint adapter, OpenAI text seam, deterministic safety audit and bounded prompt inputs | Native quality review and full voice approval |
-| Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints, bounded pools/process budget, checkpoint/model/benchmark schema, turn-language metadata and versioned resource API | Live booking and restoration pending |
+| Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints, bounded pools/process budget, checkpoint/model/benchmark schema, turn-language metadata and versioned resource API | Section 13 booking/holds/API and same-SID appointment truth implemented; broader redial recovery pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue; PostgreSQL now has compatible latest-checkpoint restore by call SID | Bounded pressure, redial/session mapping and measured rate limits |
 | Webhooks | Atomic `/answer` receipt/call/event acceptance | Extend only to required callback kinds with explicit replay policy |
 | Jobs | Recording/spool handoff, PostgreSQL ledger, Dramatiq/Redis execution | Publication bounds, retention, audited replay and privacy controls |
 | Knowledge | Approved static facts | Conditional governed RAG with local embeddings/pgvector at Level 9 |
 | Deployment | Local scripts and pre-v4 infrastructure Compose | Non-container local learning first; full deployment packaging at Level 13 |
 
-The database booking repository is implemented, but the live controller still uses the static/read-only calendar and conversational `locked_slot`. A spoken win is not yet proof of a committed appointment. Schema tables also do not prove all corresponding runtime writes exist.
+Production booking now uses PostgreSQL availability, expiring Redis holds and a short commit before confirmed speech. Cancellation releases the slot atomically; reconnect consults database appointment truth. Static calendars remain for explicit offline exercises. Schema tables do not prove all corresponding runtime writes exist. See [section 13](docs/levels/level-03.md).
 
 There is no frontend. Live telephony still uses `/api/call`, `/api/call/{request_uuid}`, `/answer`, `/ws` and `/health`. Durable business resources now use versioned `/api/v1/...` JSON routes with consistent envelopes.
 

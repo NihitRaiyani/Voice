@@ -28,4 +28,4 @@ One level brief owns status/evidence; do not create competing active plans or re
 
 Provider interfaces precede integration; direct local ASR/TTS inference precedes speech model serving, RAG begins at Level 9 and full Docker packaging begins at Level 13. Retain existing PostgreSQL/Redis Compose as pre-v4 compatibility tooling without making it the native foundation requirement.
 
-Latest authorized task: implement Level 2 section 12 deterministic safety, structured audit, bounded prompt inputs and safety query endpoints. Preserve earlier foundations. Quota is unavailable, so verification uses mocks/test files without paid calls. Level 0 teacher/timing gates and later-level acceptance remain separate. See [readiness](13-backend-roadmap.md).
+Latest authorized task: implement Level 3 section 13 transactional booking, advisory Redis holds, atomic cancellation and truthful controller/API confirmation. Preserve earlier foundations. Quota is unavailable, so verification uses mocks/test files without paid calls. Level 0 teacher/timing gates and later-level acceptance remain separate. See [readiness](13-backend-roadmap.md).

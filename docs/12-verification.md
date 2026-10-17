@@ -80,3 +80,7 @@ The owner selected the OpenAI source on 2026-10-12. [The prerequisite audit](roa
 ## Section 12 deterministic safety
 
 [Level 2 section 12 evidence](levels/level-02.md#section-12-implementation-and-evidence) records the final 1,790-test offline run, 31-file type check, lint/hooks and the expanded bounded CI slice. Safety tests cover English/Hindi/Gujarati claims and caller questions, direct deflections, injection/poisoned inputs, storage failure/timeout/cancellation, per-turn pre-TTS auditing and native disposable PostgreSQL round-trips/query semantics. Runtime audit omits raw text and never claims a failed database write committed. Native scoring, paid measurements and complete voice approval remain deferred. No working DB mutation, paid call or model download was needed.
+
+## Section 13 transactional booking
+
+[Level 3 evidence](levels/level-03.md#acceptance-gate-and-evidence) records **1,825 offline tests**, the expanded **56 + 245** CI selection, Ruff and the 36-file mypy check. Native PostgreSQL tests exercise a 100-request HTTP race (one 201, 99 conflicts), concurrent different-slot attempts for one call, cancellation/reuse, stable retries, commit rollback and index enforcement. Native Redis verifies atomic ownership/TTL; controller/pre-TTS tests reject false confirmation and restore SQL appointment truth. No paid calls, schema mutation or configured-database seed is part of verification. Real approved slots, teacher demonstration and complete voice approval remain separate.

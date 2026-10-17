@@ -6,18 +6,19 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from sqlalchemy import Select, func, select
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from roma.domain.appointments.booking import BookingError, HoldOwner, SlotKey
 from roma.domain.persistence import (
     AppointmentRecord,
     CallRecord,
     PersistenceConflict,
-    RecordNotFound,
 )
+from roma.repositories.postgres.booking import PostgresBookingStore
 from roma.repositories.postgres.models import (
     Appointment,
     Call,
@@ -36,6 +37,7 @@ from roma.schemas.rest_api import (
     SafetyStatsQuery,
     UpdateAppointmentRequest,
 )
+from roma.services.booking_service import BookingService
 
 SessionFactory = async_sessionmaker[AsyncSession]
 
@@ -225,8 +227,53 @@ async def _count(session: AsyncSession, statement: Select[tuple[Any]]) -> int:
 class RestApiService:
     """Coordinates short database work for versioned REST resources."""
 
-    def __init__(self, session_factory: SessionFactory) -> None:
+    def __init__(self, session_factory: SessionFactory, booking_service=None) -> None:
         self._session_factory = session_factory
+        self.booking = booking_service or BookingService(PostgresBookingStore(session_factory))
+
+    @staticmethod
+    def booking_error(error: BookingError) -> RestApiServiceError:
+        if error.code == "APPOINTMENT_NOT_FOUND":
+            return RestApiServiceError(
+                404, error.code, "Call, appointment or configured slot was not found."
+            )
+        if error.code == "APPOINTMENT_SLOT_UNAVAILABLE":
+            return RestApiServiceError(
+                409, error.code, "The selected appointment slot is unavailable."
+            )
+        return RestApiServiceError(503, error.code, "Booking is temporarily unavailable.")
+
+    async def appointment_slots(self, branch_id, on=None):
+        try:
+            records = await self.booking.candidates(branch_id, on=on)
+            out = []
+            for r in records:
+                key = SlotKey(r.branch_id, r.appointment_date, r.start_time)
+                if await self.booking.held(key):
+                    continue
+                out.append(
+                    {
+                        "id": str(r.id),
+                        "branch_id": str(r.branch_id),
+                        "appointment_date": r.appointment_date.isoformat(),
+                        "start_time": r.start_time.isoformat(),
+                    }
+                )
+            return out
+        except BookingError as exc:
+            raise self.booking_error(exc) from exc
+
+    async def hold_appointment(self, payload):
+        key = SlotKey(payload.branch_id, payload.appointment_date, payload.start_time)
+        try:
+            return await self.booking.hold(key, payload.call_id, payload.hold_token)
+        except BookingError as exc:
+            raise self.booking_error(exc) from exc
+
+    async def release_appointment_hold(self, payload):
+        key = SlotKey(payload.branch_id, payload.appointment_date, payload.start_time)
+        owner = HoldOwner(payload.call_id, payload.hold_token)
+        return {"released": await self.booking.release(key, owner)}
 
     async def create_call(self, payload: CreateCallRequest) -> dict[str, object]:
         now = _now()
@@ -313,7 +360,9 @@ class RestApiService:
     ) -> dict[str, object | None]:
         now = _now()
         record = AppointmentRecord(
-            id=uuid4(),
+            id=uuid5(NAMESPACE_URL, f"roma:appointment:{payload.idempotency_key}")
+            if payload.idempotency_key
+            else uuid4(),
             caller_id=payload.caller_id,
             call_id=payload.call_id,
             branch_id=payload.branch_id,
@@ -325,22 +374,17 @@ class RestApiService:
             created_at=now,
             updated_at=now,
         )
+        owner = (
+            HoldOwner(payload.call_id, payload.hold_token)
+            if payload.call_id and payload.hold_token
+            else None
+        )
+        if payload.hold_token and not payload.call_id:
+            raise RestApiServiceError(422, "VALIDATION_ERROR", "A hold token requires call_id.")
         try:
-            async with PostgresUnitOfWork(self._session_factory) as uow:
-                created = await uow.appointments.book(record)
-                await uow.commit()
-        except RecordNotFound as exc:
-            raise RestApiServiceError(
-                404,
-                "APPOINTMENT_SLOT_NOT_FOUND",
-                "The selected appointment slot was not found.",
-            ) from exc
-        except PersistenceConflict as exc:
-            raise RestApiServiceError(
-                409,
-                "APPOINTMENT_SLOT_UNAVAILABLE",
-                "The selected appointment slot is unavailable.",
-            ) from exc
+            created = await self.booking.confirm(record, owner=owner)
+        except BookingError as exc:
+            raise self.booking_error(exc) from exc
         return _appointment_data(created)
 
     async def list_appointments(
@@ -373,30 +417,17 @@ class RestApiService:
     async def update_appointment(
         self, appointment_id: UUID, payload: UpdateAppointmentRequest
     ) -> dict[str, object | None]:
-        now = _now()
-        async with self._session_factory() as session:
-            try:
-                async with session.begin():
-                    row = await session.get(Appointment, appointment_id, with_for_update=True)
-                    if row is None or row.anonymized_at is not None:
-                        raise RestApiServiceError(
-                            404, "APPOINTMENT_NOT_FOUND", "Appointment was not found."
-                        )
-                    row.status = payload.status
-                    row.updated_at = now
-                    if payload.counsellor_id is not None:
-                        row.counsellor_id = payload.counsellor_id
-                    if payload.course_id is not None:
-                        row.course_id = payload.course_id
-                    await session.flush()
-                    await session.refresh(row)
-            except IntegrityError as exc:
-                raise RestApiServiceError(
-                    409,
-                    "APPOINTMENT_SLOT_UNAVAILABLE",
-                    "The selected appointment slot is unavailable.",
-                ) from exc
-        return _appointment_row_data(row)
+        try:
+            saved = await self.booking.update(
+                appointment_id,
+                status=payload.status,
+                now=_now(),
+                counsellor_id=payload.counsellor_id,
+                course_id=payload.course_id,
+            )
+        except BookingError as exc:
+            raise self.booking_error(exc) from exc
+        return _appointment_data(saved)
 
     async def cancel_appointment(self, appointment_id: UUID) -> dict[str, object | None]:
         payload = UpdateAppointmentRequest(status="cancelled")

@@ -33,6 +33,7 @@ SLOT_ATTEMPT_CAP = 2
 
 SLOT_STATUS_LINES = {
     "none": "SLOT STATUS: abhi tak koi visit slot accept nahi hua hai.",
+    "unavailable": "SLOT STATUS: visit confirm nahi hua. Availability dobara check karni hai; confirmed mat bolo.",
     "unclear": (
         "SLOT STATUS: lead ne jo time bola wo clear nahi tha. Confirm kuch mat karo — "
         "dobara poochho ya do time bata do."
@@ -176,6 +177,10 @@ class CallState:
     slots_offered: list = field(default_factory=list)
     accepted_slot: "str | None" = None
     locked_slot: "str | None" = None
+    # Offline exercises retain their conversational lock; production requires a SQL commit.
+    booking_required: bool = False
+    appointment_id: "str | None" = None
+    booking_error: "str | None" = None
 
     pending_day: "str | None" = None
 
@@ -248,9 +253,12 @@ class CallState:
         """
         slot = spoken_slot(self.locked_slot or self.accepted_slot)
         status = self.slot_status if self.slot_status in SLOT_STATUS_LINES else "none"
+        if self.booking_required and self.booking_error:
+            status = "unavailable"
         if status in ("accepted", "locked") and not slot:
             status = "none"
         return {
+            **({"booking_required": True} if self.booking_required else {}),
             "branch": branch_value(self.branch),
             # `or ""` because lead_name is None until discover captures it — a fragment must never
             # render the string "None" at a lead.
@@ -333,6 +341,15 @@ class CallState:
         given. Removing the competing instruction is the fix; telling her more firmly which
         of two contradictory lines to obey is not.
         """
+        if self.booking_required:
+            if status in ("accepted", "locked"):
+                return _OFFER_TAKEN_LINE
+            spoken = [s for s in (spoken_slot(iso) for iso in self.slots_offered) if s][:2]
+            return (
+                "OFFER: Sirf in database-checked times mein se poochho: " + "; ".join(spoken)
+                if spoken
+                else "OFFER: Abhi koi verified time nahi hai. Availability counsellor se check karwao; time invent mat karo."
+            )
         if status in ("accepted", "locked"):
             return _OFFER_TAKEN_LINE
         spoken = [s for s in (spoken_slot(iso) for iso in self.slots_offered) if s]
@@ -364,6 +381,9 @@ class CallState:
             "slots_offered": list(self.slots_offered),
             "accepted_slot": self.accepted_slot,
             "locked_slot": self.locked_slot,
+            "booking_required": self.booking_required,
+            "appointment_id": self.appointment_id,
+            "booking_error": self.booking_error,
             "pending_day": self.pending_day,
             "stage": self.stage.value,
             "turn_count": self.turn_count,

@@ -93,9 +93,11 @@ class PreTTSFilterProcessor(FrameProcessor):
         *,
         safety=None,
         safety_context_fn=None,
+        booking_state_fn=None,
     ) -> None:
         super().__init__()
         self._slot_status_fn = slot_status_fn
+        self._booking_state_fn = booking_state_fn
         self.safety = safety if safety is not None else SafetyService()
         self._safety_context_fn = safety_context_fn
         self._audit_turn = 0
@@ -121,6 +123,13 @@ class PreTTSFilterProcessor(FrameProcessor):
         except Exception:  # noqa: BLE001 — unreadable state fails towards "do not confirm"
             _log.warning("confirmation gate could not read slot_status; assuming none")
             return "none"
+
+    def _booking_committed(self) -> bool:
+        try:
+            return bool(self._booking_state_fn().appointment_id)
+        except Exception:  # noqa: BLE001 — unreadable commit state must never permit confirmation
+            _log.warning("booking commit identity unreadable; withholding confirmation")
+            return False
 
     def _stage(self) -> ConversationStage:
         """The stage Roma is speaking in. Read at frame time, like `_slot_status`. With no
@@ -202,6 +211,13 @@ class PreTTSFilterProcessor(FrameProcessor):
             started = perf_counter()
             control_events = []
             status = self._slot_status()
+            if self._booking_state_fn is not None:
+                if not self._booking_committed() and status in (
+                    "accepted",
+                    "locked",
+                    "pending",
+                ):
+                    status = "none"
             line = safe_confirmation(line, status, self._stage())
             if line != after_ack:
                 control_events.append(
@@ -212,7 +228,7 @@ class PreTTSFilterProcessor(FrameProcessor):
                         (perf_counter() - started) * 1000,
                     )
                 )
-            denied = safe_availability(line, status)
+            denied = safe_availability(line, status) if self._booking_state_fn is None else line
             if denied != line:
                 self.denial_holds += 1
                 control_events.append(

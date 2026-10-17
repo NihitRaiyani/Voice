@@ -107,6 +107,9 @@ class AppointmentRepository(Protocol):
 
     async def get(self, appointment_id: UUID) -> AppointmentRecord | None: ...
 
+    async def update_status(self, appointment_id: UUID, *, status: str, now: datetime,
+                            counsellor_id: UUID | None = None, course_id: UUID | None = None) -> AppointmentRecord: ...
+
 
 @runtime_checkable
 class EvidenceRepository(Protocol):

@@ -1,6 +1,6 @@
 # Data, transactions and concurrency
 
-**Implemented foundation:** async PostgreSQL lifecycle, Alembic schema/repositories, slot locking/active-booking uniqueness, durable webhook/job transactions and Level 2 latest conversation checkpoint save/restore. **Pending:** live booking integration, redial/session recovery, cancellation and complete retention/API workflows.
+**Implemented foundation:** async PostgreSQL lifecycle, Alembic schema/repositories, slot locking/active-booking uniqueness, durable webhook/job transactions and Level 2 latest conversation checkpoint save/restore. **Section 13:** production controller/API booking, cancellation/reuse, advisory holds and same-SID appointment truth are integrated. **Pending:** broader redial/session recovery and complete retention/access workflows.
 
 ## Schema ownership
 
@@ -10,7 +10,7 @@
 | Calls, turns, events | Lifecycle/turn narrative; nullable turn language added; answer/post-call writes exist, not all live milestones |
 | Conversation states | Latest per-call checkpoint schema plus Level 2 repository/store adapter with revision increments, schema/policy checks and expiry refusal; redial/L7 recovery pending |
 | Model registry/benchmark runs/results | Candidate identity and reproducible measurement schema; runners/inference integration pending L2/L4/L5/L12 |
-| Appointment slots/appointments | Offerable slot and active booking constraints; live controller not yet wired |
+| Appointment slots/appointments | Configured availability and active booking constraints; controller/API commits and atomic cancellation wired in section 13 |
 | Safety/usage/cost/recording models | Durable target entities; model existence does not prove live audit/usage collection |
 | `followup_jobs` | Existing physical ledger for background work and inactive follow-up intents |
 | Users/roles/audit | Data foundation, not implemented login/RBAC |
@@ -22,15 +22,15 @@ The initial migration is `20260920_0001`; `20260930_0002` adds webhook receipts;
 
 Slots are unique by branch/date/start time. Appointments have a partial unique index on that tuple for statuses `booked` and `confirmed`, plus a matching-slot foreign key. `book()` locks the existing slot with `FOR UPDATE`, checks availability, inserts the appointment and marks the slot booked inside one unit of work.
 
-The schema has a positive `capacity` field, but the active-slot uniqueness currently enforces **one** active appointment. Do not claim capacity greater than one works. A cancelled appointment alone does not make a `booked` slot available; cancellation must atomically update both sides under policy.
+The schema has a positive `capacity` field, but the active-slot uniqueness currently enforces **one** active appointment. Do not claim capacity greater than one works. Cancellation now updates appointment and booked-slot status atomically under the same lock order; a stale cancellation cannot free a successor booking. Completed/no-show slots remain consumed.
 
-The 100-attempt repository test is `tests/repositories/postgres/test_appointment_concurrency.py`. It expects one winner and 99 domain conflicts. Test presence is not fresh execution evidence; consult [baseline evidence](roadmaps/level-00-baseline.md).
+The retained repository race is `tests/repositories/postgres/test_appointment_concurrency.py`. Section 13 adds `tests/repositories/postgres/test_booking_module.py`: 100 actual HTTP attempts yield one 201 and 99 conflicts on native disposable PostgreSQL. Fresh evidence and all booking decisions live in [Level 3](levels/level-03.md).
 
 ## Level 3 integration
 
-Expose availability/booking through application services and map domain conflicts to 409. Live offers/readback/confirmation must use committed truth. Advisory Redis holds cannot replace a database transaction. Existing-slot locking does not protect absent rows; rely on constraints when introducing slot creation.
+`BookingService`/`BookingSession` expose configured availability, advisory 90-second owner-token holds and confirmation through production controller and protected REST endpoints. A hold never keeps a SQL transaction open. Final confirmation rechecks under the slot lock and the partial unique index; conflicts map to 409, unavailable storage to 503. Same-ID retries return the committed appointment; cancellation frees the slot atomically. See [API contracts](24-rest-api-design.md#appointment-holds-and-confirmation). Existing-slot locking does not protect absent rows; the composite foreign key rejects unconfigured slots.
 
-Keep transactions short and release connections before inference/audio/Redis/external synchronization. Pool defaults remain 5 + 10 overflow per process with a 5-second wait. Settings now reject unbounded/invalid values and optionally enforce a declared process-wide allocation; the [capacity preflight](runbook.md#database-capacity-and-pool-pressure) checks actual server reservations/headroom. Peak includes overflow and all API/worker/dispatcher engines. `PostgresUnitOfWork` rejects nesting an active instance while supporting sequential use. Real PostgreSQL tests cover pool pressure, release before simulated audio, timeout recovery and cancellation; see [L1 evidence](levels/level-01.md). Request idempotency, reschedule/cancellation and business visiting-hours policy must be explicit.
+Keep transactions short and release connections before inference/audio/Redis/external synchronization. Pool defaults remain 5 + 10 overflow per process with a 5-second wait. Settings now reject unbounded/invalid values and optionally enforce a declared process-wide allocation; the [capacity preflight](runbook.md#database-capacity-and-pool-pressure) checks actual server reservations/headroom. Peak includes overflow and all API/worker/dispatcher engines. `PostgresUnitOfWork` rejects nesting an active instance while supporting sequential use. Real PostgreSQL tests cover pool pressure, release before simulated audio, timeout recovery and cancellation; see [L1 evidence](levels/level-01.md). Section 13 defines UUID retry identity, cancellation/terminal semantics and existing IST visiting hours. Rescheduling remains a separate future operation.
 
 ## Durable conversation and recovery
 

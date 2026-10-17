@@ -553,7 +553,9 @@ class CallPostgresRepository:
         return _event_record(row)
 
     async def _lock_call(self, call_id: UUID) -> Call:
-        row = await self._session.scalar(select(Call).where(Call.id == call_id).with_for_update())
+        row = await self._session.scalar(
+            select(Call).where(Call.id == call_id).with_for_update()
+        )
         if row is None:
             raise RecordNotFound("call does not exist")
         return row
@@ -678,7 +680,31 @@ class AppointmentPostgresRepository:
         )
         if slot is None:
             raise RecordNotFound("appointment slot does not exist")
-        if slot.status != "available":
+        existing = await self._session.get(Appointment, record.id, populate_existing=True)
+        if existing is not None:
+            identity = (
+                "branch_id",
+                "appointment_date",
+                "start_time",
+                "caller_id",
+                "call_id",
+                "counsellor_id",
+                "course_id",
+            )
+            if any(getattr(existing, key) != getattr(record, key) for key in identity):
+                raise PersistenceConflict("booking identity reused for different input")
+            if existing.status not in {"booked", "confirmed"}:
+                raise PersistenceConflict("booking identity is no longer active")
+            return _appointment_record(existing)
+        active = await self._session.scalar(
+            select(Appointment.id).where(
+                Appointment.branch_id == record.branch_id,
+                Appointment.appointment_date == record.appointment_date,
+                Appointment.start_time == record.start_time,
+                Appointment.status.in_(("booked", "confirmed")),
+            )
+        )
+        if slot.status != "available" or active is not None:
             raise PersistenceConflict("appointment slot is not available")
 
         row = Appointment(
@@ -705,6 +731,60 @@ class AppointmentPostgresRepository:
     async def get(self, appointment_id: UUID) -> AppointmentRecord | None:
         row = await self._session.get(Appointment, appointment_id)
         return None if row is None else _appointment_record(row)
+
+    async def update_status(
+        self,
+        appointment_id: UUID,
+        *,
+        status: str,
+        now: datetime,
+        counsellor_id: UUID | None = None,
+        course_id: UUID | None = None,
+    ) -> AppointmentRecord:
+        # Lock ordering is call -> slot -> appointment, shared with the booking service.
+        original = await self._session.get(Appointment, appointment_id)
+        if original is None or original.anonymized_at is not None:
+            raise RecordNotFound("appointment does not exist")
+        if original.call_id is not None:
+            await self._session.scalar(
+                select(Call).where(Call.id == original.call_id).with_for_update()
+            )
+        slot = await self._session.scalar(
+            select(AppointmentSlot)
+            .where(
+                AppointmentSlot.branch_id == original.branch_id,
+                AppointmentSlot.appointment_date == original.appointment_date,
+                AppointmentSlot.start_time == original.start_time,
+            )
+            .with_for_update()
+        )
+        row = await self._session.scalar(
+            select(Appointment)
+            .where(Appointment.id == appointment_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if row is None or slot is None:
+            raise RecordNotFound("appointment or slot does not exist")
+        active = row.status in {"booked", "confirmed"}
+        if not active and status != row.status:
+            raise PersistenceConflict(
+                "terminal appointment cannot be reactivated; create a new booking"
+            )
+        if active and status == "cancelled" and slot.status == "booked":
+            slot.status = "available"
+            slot.updated_at = now
+        row.status, row.updated_at = status, now
+        if counsellor_id is not None:
+            row.counsellor_id = counsellor_id
+        if course_id is not None:
+            row.course_id = course_id
+        if row.call_id is not None and active:
+            call = await self._session.get(Call, row.call_id)
+            if call is not None:
+                call.booking_status, call.updated_at = status, now
+        await _flush_or_conflict(self._session)
+        return _appointment_record(row)
 
 
 class EvidencePostgresRepository:
@@ -926,12 +1006,16 @@ class ReferenceDataPostgresRepository:
         statement = (
             insert(BranchCourse)
             .values(branch_id=branch_id, course_id=course_id)
-            .on_conflict_do_nothing(index_elements=[BranchCourse.branch_id, BranchCourse.course_id])
+            .on_conflict_do_nothing(
+                index_elements=[BranchCourse.branch_id, BranchCourse.course_id]
+            )
         )
         await _execute_or_conflict(self._session, statement)
         return branch_id, course_id
 
-    async def list_branch_course_offerings(self, branch_id: UUID) -> tuple[tuple[UUID, UUID], ...]:
+    async def list_branch_course_offerings(
+        self, branch_id: UUID
+    ) -> tuple[tuple[UUID, UUID], ...]:
         rows = await self._session.execute(
             select(BranchCourse.branch_id, BranchCourse.course_id)
             .where(BranchCourse.branch_id == branch_id)

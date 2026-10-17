@@ -149,3 +149,13 @@ Trace one unsafe sentence through deterministic matching, its approved replaceme
 Show rule/policy identity, call/turn foreign keys, detection time and measured check latency. No raw transcript is needed to explain which rule fired. The existing schema maps these fields through columns and allowlisted metadata; event-ID replay is idempotent, and the turn row may contain no transcript. Short database work finishes before speech resumes. If audit storage fails, use a safe fallback and report the failure honestly; never claim an outage event was durably stored.
 
 Defend bounded caller/slot validation, Unicode combining marks, code-owned enums and injection canaries as layers rather than a proof against every prompt attack. Demonstrate the three authenticated safety read endpoints and explain that statistics count rule activations. Mocks and disposable PostgreSQL prove software behavior; they cannot pass native-speaker quality or live voice gates.
+
+## Level 3 section 13 explanation
+
+**Why does checking availability before insert fail?** Both callers can read “free.” Recheck under a short slot lock, and retain the partial unique index for active `booked`/`confirmed` appointments as the final authority. The 100-request HTTP test must show one 201 and 99 conflicts.
+
+**Why not lock while the caller thinks?** That consumes a connection and blocks other work. Redis owns a 90-second advisory hold with a token and TTL; PostgreSQL only locks during confirmation. Expired holds never override SQL truth.
+
+**When is “confirmed” truthful?** After explicit caller affirmation and a successful commit. The controller clears tentative lock/win while awaiting SQL; interruption/failure cannot fabricate success. Same-SID restore reads appointments before trusting Redis.
+
+**Why test cancellation and retries?** A stale cancel must not free a successor's slot. Cancellation changes both records atomically; stable booking IDs make retries return the same active appointment. Terminal records require a new identity. Compare pessimistic locking with optimistic insert/conflict handling and explain why the working slot-lock/index combination was retained. See [policy and tests](levels/level-03.md).

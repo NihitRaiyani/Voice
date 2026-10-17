@@ -161,9 +161,17 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch):
     monkeypatch.setattr(
         module,
         "get_settings",
-        lambda: SimpleNamespace(database_url=SecretStr("postgresql+asyncpg://unused")),
+        lambda: SimpleNamespace(
+            database_url=SecretStr("postgresql+asyncpg://unused"),
+            redis_url=SecretStr("redis://unused"),
+            booking_hold_ttl_secs=90,
+            booking_db_timeout_secs=3,
+            booking_redis_timeout_secs=1,
+        ),
     )
     monkeypatch.setattr(module.Database, "from_settings", lambda _settings: database)
+    redis = SimpleNamespace(aclose=AsyncMock())
+    monkeypatch.setattr(module.Redis, "from_url", lambda _url: redis)
     mounted = {}
 
     def mount_web_api(app, *, session_factory=None):
@@ -176,11 +184,21 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch):
         app = FastAPI(lifespan=kwargs["lifespan"])
         app.state.webhook_service = kwargs["webhook_service"]
         assert kwargs["auto_hang_up"] is True
+        from roma.domain.conversation.state import CallState
+        from roma.services.booking_session import BookingSession
+
+        state = CallState(call_sid="synthetic")
+        booking_session = kwargs["booking_factory"](state)
+        assert isinstance(booking_session, BookingSession) and booking_session.state is state
+        app.state.test_booking = booking_session.service
         return app
 
     monkeypatch.setattr(module, "build_media_app", build_app)
     with TestClient(module.create_app()) as client:
         assert isinstance(client.app.state.webhook_service, WebhookService)
         assert mounted == {"app": client.app, "session_factory": database.session_factory}
+        assert client.app.state.test_booking is client.app.state.booking_service
         database.close.assert_not_awaited()
+        redis.aclose.assert_not_awaited()
     database.close.assert_awaited_once()
+    redis.aclose.assert_awaited_once()

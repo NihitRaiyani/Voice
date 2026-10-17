@@ -73,6 +73,13 @@ test-provider-contracts:
 test-ci: test-provider-contracts
 	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync pytest -q -p no:cacheprovider \
 		tests/api/v1/test_rest_resources.py \
+		tests/api/v1/test_booking_resources.py \
+		tests/api/v1/test_webhook_idempotency.py \
+		tests/services/test_booking_service.py \
+		tests/domain/conversation/test_booking_commit.py \
+		tests/realtime/test_booking_commit.py \
+		tests/repositories/redis/test_appointment_holds.py \
+		tests/repositories/postgres/test_booking_module.py \
 		tests/architecture/test_dependency_direction.py \
 		tests/core/test_migration_settings.py \
 		tests/services/test_text_conversation_service.py \

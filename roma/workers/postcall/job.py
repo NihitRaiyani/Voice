@@ -126,7 +126,12 @@ def outcome_for(state) -> str:
     """
     if state is None:
         return OUTCOME_UNKNOWN
-    return OUTCOME_LOCKED if getattr(state, "locked_slot", None) else OUTCOME_NO_LOCK
+    committed = not getattr(state, "booking_required", False) or bool(
+        getattr(state, "appointment_id", None)
+    )
+    return (
+        OUTCOME_LOCKED if getattr(state, "locked_slot", None) and committed else OUTCOME_NO_LOCK
+    )
 
 
 __all__ = [

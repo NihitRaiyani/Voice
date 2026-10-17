@@ -130,12 +130,25 @@ def _filter_response(
 
     line = guard("time_talk", safe_time_talk(line, state.stage, state.facts_said))
     # A conversational lock is not a committed appointment in this lab.
-    status = "accepted" if state.locked_slot else state.slot_status
-    if state.locked_slot:
+    status = (
+        "locked"
+        if state.appointment_id
+        else "accepted"
+        if state.locked_slot
+        else state.slot_status
+    )
+    if state.locked_slot and not state.appointment_id:
         line = guard(
             "readback", SAFE_READBACK_HOLD_LINE.format(slot=spoken_slot(state.locked_slot))
         )
-    line = guard("availability", safe_availability(line, status))
+    if not state.booking_required:
+        line = guard("availability", safe_availability(line, status))
+    if (
+        state.booking_required
+        and not state.appointment_id
+        and status in ("accepted", "locked", "pending")
+    ):
+        status = "none"
     line = guard("confirmation", safe_confirmation(line, status, state.stage))
     line = guard("close", safe_close(line, status, 0, wants_out=state.lead_wants_out))
     if line != raw:
@@ -217,8 +230,11 @@ class TextConversationService:
         max_tokens: int = 128,
         temperature: float = 0.7,
         safety: SafetyService | None = None,
+        booking_session=None,
     ) -> None:
         self.provider = provider
+        self.booking_session = booking_session
+        self._booking_restored = False
         self.safety = safety if safety is not None else SafetyService()
         self._call_identity: str | int | None = None
         self.store = store or InMemoryConversationStateStore()
@@ -365,6 +381,18 @@ class TextConversationService:
         async def time_slot(client: Any, text: str, *, offered: Any = None) -> TimeSlot:
             return await extract(ValidatedTimeSlot, _TIME_SYS, _offer_block(offered) + text)  # type: ignore[return-value]
 
+        if self.booking_session is not None and not self._booking_restored:
+            await self.booking_session.restore()
+            self._booking_restored = True
+        booking_kwargs = (
+            {
+                "calendar": self.booking_session,
+                "confirm_booking": self.booking_session.confirm,
+                "release_holds": self.booking_session.aclose,
+            }
+            if self.booking_session
+            else {}
+        )
         await advance_turn(
             state,
             user_text,
@@ -373,6 +401,7 @@ class TextConversationService:
             elapsed_secs=elapsed_secs,
             extract_discovery=discovery,
             extract_time=time_slot,
+            **booking_kwargs,
         )
         fixed = canned_reply(state, user_text)
         route = route_intent(state, deterministic_reply=fixed)
@@ -428,6 +457,7 @@ class TextConversationService:
             final,
             tuple(metrics),
             ",".join(errors) or None,
+            booking_committed=bool(state.booking_required and state.appointment_id),
             safety_events=tuple(event.data() for event in events),
         )
 

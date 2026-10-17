@@ -4,7 +4,7 @@ Each call owns its Pipecat task/provider streams, controller state, aggregation,
 
 ## Current concurrency guarantees and limits
 
-The appointment repository locks an existing slot and has active-slot uniqueness; `/answer` commits a unique receipt/call/event atomically. These are implemented database boundaries, not proof of live booking integration or measured call capacity.
+The appointment repository locks an existing slot and has active-slot uniqueness; `/answer` commits a unique receipt/call/event atomically. Section 13 integrates booking with the production controller/API, adds expiring owner-token holds and tests commit-before-win, retries, cancellation and a 100-request HTTP race. These guarantees do not establish measured real-call capacity.
 
 Use **one recording queue consumer**: its startup inflight recovery assumes one consumer. Dramatiq consumers are a different pool and claim targeted PostgreSQL rows under locks. Do not infer arbitrary recording-worker scaling from atomic Redis list operations.
 

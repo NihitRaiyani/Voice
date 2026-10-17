@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -13,11 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from roma.api.v1.responses import ApiError, success_response
 from roma.core.config import get_settings
 from roma.schemas.rest_api import (
+    AppointmentHoldRequest,
     AppointmentsQuery,
     CallsQuery,
     CreateAppointmentRequest,
     CreateCallRequest,
     LeadsQuery,
+    ReleaseAppointmentHoldRequest,
     SafetyEventsQuery,
     SafetyStatsQuery,
     UpdateAppointmentRequest,
@@ -45,7 +48,7 @@ def _service_from_request(request: Request) -> RestApiService:
     session_factory: SessionFactory | None = getattr(request.app.state, "session_factory", None)
     if session_factory is None:
         raise ApiError(503, "DATABASE_UNAVAILABLE", "DATABASE_URL is not configured.")
-    return RestApiService(session_factory)
+    return RestApiService(session_factory, getattr(request.app.state, "booking_service", None))
 
 
 def _translate(error: RestApiServiceError) -> ApiError:
@@ -123,6 +126,40 @@ async def list_leads(
     )
     data, meta = await service.list_leads(query)
     return success_response(data, meta=meta)
+
+
+@router.get("/appointment-slots", tags=["appointments"])
+async def appointment_slots(
+    branch_id: UUID,
+    service: Annotated[RestApiService, Depends(_service_from_request)],
+    on: date | None = None,
+):
+    try:
+        data = await service.appointment_slots(branch_id, on)
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
+    return success_response(data)
+
+
+@router.post("/appointment-holds", status_code=201, tags=["appointments"])
+async def hold_appointment(
+    payload: AppointmentHoldRequest,
+    service: Annotated[RestApiService, Depends(_service_from_request)],
+):
+    try:
+        data = await service.hold_appointment(payload)
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
+    return success_response(data, status_code=201)
+
+
+@router.delete("/appointment-holds", tags=["appointments"])
+async def release_appointment_hold(
+    payload: ReleaseAppointmentHoldRequest,
+    service: Annotated[RestApiService, Depends(_service_from_request)],
+):
+    data = await service.release_appointment_hold(payload)
+    return success_response(data)
 
 
 @router.post("/appointments", status_code=status.HTTP_201_CREATED, tags=["appointments"])

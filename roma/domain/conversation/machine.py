@@ -40,7 +40,6 @@ OBJECTION_ANSWER_CAP = 2
 # Roma answers again           → 2
 
 
-
 @dataclass(frozen=True)
 class TurnSignals:
     """What the just-finished user turn told us (computed by turn.py from slot extraction
@@ -48,13 +47,13 @@ class TurnSignals:
     only sets what fired."""
 
     inquiry_confirmed: bool = False
-    
+
     declined_now: bool = False
-    
+
     discovery_slot_filled: bool = False
-    
+
     asks_about_course: bool = False
-    
+
     asks_to_book: bool = False
     slot_accepted: bool = False
     readback_confirmed: bool = False
@@ -80,7 +79,6 @@ def next_stage(state: CallState, signals: TurnSignals) -> Transition:
 
     stage = state.stage
 
-   
     if (
         signals.asks_to_book
         and not signals.declined_now
@@ -101,7 +99,6 @@ def next_stage(state: CallState, signals: TurnSignals) -> Transition:
         )
 
     if stage == ConversationStage.DISCOVER:
-        
         if signals.asks_about_course:
             return Transition(ConversationStage.VALUE)
         done = state.filled_discovery_count() >= len(DISCOVERY_ORDER) or (
@@ -128,7 +125,11 @@ def next_stage(state: CallState, signals: TurnSignals) -> Transition:
         return Transition(ConversationStage.PIVOT)
 
     if stage == ConversationStage.CLOSE:
-        if state.locked_slot is not None and signals.readback_confirmed:
+        if (
+            state.locked_slot is not None
+            and signals.readback_confirmed
+            and (not state.booking_required or state.appointment_id is not None)
+        ):
             return Transition(ConversationStage.CLOSE, win=True)
         return Transition(ConversationStage.CLOSE)
 

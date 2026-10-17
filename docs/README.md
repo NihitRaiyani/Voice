@@ -11,7 +11,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
 | 1 | [Backend foundation](levels/level-01.md) | Sections 3–9 foundations implemented; hosted CI green, full review evidence still separate |
 | 2 | [Text/OpenAI LLM](levels/level-02.md) | Sections 10–12 state/checkpoints, OpenAI/mock text seam and deterministic safety audit present; native/live quality pending |
-| 3 | [Transactional booking](levels/level-03.md) | Repository present; live/API integration pending |
+| 3 | [Transactional booking](levels/level-03.md) | Booking/holds/controller/API implemented; offline evidence in brief, live demo deferred |
 | 4 | [Audio/local ASR](levels/level-04.md) | Cloud baseline; local lab planned |
 | 5 | [Local TTS](levels/level-05.md) | Cloud cache; local lab planned |
 | 6 | [Local voice prototype](levels/level-06.md) | Planned |
@@ -40,7 +40,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [09 Recordings](09-recording-storage.md) | Capture, consent, durability and ack |
 | [11 Prompts](11-prompts.md) | Runtime wording/extraction versus code authority |
 | [12 Verification](12-verification.md) | Evidence rules and actual check limitations |
-| [14 Data/concurrency](14-data-and-concurrency.md) | Existing constraints and live-booking gap |
+| [14 Data/concurrency](14-data-and-concurrency.md) | Booking authority, lease lifetime and cancellation/transaction contracts |
 | [15 API/security/jobs](15-api-security-and-jobs.md) | Compatibility/versioned API and identities |
 | [24 REST API design](24-rest-api-design.md) | v1 resource routes, envelopes, pagination/filtering/sorting and OpenAPI |
 | [16 Observation/delivery](16-observability-testing-and-delivery.md) | Metrics, capacity, CI and packaging |

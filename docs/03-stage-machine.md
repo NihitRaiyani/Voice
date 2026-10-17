@@ -26,10 +26,10 @@ Structured extraction returns candidate meaning; code resolves relative dates/id
 
 A visit needs specific branch/day/time, readback and affirmative confirmation. A correction invalidates stale confirmation. Directions/address follow the confirmed visit; vague intent is not success.
 
-## Repository versus live integration
+## Database-backed production confirmation
 
-The PostgreSQL appointment repository locks an existing slot and enforces one active `booked` or `confirmed` appointment per branch/date/start time. The live controller still uses static hours/optional read-only calendar and a conversational `locked_slot`; it does not call the transactional booking repository.
+The PostgreSQL appointment repository locks the existing slot and enforces one active `booked` or `confirmed` appointment per branch/date/start time. Production composition injects `BookingSession` as the call calendar and confirmation gateway. It holds verified choices in Redis, validates caller-named times and commits on deterministic caller affirmation. A model's `readback_confirmed` field alone cannot authorize the commit.
 
-At Level 3 wire short reservation/confirmation commits into the controller/application boundary and expose conflicts safely. Change always-available prompt claims and confirmation tests together. Success must reflect committed database truth; Redis holds never substitute for it. Complete cancellation/reuse semantics, slot capacity and request idempotency before passing the gate.
+The controller clears any tentative lock while awaiting the commit and only then sets `appointment_id`, `locked_slot` and win. Conflict, storage failure or interruption cannot announce a new confirmed appointment. Production prompt policy removes unlimited availability and WhatsApp delivery promises; the pre-TTS gate requires committed identity. Existing static/read-only calendars and conversational locks remain isolated offline baselines.
 
-Level 2 section 10 adds PostgreSQL latest-checkpoint save/restore for compatible same-call state. A Redis checkpoint is still the hot path, and this does not claim redial recovery, appointment reservation restore or L7 recovery guarantees. See [data tutorial](14-data-and-concurrency.md) and [Level 3](levels/level-03.md).
+Section 13 reconciles same-SID appointment state from PostgreSQL before prompts, restores committed ID/time after an uncertain Redis checkpoint and removes false locks without a durable booking. Pending candidates must reacquire/check a hold. This does not create new-SID redial identity or pass Level 7 recovery drills. See [booking policy and evidence](levels/level-03.md) and [data contract](14-data-and-concurrency.md).

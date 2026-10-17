@@ -15,6 +15,7 @@ this is unit-testable with no live API.
 import logging
 from datetime import date, datetime
 
+from roma.domain.appointments.booking import BookingError
 from roma.domain.appointments.calendar import DEFAULT_CALENDAR, VisitCalendar
 from roma.domain.appointments.slots import extract_discovery_slot, extract_time_slot
 from roma.domain.appointments.timeresolve import (
@@ -577,7 +578,7 @@ def _parse_offers(iso_slots) -> list:
     return out
 
 
-def _anchor_day(state: CallState): # converts the currently discussed day → date
+def _anchor_day(state: CallState):  # converts the currently discussed day → date
     """`state.pending_day` as a date, or None. A malformed value is ignored, never raised
     on — a bad checkpoint must cost the anchor, not the turn."""
     if not state.pending_day:
@@ -656,6 +657,40 @@ def _spoken_offers(state: CallState) -> list:
     return [s for s in (spoken_slot(iso) for iso in state.slots_offered) if s]
 
 
+def _booking_affirmation(text: str) -> bool:
+    # A model's readback_confirmed flag cannot authorize a durable business effect.
+    # Questions, negations and tentative/unknown phrases conservatively need another readback.
+    neutral = {
+        "hai",
+        "hain",
+        "h",
+        "ye",
+        "yeh",
+        "rahega",
+        "rahegi",
+        "time",
+        "slot",
+        "visit",
+        "book",
+        "kar",
+        "do",
+        "dijiye",
+        "karlo",
+        "sure",
+        "please",
+        "thanks",
+        "હૈ",
+        "છે",
+        "કરો",
+        "कर",
+        "दो",
+        "है",
+        "करो",
+    }
+    words = set(tokens(text))
+    return "?" not in text and is_affirmation(text) and words <= _AFFIRMATIONS | neutral
+
+
 def _close_turn(
     state: CallState, ts, verdict, claimed: bool, user_text: str, sig: dict
 ) -> None:
@@ -692,7 +727,12 @@ def _close_turn(
         state.slot_status = verdict.reason
         return
 
-    if (ts.readback_confirmed or is_affirmation(user_text)) and state.accepted_slot is not None:
+    affirmed = (
+        _booking_affirmation(user_text)
+        if state.booking_required
+        else (ts.readback_confirmed or is_affirmation(user_text))
+    )
+    if affirmed and state.accepted_slot is not None:
         state.locked_slot = state.accepted_slot
         state.slot_status = "locked"
         sig["readback_confirmed"] = True
@@ -711,6 +751,8 @@ async def advance_turn(
     store=None,
     elapsed_secs: float = 0.0,
     calendar: VisitCalendar = DEFAULT_CALENDAR,
+    confirm_booking=None,
+    release_holds=None,
     extract_discovery=extract_discovery_slot,
     extract_time=extract_time_slot,
     classify=classify_objection,
@@ -737,11 +779,28 @@ async def advance_turn(
         state.lead_wants_out = True
         _log.info("lead asked to end the call; sign-off guard will not hold (stage=%s)", stage)
 
+    if (
+        state.booking_required
+        and release_holds is not None
+        and (state.lead_wants_out or _is_refusal_only(user_text))
+    ):
+        await release_holds()
+        state.slots_offered = []
+        if not state.appointment_id:
+            state.accepted_slot = None
+            state.slot_status = "none"
+
     sig: dict = {}
     slot_filled = False
     lock_happened = False
     objection_recorded = False
     offers_changed = False
+    booking_retry = False
+
+    async def offer_times(*, on=None):
+        if state.booking_required and calendar is DEFAULT_CALENDAR:
+            raise BookingError("BOOKING_UNAVAILABLE")
+        return await calendar.offers(now, on=on)
 
     def _record_objection(text: str) -> None:
         nonlocal objection_recorded
@@ -842,6 +901,9 @@ async def advance_turn(
                         slot_name,
                     )
 
+    elif state.booking_required and state.appointment_id and state.locked_slot:
+        sig["readback_confirmed"] = True
+
     elif stage in (ConversationStage.PIVOT, ConversationStage.CLOSE):
         if client is not None:
             offered = _parse_offers(state.slots_offered)
@@ -865,6 +927,23 @@ async def advance_turn(
             if verdict.day is not None:
                 state.pending_day = verdict.day.isoformat()
 
+            if state.booking_required and claimed and verdict.slot is not None:
+                try:
+                    if calendar is DEFAULT_CALENDAR:
+                        raise BookingError("BOOKING_UNAVAILABLE")
+                    available = await calendar.is_open(verdict.slot)
+                except BookingError as exc:
+                    available = False
+                    state.booking_error = exc.code
+                if not available:
+                    state.accepted_slot, state.locked_slot = None, None
+                    state.readback_confirmed = False
+                    state.booking_error = state.booking_error or "APPOINTMENT_SLOT_UNAVAILABLE"
+                    verdict = SlotVerdict("unavailable")
+                    claimed = False
+                else:
+                    state.booking_error = None
+
             if stage == ConversationStage.PIVOT:
                 if claimed and verdict.slot is not None:
                     state.accepted_slot = verdict.slot.isoformat()
@@ -873,8 +952,14 @@ async def advance_turn(
                 else:
                     state.slot_status = verdict.reason if (claimed or said_a_time) else "none"
 
-                if verdict.day is not None:
-                    pinned = [d.isoformat() for d in await calendar.offers(now, on=verdict.day)]
+                if verdict.day is not None and not (
+                    state.booking_required and state.accepted_slot
+                ):
+                    try:
+                        pinned = [d.isoformat() for d in await offer_times(on=verdict.day)]
+                    except BookingError as exc:
+                        pinned = []
+                        state.booking_error = exc.code
                     if pinned and pinned != state.slots_offered:
                         state.slots_offered = pinned
                         offers_changed = True
@@ -882,6 +967,30 @@ async def advance_turn(
             elif stage == ConversationStage.CLOSE:
                 _close_turn(state, ts, verdict, claimed, user_text, sig)
                 lock_happened = sig.get("readback_confirmed", False)
+                if state.booking_required and lock_happened:
+                    candidate = state.locked_slot
+                    state.locked_slot, state.appointment_id = None, None
+                    state.readback_confirmed = False
+                    sig["readback_confirmed"] = False
+                    state.slot_status = "pending"
+                    try:
+                        if confirm_booking is None:
+                            raise BookingError("BOOKING_UNAVAILABLE")
+                        appointment_id = await confirm_booking(candidate)
+                        if not appointment_id:
+                            raise BookingError("BOOKING_UNAVAILABLE")
+                    except BookingError as exc:
+                        state.booking_error = exc.code
+                        state.slot_status = "unavailable"
+                        state.accepted_slot = None
+                        state.slots_offered = []
+                        lock_happened = False
+                        booking_retry = True
+                        state.pending_day = None
+                    else:
+                        state.appointment_id, state.locked_slot = str(appointment_id), candidate
+                        state.slot_status, state.booking_error = "locked", None
+                        sig["readback_confirmed"] = True
 
             _log.info(
                 "slot verdict: stage=%s reason=%s accepted=%s chose_offer=%s conf=%.2f "
@@ -905,6 +1014,8 @@ async def advance_turn(
         _record_objection(user_text)
 
     transition = transition_state(state, TurnSignals(**sig))
+    if booking_retry and not state.lead_wants_out:
+        transition = Transition(ConversationStage.PIVOT)
 
     if should_force_pivot(elapsed_secs, transition.next_stage):
         _log.info(
@@ -920,8 +1031,21 @@ async def advance_turn(
         state.stage = transition.next_stage
         state.stage_turn_count = 0
 
-    if state.stage == ConversationStage.PIVOT and not state.slots_offered:
-        state.slots_offered = [d.isoformat() for d in await calendar.offers(now)]
+    if (
+        state.stage == ConversationStage.PIVOT
+        and (not state.slots_offered or (state.booking_required and not state.accepted_slot))
+        and not state.lead_wants_out
+    ):
+        try:
+            state.slots_offered = [
+                d.isoformat()
+                for d in await offer_times(
+                    on=_anchor_day(state) if state.booking_required else None
+                )
+            ]
+        except BookingError as exc:
+            state.slots_offered = []
+            state.booking_error = state.booking_error or exc.code
         offers_changed = True
         state.pending_day = _sole_offer_day(state.slots_offered)
         _log.info(

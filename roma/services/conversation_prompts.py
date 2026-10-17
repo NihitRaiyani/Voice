@@ -114,6 +114,11 @@ def dialogue_request(
     """One static policy plus compact current-stage instructions/data, never the manual."""
     caller = caller_text(caller)
     policy = POLICY + " " + LANGUAGE_INSTRUCTIONS[language]
+    if state.booking_required:
+        policy = policy.replace(
+            "No appointment is committed in this lab; never claim booked or promise confirmation delivery.",
+            "Confirm a visit only when controller data says booking_committed=true; never promise confirmation delivery.",
+        )
     known = {
         key: discovery_value(key, getattr(state, key))
         for key in DISCOVERY_ORDER
@@ -123,6 +128,7 @@ def dialogue_request(
         "branch": branch_value(state.branch),
         "known": known,
         "name_known": bool(state.lead_name),
+        **({"booking_committed": bool(state.appointment_id)} if state.booking_required else {}),
     }
     if state.stage in {"value", "structure", "objection"}:
         for key in ("timing_constraint", "placement_interest", "mode_pref"):
@@ -142,8 +148,11 @@ def dialogue_request(
     if state.stage == "discover":
         data["next_field"] = state.next_discovery_slot()
     cap = min(STAGE_WORD_CAPS[state.stage], 45)
+    stage_task = STAGE_TASKS[state.stage]
+    if state.booking_required and state.appointment_id:
+        stage_task = "The database committed this appointment. Confirm the controller time and sign off; no delivery promises."
     instruction = (
-        f"Stage: {state.stage.value}. {STAGE_TASKS[state.stage]}\n"
+        f"Stage: {state.stage.value}. {stage_task}\n"
         f"CURRENT CONTROLLER TASK: {task} Reply in <={cap} words.\n"
         "Approved facts: " + " ".join(selected_facts(state, task, caller))
     )

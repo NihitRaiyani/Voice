@@ -35,6 +35,9 @@ class Settings(OpenAILLMSettings):
     redis_url: SecretStr
     database_url: SecretStr = SecretStr("")
     pii_hash_key: SecretStr = SecretStr("")
+    booking_hold_ttl_secs: int = Field(default=90, ge=1, le=300)
+    booking_db_timeout_secs: float = Field(default=3.0, gt=0, le=10, allow_inf_nan=False)
+    booking_redis_timeout_secs: float = Field(default=1.0, gt=0, le=3, allow_inf_nan=False)
     database_pool_size: int = Field(default=5, gt=0)
     database_max_overflow: int = Field(default=10, ge=0)
     database_pool_timeout_secs: float = Field(default=5.0, gt=0, allow_inf_nan=False)

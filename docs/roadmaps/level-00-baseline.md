@@ -16,7 +16,7 @@ Signed Twilio `/answer` → bounded webhook service → PostgreSQL receipt/call/
 
 Current local defaults: Saaras v3 code-mix, Bulbul v3/ishita/Hindi pace 1.05, VAD stop 0.45 s, contextual endpoint 0.50/0.85/1.30 s, backchannel 0.60 s. Database pool 5 + 10 overflow, 5-second wait; Redis conversation TTL one hour; recording retention 90-day default; OpenAI ceiling ₹200. These are source defaults, not disclosed `.env` values or approved production policies.
 
-The transactional appointment repository exists but is not wired into live controller booking. Static/read-only calendar and `locked_slot` still drive spoken confirmation. Local models, durable conversation restore, governed RAG and production roles/telemetry are unverified/unimplemented targets.
+At this 2026-10-04 baseline, the transactional appointment repository existed but was not wired into live controller booking. Static/read-only calendar and `locked_slot` still drive spoken confirmation. Local models, durable conversation restore, governed RAG and production roles/telemetry are unverified/unimplemented targets.
 
 ## Fresh checks
 
@@ -58,3 +58,7 @@ Lint findings predate these documentation edits and are in `roma/core/config.py`
 - [ ] Review student prerequisite self-check and system explanation.
 
 **Level 0 gate pending.** No later level is passed solely from these regression results. See [readiness](../13-backend-roadmap.md) and the [level briefs](../README.md).
+
+## Subsequent section 13 status
+
+Section 13 now wires transactional controller/API booking, Redis holds, atomic cancellation and same-SID appointment reconciliation. The original assessment above is historical evidence. Current decisions/test results are owned by [Level 3](../levels/level-03.md); no new paid/live call or full Level 0 gate is implied.

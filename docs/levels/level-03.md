@@ -1,40 +1,67 @@
 # Level 3 — Transactional booking
 
-**Roadmap sections:** 13. **Status:** Repository foundation implemented; live/API commit, cancellation and full gate pending.
+**Roadmap section:** 13. **Status:** PostgreSQL booking, cancellation/reuse, advisory Redis holds and production controller/API wiring implemented and verified offline. Paid/live voice approval remains deferred.
 
 ## Entry gate
 
-Level 1 persistence plus Level 2 text/confirmation contract.
+Reuse Level 1 PostgreSQL/Alembic and the Level 2 state/readback/safety seams. This section does not retrospectively approve deferred clean-host, native-speaker or voice latency gates.
 
-## Scope when implementation is requested
+## Implemented flow
 
-Complete PostgreSQL appointment authority in the live/API application path using the existing repository. Use a short transaction to check/lock where applicable, recheck and commit. Enforce the existing partial unique branch/date/start-time invariant for active `booked` and `confirmed` appointments; a row lock cannot protect a row that does not exist. Define cancellation, timezone, availability and conflict responses explicitly.
+`BookingService` reads candidate availability with a short session, then obtains a Redis lease and rechecks SQL after that lease. Each session closes before Redis or model/audio work. On explicit caller affirmation, `BookingSession.confirm()` invokes a short PostgreSQL transaction: lock the call when present, lock the existing slot, recheck availability, insert the appointment, mark the slot booked and update the call's booking status. Commit precedes controller win, checkpoint and confirmed speech. REST uses the same service/store.
 
-Redis NX/expiry holds are advisory; 90 seconds is a roadmap example requiring policy review. Handle expiry and concurrent attempts using database truth. Return HTTP 409 on a slot conflict and propose another valid slot.
+The existing `uq_appointments_active_slot` partial unique index protects `(branch_id, appointment_date, start_time)` for **both `booked` and `confirmed`**. This is stronger than the roadmap's confirmed-only example and remains unchanged. The composite slot foreign key prevents bookings without a configured slot. No migration, working-DB seed or schema rewrite is needed.
 
-Reconcile prompt claims, controller state and readback/affirmation gates with real availability. Success needs caller confirmation and a durable commit; external calendar/CRM synchronization remains asynchronous.
+## Decisions and failure behavior
 
-Current `capacity` field does not allow multiple active bookings under the index. Cancellation must release the slot as well as changing appointment status. Review these policies with the counselling owner.
+- PostgreSQL is authoritative. Capacity remains one active appointment regardless of the slot's positive `capacity` field. Row locking makes contenders wait; the partial unique index also rejects direct competing inserts that bypass the application. Optimistic insert-and-handle-conflict is a valid alternative, but replacing the working pessimistic path adds no benefit here.
+- A hold uses `hold:{branch}:{date}:{time}` with a random ownership token plus call ID, atomic Redis `SET NX EX`, and a default **90-second** TTL. Same-owner retries return remaining time without refreshing it. Compare-and-delete cleanup cannot release another owner's hold. Offering two choices holds at most two when returned (a replacement may briefly overlap its predecessor during refresh); selection, refusal and normal teardown release unused holds. TTL covers lost cleanup.
+- Redis is outside database transactions. New offers fail safely if holds cannot be acquired. At confirmation an absent/expired hold or Redis outage still requires the locked SQL recheck; another readable owner causes conflict. Failed cleanup after commit cannot turn a real booking into a reported failure.
+- `BOOKING_HOLD_TTL_SECS` defaults to 90 (1–300); database operation deadline defaults to 3 seconds (maximum 10), Redis operation deadline to 1 second (maximum 3). These are failure bounds, not measured latency targets. The DB deadline includes pool checkout.
+- Dates use **Asia/Kolkata**, start time **10:00 inclusive to 18:00 exclusive**, minimum lead **90 minutes**, horizon **14 days**. The roadmap's 6 PM example illustrates a race, not a change to existing visiting hours. Only active, unambiguous configured IST branches and exact configured slots can be offered; empty reference data yields no invented availability.
+- A caller-affiliated booking locks the call to serialize different-slot attempts, allowing one active appointment per call through this application path. The database-wide invariant remains one active appointment per slot. Direct SQL bypasses the application-only per-call policy.
+- API clients may send a UUID `idempotency_key`; identical active retries return the same appointment ID. Changed identities or terminal appointment reuse conflict. Live confirmation uses a deterministic appointment ID derived from the durable call ID. Same-ID retries are checked inside the slot transaction as well.
+- Cancellation locks the call/slot/appointment, changes appointment status and frees a booked slot atomically. Repeated cancellation of an old appointment cannot unlock its successor. Terminal records cannot be reactivated with PATCH; create a new booking identity. Completion/no-show retains the consumed slot. Rescheduling is outside this section.
+- Same-SID reconnect reads active PostgreSQL appointments before prompts. It restores committed ID/time despite stale Redis, and removes checkpoint-only false locks. It rechecks/reacquires a pending candidate hold. Unknown/ambiguous branches, missing calls and unavailable SQL never become a confirmed visit. A new-SID redial remains Level 7 work.
+- Hindi-base Hinglish remains production policy. Production prompts remove the static baseline's unlimited-availability claim and delivery promise. The pre-TTS gate requires a committed appointment identity for confirmation. The static/read-only calendar remains explicitly available to offline tests. All speech retains the section 12 safety/audit gate.
 
-## Existing reuse in Voice_Agent
+## Files and application interfaces
 
-PostgreSQL `AppointmentRepository.book`, existing-slot FOR UPDATE lock, active-slot partial unique index and the 100-request repository race test. Live static/read-only calendar still needs integration.
+| Area | Main files |
+|---|---|
+| Transaction/index reuse and cancellation | `roma/repositories/postgres/repositories.py`, `models/appointments.py`, `booking.py` |
+| Advisory ownership | `roma/domain/appointments/booking.py`, `roma/repositories/redis/appointment_holds.py` |
+| Orchestration and call calendar | `roma/services/booking_service.py`, `booking_session.py`, `rest_api_service.py` |
+| Protected HTTP contracts | `roma/schemas/rest_api.py`, `roma/api/v1/rest.py`; [API details](../24-rest-api-design.md#appointment-holds-and-confirmation) |
+| Production wiring | `roma/main.py`, `roma/realtime/pipeline.py`, `pretts.py` |
+| Confirmation truth | `roma/domain/conversation/turn.py`, `state.py`, `machine.py`, `shortcircuit.py`, `prompts.py`, `roma/prompts/booking_policy.md` |
+| Offline opt-in seam | `roma/services/text_conversation_service.py`; default lab still makes no durable booking |
 
-## Acceptance gate
+## Acceptance gate and evidence
 
-- [x] 100 concurrent attempts for one eligible slot yield exactly one reservation and 99 conflicts.
-- [ ] Cancellation frees a slot; stale/expired holds cannot override the database.
-- [ ] Retry/idempotency and commit-failure cases never speak a false confirmed booking.
-- [ ] No transaction stays open during inference, audio or external sync; coordinated prompt/controller regressions pass.
+- [x] Native disposable PostgreSQL: 100 simultaneous HTTP booking attempts produce exactly **1 HTTP 201 and 99 HTTP 409**, with one appointment and a booked slot.
+- [x] Retain the earlier 100-attempt repository race and existing partial unique index; bypassed application writes still meet database uniqueness.
+- [x] Cancellation/rebooking, stale cancellation, stable-ID retries, terminal rejection and actual commit failure/rollback are covered.
+- [x] Native disposable Redis: 100 hold contenders have one winner; expiry, unchanged retry TTL and stale ownership cleanup are covered. Two call calendars receive distinct held choices; a lost hold cannot override another owner or SQL truth.
+- [x] Controller tests cover commit-before-win, interrupted/failed confirmation, deterministic caller affirmation and database-authoritative restore. SQL connections are released before mocked Redis waits.
+- [x] Full regression, Ruff/mypy, commit hooks and documentation-link evidence recorded below.
+- [ ] Owner/teacher demonstration with approved real reference slots and later complete voice approval. No paid call, production seed or model download is authorized by these tests.
 
-## Boundaries and advanced work
+Focused tests: `tests/repositories/postgres/test_booking_module.py`, `tests/repositories/redis/test_appointment_holds.py`, `tests/services/test_booking_service.py`, `tests/domain/conversation/test_booking_commit.py`, `tests/realtime/test_booking_commit.py`, `tests/api/v1/test_booking_resources.py`. These run in `make test-ci` and hosted CI, using native disposable services and mock providers. The full offline suite also retains `test_appointment_concurrency.py`.
 
-No Redis-only booking authority or replacement of explicit confirmation with extracted intent.
+Verification on 2026-10-17, using the locked environment, synthetic fixed-clock inputs and disposable native databases/caches:
 
-## Evidence
+| Check | Result |
+|---|---|
+| Full offline pytest suite | **1,825 passed**, 23 existing dependency deprecation warnings, 75.77 seconds |
+| `make test-ci` | **56 provider/config tests + 245 bounded API/unit/native persistence tests passed** |
+| `make lint type` | Ruff clean; mypy **36 source files** clean |
+| Markdown links/anchors | **64 non-archive Markdown files, 319 local links/anchors, 0 issues** |
+| Pre-commit hooks | Ruff, mypy and mock provider contracts passed |
+| Existing Word roadmap | SHA-256 unchanged (`89b99bbf959d1cc713d335a49037a03b63349cc91185a03e0a57bf9fa3149429`) |
 
-The complete offline suite passed on 2026-10-04, including the existing repository 100-attempt race. Live/API integration, cancellation and confirmation/commit behavior remain pending.
+Reproduce the full suite with `make test` after the [runbook prerequisites](../runbook.md). The bounded CI slice includes the new booking tests and production composition test; [GitHub CI](https://github.com/NihitRaiyani/Voice/actions/workflows/ci.yml) runs it on each push. These are correctness checks, not paid end-to-end voice timing or production load measurements.
 
-Record revision, reproducible commands, environment/data/configuration identity, actual outcomes, demo/reviewer result and limitations here when this level is implemented. Existing foundations do not automatically pass the full gate. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
+ A read-only check on 2026-10-17 confirmed configured database `roma`, revision `20261004_0003` at head, 25 application tables and 0 application rows (including branches, slots and appointments). Real reference data and slots therefore still need approved provisioning before live booking. Disposable tests do not mutate this database. See [operating guidance](../runbook.md#section-13-booking-operations), [data contract](../14-data-and-concurrency.md), [verification](../12-verification.md) and [decisions](../decisions.md).
 
 Return to the [documentation index](../README.md).

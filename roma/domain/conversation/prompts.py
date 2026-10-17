@@ -121,10 +121,22 @@ def cache_prefix(call_state) -> str:
     this and is deliberately outside the cached span. Measured: 93-96% cached input on the
     turns where the cache holds (`var/roma/spend.jsonl`, 296 gpt-4o requests).
     """
+    rules = _read("hard_rules.md")
+    if call_state.get("booking_required"):
+        start, end = rules.index("8. BRANCH TIMINGS"), rules.index("9. ALWAYS ANSWER")
+        rules = rules[:start] + _read("booking_policy.md") + "\n\n" + rules[end:]
+        rules = rules.replace(
+            "unless SLOT STATUS says accepted or locked",
+            "unless SLOT STATUS says locked after a database commit",
+        )
+        rules = rules.replace(
+            "the address comes on WhatsApp with the confirmation",
+            "the counsellor can share the verified branch address",
+        )
     return "\n\n".join(
         (
             _render(_read("persona.md"), call_state),
-            _render(_read("hard_rules.md"), call_state),
+            _render(rules, call_state),
         )
     )
 
@@ -133,9 +145,13 @@ def assemble_system_prompt(
     call_state, stage: ConversationStage = ConversationStage.OPEN
 ) -> str:
     """persona -> hard_rules -> stage, vars substituted. Order is load-bearing (docs/11)."""
-    return "\n\n".join(
-        (cache_prefix(call_state), _render(_read(f"stages/{stage}.md"), call_state))
-    )
+    fragment = _read(f"stages/{stage}.md")
+    if call_state.get("booking_required"):
+        fragment = fragment.replace(
+            "Only once SLOT STATUS says LOCK: parents are welcome, confirmation comes on WhatsApp, sign off.",
+            "Only once SLOT STATUS says LOCK after the database commit: confirm the visit and sign off. Never promise WhatsApp delivery.",
+        )
+    return "\n\n".join((cache_prefix(call_state), _render(fragment, call_state)))
 
 
 def stage_max_tokens(stage: ConversationStage) -> int:

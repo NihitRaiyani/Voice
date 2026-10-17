@@ -1,6 +1,6 @@
 # Architecture and module ownership
 
-**Present:** layered Python modular monolith with Twilio/Pipecat cloud media, Redis, PostgreSQL/Alembic, atomic answer acceptance, durable Dramatiq job processing and an enforced domain dependency rule. **Target:** OpenAI LLM with validated local speech/embeddings, complete transactional live booking, governed retrieval and production access/telemetry/deployment controls.
+**Present:** layered Python modular monolith with Twilio/Pipecat cloud media, Redis, PostgreSQL/Alembic, atomic answer acceptance, durable Dramatiq job processing and an enforced domain dependency rule. **Target:** OpenAI LLM with validated local speech/embeddings, governed retrieval and production access/telemetry/deployment controls.
 
 ```mermaid
 flowchart LR
@@ -14,7 +14,9 @@ flowchart LR
     S -->|Safety activations| D
     S --> V[TTS / verified fixed clip]
     V --> M
-    C <--> R[(Redis checkpoints / cache)]
+    C <--> R[(Redis checkpoints / cache / holds)]
+    C --> K[Booking service: short commit]
+    K --> D
     M --> Q[Post-call queue / local spool]
     Q --> F[Single recording worker]
     F --> D
@@ -23,7 +25,7 @@ flowchart LR
     B --> D
 ```
 
-The diagram shows current ownership. It does not show a committed appointment on the live conversation path: the controller still uses the static/read-only calendar. [Level 3](levels/level-03.md) completes that integration. Local providers/RAG are future additions to the same boundaries.
+The production controller uses a call-scoped booking service/calendar: PostgreSQL owns availability/commit and Redis holds only coordinate a short decision window. A committed appointment identity gates confirmed speech; reconnect consults PostgreSQL. The static/read-only calendar remains an explicit offline baseline. [Level 3](levels/level-03.md) owns policy/evidence; local speech providers and RAG remain future additions.
 
 ## Dependencies
 
@@ -44,7 +46,7 @@ The [backend architecture contract](22-backend-architecture-contract.md) maps th
 
 ## Transaction boundaries
 
-`/answer` commits receipt/call/event before successful TwiML; failure is 503. Post-call handling commits call/job intents before recording-queue ack. Background actors commit their effect and settlement together. The booking repository locks an existing slot and has active-slot uniqueness, but needs live use-case/API integration.
+`/answer` commits receipt/call/event before successful TwiML; failure is 503. Post-call handling commits call/job intents before recording-queue ack. Background actors commit their effect and settlement together. The booking service now reuses slot locking/active-slot uniqueness through production controller and API paths, with cancellation/reuse and same-SID appointment reconciliation.
 
 A short booking transaction can run in the turn; inference, audio, external sync and recording conversion cannot hold it open. PostgreSQL sessions are short-lived and process pool totals must remain within the database budget.
 

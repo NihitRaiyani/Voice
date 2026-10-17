@@ -66,3 +66,7 @@ testable. It does not claim the whole monolith is fully cleaned up: CI/pre-commi
 native one-command startup and remaining Level 1 section 9/full-gate work are still pending.
 
 Return to the [documentation index](README.md).
+
+## Section 13 booking boundary
+
+`BookingService` coordinates availability/holds/confirmation; `BookingSession` adapts the same service to a call-scoped calendar and commit gateway. `PostgresBookingStore` owns short read/write sessions; `RedisAppointmentHolds` owns atomic expiring lease operations. `roma/main.py` injects them into media and REST composition. The domain controller awaits a confirmation callback and never imports SQLAlchemy/Redis. No SQL session survives a Redis, provider or audio wait. Static calendars remain explicit offline baselines. See [Level 3](levels/level-03.md).

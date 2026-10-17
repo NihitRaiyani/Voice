@@ -51,9 +51,9 @@ Model rows describe candidate versions rather than deploying models. Future prod
 | Model registry | Non-PII provenance, kept while referenced by results; use deactivation to stop candidate selection. Removing a measured model is blocked. |
 | Benchmark runs/results | Non-PII metadata; optional run expiry allows an explicit evidence-retention decision. Run deletion cascades results; remaining model provenance survives. No raw benchmark media/text is stored here. |
 | Organization, users/roles and memberships | Preserve activity/deletion/reference behavior; deactivate referenced masters and use approved identity cleanup rather than broad cascades. |
-| Slots/appointments | Preserve business history and one-active-booking rule; cancellation/release must be atomic at L3, not inferred from Redis/checkpoint JSON. |
+| Slots/appointments | Preserve business history and one-active-booking rule; section 13 cancellation/release is atomic, never inferred from Redis/checkpoint JSON. |
 
-No automatic purge task, login/RBAC, local inference, benchmark executor, recording-retention approval or live booking integration is added by creating these tables. Existing SQL defaults/checks are retained even where stronger future policy needs an additive migration. No arbitrary wall-clock expiry check uses `now()`; expiry remains a consumer/cleanup decision.
+Creating these tables alone adds no purge task, login/RBAC, local inference, benchmark executor, recording-retention approval or live booking integration. Section 13 subsequently implements booking integration without changing the schema; see [Level 3](levels/level-03.md). Existing SQL defaults/checks are retained even where stronger future policy needs an additive migration. No arbitrary wall-clock expiry check uses `now()`; expiry remains a consumer/cleanup decision.
 
 ## Complete table/key/constraint/index catalog
 

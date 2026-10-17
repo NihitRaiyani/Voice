@@ -1094,6 +1094,7 @@ def build_media_app(
     build_slot_client_fn=build_slot_client,
     build_queue_fn=build_postcall_queue,
     build_calendar_fn=build_calendar,
+    booking_factory=None,
     webhook_service=None,
     safety_store=None,
     lifespan=None,
@@ -1117,18 +1118,16 @@ def build_media_app(
     `build_llm_fn` / `build_tts_fn` build the Step-3 LLM and TTS per connection
     (injected so offline tests / verify_media pass stubs instead of opening live
     OpenAI / Sarvam sockets).
-    `build_calendar_fn` picks what Roma books against — the Google diary when it is
-    configured, else branch hours (`roma.providers.calendar.google.build_calendar`). Built once per
-    app, not per call: it is stateless apart from a short busy-cache, and sharing that
-    cache across concurrent calls is the point — two leads offered the same 11 AM is the
-    thing it exists to notice.
+    `booking_factory` is injected by production composition. It creates the call-scoped
+    PostgreSQL calendar/confirmation gateway and restores committed truth before prompts.
+    `build_calendar_fn` remains the explicit static/read-only baseline for offline tests.
     """
     _warn_if_logging_unconfigured()
     app = FastAPI(lifespan=lifespan)
     app.state.webhook_service = webhook_service
     settings = get_settings()
     app.state.calls = {}
-    app.state.calendar = build_calendar_fn(settings)
+    app.state.calendar = build_calendar_fn(settings) if booking_factory is None else None
     app.state.slot_client = build_slot_client_fn(settings)
 
     app.state.consent_line = canned.consent_line() if consent_signed_off() else None
@@ -1358,6 +1357,10 @@ def build_media_app(
                 )
             state = CallState(call_sid=call_sid or "", **seed)
 
+        booking_session = booking_factory(state) if booking_factory is not None else None
+        if booking_session is not None:
+            await booking_session.restore()
+
         context = LLMContext(
             messages=[
                 {
@@ -1389,7 +1392,9 @@ def build_media_app(
                 else None
             ),
             holding=FillerPicker(getattr(app.state, "holding", None)),
-            calendar=app.state.calendar,
+            calendar=booking_session or app.state.calendar,
+            confirm_booking=booking_session.confirm if booking_session else None,
+            release_holds=booking_session.aclose if booking_session else None,
         )
         watchdog = SilenceWatchdog(flight=flight)
         closer = CallCloser(
@@ -1438,6 +1443,7 @@ def build_media_app(
             lambda: state.facts_said,
             lambda: spoken_slot(state.accepted_slot),
             safety=safety,
+            booking_state_fn=(lambda: state) if booking_session else None,
             safety_context_fn=lambda: SafetyContext(
                 state.call_sid, max(1, state.turn_count + 1), state.stage.value
             ),
@@ -1541,6 +1547,8 @@ def build_media_app(
             try:
                 await PipelineRunner(handle_sigint=False).run(task)
             finally:
+                if booking_session is not None:
+                    await booking_session.aclose()
                 if prewarm_task is not None:
                     prewarm_task.cancel()
                     with contextlib.suppress(asyncio.CancelledError):

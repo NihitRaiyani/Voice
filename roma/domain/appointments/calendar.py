@@ -24,12 +24,12 @@ the one decision here that is expensive to change later: the real API is network
 `advance_turn` is already a coroutine, and retrofitting async through the call chain after
 the fact is a far larger diff than an `await` that currently returns immediately.
 
-## What this deliberately does NOT do
+## Static/offline baseline
 
-No availability, no double-booking check, no capacity. Two concurrent calls can both be
-offered — and both lock — the same 11 AM. That is a real limitation of the static rule and
-it is the first thing the real calendar fixes; it is not worth a fake implementation here,
-because a made-up availability model would have to be unwritten rather than replaced.
+This implementation has no capacity or double-booking protection and is retained for
+isolated exercises and explicit calendar tests. Production composition injects a per-call
+BookingSession using PostgreSQL availability and Redis advisory holds instead. A static
+conversational lock is never a durable appointment.
 
 The visiting-hours numbers live in `timeresolve` and are imported, not restated. Two
 sources for "when is the branch open" is how a resolver starts refusing the slots its own
@@ -70,7 +70,7 @@ class VisitCalendar(Protocol):
 
 @dataclass(frozen=True)
 class StaticHoursCalendar:
-    """Every open hour on every day is bookable — today's actual rule, made explicit.
+    """Every open hour is bookable in the explicit static/offline baseline.
 
     `offer_hours` are the two Roma proposes: 11 AM and 5 PM. One morning and one evening,
     which covers a working lead and a student without asking, and both sit inside

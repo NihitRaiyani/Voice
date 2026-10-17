@@ -48,6 +48,20 @@ class CreateAppointmentRequest(ApiModel):
     counsellor_id: UUID | None = None
     course_id: UUID | None = None
     status: Literal["booked", "confirmed"] = "booked"
+    idempotency_key: UUID | None = None
+    hold_token: UUID | None = None
+
+
+class AppointmentHoldRequest(ApiModel):
+    branch_id: UUID
+    appointment_date: date
+    start_time: time
+    call_id: UUID
+    hold_token: UUID | None = None
+
+
+class ReleaseAppointmentHoldRequest(AppointmentHoldRequest):
+    hold_token: UUID
 
 
 class UpdateAppointmentRequest(ApiModel):
