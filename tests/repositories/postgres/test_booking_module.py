@@ -7,7 +7,7 @@ import pytest
 from fastapi import FastAPI
 from redis.asyncio import Redis
 from roma.api.v1.calls import mount_web_api
-from roma.core.config import get_settings
+from roma.core.config import Settings, get_settings
 from roma.domain.appointments.booking import BookingError, HoldOwner, SlotKey
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.state import CallState
@@ -105,6 +105,11 @@ def item(slot, **values):
 
 
 def test_100_http_requests_have_exactly_one_commit(session_factory, monkeypatch):
+    # A clean CI checkout has no owner .env; these HTTP tests never call a provider.
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    monkeypatch.setenv("OPENAI_API_KEY", "offline-unused-key")
+    monkeypatch.setenv("SARVAM_API_KEY", "offline-unused-key")
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")
     monkeypatch.setenv("API_TOKEN", "booking-test-token")
     get_settings.cache_clear()
 

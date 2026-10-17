@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from roma.api.v1.calls import mount_web_api
 from roma.api.v1.rest import _service_from_request
-from roma.core.config import get_settings
+from roma.core.config import Settings, get_settings
 from roma.domain.appointments.timeresolve import IST
 from roma.services.booking_service import BookingService
 from roma.services.rest_api_service import RestApiService
@@ -15,6 +15,11 @@ from roma.services.rest_api_service import RestApiService
 
 @pytest.fixture()
 def client(monkeypatch):
+    # A clean CI checkout has no owner .env; these HTTP tests never call a provider.
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    monkeypatch.setenv("OPENAI_API_KEY", "offline-unused-key")
+    monkeypatch.setenv("SARVAM_API_KEY", "offline-unused-key")
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")
     monkeypatch.setenv("API_TOKEN", "booking-token")
     get_settings.cache_clear()
     store, holds = AsyncMock(), AsyncMock()

@@ -53,14 +53,14 @@ Verification on 2026-10-17, using the locked environment, synthetic fixed-clock 
 
 | Check | Result |
 |---|---|
-| Full offline pytest suite | **1,825 passed**, 23 existing dependency deprecation warnings, 75.77 seconds |
+| Full offline pytest suite | **1,825 passed**, 23 existing dependency deprecation warnings, 75.30 seconds |
 | `make test-ci` | **56 provider/config tests + 245 bounded API/unit/native persistence tests passed** |
 | `make lint type` | Ruff clean; mypy **36 source files** clean |
 | Markdown links/anchors | **64 non-archive Markdown files, 319 local links/anchors, 0 issues** |
 | Pre-commit hooks | Ruff, mypy and mock provider contracts passed |
 | Existing Word roadmap | SHA-256 unchanged (`89b99bbf959d1cc713d335a49037a03b63349cc91185a03e0a57bf9fa3149429`) |
 
-Reproduce the full suite with `make test` after the [runbook prerequisites](../runbook.md). The bounded CI slice includes the new booking tests and production composition test; [GitHub CI](https://github.com/NihitRaiyani/Voice/actions/workflows/ci.yml) runs it on each push. These are correctness checks, not paid end-to-end voice timing or production load measurements.
+Reproduce the full suite with `make test` after the [runbook prerequisites](../runbook.md). HTTP test fixtures disable owner `.env` loading and supply dummy provider settings explicitly; no real API key is needed. The bounded CI slice includes the new booking tests and production composition test; [GitHub CI](https://github.com/NihitRaiyani/Voice/actions/workflows/ci.yml) runs it on each push. These are correctness checks, not paid end-to-end voice timing or production load measurements.
 
  A read-only check on 2026-10-17 confirmed configured database `roma`, revision `20261004_0003` at head, 25 application tables and 0 application rows (including branches, slots and appointments). Real reference data and slots therefore still need approved provisioning before live booking. Disposable tests do not mutate this database. See [operating guidance](../runbook.md#section-13-booking-operations), [data contract](../14-data-and-concurrency.md), [verification](../12-verification.md) and [decisions](../decisions.md).
 
