@@ -11,6 +11,7 @@ flowchart LR
     M --> C[Deterministic conversation controller]
     C --> P[Wording / extraction provider]
     P --> S[Final speech safety]
+    S -->|Safety activations| D
     S --> V[TTS / verified fixed clip]
     V --> M
     C <--> R[(Redis checkpoints / cache)]

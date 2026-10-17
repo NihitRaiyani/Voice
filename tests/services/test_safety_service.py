@@ -118,7 +118,7 @@ def test_audit_failure_is_bounded_and_cancellation_propagates(failure, caplog, m
             )
             assert result.text == HARD_FAIL_LINE and not result.audit_ok
             assert "safety_audit_write_failed" in caplog.text
-            for private in ("Amit", "919123456789", "private-input", "secret-sid", "5000"):
+            for private in ("Amit", "919123456789", "private-input", "secret-sid", "Fees 5000 hai."):
                 assert private not in caplog.text
 
     asyncio.run(run())

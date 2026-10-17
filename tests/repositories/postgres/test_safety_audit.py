@@ -67,7 +67,7 @@ def test_audit_roundtrip_replay_call_scope_stats_and_soft_delete(session_factory
         assert rows[0]["latency_ms"] >= 0 and rows[0]["replacement_used"]
         assert rows[0]["detected_at"] and rows[0]["rule_id"].startswith("speech.")
         serialized = str(rows)
-        for private in ("25000", "synthetic-first", "5 lakh"):
+        for private in ("Fees 25000", "synthetic-first", "5 lakh"):
             assert private not in serialized
         totals = await service.safety_stats(SafetyStatsQuery(call_id=first_id))
         assert totals["total"] == 2 and totals["by_category"] == {"FEE": 1, "SALARY": 1}

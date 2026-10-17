@@ -93,7 +93,9 @@ def _local_postgres_url() -> Iterator[str]:
                     "-D",
                     str(data_dir),
                     "-o",
-                    f"-h 127.0.0.1 -p {port}",
+                    f"-h 127.0.0.1 -p {port} -k {directory}",
+                    "-l",
+                    str(Path(directory) / "postgres.log"),
                     "-w",
                     "start",
                 ],
@@ -106,7 +108,9 @@ def _local_postgres_url() -> Iterator[str]:
                 break
 
         if started_port is None:
-            raise RuntimeError("Could not start local disposable PostgreSQL")
+            log = Path(directory) / "postgres.log"
+            detail = log.read_text()[-2000:] if log.exists() else "No server log created"
+            raise RuntimeError(f"Could not start local disposable PostgreSQL: {detail}")
 
         try:
             url = f"postgresql+asyncpg://roma@127.0.0.1:{started_port}/postgres"
