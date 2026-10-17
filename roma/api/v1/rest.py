@@ -19,6 +19,7 @@ from roma.schemas.rest_api import (
     CreateCallRequest,
     LeadsQuery,
     SafetyEventsQuery,
+    SafetyStatsQuery,
     UpdateAppointmentRequest,
 )
 from roma.services.rest_api_service import RestApiService, RestApiServiceError
@@ -196,6 +197,7 @@ async def list_safety_events(
     offset: int = 0,
     call_id: UUID | None = None,
     rule: str | None = None,
+    category: str | None = None,
     sort: str = "created_at_desc",
 ):
     query = _query(
@@ -204,9 +206,48 @@ async def list_safety_events(
         offset=offset,
         call_id=call_id,
         rule=rule,
+        category=category,
         sort=sort,
     )
-    data, meta = await service.list_safety_events(query)
+    try:
+        data, meta = await service.list_safety_events(query)
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
+    return success_response(data, meta=meta)
+
+
+@router.get("/safety/stats", tags=["safety"])
+async def safety_stats(
+    service: Annotated[RestApiService, Depends(_service_from_request)],
+    call_id: UUID | None = None,
+    rule: str | None = None,
+    category: str | None = None,
+):
+    query = _query(SafetyStatsQuery, call_id=call_id, rule=rule, category=category)
+    try:
+        data = await service.safety_stats(query)
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
+    return success_response(data)
+
+
+@router.get("/calls/{call_id}/safety-events", tags=["safety"])
+async def call_safety_events(
+    call_id: UUID,
+    service: Annotated[RestApiService, Depends(_service_from_request)],
+    limit: int = 20,
+    offset: int = 0,
+    rule: str | None = None,
+    category: str | None = None,
+    sort: str = "created_at_desc",
+):
+    query = _query(
+        SafetyEventsQuery, limit=limit, offset=offset, rule=rule, category=category, sort=sort
+    )
+    try:
+        data, meta = await service.list_call_safety_events(call_id, query)
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
     return success_response(data, meta=meta)
 
 

@@ -17,13 +17,25 @@ class BlockCategory(Enum):
     CERT = "CERT"
 
 
-FEE_CURRENCY = {"₹", "rs", "rs.", "rupaye", "rupees", "rupee"}
+FEE_CURRENCY = {
+    "₹",
+    "rs",
+    "rs.",
+    "rupaye",
+    "rupees",
+    "rupee",
+    "रुपये",
+    "रुपया",
+    "रुपए",
+    "રૂપિયા",
+    "રૂપિયો",
+}
 FEE_KEYWORDS = {"fees", "fee", "फीस", "ફી"}
-AMOUNT_WORDS = {"hazaar", "हज़ार", "હજાર"}
+AMOUNT_WORDS = {"hazaar", "हज़ार", "हजार", "હજાર"}
 
 # Unit words that ARE the figure — they block on their own, no number needed, because
 # "package lakhon mein hai" quotes an outcome just as surely as "4 lakh".
-SALARY_KEYWORDS = {"lakh", "laakh", "लाख", "લાખ", "lpa", "package", "पैकेज"}
+SALARY_KEYWORDS = {"lakh", "laakh", "लाख", "લાખ", "lpa", "package", "पैकेज", "પેકેજ"}
 SALARY_PHRASES = [["per", "annum"]]
 
 # Nouns that NAME pay without being a figure. Number-gated, exactly like FEE_KEYWORDS:
@@ -52,21 +64,110 @@ SALARY_ANCHOR = {
     "ctc",
 }
 
-PLACEMENT_KEYWORDS = {"percent", "percentage", "प्रतिशत"}
+PLACEMENT_KEYWORDS = {"percent", "percentage", "प्रतिशत", "ટકા", "પ્રતિશત"}
 PLACEMENT_ANCHOR = {"placement", "प्लेसमेंट", "પ્લેસમેન્ટ"}
+OUTCOME_ANCHOR = {"job", "jobs", "naukri", "नौकरी", "નોકરી", "નોકરીની"}
+GUARANTEE_WORDS = {
+    "guarantee",
+    "guaranteed",
+    "assured",
+    "गारंटी",
+    "गैरंटी",
+    "ગેરંટી",
+    "પાક્કી",
+    "पक्की",
+}
+INSTITUTE_CERT_WORDS = {"weltec", "વેલટેક", "વેલ્ટેક", "વેલ્ટેકનું", "वेलटेक"}
+# Approved institute-only wording may vary grammatically, never by issuer/recognition.
+CERT_CONNECTORS = {
+    "hum",
+    "ham",
+    "ka",
+    "ki",
+    "ke",
+    "hi",
+    "dete",
+    "deta",
+    "deti",
+    "hain",
+    "hai",
+    "milta",
+    "milti",
+    "milega",
+    "milegi",
+    "aapko",
+    "sirf",
+    "institute",
+    "we",
+    "our",
+    "provide",
+    "provides",
+    "a",
+    "the",
+    "only",
+    "from",
+    "by",
+    "you",
+    "get",
+    "हम",
+    "का",
+    "की",
+    "के",
+    "ही",
+    "देते",
+    "हैं",
+    "है",
+    "मिलता",
+    "मिलेगा",
+    "आपको",
+    "અમે",
+    "નું",
+    "નો",
+    "ની",
+    "આપીએ",
+    "છીએ",
+    "છે",
+    "મળશે",
+    "મળે",
+    "તમને",
+}
 
 # docs/04 blocks "placement ratio" by name, with no number required — a ratio is a claimed
 # outcome whether or not a figure follows, and "placement ratio bahut accha hai" was reaching
 # the wire because the anchor only fired alongside a number.
 PLACEMENT_QUALIFIERS = {"ratio", "rate", "record", "रेशियो"}
 
-DISCOUNT_KEYWORDS = {"discount", "डिस्काउंट", "ડિસ્કાઉન્ટ", "offer", "scheme", "स्कीम"}
+DISCOUNT_KEYWORDS = {
+    "discount",
+    "डिस्काउंट",
+    "ડિસ્કાઉન્ટ",
+    "offer",
+    "scheme",
+    "स्कीम",
+    "ऑफर",
+    "ऑफ़र",
+    "ઓફર",
+    "સ્કીમ",
+    "छूट",
+    "છૂટ",
+    "limited-time",
+}
 
 CERT_ORG_KEYWORDS = {"google", "meta", "ibm", "government", "govt", "सरकारी"}
-CERT_TRIGGER = {"cert", "certificate", "certified", "certification"}
+CERT_TRIGGER = {
+    "cert",
+    "certificate",
+    "certified",
+    "certification",
+    "certificates",
+    "सर्टिफिकेट",
+    "प्रमाणपत्र",
+    "સર્ટિફિકેટ",
+    "પ્રમાણપત્ર",
+}
 
 
-REBUTTAL_CUES = {"nahi", "nahin", "नहीं", "નથી", "નહીં", "mat", "not", "na"}
+REBUTTAL_CUES = {"nahi", "nahin", "नहीं", "નથી", "નહીં", "mat", "not", "no", "na"}
 NEGATION_WINDOW = 3
 
 PERMITTED_MONEY_LINE = "No-cost EMI available hai."

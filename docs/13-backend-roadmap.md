@@ -6,7 +6,7 @@ The OpenAI roadmap is the active curriculum. The [level briefs](README.md) own a
 |---|---|---|
 | 0 | Current source, tests, evaluation and call trace | Clean-machine restore, representative timing and prerequisite review |
 | 1 | Layered monolith, enforced domain dependency rule, STT/LLM/TTS/embedding/telephony provider contracts with mocks, PostgreSQL/Alembic, bounded pools/process allocation, capacity checker, checkpoint/model/benchmark relational foundations, database-only migration/rollback workflow, separate atomic demo seeds, pressure/release tests, FastAPI, versioned resource API, pytest/Ruff, mypy skeleton, pre-commit hooks, native Makefile startup and GitHub Actions workflow | Clean-host Level 0 evidence and full reviewer/demo evidence |
-| 2 | Deterministic stages, state-machine facade/checkpoint adapter, extraction/time resolver, prompt/safety logic, OpenAI provider/text console and separate language lab | Native/paid timing, section 12 safety audit and later live integration |
+| 2 | Deterministic stages, state-machine facade/checkpoint adapter, extraction/time resolver, prompt/safety logic, OpenAI provider/text console, separate language lab, deterministic safety audit/input guards and safety queries | Native/paid timing and later local-stack/live integration |
 | 3 | Row-locked appointment repository, partial active-slot uniqueness and race test | Live/API integration, cancellation/reuse, holds policy and truthful commit confirmation |
 | 4–5 | Carrier codecs, Silero/contextual endpointing, cloud speech/cache tests | Actual local ASR/TTS and language/noise/RTF benchmarks |
 | 6–7 | Pipecat turn pipeline, cancellation/isolation/Redis degradation seams | Local microphone loop, bounded speech inference queues and OpenAI rate-limit handling and tested checkpoint/pressure recovery |
@@ -19,7 +19,7 @@ The OpenAI roadmap is the active curriculum. The [level briefs](README.md) own a
 
 ## Next implementation boundary
 
-The latest request adopts the OpenAI source, audits sections 1–10 and implements section 11 last; the remaining Level 0 teacher/timing evidence stays pending. These bounded persistence/schema/migration-workflow/architecture/provider/API/testing increments extend the existing foundation; they do not pass Level 0 or all of Level 1. Subsequent work should retain migrations, package layers, provider contracts, versioned API envelopes and carrier adapters. Each reused component must be assessed against the requested gate and current tests.
+The latest request implements section 12 deterministic safety/audit/input guards and query endpoints; the remaining Level 0 teacher/timing evidence stays pending. These bounded persistence/schema/migration-workflow/architecture/provider/API/testing increments extend the existing foundation; they do not pass Level 0 or all of Level 1. Subsequent work should retain migrations, package layers, provider contracts, versioned API envelopes and carrier adapters. Each reused component must be assessed against the requested gate and current tests.
 
 At Level 3, wire the already-built repository into the conversation safely. At Level 8, retain the transactional webhook and job designs and close their actual access/replay/privacy/backpressure gaps. Keep operational commands in the [runbook](runbook.md), not in competing plans.
 

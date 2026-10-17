@@ -75,3 +75,8 @@ Documentation maintenance checks links/fences, stale carrier/package/roadmap ref
 ## OpenAI roadmap review and section 11
 
 The owner selected the OpenAI source on 2026-10-12. [The prerequisite audit](roadmaps/sections-01-10-review.md) records fresh sections 1–10 checks before new code, including read-only configured-DB schema parity. [Level 2](levels/level-02.md#section-11-implementation-and-evidence) records the final 1,716-test offline result and OpenAI SDK HTTP mock transport/console/lab evidence. Model TTFT/cost/native quality are unmeasured with exhausted quota; mock metrics are mechanics evidence only. Full voice and native approval remain deferred. No working DB migration/seed, local LLM installation or paid call ran.
+
+
+## Section 12 deterministic safety
+
+[Level 2 section 12 evidence](levels/level-02.md#section-12-implementation-and-evidence) records the final 1,790-test offline run, 31-file type check, lint/hooks and the expanded bounded CI slice. Safety tests cover English/Hindi/Gujarati claims and caller questions, direct deflections, injection/poisoned inputs, storage failure/timeout/cancellation, per-turn pre-TTS auditing and native disposable PostgreSQL round-trips/query semantics. Runtime audit omits raw text and never claims a failed database write committed. Native scoring, paid measurements and complete voice approval remain deferred. No working DB mutation, paid call or model download was needed.

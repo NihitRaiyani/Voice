@@ -33,11 +33,9 @@ ALLOW_CASES = [
     "hum Weltec ka certificate dete hain",
     "kal 3 baje visit fix karein?",
     "main aapki baat samajh rahi hoon",
-    "wo ₹5000 fees nahi, offer message hai",
     "main discount nahi de sakti",
     "wo number fees nahi tha",
     "wo ₹5000 fees nahi",
-    "wo ₹5000 fees nahi - offer message hai",
     "chaliye coffees pe baat karte hain",
 ]
 
@@ -59,6 +57,8 @@ def test_pushback_reason():
 
 NEGATION_BLOCK_CASES = [
     ("fees ₹5000 hai aur main jhooth nahi bolti", BlockCategory.FEE),
+    ("wo ₹5000 fees nahi, offer message hai", BlockCategory.DISCOUNT),
+    ("wo ₹5000 fees nahi - offer message hai", BlockCategory.DISCOUNT),
     ("haan discount hai, lekin abhi nahi", BlockCategory.DISCOUNT),
     ("fees ₹5000 hai - main jhooth nahi bolti", BlockCategory.FEE),
 ]

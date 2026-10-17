@@ -131,7 +131,7 @@ Show the seven-stage machine as business state, not prompt wording: `OPEN -> DIS
 
 Trace checkpoint persistence through `save_state()`/`restore_state()`: Redis remains the hot same-call cache, while `PostgresConversationStateStore` writes the latest compatible `CallState` to `conversation_states` through short unit-of-work sessions. The row carries schema version, policy version, revision, canonical stage, JSON state and expiry. Restore refuses missing calls, expired rows and schema/policy mismatches rather than replaying unsafe state.
 
-Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: native/paid OpenAI quality/latency, structured safety-event audit, redial/session identity and L7 recovery drills.
+Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: native/paid OpenAI quality/latency, redial/session identity and L7 recovery drills.
 
 ## Level 2 section 11 explanation
 
@@ -140,3 +140,12 @@ Trace one text turn through locally parsed name or validated JSON extraction, `a
 Explain why OpenAI is an adapter, not business logic. The SDK streams text and a final usage-only event; TTFT ends at first text rather than a role-only chunk. Disable SDK retries, retry only transient failures before text within the total deadline, and never retry quota/billing/auth errors or replay partial speech. On uncertainty retain the per-attempt budget reservation instead of claiming zero cost. Distinguish exact reported usage from conservative byte-based admission and estimated INR.
 
 Names stay local; prompts omit full call records and redact recognized identifiers. Raw console text is synthetic diagnostic data, not speech or ordinary logs. Mocks/HTTP transports prove mechanics without credit; they do not prove OpenAI quality, provider latency or a complete voice experience. Native scoring and voice approval remain deferred. Read [the OpenAI contract](25-openai-llm.md) and [the prerequisite audit](roadmaps/sections-01-10-review.md).
+
+
+## Level 2 section 12 explanation
+
+Trace one unsafe sentence through deterministic matching, its approved replacement and a structured event. Explain why another LLM is not the safety authority. A negated fee clause cannot authorize an affirmative salary claim; an unfamiliar certificate issuer is unverified too. Preserve legitimate course facts, approved no-cost EMI wording and the Weltec certificate policy.
+
+Show rule/policy identity, call/turn foreign keys, detection time and measured check latency. No raw transcript is needed to explain which rule fired. The existing schema maps these fields through columns and allowlisted metadata; event-ID replay is idempotent, and the turn row may contain no transcript. Short database work finishes before speech resumes. If audit storage fails, use a safe fallback and report the failure honestly; never claim an outage event was durably stored.
+
+Defend bounded caller/slot validation, Unicode combining marks, code-owned enums and injection canaries as layers rather than a proof against every prompt attack. Demonstrate the three authenticated safety read endpoints and explain that statistics count rule activations. Mocks and disposable PostgreSQL prove software behavior; they cannot pass native-speaker quality or live voice gates.

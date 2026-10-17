@@ -22,6 +22,8 @@ jobs:
       TELEPHONY_PROVIDER: mock
       PUBLIC_BASE_URL: https://example.invalid
       NLTK_DATA: /tmp/voice-agent-tokenizer
+      POSTGRES_INITDB_BIN: /usr/lib/postgresql/16/bin/initdb
+      POSTGRES_PG_CTL_BIN: /usr/lib/postgresql/16/bin/pg_ctl
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
@@ -54,4 +56,8 @@ jobs:
             tests/core/test_migration_settings.py \
             tests/core/test_openai_llm_settings.py \
             tests/services/test_text_conversation_service.py \
+            tests/services/test_safety_service.py \
+            tests/domain/safety \
+            tests/realtime/test_safety_audit.py \
+            tests/repositories/postgres/test_safety_audit.py \
             tests/eval/test_openai_language.py

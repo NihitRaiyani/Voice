@@ -1,6 +1,6 @@
 # Level 2 — Text conversation and OpenAI LLM
 
-**Roadmap sections:** 10–12. **Status:** Section 10 state machine/checkpoint adapter implemented; section 11 OpenAI SDK/text integration implemented with offline evidence; section 12 safety audit remains pending.
+**Roadmap sections:** 10–12. **Status:** Section 10 state machine/checkpoint adapter implemented; section 11 OpenAI SDK/text integration implemented with offline evidence; section 12 deterministic safety/audit/input guards and query endpoints implemented with offline evidence; the whole Level 2 gate remains pending native/paid quality approval.
 
 ## Entry gate
 
@@ -16,7 +16,7 @@ Evaluate 30–50 prompts with native review across Gujarati/Hindi/English/code-m
 
 ## Existing reuse in Voice_Agent
 
-Canonical `ConversationStage`, domain state-machine facade, `route_intent()`, time resolver, prompt assembly, Indic normalization and final speech safety; Redis checkpoint restore remains the live hot path. Level 2 section 10 adds PostgreSQL latest-checkpoint save/restore through `PostgresConversationStateStore`, backed by `conversation_states` revision/schema/policy fields. Section 11 adds the thin OpenAI SDK provider, mock text console and separate 40-case lab. The structured safety audit remains section 12.
+Canonical `ConversationStage`, domain state-machine facade, `route_intent()`, time resolver, prompt assembly, Indic normalization and final speech safety; Redis checkpoint restore remains the live hot path. Level 2 section 10 adds PostgreSQL latest-checkpoint save/restore through `PostgresConversationStateStore`, backed by `conversation_states` revision/schema/policy fields. Section 11 adds the thin OpenAI SDK provider, mock text console and separate 40-case lab. Section 12 adds structured safety audit, bounded caller/slot inputs and query endpoints; the existing pre-TTS processor shares the same audit service.
 
 ## Acceptance gate
 
@@ -24,18 +24,18 @@ Canonical `ConversationStage`, domain state-machine facade, `route_intent()`, ti
 - [x] Section 11 text controller/provider/safety/checkpoint wiring and mock console.
 - [x] SDK streaming/usage, transient/quota errors, timeout/cancellation and per-call budgets pass fake-transport tests.
 - [ ] Real paid TTFT/cost and native language-quality approval; quota unavailable.
-- [ ] Blocked topics, prior quotes and prompt injection use safe substitution; safety events are PII-safe.
+- [x] Section 12 blocked topics, prior quotes and injection canaries use safe substitution with PII-minimized structured audit and protected queries.
 - [ ] Native language-quality review and model/hardware limitations are recorded separately from live policy.
 
 ## Boundaries and advanced work
 
-No telephony/audio integration, local LLM download, model-owned FSM or LLM safety decisions.
+Section 12 connects audit to the existing pre-TTS processor without changing carriers or integrating the section 11 text orchestrator into live audio. Local speech models, full voice approval and production telemetry stay at their later gates. No local LLM download or model-owned FSM/safety decisions.
 
 ## Evidence
 
 Section 10 implementation is in source with these fresh checks: state-machine API tests passed **17/17**, focused PostgreSQL checkpoint tests passed **2/2**, Ruff passed across `roma`, `tests` and `scripts`, configured mypy passed, `make ci` passed its native-service/migration/mock-provider/API slice, the full offline suite passed **1,674 tests with 23 warnings**, and Markdown link/anchor verification covered **63 non-archive Markdown files and 274 local links/anchors with zero issues**.
 
-This historical section 10 evidence proves the finite-state-machine facade, route classification seam and compatible latest-checkpoint save/restore. It did not prove section 11; the new offline section 11 evidence is separate below. Structured safety audit, native review, live integration, redial/session identity and L7 recovery drills remain pending. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
+This historical section 10 evidence proves the finite-state-machine facade, route classification seam and compatible latest-checkpoint save/restore. It did not prove section 11; the new offline section 11 evidence is separate below. At that section 10 checkpoint, safety audit was still pending; section 12 now implements it. Native review, full live integration, redial/session identity and L7 recovery drills remain pending. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
 
 ## Section 11 implementation and evidence
 
@@ -54,3 +54,18 @@ The unchanged new Word source is recorded by SHA-256 in the source mapping. The 
 The separate 40-case lab retains the owner-agreed means ≥4/5 per language, every score ≥3/5 and zero unsafe final replies. Native scoring and complete voice approval are deferred; quota is unavailable, so no real OpenAI TTFT/cost/quality claim is made. Section 12 durable safety events, broader injection/semantic-quality evidence, durable global spend reservations and later live audio integration remain open. Per-call budgets are process-local and do not replace existing production spend/dashboard controls. See [the provider contract and commands](../25-openai-llm.md).
 
 Return to the [documentation index](../README.md).
+
+
+## Section 12 implementation and evidence
+
+On 2026-10-17 section 12 extended the existing filter instead of replacing it. Speech rules now collect every blocked category, scope negation per clause/category, reject unknown/external certification wording and cover English/Hindi/Gujarati money, discount and job-guarantee canaries. Approved substitution wording and its audio assets remain unchanged. Direct guarded-question deflections also create audit events when they skip generation.
+
+`SafetyService` connects PII-minimized rule activations to an injected event store in the text seam and existing pre-TTS processor. Production composition injects PostgreSQL. Writes reuse the existing safety/turn schema, close their short transaction before forwarding replacement text and have a 500 ms deadline. Exact event replay is idempotent; storage failure/timeout produces safe fallback speech and an explicit failure signal, not a false durable-success claim. See [audit field mapping and outage limits](../04-guardrails.md#structured-audit-and-storage).
+
+Prompt inputs have character/length limits and code-owned field/branch/time domains. Recognized override canaries skip generation, are audited and cannot override an explicit stop request. Saved state is not silently rewritten by prompt validation. Authenticated event lists, grouped statistics and call-specific safety events expose stable envelopes, filtering/pagination and private 401/404/422/503 failures. This does not complete Level 8 RBAC or universal semantic injection/factual verification.
+
+Final local evidence: **1,790 tests passed, 23 existing dependency warnings, no skips**; Ruff passed; mypy passed across **31 files**; every pre-commit hook passed. `make test-ci` passed **56 provider/config tests** plus **197 bounded safety/API/controller/evaluation tests (2 warnings)**. The suite covers multilingual generated claims and caller questions, deterministic deflections, quote/negation and certificate bypasses, poisoned slots, audit outage/timeout/cancellation, pre-TTS substitution/deduplication, turn correlation, native disposable PostgreSQL replay/FKs/retention/soft-delete/query counts and real database-outage envelopes. Native PostgreSQL safety fixtures are short-lived and run without Docker. Database suites run serially to avoid local shared-memory pressure. Existing local tokenizer test data was restored without network download.
+
+The configured database was checked read-only at **20261004_0003 (head)**. No working-database migration/seed/data change, provider call or model download was performed. The selected Word source and dependency lock are unchanged. Markdown local links/anchors and whitespace checks passed. Hosted CI includes the new safety slice; its run result is reported separately after publication.
+
+Section 12 implementation is complete with offline evidence. **The overall Level 2 gate is still pending native Gujarati/Hindi quality review and real paid timing/voice approval**, as previously deferred by the owner. Production speech remains Hindi-base Hinglish, with multilingual output in its separate lab.

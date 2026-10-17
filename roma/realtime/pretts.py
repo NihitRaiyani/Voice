@@ -1,9 +1,9 @@
 """Pre-TTS guardrail processor (docs/04, roma-guardrail contract).
 
 Sits between the sentence aggregator and Bulbul TTS. Every sentence Roma is about to
-speak is routed through `safe_output()` first — a router, not a censor: a blocked line
+speak is routed through the shared deterministic checker and `SafetyService` — a router, not a censor: a blocked line
 is replaced with a safe substitution, never left as dead air, and on any internal error
-`safe_output` hard-fails to a canned safe line. **Raw LLM text must never reach TTS.**
+the checker/service hard-fails to a canned safe line. **Raw LLM text must never reach TTS.**
 
 Only Roma's own output is filtered. `TranscriptionFrame`/`InterimTranscriptionFrame` are
 `TextFrame` subclasses (user speech) — they are explicitly excluded so a lead's words are
@@ -25,6 +25,7 @@ every other. Nothing reaches TTS unscreened, whichever gate produced it.
 
 import logging
 import re
+from time import perf_counter
 
 from pipecat.frames.frames import (
     InterimTranscriptionFrame,
@@ -41,8 +42,10 @@ from roma.domain.conversation.confirmguard import (
     safe_time_talk,
 )
 from roma.domain.conversation.stage import ConversationStage
-from roma.domain.safety import safe_output
+from roma.domain.safety.audit import SafetyContext, activation, check_sentence
+from roma.domain.safety.lexicon import HARD_FAIL_LINE
 from roma.realtime.filler import strip_leading_ack
+from roma.services.safety_service import SafetyService
 
 _log = logging.getLogger("roma.realtime")
 
@@ -71,7 +74,7 @@ def strip_duplicate_baje(text: str) -> str:
 
 
 class PreTTSFilterProcessor(FrameProcessor):
-    """Apply the confirmation gate and `safe_output()` to each sentence before TTS.
+    """Apply confirmation, deterministic safety and audit to each sentence before TTS.
 
     `slot_status_fn` returns the controller's current verdict on the lead's proposed time.
     A callable, so it is read when the sentence is about to be spoken rather than when the
@@ -87,9 +90,15 @@ class PreTTSFilterProcessor(FrameProcessor):
         wants_out_fn=None,
         facts_said_fn=None,
         slot_fn=None,
+        *,
+        safety=None,
+        safety_context_fn=None,
     ) -> None:
         super().__init__()
         self._slot_status_fn = slot_status_fn
+        self.safety = safety if safety is not None else SafetyService()
+        self._safety_context_fn = safety_context_fn
+        self._audit_turn = 0
         self._stage_fn = stage_fn
         self._filler_fn = filler_fn
         self._wants_out_fn = wants_out_fn
@@ -176,6 +185,7 @@ class PreTTSFilterProcessor(FrameProcessor):
     async def process_frame(self, frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
         if isinstance(frame, LLMFullResponseStartFrame):
+            self._audit_turn += 1
             self._first_of_turn = True
             self._substituted_this_turn = False
             self._spoke_this_turn = False
@@ -189,11 +199,30 @@ class PreTTSFilterProcessor(FrameProcessor):
                 line = strip_leading_ack(line)
             self._first_of_turn = False
             after_ack = line
+            started = perf_counter()
+            control_events = []
             status = self._slot_status()
             line = safe_confirmation(line, status, self._stage())
+            if line != after_ack:
+                control_events.append(
+                    activation(
+                        "control.confirmation.v2",
+                        "CONTROL",
+                        "confirmation",
+                        (perf_counter() - started) * 1000,
+                    )
+                )
             denied = safe_availability(line, status)
             if denied != line:
                 self.denial_holds += 1
+                control_events.append(
+                    activation(
+                        "control.availability.v2",
+                        "CONTROL",
+                        "availability",
+                        (perf_counter() - started) * 1000,
+                    )
+                )
             line = denied
             held = safe_close(
                 line,
@@ -204,12 +233,46 @@ class PreTTSFilterProcessor(FrameProcessor):
             )
             if held != line:
                 self.signoff_holds += 1
+                control_events.append(
+                    activation(
+                        "control.close.v2",
+                        "CONTROL",
+                        "close",
+                        (perf_counter() - started) * 1000,
+                    )
+                )
             steered = safe_time_talk(
                 held, self._stage(), self._facts_said(), self.time_talk_holds
             )
             if steered != held:
                 self.time_talk_holds += 1
-            safe = safe_output(steered)
+                control_events.append(
+                    activation(
+                        "control.time_talk.v2",
+                        "CONTROL",
+                        "time_talk",
+                        (perf_counter() - started) * 1000,
+                    )
+                )
+            extra = ()
+            if steered != after_ack:
+                _, _, original_events = check_sentence(after_ack)
+                extra = (*original_events, *control_events)
+            try:
+                context = (
+                    self._safety_context_fn()
+                    if self._safety_context_fn
+                    else SafetyContext("", max(1, self._audit_turn), self._stage().value)
+                )
+            except Exception:  # noqa: BLE001 — unreadable correlation cannot release raw speech
+                context = SafetyContext("", max(1, self._audit_turn), self._stage().value)
+                extra = (
+                    *extra,
+                    activation("speech.context_error.v2", "FILTER_ERROR", "hard_fail"),
+                )
+                steered = HARD_FAIL_LINE
+            result = await self.safety.check(steered, context, extra=extra)
+            safe = result.text
             if safe != after_ack:
                 _log.info("pre-TTS filter substituted a blocked line")
                 if self._substituted_this_turn:

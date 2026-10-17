@@ -28,3 +28,6 @@ Do not add stage percentiles to create an end-to-end percentile. Fillers can imp
 Current source uses GPT-4o, Saaras v3 code-mix and Bulbul v3/ishita/Hindi at pace 1.05. `openai_budget_inr` defaults to ₹200; this is a spend ceiling, not remaining account credit. Local models and their queues have different resource/cost limits and require new benchmarks.
 
 See [audio](05-endpointing-vad.md), [prompts](11-prompts.md) and [verification](12-verification.md).
+
+
+Section 12 adds shared `SafetyService` audit to the existing pre-TTS processor and the text service. Production composition injects PostgreSQL; clean text needs no event write. A triggered rule commits its structured audit in a bounded short transaction before the processor forwards the replacement text. Audit failure/timeout uses approved fallback speech. See [the safety contract](04-guardrails.md#structured-audit-and-storage); the 500 ms audit deadline is a failure bound, not measured end-to-end voice latency.

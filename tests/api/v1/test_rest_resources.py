@@ -146,6 +146,17 @@ class FakeRestApiService:
             "filters": {"rule": query.rule},
         }
 
+    async def list_call_safety_events(self, call_id, query):
+        await self.get_call(call_id)
+        return await self.list_safety_events(query.model_copy(update={"call_id": call_id}))
+
+    async def safety_stats(self, query):
+        return {
+            "total": 1,
+            "by_category": {query.category or "FEE": 1},
+            "by_rule": {query.rule or "speech.fee.v2": 1},
+        }
+
 
 def _appointment_data(status: str) -> dict[str, object | None]:
     return {
@@ -300,5 +311,67 @@ def test_openapi_documents_the_versioned_resources(client):
         "/api/v1/appointments/{appointment_id}",
         "/api/v1/analytics/overview",
         "/api/v1/safety/events",
+        "/api/v1/safety/stats",
+        "/api/v1/calls/{call_id}/safety-events",
     ]:
         assert path in paths
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/v1/safety/events", "/api/v1/safety/stats", f"/api/v1/calls/{CALL_ID}/safety-events"],
+)
+def test_safety_routes_enforce_auth_and_filter_validation(client, path):
+    assert client.get(path).status_code == 401
+    assert client.get(path + "?category=FEE", headers=AUTH).status_code == 200
+    invalid = client.get(path + "?category=INVALID", headers=AUTH)
+    assert invalid.status_code == 422 and invalid.json()["success"] is False
+
+
+def test_safety_stats_envelope_call_lookup_and_database_unavailable(client):
+    result = client.get("/api/v1/safety/stats?category=FEE", headers=AUTH)
+    assert result.json() == {
+        "success": True,
+        "data": {"total": 1, "by_category": {"FEE": 1}, "by_rule": {"speech.fee.v2": 1}},
+        "meta": {},
+    }
+    assert client.get(f"/api/v1/calls/{uuid4()}/safety-events", headers=AUTH).status_code == 404
+    assert (
+        client.get(f"/api/v1/calls/{CALL_ID}/safety-events?limit=0", headers=AUTH).status_code
+        == 422
+    )
+    app = FastAPI()
+    mount_web_api(app)
+    for path in ["/api/v1/safety/stats", f"/api/v1/calls/{CALL_ID}/safety-events"]:
+        response = TestClient(app).get(path, headers=AUTH)
+        assert (
+            response.status_code == 503
+            and response.json()["error"]["code"] == "DATABASE_UNAVAILABLE"
+        )
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/api/v1/safety/events", "/api/v1/safety/stats", f"/api/v1/calls/{CALL_ID}/safety-events"],
+)
+def test_actual_safety_database_outages_are_enveloped_and_private(client, path):
+    from roma.services.rest_api_service import RestApiService
+
+    class DownSession:
+        async def __aenter__(self):
+            raise OSError("private-password-and-connection-string")
+
+        async def __aexit__(self, *args):
+            return False
+
+    client.app.dependency_overrides[_service_from_request] = lambda: RestApiService(DownSession)
+    response = client.get(path, headers=AUTH)
+    assert response.status_code == 503
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "DATABASE_UNAVAILABLE",
+            "message": "Database is temporarily unavailable.",
+        },
+    }
+    assert "private-password" not in response.text

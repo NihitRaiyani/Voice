@@ -18,7 +18,7 @@ The console shows state, extracted slots, prompt, raw output, safety and final r
 
 Live/text production policy remains Hindi-base Hinglish. A separate 40-case Gujarati/Hindi/English/code-mix lab retains the agreed native review gate: mean correctness and naturalness at least 4/5 per language, every score at least 3/5 and zero unsafe final replies. Mock artifacts cannot pass; never manufacture native scores or measured OpenAI latency while quota is unavailable. Native scoring and complete voice/interruption approval remain deferred by owner instruction.
 
-Section 12 owns durable structured safety events and broader injection evidence. Later speech/telephony levels own integration of this service with the audio path, real TTFA, cancellation/capacity and target local ASR/TTS. The existing Pipecat voice path still uses its established direct SDK processors; this text seam does not silently change live behavior.
+Section 12 implements durable structured safety events and broader injection evidence; see [the safety contract](04-guardrails.md#structured-audit-and-storage). Later speech/telephony levels own integration of this service with the audio path, real TTFA, cancellation/capacity and target local ASR/TTS. The existing Pipecat voice path still uses its established direct SDK processors; this text seam does not silently change live behavior.
 
 ## Official API references
 

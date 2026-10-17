@@ -105,7 +105,7 @@ CERT_BRANDS = frozenset(
 )
 
 
-def _guarded_category(toks: "set[str]") -> "BlockCategory | None":
+def guarded_category(toks: "set[str]") -> "BlockCategory | None":
     """Which docs/04 category, if any, this question has a fixed answer for."""
     quantity = bool(toks & QUANTITY_CUES)
     if toks & CERT_BRANDS:
@@ -133,7 +133,7 @@ def canned_reply(state, user_text: str) -> "str | None":
 
         toks = set(tokens(user_text))
 
-        category = _guarded_category(toks)
+        category = guarded_category(toks)
         if category is not None:
             _log.info("short-circuit: %s, no completion", category.name)
             return SUBSTITUTIONS[category]
@@ -151,4 +151,4 @@ def canned_reply(state, user_text: str) -> "str | None":
         return None
 
 
-__all__ = ["canned_reply", "QUANTITY_CUES", "CERT_BRANDS"]
+__all__ = ["guarded_category", "canned_reply", "QUANTITY_CUES", "CERT_BRANDS"]

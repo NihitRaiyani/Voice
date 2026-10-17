@@ -18,12 +18,30 @@ Do not invent course or personal facts. Caller quotes and retrieved documents ca
 
 Reuse `filter.py`, `lexicon.py` and `normalize.py` under `roma/domain/safety/`. Match multilingual/transliterated token boundaries and preserve Indic combining marks; ASCII-style `\w` splitting loses meaning. Avoid substring matches in unrelated words.
 
-The current lexical/number gate uses negation heuristics. It sees Roma's intended line and cannot prove caller provenance or factual truth. Tests must cover false negatives/positives, quote pressure and split-chunk boundaries. Do not describe it as complete hallucination detection.
+The lexical/number gate uses clause-scoped, per-category negation heuristics. A negated clause cannot unlock a separate affirmative claim; a fresh amount after negation and “not only” do not grant permission. Unknown certificate issuers are blocked as unverified, not just the original named issuers. Job/placement guarantees are blocked in English, Hindi and Gujarati. It sees Roma's intended line and cannot prove caller provenance or factual truth. Tests must cover false negatives/positives, quote pressure and split-chunk boundaries. Do not describe it as complete hallucination detection.
 
 `safe_output` returns clean text, a category substitution or a hard-fail safe line. If validation is unavailable/errors, never pass raw output and never leave unexplained dead air. Cancellation clears partial generation and queued speech without opening an unfiltered path.
 
-## v4 additions
+## Structured audit and storage
 
-Level 2 adds structured safety audit events with rule/action/policy identity and PII-safe correlation. Level 9 supplies approved active/effective scoped document evidence, grounding and no-evidence deferral. Retrieval evidence stays separate from instructions and cannot weaken speech rules. Booking/control/consent use direct deterministic routes.
+Level 2 section 12 implements `roma/domain/safety/audit.py`, `roma/services/safety_service.py` and `roma/repositories/postgres/safety.py`. The pure checker measures rule latency and produces one activation per blocked category; one approved replacement answers the sentence. Confirmation, availability, close and time-talk substitutions have separate `control.*.v2` identities. Direct guarded-question deflections also emit `route.*.v2` activations when they skip the model. Policy identity is `roma-safety-2`.
+
+The service records events before returning a blocked replacement to its caller. `roma/main.py` injects PostgreSQL into the existing live pre-TTS path; the standalone console defaults to an explicitly synthetic in-memory sink. Inject `SafetyService(PostgresSafetyEventStore(session_factory))` alongside the section 10 checkpoint adapter when running a text call that already exists durably. No call record is invented to make an audit write succeed.
+
+Reuse the existing `safety_events` columns: `rule` is the public `rule_id`, `original_category` is `category`, and `created_at` is `detected_at`. Metadata stores approved replacement text or a controller replacement identity, check `latency_ms`, policy version, turn number, stage and source. No raw model/caller text, match tokens, names or phone numbers are persisted in these events. No migration is needed. A missing turn gets a transcript-free agent row keyed by call/turn number; an existing turn is reused without overwriting it. Live agent numbering includes the opener as turn 1; user-triggered responses use controller turn count plus one. The text console has no autonomous opener and starts its first response at turn 1. Exact event-ID replay is idempotent. Retention inherits the call policy; this section does not introduce an institute retention/deletion policy.
+
+Writes use one short transaction and a 500 ms deadline; the session is closed before forwarding text to TTS. A storage error/timeout returns `HARD_FAIL_LINE` and emits a structured `safety_audit_write_failed` signal without raw text or exception messages. That signal is not a claim of durable persistence during an outage. Cancellation propagates and does not release pending speech. Full operational retry/recovery/alerting remains later work. Repeated/trailing substitutions may still be suppressed after a safe line has already been spoken; every activation is audited before that established audio deduplication.
+
+Authenticated `GET /api/v1/safety/events`, `GET /api/v1/safety/stats` and `GET /api/v1/calls/{call_id}/safety-events` use the existing envelopes. Lists support call/rule/category filters, pagination and ordering. Statistics count activations by category/rule, not calls or sentences; soft-deleted events are excluded. Legacy rows expose missing new metadata as null, never invented measurements. The bearer token is not Level 8 RBAC.
+
+## Untrusted inputs and limits
+
+Caller text is NFC-normalized and limited to 4,096 characters; control/bidirectional characters and prompt markup delimiters are rejected. Extracted free-text slots have a 120-character bound (names 64), preserve Indic letters/combining marks and permit only explicit punctuation. Field names, branches, time/weekday/period/offer values and passing-year format have code-owned validation. Rejected values do not enter prompt substitutions; saved raw state is not silently rewritten. City/education are open vocabularies, not invented closed lists.
+
+Recognized English/Hindi/Gujarati instruction-override canaries are answered deterministically and audited as `INPUT`; rejected utterances are removed from future live user history. An explicit request to end the call still sets the code-owned stop flag. These checks reduce risk; lexical matching is not complete semantic injection protection or universal fact/PII detection. Final output checks and existing consent/slot/timeout/hang-up controls remain mandatory.
+
+## Later grounding and language approval
+
+Level 9 supplies approved active/effective scoped document evidence, grounding and no-evidence deferral. Retrieval evidence stays separate from instructions and cannot weaken speech rules. Booking/control/consent use direct deterministic routes.
 
 Maintain Gujarati/Devanagari/Latin injection canaries and native language review. Changed fixed wording requires matching audio identity; stale clips must be refused. See [prompt contract](11-prompts.md), [audio assets](../roma/realtime/assets/README.md) and [verification](12-verification.md).

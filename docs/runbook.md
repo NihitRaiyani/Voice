@@ -131,3 +131,12 @@ Read [the selected source](roadmaps/README.md) and [OpenAI adapter contract](25-
 Real text generation is a later separately authorized action while quota is unavailable. It requires environment-only `OPENAI_API_KEY`, explicit `OPENAI_MODEL`, `--provider openai` and `--allow-paid-api`. Preserve an existing `.env`; `.env.example` documents output/temperature, prompt-byte, deadline/retry and per-call token/spend limits. Never print keys, raw caller information or remote error bodies. On a quota/billing error use the approved fallback without retries; transient retries are bounded and only before any text. Missing usage retains a conservative reservation. Budget exhaustion calls no SDK endpoint.
 
 Native language scores, real TTFT/cost measurements and full voice/interruption approval remain pending. No local LLM is installed. ASR/TTS/embedding and live audio integration remain their later phases. The working `roma` database remains at `20261004_0003`; the new text seam needs no schema change or seed.
+
+
+## Section 12 safety audit
+
+Use `make test-ci` for bounded mocked safety/API/native-PostgreSQL checks, and `make test` for the full offline suite. Automated tests never dial or consume AI quota. Production startup wires PostgreSQL audit into the existing pre-TTS processor; `make text-console` remains synthetic and its audit sink is process-local. A durable text integration must inject `SafetyService(PostgresSafetyEventStore(session_factory))` for an existing provider call ID, alongside the checkpoint store.
+
+Query `/api/v1/safety/events`, `/api/v1/safety/stats` and `/api/v1/calls/{call_id}/safety-events` with the existing bearer authorization; never put tokens into URLs. Optional call/rule/category filters use v1 validation; event lists also accept limit/offset/sort. A missing call returns 404, a missing database 503 and invalid parameters 422. Follow [the REST contract](24-rest-api-design.md) and [safety contract](04-guardrails.md).
+
+Investigate `safety_audit_write_failed` as a lost/uncertain durable write, not a successfully saved event. Inspect database availability and pool pressure; do not bypass safety to restore speech. Event-ID retries are idempotent when the same activation is available, but automatic durable outage replay is not implemented here. There is no section 12 migration or seed, and no working-database data was altered during verification.

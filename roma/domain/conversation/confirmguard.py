@@ -298,6 +298,10 @@ DISMISSAL_PHRASES = frozenset(
         ("रख", "दो"),
         # "don't call" / "don't bother me"
         ("call", "mat", "karo"),
+        ("stop", "calling"),
+        ("do", "not", "call"),
+        ("કૉલ", "નથી", "કરવો"),
+        ("ફોન", "ન", "કરો"),
         ("कॉल", "मत", "करो"),
         ("pareshan", "mat", "karo"),
         ("परेशान", "मत", "करो"),

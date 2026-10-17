@@ -15,7 +15,9 @@
 | `PATCH` | `/api/v1/appointments/{appointment_id}` | Update appointment status/counsellor/course fields |
 | `DELETE` | `/api/v1/appointments/{appointment_id}` | Cancel an appointment and return the updated record |
 | `GET` | `/api/v1/analytics/overview` | Return small operational counts for dashboards |
-| `GET` | `/api/v1/safety/events` | List safety events with call/rule filters |
+| `GET` | `/api/v1/safety/events` | List safety events with call/rule/category filters |
+| `GET` | `/api/v1/safety/stats` | Section 12 activation counts grouped by category and rule |
+| `GET` | `/api/v1/calls/{call_id}/safety-events` | Section 12 paginated audit for an existing call; unknown call is 404 |
 
 Legacy paths stay available: `/api/call`, `/api/call/{request_uuid}`, `/answer`, `/ws` and `/health`. `POST /api/v1/calls` is deliberately not a hidden phone-dial command; carrier-side effects remain on `/api/call` until the live dial workflow is redesigned around durable call creation.
 
@@ -52,3 +54,6 @@ Every v1 route uses the same bearer token policy as the legacy call endpoint. Th
 ## Database boundaries
 
 Routes authenticate and parse HTTP, then call `RestApiService`. The service opens short SQLAlchemy units of work or read sessions, performs one resource operation, and closes the session before returning. It never holds a transaction during audio, provider calls or Redis waits. Appointment booking reuses the existing row-locked repository and maps slot conflicts to `APPOINTMENT_SLOT_UNAVAILABLE`.
+
+
+Section 12 event responses retain `rule`, `original_category`, `replacement_type` and `created_at`, and add `rule_id`, `category`, `replacement_used`, `detected_at` and `latency_ms`. Exposed metadata is allowlisted; arbitrary legacy JSON is not returned. Missing historic measurements remain null. Statistics return `{total, by_category, by_rule}` and count activations after optional call/rule/category filters. Lists and counts exclude soft-deleted events. See [audit semantics](04-guardrails.md#structured-audit-and-storage).

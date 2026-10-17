@@ -21,6 +21,8 @@ import logging
 
 from pydantic import BaseModel, Field
 
+from roma.domain.safety.inputs import DISCOVERY_FIELDS, caller_text, discovery_value
+
 _log = logging.getLogger("roma.domain.conversation")
 
 SLOT_MODEL = "gpt-4o-mini"
@@ -131,7 +133,10 @@ def _offer_block(offered) -> str:
     """
     if not offered:
         return ""
-    lines = "\n".join(f"{i}. {s}" for i, s in enumerate(offered, start=1))
+    from roma.domain.safety.inputs import slot_text
+
+    valid = [s for s in offered[:2] if slot_text(s) is not None]
+    lines = "\n".join(f"{i}. {s}" for i, s in enumerate(valid, start=1))
     return f"OFFERED SLOTS (Roma proposed these):\n{lines}\n\nLead's reply: "
 
 
@@ -164,6 +169,9 @@ async def extract_discovery_slot(client, text: str, slot_name: str) -> Discovery
     where a silently mis-parsed field is a wrong visit, not a re-ask.
     """
     try:
+        text = caller_text(text)
+        if slot_name not in DISCOVERY_FIELDS:
+            return DiscoveryValue()
         completion = await client.chat.completions.create(
             model=SLOT_MODEL,
             messages=[
@@ -174,7 +182,12 @@ async def extract_discovery_slot(client, text: str, slot_name: str) -> Discovery
             max_tokens=_DISCOVERY_MAX_TOKENS,
         )
         content = completion.choices[0].message.content
-        return DiscoveryValue.model_validate_json(content) if content else DiscoveryValue()
+        parsed = DiscoveryValue.model_validate_json(content) if content else DiscoveryValue()
+        valid = discovery_value(slot_name, parsed.value)
+        if parsed.value is not None and valid is None:
+            return DiscoveryValue()
+        parsed.value = valid
+        return parsed
     except Exception:  # noqa: BLE001  # pragma: no cover - must not crash the turn
         _log.warning("discovery slot extraction failed for %s; re-asking", slot_name)
         return DiscoveryValue()
@@ -190,6 +203,7 @@ async def extract_time_slot(client, text: str, *, offered=None) -> TimeSlot:
     lost. Keyword-only with a default, so every existing caller is unaffected.
     """
     try:
+        text = caller_text(text)
         completion = await client.beta.chat.completions.parse(
             model=SLOT_MODEL,
             messages=[

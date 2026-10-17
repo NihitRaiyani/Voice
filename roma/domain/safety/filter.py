@@ -9,13 +9,17 @@ from dataclasses import dataclass
 from roma.domain.safety.lexicon import (
     AMOUNT_WORDS,
     CERT_BLOCK_ENABLED,
+    CERT_CONNECTORS,
     CERT_ORG_KEYWORDS,
     CERT_TRIGGER,
     DISCOUNT_KEYWORDS,
     FEE_CURRENCY,
     FEE_KEYWORDS,
+    GUARANTEE_WORDS,
     HARD_FAIL_LINE,
+    INSTITUTE_CERT_WORDS,
     NEGATION_WINDOW,
+    OUTCOME_ANCHOR,
     PERMITTED_MONEY_LINE,
     PLACEMENT_ANCHOR,
     PLACEMENT_KEYWORDS,
@@ -43,7 +47,7 @@ _SYMBOL_SPLIT_RE = re.compile(
     r"([₹%])"
 )  # this regex is used to split the text on the symbols ₹ and % so that they can be treated as separate tokens ['Fee ', '₹', '25000']
 _CLAUSE_RE = re.compile(
-    r"\s+-\s+|[,;।]"
+    r"\s+-\s+|[,;।!?]|(?<!\d)\.(?!\d)|\b(?:but|lekin|however|aur|and|लेकिन|પણ|પરંતુ)\b"
 )  # it’s used to split text into clauses ["Fee ₹25000. , Hostel available ; Placement support."]
 _NK_RE = re.compile(
     r"\d+k"
@@ -58,6 +62,7 @@ class FilterVerdict:
     safe_line: "str | None"
     reason: str
     matched: tuple[str, ...]
+    violations: tuple[BlockCategory, ...] = ()
 
 
 def _tokens(text: str) -> list[str]:
@@ -141,54 +146,70 @@ def _category_indices(toks: list[str]) -> dict[BlockCategory, list[int]]:
         # and it needs no figure to be an outcome claim.
         if anchors and (has_num or any(t in PLACEMENT_QUALIFIERS for t in toks)):
             place = anchors
+    if any(t in GUARANTEE_WORDS for t in toks):
+        place += [i for i, t in enumerate(toks) if t in OUTCOME_ANCHOR or t in PLACEMENT_ANCHOR]
     if place:
         out[BlockCategory.PLACEMENT] = sorted(place)
 
     disc = [i for i, t in enumerate(toks) if t in DISCOUNT_KEYWORDS]
+    disc += _phrase_indices(toks, ["limited", "time"])
     if disc:
         out[BlockCategory.DISCOUNT] = disc
 
     if CERT_BLOCK_ENABLED:
         orgs = [i for i, t in enumerate(toks) if t in CERT_ORG_KEYWORDS]
-        if orgs and any(t in CERT_TRIGGER for t in toks):
-            out[BlockCategory.CERT] = orgs
+        certs = [i for i, t in enumerate(toks) if t in CERT_TRIGGER]
+        institute = [i for i, t in enumerate(toks) if t in INSTITUTE_CERT_WORDS]
+        # An unknown issuer is unverified too, not just Google/Meta/IBM.
+        approved_words = CERT_CONNECTORS | CERT_TRIGGER | INSTITUTE_CERT_WORDS
+        if certs and (orgs or not institute or any(t not in approved_words for t in toks)):
+            out[BlockCategory.CERT] = certs
 
     return out
-
-
-def _is_pushback(toks: list[str]) -> bool:
-    """A clause where a rebuttal cue sits within NEGATION_WINDOW tokens of a signal."""
-    sig_positions = [i for idxs in _category_indices(toks).values() for i in idxs]
-    if not sig_positions:
-        return False
-    cue_positions = [i for i, t in enumerate(toks) if t in REBUTTAL_CUES]
-    return any(abs(s - c) <= NEGATION_WINDOW for s in sig_positions for c in cue_positions)
 
 
 def screen(text: str) -> FilterVerdict:
     """Screen Roma's intended line. Never raises.
 
-    Order: permitted-EMI allowlist -> negation-gated pushback allow -> block by
-    precedence -> allow clean.
+    Order: exact approved lines -> per-clause/category negation -> collect every
+    violation and replace by precedence -> allow clean.
     """
     try:
         norm = normalize(text)
         if norm == _PERMITTED_NORM:
             return FilterVerdict(True, None, None, "allow:permitted-emi", ())
 
-        clauses = _clauses(norm)
-
-        if any(_is_pushback(toks) for toks in clauses):
-            return FilterVerdict(True, None, None, "allow:pushback", ())
-
-        for toks in clauses:
+        # This exact approved institute explanation contains two certificate mentions.
+        if norm == normalize(SUBSTITUTIONS[BlockCategory.CERT]):
+            return FilterVerdict(True, None, None, "allow:approved-certificate", ())
+        blocked: dict[BlockCategory, tuple[str, ...]] = {}
+        pushback = False
+        for toks in _clauses(norm):
             cats = _category_indices(toks)
-            for cat in _PRECEDENCE:
-                if cat in cats:
-                    matched = tuple(toks[i] for i in cats[cat])
-                    return FilterVerdict(
-                        False, cat, SUBSTITUTIONS[cat], f"block:{cat.value}", matched
-                    )
+            cues = [
+                i
+                for i, t in enumerate(toks)
+                if t in REBUTTAL_CUES
+                and not (i + 1 < len(toks) and toks[i + 1] in {"only", "sirf", "bas"})
+            ]
+            new_amount = bool(cues and any(_is_number_tok(t) for t in toks[max(cues) + 1 :]))
+            for cat, positions in cats.items():
+                # Rebuttal of one category/clause cannot authorize another claim.
+                negated = not new_amount and all(
+                    any(abs(i - cue) <= NEGATION_WINDOW for cue in cues) for i in positions
+                )
+                if negated:
+                    pushback = True
+                else:
+                    blocked.setdefault(cat, tuple(toks[i] for i in positions))
+        violations = tuple(cat for cat in _PRECEDENCE if cat in blocked)
+        if violations:
+            cat = violations[0]
+            return FilterVerdict(
+                False, cat, SUBSTITUTIONS[cat], f"block:{cat.value}", blocked[cat], violations
+            )
+        if pushback:
+            return FilterVerdict(True, None, None, "allow:pushback", ())
         return FilterVerdict(True, None, None, "allow:clean", ())
     except Exception as exc:  # noqa: BLE001 — fail-safe, never leak raw text
         _log.error("pre-TTS filter error, hard-failing turn: %s", type(exc).__name__)
@@ -202,7 +223,7 @@ def safe_output(text: str) -> str:
     substitution/canned line. Never raises."""
     try:
         verdict = screen(text)
-        return text if verdict.allowed else verdict.safe_line
+        return text if verdict.allowed else (verdict.safe_line or HARD_FAIL_LINE)
     except Exception as exc:  # noqa: BLE001 — defense in depth, screen() already guards
         _log.error("safe_output error, hard-failing turn: %s", type(exc).__name__)
         return HARD_FAIL_LINE

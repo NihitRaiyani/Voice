@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import Select, func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from roma.domain.persistence import (
@@ -32,6 +33,7 @@ from roma.schemas.rest_api import (
     CreateCallRequest,
     LeadsQuery,
     SafetyEventsQuery,
+    SafetyStatsQuery,
     UpdateAppointmentRequest,
 )
 
@@ -46,6 +48,17 @@ class RestApiServiceError(RuntimeError):
         self.status_code = status_code
         self.code = code
         self.message = message
+
+
+@asynccontextmanager
+async def _safety_read_session(factory):
+    try:
+        async with factory() as session:
+            yield session
+    except (SQLAlchemyError, OSError) as exc:
+        raise RestApiServiceError(
+            503, "DATABASE_UNAVAILABLE", "Database is temporarily unavailable."
+        ) from exc
 
 
 def _now() -> datetime:
@@ -72,7 +85,9 @@ def _decimal(value: Decimal | None) -> str | None:
     return None if value is None else str(value)
 
 
-def _page_meta(*, query: Any, total: int, filters: dict[str, object | None]) -> dict[str, object]:
+def _page_meta(
+    *, query: Any, total: int, filters: dict[str, object | None]
+) -> dict[str, object]:
     return {
         "limit": query.limit,
         "offset": query.offset,
@@ -179,7 +194,24 @@ def _safety_event_row_data(row: SafetyEvent) -> dict[str, object | None]:
         "rule": row.rule,
         "original_category": row.original_category,
         "replacement_type": row.replacement_type,
-        "metadata": row.metadata_,
+        "metadata": {
+            key: value
+            for key, value in row.metadata_.items()
+            if key
+            in {
+                "policy_version",
+                "replacement_used",
+                "latency_ms",
+                "turn_number",
+                "stage",
+                "source",
+            }
+        },
+        "rule_id": row.rule,
+        "category": row.original_category,
+        "replacement_used": row.metadata_.get("replacement_used"),
+        "detected_at": _dt(row.created_at),
+        "latency_ms": row.metadata_.get("latency_ms"),
         "created_at": _dt(row.created_at),
     }
 
@@ -219,7 +251,9 @@ class RestApiService:
             ) from exc
         return _call_data(created)
 
-    async def list_calls(self, query: CallsQuery) -> tuple[list[dict[str, object]], dict[str, object]]:
+    async def list_calls(
+        self, query: CallsQuery
+    ) -> tuple[list[dict[str, object]], dict[str, object]]:
         statement = select(Call).where(Call.deleted_at.is_(None))
         if query.status is not None:
             statement = statement.where(Call.status == query.status)
@@ -250,7 +284,9 @@ class RestApiService:
             raise RestApiServiceError(404, "CALL_NOT_FOUND", "Call was not found.")
         return _call_data(record)
 
-    async def list_leads(self, query: LeadsQuery) -> tuple[list[dict[str, object]], dict[str, object]]:
+    async def list_leads(
+        self, query: LeadsQuery
+    ) -> tuple[list[dict[str, object]], dict[str, object]]:
         statement = select(Caller).where(Caller.anonymized_at.is_(None))
         if query.city is not None:
             statement = statement.where(Caller.city == query.city)
@@ -295,7 +331,9 @@ class RestApiService:
                 await uow.commit()
         except RecordNotFound as exc:
             raise RestApiServiceError(
-                404, "APPOINTMENT_SLOT_NOT_FOUND", "The selected appointment slot was not found."
+                404,
+                "APPOINTMENT_SLOT_NOT_FOUND",
+                "The selected appointment slot was not found.",
             ) from exc
         except PersistenceConflict as exc:
             raise RestApiServiceError(
@@ -319,7 +357,9 @@ class RestApiService:
             "date_desc": (Appointment.appointment_date.desc(), Appointment.start_time.desc()),
             "created_at_desc": (Appointment.created_at.desc(),),
         }[query.sort]
-        statement = statement.order_by(*order, Appointment.id).limit(query.limit).offset(query.offset)
+        statement = (
+            statement.order_by(*order, Appointment.id).limit(query.limit).offset(query.offset)
+        )
         async with self._session_factory() as session:
             total = await _count(session, total_statement)
             rows = tuple(await session.scalars(statement))
@@ -374,7 +414,9 @@ class RestApiService:
                 .where(Appointment.status.in_(("booked", "confirmed")))
             )
             safety_events = await session.scalar(select(func.count()).select_from(SafetyEvent))
-            total_cost = await session.scalar(select(func.coalesce(func.sum(CallCost.amount), 0)))
+            total_cost = await session.scalar(
+                select(func.coalesce(func.sum(CallCost.amount), 0))
+            )
         return {
             "calls": {
                 "total": int(total_calls or 0),
@@ -393,21 +435,60 @@ class RestApiService:
             statement = statement.where(SafetyEvent.call_id == query.call_id)
         if query.rule is not None:
             statement = statement.where(SafetyEvent.rule == query.rule)
+        if query.category is not None:
+            statement = statement.where(SafetyEvent.original_category == query.category)
         total_statement = statement
         order = {
             "created_at_desc": SafetyEvent.created_at.desc(),
             "created_at_asc": SafetyEvent.created_at.asc(),
         }[query.sort]
-        statement = statement.order_by(order, SafetyEvent.id).limit(query.limit).offset(query.offset)
-        async with self._session_factory() as session:
+        statement = (
+            statement.order_by(order, SafetyEvent.id).limit(query.limit).offset(query.offset)
+        )
+        async with _safety_read_session(self._session_factory) as session:
             total = await _count(session, total_statement)
             rows = tuple(await session.scalars(statement))
         meta = _page_meta(
             query=query,
             total=total,
-            filters={"call_id": _uuid(query.call_id), "rule": query.rule},
+            filters={
+                "call_id": _uuid(query.call_id),
+                "rule": query.rule,
+                "category": query.category,
+            },
         )
         return [_safety_event_row_data(row) for row in rows], meta
+
+    async def list_call_safety_events(self, call_id: UUID, query: SafetyEventsQuery):
+        async with _safety_read_session(self._session_factory) as session:
+            existing = await session.scalar(
+                select(Call.id).where(Call.id == call_id, Call.deleted_at.is_(None))
+            )
+        if existing is None:
+            raise RestApiServiceError(404, "CALL_NOT_FOUND", "Call was not found.")
+        return await self.list_safety_events(query.model_copy(update={"call_id": call_id}))
+
+    async def safety_stats(self, query: SafetyStatsQuery) -> dict[str, object]:
+        statement = select(SafetyEvent.original_category, SafetyEvent.rule, func.count()).where(
+            SafetyEvent.deleted_at.is_(None)
+        )
+        if query.call_id is not None:
+            statement = statement.where(SafetyEvent.call_id == query.call_id)
+        if query.rule is not None:
+            statement = statement.where(SafetyEvent.rule == query.rule)
+        if query.category is not None:
+            statement = statement.where(SafetyEvent.original_category == query.category)
+        statement = statement.group_by(SafetyEvent.original_category, SafetyEvent.rule)
+        async with _safety_read_session(self._session_factory) as session:
+            rows = (await session.execute(statement)).all()
+        categories: dict[str, int] = {}
+        rules: dict[str, int] = {}
+        total = 0
+        for category, rule, count in rows:
+            total += count
+            categories[category or "UNKNOWN"] = categories.get(category or "UNKNOWN", 0) + count
+            rules[rule or "UNKNOWN"] = rules.get(rule or "UNKNOWN", 0) + count
+        return {"total": total, "by_category": categories, "by_rule": rules}
 
 
 __all__ = ["RestApiService", "RestApiServiceError"]

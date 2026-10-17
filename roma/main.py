@@ -13,7 +13,9 @@ from roma.core.config import get_settings, require_reachable_base_url
 from roma.core.database import Database
 from roma.core.logging import configure_logging
 from roma.realtime.pipeline import build_media_app
+from roma.repositories.postgres.safety import PostgresSafetyEventStore
 from roma.repositories.postgres.webhooks import WebhookRepository
+from roma.services.safety_service import UnavailableSafetyEventStore
 from roma.services.webhook_service import WebhookService
 
 
@@ -35,7 +37,14 @@ def create_app() -> FastAPI:
                 await database.close()
 
     service = WebhookService(WebhookRepository(database.session_factory)) if database else None
-    app = build_media_app(auto_hang_up=True, webhook_service=service, lifespan=lifespan)
+    app = build_media_app(
+        auto_hang_up=True,
+        webhook_service=service,
+        lifespan=lifespan,
+        safety_store=PostgresSafetyEventStore(database.session_factory, source="voice")
+        if database
+        else UnavailableSafetyEventStore(),
+    )
     mount_web_api(app, session_factory=database.session_factory if database else None)
     return app
 

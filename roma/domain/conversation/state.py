@@ -15,6 +15,7 @@ from datetime import datetime
 from roma.domain.conversation.facts import already_said_line
 from roma.domain.conversation.pacing import pacing_line
 from roma.domain.conversation.stage import ConversationStage
+from roma.domain.safety.inputs import branch_value, discovery_value, slot_text
 
 # Contains every valid conversation stage.
 STAGES: tuple[ConversationStage, ...] = tuple(ConversationStage)
@@ -152,7 +153,7 @@ class CallState:
 
     call_sid: str = ""
     branch: str = "Vadodara"
-    
+
     segment: str = ""
     # None, not "": `next_discovery_slot` treats a non-None value as already filled, so an
     # empty-string default would mark the name permanently captured and Roma would never ask.
@@ -189,7 +190,6 @@ class CallState:
     inquiry_confirmed: bool = False
     readback_confirmed: bool = False
 
-   
     lead_wants_out: bool = False
 
     # ISO date of the call, set by `advance_turn` from the same `now` the slot resolver uses,
@@ -201,7 +201,6 @@ class CallState:
     # matters because an unstable line costs a prefix cache hit (docs/11).
     facts_said: "list[str]" = field(default_factory=list)
 
-   
     lead_time_asks: int = 0
 
     # Total off-topic turns this call (controller.offtopic). A running count, not
@@ -252,11 +251,11 @@ class CallState:
         if status in ("accepted", "locked") and not slot:
             status = "none"
         return {
-            "branch": self.branch,
+            "branch": branch_value(self.branch),
             # `or ""` because lead_name is None until discover captures it — a fragment must never
             # render the string "None" at a lead.
-            "lead_name": self.lead_name or "",
-            "segment": self.segment,
+            "lead_name": discovery_value("lead_name", self.lead_name) or "",
+            "segment": slot_text(self.segment) or "",
             "slot_status": SLOT_STATUS_LINES[status].format(slot=slot),
             "pacing": pacing_line(self.elapsed_secs),
             "offered_slots": self._offer_line(status),
@@ -301,9 +300,9 @@ class CallState:
         already lead-specific) and is never logged.
         """
         known = [
-            (label, getattr(self, slot))
+            (label, discovery_value(slot, getattr(self, slot)))
             for slot, label in _KNOWN_LABELS.items()
-            if getattr(self, slot) is not None
+            if discovery_value(slot, getattr(self, slot)) is not None
         ]
         if not known:
             return _NO_KNOWN_LINE

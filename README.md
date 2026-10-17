@@ -10,7 +10,7 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 |---|---|---|
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
 | Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | OpenAI LLM provider, local ASR/TTS labs, then speech model serving |
-| Conversation | Seven deterministic stages, state-machine facade, durable latest checkpoint adapter, extraction, time resolver, speech safety | OpenAI text demo wiring and structured safety audit |
+| Conversation | Seven deterministic stages, checkpoint adapter, OpenAI text seam, deterministic safety audit and bounded prompt inputs | Native quality review and full voice approval |
 | Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints, bounded pools/process budget, checkpoint/model/benchmark schema, turn-language metadata and versioned resource API | Live booking and restoration pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue; PostgreSQL now has compatible latest-checkpoint restore by call SID | Bounded pressure, redial/session mapping and measured rate limits |
 | Webhooks | Atomic `/answer` receipt/call/event acceptance | Extend only to required callback kinds with explicit replay policy |

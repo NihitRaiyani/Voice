@@ -91,6 +91,7 @@ from roma.domain.conversation.prompts import (
 from roma.domain.conversation.state import spoken_slot
 from roma.domain.costs.spend import SpendLedger, Usage
 from roma.domain.persistence import hash_phone_e164
+from roma.domain.safety.audit import SafetyContext
 from roma.providers.calendar.google import build_calendar
 from roma.providers.telephony.twilio.auth import external_url, valid_twilio_signature
 from roma.realtime import canned
@@ -131,6 +132,7 @@ from roma.repositories.redis.conversation_state import RedisCallStateStore
 from roma.repositories.redis.leads import RedisLeadStore
 from roma.repositories.redis.opener_audio import OpenerStore
 from roma.repositories.redis.postcall_queue import RedisPostcallQueue
+from roma.services.safety_service import SafetyService
 from roma.workers.postcall.job import PostcallJob, outcome_for
 from roma.workers.postcall.paths import job_spool_dir, media_dir, spend_ledger_path
 from roma.workers.postcall.spool import JobSpool, SpoolFallbackQueue
@@ -1093,6 +1095,7 @@ def build_media_app(
     build_queue_fn=build_postcall_queue,
     build_calendar_fn=build_calendar,
     webhook_service=None,
+    safety_store=None,
     lifespan=None,
 ) -> FastAPI:
     """FastAPI app exposing Twilio's `/answer`, `/ws`, and `/health` routes.
@@ -1290,11 +1293,7 @@ def build_media_app(
         # built on the very next line. Read once, not inside the greeter's callable: `_greet`
         # fires on the lead's first sound, and a Redis round trip at that moment would sit in
         # front of the audio it exists to make instant.
-        opener_pcm = (
-            await _load_prerendered_opener(app, lead_token)
-            if is_outbound
-            else None
-        )
+        opener_pcm = await _load_prerendered_opener(app, lead_token) if is_outbound else None
         # TWO questions, not one. Conflating them cost call 0ce455b0 its entire five minutes.
         #
         #   already_spoken       Did something ELSE say the opener at connect? Inbound only —
@@ -1376,8 +1375,10 @@ def build_media_app(
         if not getattr(app.state, "slot_prewarmed", False):
             app.state.slot_prewarmed = True
             prewarm_task = asyncio.create_task(prewarm_slot_client(slot_client))
+        safety = SafetyService(safety_store)
         stage_ctrl = StageControllerProcessor(
             state,
+            safety=safety,
             client=slot_client,
             store=store,
             flight=flight,
@@ -1436,6 +1437,10 @@ def build_media_app(
             lambda: state.lead_wants_out,
             lambda: state.facts_said,
             lambda: spoken_slot(state.accepted_slot),
+            safety=safety,
+            safety_context_fn=lambda: SafetyContext(
+                state.call_sid, max(1, state.turn_count + 1), state.stage.value
+            ),
         )
         tts = build_tts_fn(settings, getattr(app.state, "phrase_cache", None))
         sanitizer = TTSAudioSanitizer()

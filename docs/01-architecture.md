@@ -58,3 +58,8 @@ L1 section 6 moves shared private-file primitives into `roma.core.private_files`
 Keep Twilio and the existing Pipecat comparison profile. Direct local ASR/TTS inference precedes speech model serving; embeddings/pgvector arrive with conditional RAG at L9. OpenAI remains the LLM behind its provider interface. The target permits OpenAI as its only external GenAI API, alongside carrier/internal services.
 
 Existing Compose is pre-v4 infrastructure tooling, not proof of Level 13. No production host/GPU/SLO is established by these docs. Replica growth requires measured capacity, shared coordination and route/auth checks; recording startup recovery currently supports one recording consumer. See [state](06-state-and-cache.md), [concurrency](08-concurrency.md) and [decisions](decisions.md).
+
+
+## Section 12 safety audit boundary
+
+The domain filter creates PII-minimized rule activations; `SafetyService` bounds persistence and chooses the fail-safe; `PostgresSafetyEventStore` writes existing call/turn/event relations. `roma/main.py` injects this into the existing pre-TTS processor, and the text orchestrator accepts the same service. REST routes call short-session query methods for event lists, grouped counts and call-specific events. No new schema, model download or provider change is involved. See [the safety contract](04-guardrails.md).

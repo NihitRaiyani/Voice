@@ -7,6 +7,7 @@ import re
 import unicodedata
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from time import perf_counter
 from typing import Any, Literal
 
 from pydantic import ConfigDict, Field, ValidationError, field_validator
@@ -31,7 +32,7 @@ from roma.domain.conversation.prompts import (
     STAGE_WORD_CAPS,
     stage_max_tokens,
 )
-from roma.domain.conversation.shortcircuit import canned_reply
+from roma.domain.conversation.shortcircuit import canned_reply, guarded_category
 from roma.domain.conversation.state import CallState, spoken_slot
 from roma.domain.conversation.state_machine import (
     ConversationStateStore,
@@ -40,10 +41,13 @@ from roma.domain.conversation.state_machine import (
     save_state,
 )
 from roma.domain.conversation.turn import advance_turn
-from roma.domain.safety import screen
-from roma.domain.safety.lexicon import HARD_FAIL_LINE
+from roma.domain.safety.audit import SafetyActivation, SafetyContext, activation, check_sentence
+from roma.domain.safety.inputs import caller_text, discovery_value, injection_attempt, slot_text
+from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS
+from roma.domain.safety.normalize import tokens
 from roma.providers.ai.contracts import LLMMessage, LLMProvider, LLMRequest, ProviderUnavailable
 from roma.services.conversation_prompts import dialogue_request
+from roma.services.safety_service import SafetyService
 
 
 class ValidatedDiscoveryValue(DiscoveryValue):
@@ -55,6 +59,8 @@ class ValidatedDiscoveryValue(DiscoveryValue):
     def nonblank(cls, value: str | None) -> str | None:
         if value is not None and not value.strip():
             raise ValueError("blank discovery value")
+        if value is not None and slot_text(value) is None:
+            raise ValueError("Invalid discovery characters or instructions")
         return value.strip() if value else None
 
 
@@ -83,10 +89,14 @@ class TextTurnTrace:
     metrics: tuple[dict[str, Any], ...]
     provider_error: str | None
     booking_committed: bool = False
+    safety_events: tuple[dict[str, Any], ...] = ()
 
 
-def filter_response(raw: str, state: CallState) -> tuple[str, tuple[dict[str, Any], ...]]:
+def _filter_response(
+    raw: str, state: CallState
+) -> tuple[str, tuple[dict[str, Any], ...], tuple[SafetyActivation, ...]]:
     """Complete text buffer is diagnostic only; every final sentence passes safety."""
+    started = perf_counter()
     if (
         not raw.strip()
         or "\ufffd" in raw
@@ -94,19 +104,47 @@ def filter_response(raw: str, state: CallState) -> tuple[str, tuple[dict[str, An
         or "</think>" in raw
         or len(raw.split()) > STAGE_WORD_CAPS[state.stage]
     ):
-        return HARD_FAIL_LINE, ({"allowed": False, "reason": "invalid-or-overlong-output"},)
-    line = safe_time_talk(raw, state.stage, state.facts_said)
-    # In this L2 lab even a conversational lock is NOT a committed appointment.
-    # Hold at a readback rather than generating a false booked/success statement.
+        event = activation(
+            "speech.invalid_output.v2",
+            "INVALID_OUTPUT",
+            HARD_FAIL_LINE,
+            (perf_counter() - started) * 1000,
+        )
+        return (
+            HARD_FAIL_LINE,
+            ({"allowed": False, "reason": "invalid-or-overlong-output"},),
+            (event,),
+        )
+    started = perf_counter()
+    events: list[SafetyActivation] = []
+    line = raw
+
+    def guard(rule: str, updated: str) -> str:
+        if updated != line:
+            events.append(
+                activation(
+                    f"control.{rule}.v2", "CONTROL", rule, (perf_counter() - started) * 1000
+                )
+            )
+        return updated
+
+    line = guard("time_talk", safe_time_talk(line, state.stage, state.facts_said))
+    # A conversational lock is not a committed appointment in this lab.
     status = "accepted" if state.locked_slot else state.slot_status
     if state.locked_slot:
-        line = SAFE_READBACK_HOLD_LINE.format(slot=spoken_slot(state.locked_slot))
-    line = safe_availability(line, status)
-    line = safe_confirmation(line, status, state.stage)
-    line = safe_close(line, status, 0, wants_out=state.lead_wants_out)
+        line = guard(
+            "readback", SAFE_READBACK_HOLD_LINE.format(slot=spoken_slot(state.locked_slot))
+        )
+    line = guard("availability", safe_availability(line, status))
+    line = guard("confirmation", safe_confirmation(line, status, state.stage))
+    line = guard("close", safe_close(line, status, 0, wants_out=state.lead_wants_out))
+    if line != raw:
+        _, _, original_events = check_sentence(raw)
+        events.extend(original_events)
     results, final = [], []
     for sentence in re.split(r"(?<=[.!?।])\s+|\n+", line.strip()):
-        verdict = screen(sentence)
+        safe, verdict, activations = check_sentence(sentence)
+        events.extend(activations)
         results.append(
             {
                 "allowed": verdict.allowed,
@@ -114,8 +152,13 @@ def filter_response(raw: str, state: CallState) -> tuple[str, tuple[dict[str, An
                 "category": verdict.category.value if verdict.category else None,
             }
         )
-        final.append(sentence if verdict.allowed else (verdict.safe_line or HARD_FAIL_LINE))
-    return " ".join(final), tuple(results)
+        final.append(safe)
+    return " ".join(final), tuple(results), tuple(events)
+
+
+def filter_response(raw: str, state: CallState) -> tuple[str, tuple[dict[str, Any], ...]]:
+    final, verdicts, _ = _filter_response(raw, state)
+    return final, verdicts
 
 
 DISCOVERY_QUESTIONS = {
@@ -173,8 +216,10 @@ class TextConversationService:
         store: ConversationStateStore | None = None,
         max_tokens: int = 128,
         temperature: float = 0.7,
+        safety: SafetyService | None = None,
     ) -> None:
         self.provider = provider
+        self.safety = safety if safety is not None else SafetyService()
         self._call_identity: str | int | None = None
         self.store = store or InMemoryConversationStateStore()
         self.max_tokens, self.temperature = max_tokens, temperature
@@ -186,9 +231,39 @@ class TextConversationService:
         if self._call_identity is not None and self._call_identity != identity:
             raise ValueError("One text service/provider budget belongs to one call")
         self._call_identity = identity
-        if len(user_text) > 4096:
-            raise ValueError("Caller text exceeds the turn limit")
         before = state.to_dict()
+        input_started = perf_counter()
+        rejected = False
+        try:
+            user_text = caller_text(user_text)
+            rejected = injection_attempt(user_text)
+        except ValueError:
+            rejected = True
+        if rejected:
+            from roma.domain.conversation.confirmguard import SAFE_SIGNOFF_LINE, lead_wants_out
+
+            state.turn_count += 1
+            state.lead_wants_out = state.lead_wants_out or lead_wants_out(user_text[:4096])
+            final = SAFE_SIGNOFF_LINE if state.lead_wants_out else HARD_FAIL_LINE
+            event = activation(
+                "input.untrusted.v2", "INPUT", final, (perf_counter() - input_started) * 1000
+            )
+            context = SafetyContext(state.call_sid, state.turn_count, state.stage.value)
+            ok = await self.safety.persist(context, (event,))
+            await save_state(self.store, state)
+            return TextTurnTrace(
+                before,
+                (),
+                state.to_dict(),
+                "deterministic",
+                (),
+                "",
+                ({"allowed": False, "reason": "untrusted-input"},),
+                final if ok else HARD_FAIL_LINE,
+                (),
+                None if ok else "safety-audit-unavailable",
+                safety_events=(event.data(),),
+            )
         collection_output = ""
         extractions: list[dict[str, Any]] = []
         metrics: list[dict[str, Any]] = []
@@ -232,6 +307,12 @@ class TextConversationService:
                     )
                 )
                 value = schema.model_validate_json(raw)
+                if isinstance(value, ValidatedDiscoveryValue) and value.value is not None:
+                    field = content.split("Field: ", 1)[-1].split("\n", 1)[0]
+                    validated = discovery_value(field, value.value)
+                    if validated is None:
+                        raise ValueError("Invalid field value")
+                    value.value = validated
                 if isinstance(value, ValidatedTimeSlot):
                     if value.day_offset is not None and value.weekday is not None:
                         raise ValueError("Conflicting extracted day")
@@ -323,7 +404,17 @@ class TextConversationService:
                 candidate = HARD_FAIL_LINE
         else:
             candidate = fixed
-        final, verdicts = filter_response(candidate, state)
+        final, verdicts, events = _filter_response(candidate, state)
+        category = guarded_category(set(tokens(user_text)))
+        if fixed is not None and category is not None and fixed == SUBSTITUTIONS[category]:
+            events = (
+                *events,
+                activation(f"route.{category.value.lower()}.v2", category.value, fixed),
+            )
+        context = SafetyContext(state.call_sid, max(1, state.turn_count), state.stage.value)
+        if not await self.safety.persist(context, events):
+            final = HARD_FAIL_LINE
+            errors.append("safety-audit-unavailable")
         state.record_facts(facts_in(final))
         await save_state(self.store, state)
         return TextTurnTrace(
@@ -337,6 +428,7 @@ class TextConversationService:
             final,
             tuple(metrics),
             ",".join(errors) or None,
+            safety_events=tuple(event.data() for event in events),
         )
 
 

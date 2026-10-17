@@ -32,7 +32,7 @@ CANARIES: tuple[tuple[str, BlockCategory], ...] = (
 )
 
 ALLOWED_LINES: tuple[str, ...] = (
-    "Wo ₹5000 fees nahi, offer message hai.",
+    "Wo ₹5000 fees nahi.",
     "No-cost EMI available hai.",
 )
 

@@ -90,7 +90,40 @@ class SafetyEventsQuery(ApiModel):
     offset: Offset = 0
     call_id: UUID | None = None
     rule: ShortText | None = None
+    category: (
+        Literal[
+            "FEE",
+            "SALARY",
+            "PLACEMENT",
+            "DISCOUNT",
+            "CERT",
+            "CONTROL",
+            "FILTER_ERROR",
+            "INVALID_OUTPUT",
+            "INPUT",
+        ]
+        | None
+    ) = None
     sort: Literal["created_at_desc", "created_at_asc"] = "created_at_desc"
+
+
+class SafetyStatsQuery(ApiModel):
+    call_id: UUID | None = None
+    rule: ShortText | None = None
+    category: (
+        Literal[
+            "FEE",
+            "SALARY",
+            "PLACEMENT",
+            "DISCOUNT",
+            "CERT",
+            "CONTROL",
+            "FILTER_ERROR",
+            "INVALID_OUTPUT",
+            "INPUT",
+        ]
+        | None
+    ) = None
 
 
 __all__ = [
@@ -103,5 +136,6 @@ __all__ = [
     "CreateCallRequest",
     "LeadsQuery",
     "SafetyEventsQuery",
+    "SafetyStatsQuery",
     "UpdateAppointmentRequest",
 ]

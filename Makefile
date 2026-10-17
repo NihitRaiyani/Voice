@@ -76,6 +76,10 @@ test-ci: test-provider-contracts
 		tests/architecture/test_dependency_direction.py \
 		tests/core/test_migration_settings.py \
 		tests/services/test_text_conversation_service.py \
+		tests/services/test_safety_service.py \
+		tests/domain/safety \
+		tests/realtime/test_safety_audit.py \
+		tests/repositories/postgres/test_safety_audit.py \
 		tests/eval/test_openai_language.py \
 		tests/core/test_openai_llm_settings.py
 

@@ -11,6 +11,7 @@ import json
 from roma.core.prompt_privacy import redact_prompt
 from roma.domain.conversation.prompts import STAGE_WORD_CAPS
 from roma.domain.conversation.state import DISCOVERY_ORDER, CallState, spoken_slot
+from roma.domain.safety.inputs import branch_value, caller_text, discovery_value, slot_text
 from roma.providers.ai.contracts import LLMMessage, LLMRequest
 
 PROMPT_VERSION = "openai-text-v1"
@@ -111,20 +112,21 @@ def dialogue_request(
     temperature: float = 0.7,
 ) -> LLMRequest:
     """One static policy plus compact current-stage instructions/data, never the manual."""
+    caller = caller_text(caller)
     policy = POLICY + " " + LANGUAGE_INSTRUCTIONS[language]
     known = {
-        key: getattr(state, key)
+        key: discovery_value(key, getattr(state, key))
         for key in DISCOVERY_ORDER
-        if key != "lead_name" and getattr(state, key) is not None
+        if key != "lead_name" and discovery_value(key, getattr(state, key)) is not None
     }
     data: dict[str, object] = {
-        "branch": state.branch,
+        "branch": branch_value(state.branch),
         "known": known,
         "name_known": bool(state.lead_name),
     }
     if state.stage in {"value", "structure", "objection"}:
         for key in ("timing_constraint", "placement_interest", "mode_pref"):
-            value = getattr(state, key)
+            value = slot_text(getattr(state, key))
             if value is not None:
                 data[key] = value
     if state.stage in {"pivot", "objection", "close"}:

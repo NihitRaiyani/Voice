@@ -40,6 +40,7 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.settings import LLMSettings
 
 from roma.domain.appointments.timeresolve import IST
+from roma.domain.conversation.confirmguard import SAFE_SIGNOFF_LINE, lead_wants_out
 from roma.domain.conversation.facts import facts_in
 from roma.domain.conversation.offtopic import deflection_for
 from roma.domain.conversation.prompts import (
@@ -47,12 +48,17 @@ from roma.domain.conversation.prompts import (
     cache_prefix,
     stage_max_tokens,
 )
-from roma.domain.conversation.shortcircuit import canned_reply
+from roma.domain.conversation.shortcircuit import canned_reply, guarded_category
 from roma.domain.conversation.stage import ConversationStage
 from roma.domain.conversation.state import CallState
 from roma.domain.conversation.turn import advance_turn
+from roma.domain.safety.audit import SafetyContext, activation
+from roma.domain.safety.inputs import caller_text, injection_attempt
+from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS
+from roma.domain.safety.normalize import tokens
 from roma.realtime.filler import SAMPLE_RATE as FILLER_RATE
 from roma.realtime.filler import intent_for
+from roma.services.safety_service import SafetyService
 
 _log = logging.getLogger("roma.realtime")
 
@@ -150,10 +156,12 @@ class StageControllerProcessor(FrameProcessor):
         holding=None,
         flight=None,
         health=None,
+        safety=None,
         **advance_kwargs,
     ) -> None:
         super().__init__()
         self.state = state
+        self.safety = safety if safety is not None else SafetyService()
         self._client = client
         self._store = store
         self._now_fn = now_fn
@@ -243,6 +251,17 @@ class StageControllerProcessor(FrameProcessor):
                     self.deflections += 1
             if not line:
                 return False
+            category = guarded_category(set(tokens(user_text)))
+            if category is not None and line == SUBSTITUTIONS[category]:
+                event = activation(f"route.{category.value.lower()}.v2", category.value, line)
+                checked = await self.safety.check(
+                    line,
+                    SafetyContext(
+                        self.state.call_sid, self.state.turn_count + 1, self.state.stage.value
+                    ),
+                    extra=(event,),
+                )
+                line = checked.text
             self.short_circuits += 1
             # Nothing left to mask: the reply is a string constant, not a round trip.
             await self._stop_pacer()
@@ -262,6 +281,8 @@ class StageControllerProcessor(FrameProcessor):
         if isinstance(frame, (BotStartedSpeakingFrame, TTSAudioRawFrame)):
             await self._stop_pacer()
         if direction == FrameDirection.DOWNSTREAM and isinstance(frame, LLMContextFrame):
+            if await self._reject_input(frame):
+                return
             if self._flight is not None:
                 self._flight.turn_started()
             await self._emit_filler(frame)
@@ -276,6 +297,45 @@ class StageControllerProcessor(FrameProcessor):
             if await self._maybe_short_circuit(frame):
                 return  # the context frame is NOT forwarded: the LLM never sees this turn
         await self.push_frame(frame, direction)
+
+    async def _reject_input(self, frame) -> bool:
+        started = time.perf_counter()
+        text = _last_user_text(frame.context)
+        if text is None:
+            return False
+        try:
+            caller_text(text)
+            rejected = injection_attempt(text)
+        except ValueError:
+            rejected = True
+        if not rejected:
+            return False
+        # Remove the rejected utterance from future model history as well.
+        for message in reversed(frame.context.get_messages()):
+            if _role(message) == "user":
+                if isinstance(message, dict):
+                    message["content"] = "[Rejected caller input]"
+                else:
+                    message.content = "[Rejected caller input]"
+                break
+        self.state.turn_count += 1
+        self.state.lead_wants_out = self.state.lead_wants_out or lead_wants_out(text[:4096])
+        line = SAFE_SIGNOFF_LINE if self.state.lead_wants_out else HARD_FAIL_LINE
+        event = activation(
+            "input.untrusted.v2", "INPUT", line, (time.perf_counter() - started) * 1000
+        )
+        result = await self.safety.check(
+            line,
+            SafetyContext(
+                self.state.call_sid, self.state.turn_count + 1, self.state.stage.value
+            ),
+            extra=(event,),
+        )
+        await self._stop_pacer()
+        await self.push_frame(LLMFullResponseStartFrame(), FrameDirection.DOWNSTREAM)
+        await self.push_frame(TextFrame(result.text), FrameDirection.DOWNSTREAM)
+        await self.push_frame(LLMFullResponseEndFrame(), FrameDirection.DOWNSTREAM)
+        return True
 
     async def cleanup(self) -> None:
         await self._stop_pacer()
