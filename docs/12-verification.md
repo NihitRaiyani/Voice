@@ -88,3 +88,7 @@ The owner selected the OpenAI source on 2026-10-12. [The prerequisite audit](roa
 ## Section 14 digital audio
 
 [Level 4 section 14 evidence](levels/level-04.md#section-14-acceptance-and-reference-evidence) records **1,859 offline tests**, the **56 + 287** CI selection, Ruff and 44-file mypy checks. Codec/reference vectors, anti-alias/image rejection, streaming frame/phase/tail behavior, fixed 40/50/60 ms jitter cases, live pre-decode ordering and clean energy-based VAD consumption are covered. The reproducible virtual-clock impairment report is not neural ASR quality, actual carrier loss or end-to-end voice latency. The complete Level 4 and advanced adaptive/PLC/real UDP-ASR gates stay pending. Production retains native serialization and its current sample rates; no working-DB/secret/fixed-asset change is part of this increment.
+
+## Sections 15–17 speech input
+
+The [Level 4 speech evidence](levels/level-04.md#verification-boundary) separates deterministic endpointing/router/SDK-contract tests from real ASR quality. Existing bundled Silero silence/reset runs locally; IndicConformer/Whisper inference and hosted endpoint access do not run in CI. `make speech-lab` uses synthetic data without `.env`/downloads. Tests cover worker busy admission through cancellation, HTTP error/privacy limits, normalized text, 20→32 ms framing and accepted-turn/checkpoint integration. No real ASR accuracy, RTF, noisy endpoint or complete voice approval is claimed.

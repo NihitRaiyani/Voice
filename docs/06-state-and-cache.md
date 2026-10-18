@@ -38,3 +38,5 @@ L5 expands keys to text/language/voice/model version. L9 evidence caching also i
 Delivery queues are not durable business authority. PostgreSQL retains job intent; Redis/Dramatiq sends IDs and the dispatcher may republish. See [jobs](19-background-task-framework.md), [webhooks](18-webhook-idempotency.md) and [data](14-data-and-concurrency.md).
 
 Technical references: [SQLAlchemy pool limits](https://docs.sqlalchemy.org/en/20/core/pooling.html) and [async session concurrency](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#using-asyncsession-with-concurrent-tasks).
+
+Section 17 adds `language_router` to the existing `CallState` JSON payload: an accepted enum plus at most five recent enum labels. It retains no transcript, initializes safely for older/malformed router fields and persists through the existing Redis and PostgreSQL checkpoint adapters without a migration. `advance_turn` is the one observation hook shared by live/text controllers; provisional ASR fragments and rejected input are not observations. Caller-language hints do not change the production reply policy. See [Level 4](levels/level-04.md#persisted-language-contract).

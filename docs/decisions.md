@@ -7,7 +7,7 @@ These decisions adapt the OpenAI roadmap to the actual `Voice_Agent` repository.
 | ID | Decision | Engineering consequence |
 |---|---|---|
 | A01 | `Voice_Agent` is the working project; the OpenAI Word roadmap supersedes v4 | Verify repository root; no work in Weltec for this task |
-| A02 | Implement one explicitly requested level or section at a time | Current scope implements Level 4 section 14 pure audio foundations, fixed jitter lab and live pre-decode validation/metrics; preserve all earlier foundations; other sections, live calls and deployments require their own scope |
+| A02 | Implement one explicitly requested level or section at a time | Current scope adds Level 4 sections 15–17 endpointing, speech adapters and persisted language routing to section 14; preserve all earlier foundations; other sections, live calls and deployments require their own scope |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
 | A04 | Retain Twilio/Pipecat cloud comparison path | Keep the existing Twilio adapter and OpenAI LLM; local speech changes require later gates |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
@@ -72,3 +72,11 @@ Retain the existing `booked`/`confirmed` unique index and matching-slot FK; no m
 ## Section 14 audio decisions
 
 Move the unchanged pure-Python G.711 implementation inward and preserve its legacy import/asset contract. New streaming boundaries reject half-samples. Use an explicit, stateful, anti-alias FIR reference converter and bounded 20 ms frames. Default the offline fixed buffer to 60 ms (40–60 allowed) with virtual-clock impairment tests and explicit discontinuities, no PLC. Keep the live native codec/current rates; add pre-decode Twilio validation and media-chunk gap counts without a new TCP playout delay. Global control-message sequence gaps are not media loss. Adaptive jitter/PLC and real RTP impairment/ASR measurements wait for the full Level 4 gate. Scope and evidence: [Level 4](levels/level-04.md).
+
+## 2026-10-18 — Sections 15–17 speech decisions
+
+Keep Silero's bundled ONNX probabilities and own endpoint timers/hysteresis in domain code. Reframe 20 ms PCM input into 32 ms model windows; unknown gaps reset state and never count as silence. Retain the production cloud path until measured local quality/integration gates pass.
+
+The owner permits HF-hosted ASR to avoid local weights. Provide an explicit opt-in custom endpoint adapter while retaining the self-hosted speech target. A token does not provision compute; no serverless provider was listed for the selected Indic model on inspection, so no endpoint, payment, download or live inference was performed. Cache-only local IndicConformer and faster-whisper comparison adapters preserve the curriculum's direct model seam. IndicConformer requires reviewed pinned custom code/offline loading; explicit English requires the comparison/retained baseline. The OpenAI LLM and production reply policy remain unchanged.
+
+Persist deterministic caller-language evidence in the existing checkpoint JSON: five routes, bounded label history, two-observation switches and one accepted-turn hook. Heuristic/interface evidence is separate from native ASR/noise/quality approval. [Level 4](levels/level-04.md#sections-1517-design-and-acceptance) owns exact defaults, verification and limitations.

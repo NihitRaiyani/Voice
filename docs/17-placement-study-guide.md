@@ -169,3 +169,21 @@ Defend bounded caller/slot validation, Unicode combining marks, code-owned enums
 **What does the jitter buffer prove?** A fixed, bounded queue can order normalized frames before decode, reject duplicates/late frames and expose gaps. A timer must release the last frame even when no later packet arrives. A gap is explicit; fabricated PLC and adaptive delay are still gated.
 
 **Why are TCP and UDP tests different?** TCP preserves application order through retransmission, so delay/backpressure is the normal issue. UDP-style missing/reordered/duplicate media needs explicit simulation and later real VAD/ASR measurement. Twilio global sequence includes controls; count media chunks separately. Ordering complete mu-law bytes does not itself break PCM byte alignment. See [the lab and evidence](levels/level-04.md).
+
+## Level 4 section 15 explanation
+
+**Why is VAD not endpointing?** Silero estimates speech probability per 32 ms frame; our code decides onset, continuation and when enough silence ends the turn. Hysteresis protects quiet tails, pre-roll protects onset, and hangover retains final sounds. A 64 ms “haan” must not be rejected by an arbitrary minimum sentence length.
+
+**Why not use network time as silence?** Missing audio is unknown speech, not evidence that the caller stopped. Split/reset on a discontinuity, retain valid speech and never manufacture a silence timer from a stalled socket. The bounded service reframes 20 ms transport blocks into Silero's 512-sample input.
+
+## Level 4 section 16 explanation
+
+**Why isn't an HF token a cloud model?** It authenticates a running endpoint or model access. A Hub repository may have no hosted provider; downloading weights runs inference on our machine. We supply cache-only local adapters and an explicit custom-endpoint lab option without claiming a free service or zero remote RAM.
+
+**What do CTC and RNNT decode?** Acoustic features encode the waveform. CTC collapses repeated/blank token alignments; RNNT also conditions emission on previous tokens. The model owns features/decoding; `STTProvider` returns normalized text. IndicConformer supports Gujarati/Hindi, while Whisper is an explicit English/comparison baseline. Neither a protocol test nor transcript normalization proves recognition accuracy.
+
+**Why hold the worker permit after timeout?** Cancelling an await cannot stop native inference. Releasing admission early lets a second request overlap the same model. Retain the slot until actual completion; later serving/process isolation is a separate level.
+
+## Level 4 section 17 explanation
+
+**Why not switch on one English word?** SEO/Google Ads are normal borrowed terms. Combine script ratios, Latin vocabulary and recent informative turns; use hysteresis and abstain on ambiguity. Persist only the route and five labels with the conversation checkpoint so reconnects do not reset language context. This remains a tested heuristic with native/ASR accuracy pending. Caller language is metadata; live replies stay Hindi-base Hinglish. See [the implementation and evidence](levels/level-04.md#sections-1517-design-and-acceptance).

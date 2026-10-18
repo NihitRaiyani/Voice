@@ -31,9 +31,13 @@ from roma.providers.ai.registry import (
     build_stt_provider,
     build_tts_provider,
 )
+from roma.providers.ai.stt import HuggingFaceSTT, IndicConformerSTT, WhisperSTT
 
 __all__ = [
     "AudioFormat",
+    "HuggingFaceSTT",
+    "IndicConformerSTT",
+    "WhisperSTT",
     "EmbeddingProvider",
     "EmbeddingRequest",
     "EmbeddingResult",

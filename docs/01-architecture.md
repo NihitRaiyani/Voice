@@ -70,3 +70,7 @@ The domain filter creates PII-minimized rule activations; `SafetyService` bounds
 ## Section 14 audio ownership
 
 The dependency-free `roma/domain/audio` package owns the codec, strict PCM/framing, reference streaming resampler and fixed jitter primitives. `roma/eval/audio.py` drives a deterministic offline lab. The Twilio adapter validates media before native decoding and exposes per-stream sequence/alignment counters; production composition retains existing cloud rates and native control/output behavior. Local ASR/TTS consumption and adaptive buffering/PLC remain later gated work. See [audio contract](05-endpointing-vad.md#section-14-reusable-audio-contract).
+
+## Sections 15–17 speech ownership
+
+The domain owns endpoint decisions and caller-language evidence. Silero and STT SDKs stay in providers; `SpeechInputService` owns bounded framing/orchestration and returns finalized text to the existing controller. `CallState` saves a backward-compatible router object in existing checkpoints. No provider/model chooses a stage or reply policy. The HF speech endpoint is an owner-permitted opt-in lab exception to the self-hosted target, with no automatic deployment/downloads. Production carrier rates/providers remain until measured later integration. See [Level 4](levels/level-04.md#sections-1517-design-and-acceptance).

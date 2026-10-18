@@ -18,10 +18,11 @@ export EMBEDDING_PROVIDER ?= mock
 export TELEPHONY_PROVIDER ?= mock
 export PUBLIC_BASE_URL ?= https://example.invalid
 
-.PHONY: audio-lab text-console language-lab help sync services-up services-down db-upgrade app-start lint type test test-ci test-provider-contracts ci pre-commit-install
+.PHONY: speech-lab audio-lab text-console language-lab help sync services-up services-down db-upgrade app-start lint type test test-ci test-provider-contracts ci pre-commit-install
 
 help:
 	@printf '%s\n' \
+	  'make speech-lab              synthetic endpoint/STT/language report; no downloads' \
 	  'make audio-lab               synthetic audio conversion/jitter report; no services' \
 	  'make text-console            synthetic mock text conversation; no paid calls' \
 	  'make language-lab            40 mock language cases; native review deferred' \
@@ -36,6 +37,9 @@ help:
 	  'make test                    run full offline pytest suite' \
 	  'make ci                      lint + type + migrations + mocked CI tests' \
 	  'make pre-commit-install      install local pre-commit hooks'
+
+speech-lab:
+	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync python scripts/speech_lab.py
 
 audio-lab:
 	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync python scripts/audio_lab.py
@@ -62,7 +66,7 @@ app-start: services-up db-upgrade
 	$(UV) run --extra telephony uvicorn roma.main:create_app --factory --host $(HOST) --port $(PORT)
 
 lint:
-	$(UV) run --no-sync ruff check roma tests scripts
+	$(UV) run --no-sync ruff check roma tests scripts benchmarks/asr/hf_endpoint
 
 type:
 	$(UV) run --no-sync mypy
@@ -77,6 +81,13 @@ test-provider-contracts:
 test-ci: test-provider-contracts
 	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync pytest -q -p no:cacheprovider \
 		tests/domain/audio \
+		tests/domain/conversation/test_language.py \
+		tests/providers/ai/test_stt.py \
+		tests/providers/ai/test_hf_endpoint_handler.py \
+		tests/providers/ai/test_silero.py \
+		tests/core/test_speech_settings.py \
+		tests/services/test_speech_input.py \
+		tests/eval/test_speech_lab.py \
 		tests/eval/test_audio_lab.py \
 		tests/providers/telephony/twilio/test_audio_validation.py \
 		tests/providers/telephony/twilio/test_twilio_serializer.py \

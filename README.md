@@ -9,7 +9,7 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 | Boundary | Present in this repository | OpenAI roadmap target / remaining work |
 |---|---|---|
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
-| Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3; section 14 pure audio lab and live sequence/alignment guard | OpenAI LLM provider, local ASR/TTS labs, then speech model serving |
+| Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3; sections 14–17 audio/endpoint/STT/language labs and live sequence/alignment guard | OpenAI LLM provider, local ASR/TTS labs, then speech model serving |
 | Conversation | Seven deterministic stages, checkpoint adapter, OpenAI text seam, deterministic safety audit and bounded prompt inputs | Native quality review and full voice approval |
 | Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints, bounded pools/process budget, checkpoint/model/benchmark schema, turn-language metadata and versioned resource API | Section 13 booking/holds/API and same-SID appointment truth implemented; broader redial recovery pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue; PostgreSQL now has compatible latest-checkpoint restore by call SID | Bounded pressure, redial/session mapping and measured rate limits |
@@ -47,3 +47,5 @@ See [verification](docs/12-verification.md) for environment requirements and wha
 ## Code map
 
 `roma/main.py` composes `api`, `services`, `domain`, `repositories`, `providers`, `realtime` and `workers`. Business rules live in the domain; provider SDKs and storage remain at the edges. Runtime prompts live in `roma/prompts/` and affect speech directly. Read [architecture](docs/01-architecture.md) before changing those boundaries.
+
+Sections 15–17 add deterministic endpointing over bundled Silero, cache-only IndicConformer/faster-whisper adapters, an opt-in HF ASR endpoint seam and a persisted caller-language router. Run `make speech-lab` for a synthetic demonstration with no credentials/downloads. Real ASR and noise/native-quality gates remain pending; see [Level 4](docs/levels/level-04.md) and [setup](docs/runbook.md#sections-1517-speech-input-lab).

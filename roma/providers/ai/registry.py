@@ -9,10 +9,8 @@ from roma.providers.ai.contracts import (
     TTSProvider,
 )
 from roma.providers.ai.local import (
-    IndicConformerSTT,
     IndicTTSProvider,
     LocalMultilingualEmbedding,
-    WhisperSTT,
 )
 from roma.providers.ai.mocks import (
     MockEmbeddingProvider,
@@ -21,6 +19,7 @@ from roma.providers.ai.mocks import (
     MockTTSProvider,
 )
 from roma.providers.ai.openai_llm import OpenAILLM
+from roma.providers.ai.stt import HuggingFaceSTT, IndicConformerSTT, WhisperSTT
 
 
 def build_stt_provider(settings) -> STTProvider:
@@ -28,9 +27,30 @@ def build_stt_provider(settings) -> STTProvider:
         case "mock":
             return MockSTTProvider()
         case "indic_conformer":
-            return IndicConformerSTT("IndicConformerSTT", "Level 4")
+            return IndicConformerSTT(
+                model_id=settings.indic_model_id,
+                revision=settings.indic_model_revision,
+                language=settings.stt_language,
+                decoder=settings.indic_decoder,
+                trust_remote_code=settings.indic_trust_remote_code,
+                timeout_secs=settings.stt_timeout_secs,
+                max_audio_secs=settings.stt_max_audio_secs,
+            )
         case "whisper":
-            return WhisperSTT("WhisperSTT", "Level 4")
+            return WhisperSTT(
+                model_id=settings.whisper_model_id,
+                timeout_secs=settings.stt_timeout_secs,
+                max_audio_secs=settings.stt_max_audio_secs,
+            )
+        case "hf_indic_conformer":
+            return HuggingFaceSTT(
+                endpoint_url=settings.hf_asr_endpoint_url,
+                token=settings.hf_token.get_secret_value(),
+                language=settings.stt_language,
+                decoder=settings.indic_decoder,
+                timeout_secs=settings.stt_timeout_secs,
+                max_audio_secs=settings.stt_max_audio_secs,
+            )
     raise ValueError(f"unknown STT provider {settings.stt_provider!r}")
 
 

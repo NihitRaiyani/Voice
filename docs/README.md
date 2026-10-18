@@ -12,7 +12,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 1 | [Backend foundation](levels/level-01.md) | Sections 3–9 foundations implemented; hosted CI green, full review evidence still separate |
 | 2 | [Text/OpenAI LLM](levels/level-02.md) | Sections 10–12 state/checkpoints, OpenAI/mock text seam and deterministic safety audit present; native/live quality pending |
 | 3 | [Transactional booking](levels/level-03.md) | Booking/holds/controller/API implemented; offline evidence in brief, live demo deferred |
-| 4 | [Audio/local ASR](levels/level-04.md) | Section 14 audio lab/live validation implemented; local ASR and advanced gate pending |
+| 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–17 audio/endpoint/STT adapters/language routing implemented offline; real ASR/noise quality and advanced gate pending |
 | 5 | [Local TTS](levels/level-05.md) | Cloud cache; local lab planned |
 | 6 | [Local voice prototype](levels/level-06.md) | Planned |
 | 7 | [Real-time reliability](levels/level-07.md) | Cloud seams; local-stack gate pending |

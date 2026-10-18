@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from roma.domain.conversation.facts import already_said_line
+from roma.domain.conversation.language import LanguageRouterState
 from roma.domain.conversation.pacing import pacing_line
 from roma.domain.conversation.stage import ConversationStage
 from roma.domain.safety.inputs import branch_value, discovery_value, slot_text
@@ -213,8 +214,13 @@ class CallState:
     # deflection bank has been spent and the converge line should take over.
     off_topic_turns: int = 0
 
+    # Caller understanding only; live replies retain the Hindi-base Hinglish policy.
+    language_router: LanguageRouterState = field(default_factory=LanguageRouterState)
+
     def __post_init__(self) -> None:
         self.stage = ConversationStage(self.stage)
+        if not isinstance(self.language_router, LanguageRouterState):
+            self.language_router = LanguageRouterState.from_dict(self.language_router)
 
     def record_facts(self, keys) -> None:
         """Mark `keys` as spent. Idempotent — a fact repeated is still one entry."""
@@ -388,6 +394,7 @@ class CallState:
             "stage": self.stage.value,
             "turn_count": self.turn_count,
             "stage_turn_count": self.stage_turn_count,
+            "language_router": self.language_router.to_dict(),
             "inquiry_confirmed": self.inquiry_confirmed,
             "readback_confirmed": self.readback_confirmed,
             "facts_said": list(self.facts_said),

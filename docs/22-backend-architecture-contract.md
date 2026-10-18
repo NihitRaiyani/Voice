@@ -74,3 +74,7 @@ Return to the [documentation index](README.md).
 ## Section 14 audio boundary
 
 `roma/domain/audio` is standard-library-only; it imports no realtime/carrier/model SDK. The old `roma/realtime/ulaw.py` path is a compatibility shim. Evaluation/CLI code composes the primitives; the Twilio provider adapter owns protocol validation and native serialization integration. The production pipeline publishes per-call counters and retains its cloud-rate baseline. See [Level 4](levels/level-04.md).
+
+## Sections 15–17 speech boundary
+
+`EndpointDetector` and `LanguageRouterState` are SDK-free domain rules. `SileroFrameProbability` and the STT adapters own model/HTTP translation; the bounded `SpeechInputService` composes them. The accepted-turn controller alone observes caller-language evidence. Existing JSON checkpoint repositories remain unchanged. Synthetic evaluation/CLI composes this path separately from live telephony; no route/SDK dependency enters the domain. See [the speech contract](05-endpointing-vad.md#sections-1517-speech-input-contract).

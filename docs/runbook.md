@@ -160,3 +160,32 @@ The report is synthetic scheduling/conversion evidence, not speech recognition q
 Production continues with native Pipecat codec/control behavior and the current 8 kHz cloud/VAD/recording path. `ValidatedTwilioSerializer` rejects wrong stream/track, malformed base64, bad/regressing metadata, duplicate/reordered media and oversize envelopes before decoding; it checks PCM mono/alignment afterward. At normal teardown, inspect `carrier_audio_summary` with its stream ID, or active `CallHandles.audio_metrics`. Counts contain no payload/transcript/secrets. `sequence_gaps` counts missing **media.chunk messages**, not missing samples or TCP packet loss. Correlate gaps with invalid/reordered counts; diagnose TCP delay/backpressure independently.
 
 Bounds are 8,000 decoded audio bytes and 16,384 envelope characters; actual Twilio messages may contain more or fewer than 20 ms. Do not enable the lab's 16 kHz/filter/jitter path on live calls until later provider/performance gates pass. Adaptive buffering, PLC and measured UDP/RTP VAD/ASR impairment remain gated. See [section 14 policy/evidence](levels/level-04.md) and [audio contract](05-endpointing-vad.md).
+
+## Sections 15–17 speech-input lab
+
+From `<project-root>`, after the locked development/telephony install:
+
+```bash
+make speech-lab
+```
+
+This default uses synthetic probabilities/transcripts, no `.env`, services, credentials, new weights or model/API calls. It reports short-ack/pause segmentation, smoothed caller routes and checkpoint round-trip. Synthetic timings are not ASR performance. Existing bundled Silero has a separate silence/reset smoke test.
+
+For a **separately provisioned** real lab, supply an uncompressed mono 16 kHz PCM16 WAV (at most five minutes). No OpenAI call or TTS is made. Default diagnostics omit caller text; add `--show-transcripts` only for approved local data. The script uses real bundled Silero, a bounded sequential segment path and the selected STT adapter. ASR errors fail with safe codes; native/quality approval is not automatic.
+
+```bash
+# Cached local baseline only; never downloads a missing model.
+uv run --no-sync python scripts/speech_lab.py --provider whisper --wav /path/to/approved.wav
+# Cached, reviewed IndicConformer only. Set INDIC_MODEL_REVISION to the reviewed 40-character commit.
+HF_HUB_OFFLINE=1 INDIC_TRUST_REMOTE_CODE=true uv run --no-sync python scripts/speech_lab.py --provider indic_conformer --wav /path/to/approved.wav
+# Explicit hosted lab; requires a compatible custom handler and separately approved capacity/cost.
+uv run --no-sync python scripts/speech_lab.py --provider hf_indic_conformer --allow-network --wav /path/to/approved.wav
+```
+
+`roma/core/speech_settings.py` reads `STT_LANGUAGE=hi|gu|en`, timeout/segment cap, Indic decoder/revision/code opt-in, Whisper model/cache path, `HF_ASR_ENDPOINT_URL` and redacted `HF_TOKEN`. Token aliases `HUGGING_FACE_HUB_TOKEN`, `HUGGINGFACE_API_KEY` and `HUGGING_FACE_API_KEY` are accepted; `HF_TOKEN` wins when several are present. Keep tokens in environment/ignored `.env`, never paste them into commands/logs. Do not point the URL at a Hub page or generic hosted handler; see [the custom endpoint template](../benchmarks/asr/hf_endpoint/README.md). No endpoint creation/inference or ASR runtime installation is part of the automated checks.
+
+The optional Indic runtime uses the official model card's PyTorch/torchaudio/Transformers plus ONNX dependencies; faster-whisper uses its own optional runtime/converted cache. Provision these in a separately reviewed compatible environment; they are deliberately absent from the default lock/install. Cache misses fail without a network fallback. The selected gated Indic model needs accepted access terms and reviewed pinned custom code; `HF_HUB_OFFLINE=1` must precede Python/Hub imports. It does not support English; select the comparison baseline for English rather than overriding the hint.
+
+`EndpointConfig` owns the lab's thresholds/durations; [Level 4](levels/level-04.md#sections-1517-design-and-acceptance) records defaults and limits. Production retains the current cloud/VAD/recording path. Native ASR WER/CER, RTF, noisy/code-mix endpoint quality, later serving and complete voice approval remain pending.
+
+A saved English route with an Indic adapter returns `stt-unsupported-or-invalid-request`; it never relabels English as Hindi or silently switches models. Select the explicit Whisper comparison for that lab. The real-WAV CLI exits nonzero on segment errors and sanitizes malformed/truncated WAV failures.

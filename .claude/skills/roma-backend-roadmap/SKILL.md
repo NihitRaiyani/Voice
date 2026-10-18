@@ -15,7 +15,7 @@ authoritative project context is `CLAUDE.md`; the selected source and gates are 
 
 ## Start with status and scope
 
-Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment implements Level 4 section 14 pure audio conversion/framing, a fixed-buffer offline lab and live Twilio sequence/alignment validation/metrics, preserving all earlier foundations. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
+Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment implements Level 4 sections 15–17 deterministic endpointing with bundled Silero, cache-only ASR/opt-in hosted lab adapters and persisted caller-language routing on section 14 audio contracts, preserving all earlier foundations. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
 
 Before proposing a change:
 
@@ -87,3 +87,5 @@ v4 deliberately adds conditional governed RAG with local embeddings/pgvector at 
 - Current docs and roadmap status are updated.
 - Commit the completed requested level/section changes and push to the configured GitHub branch automatically under the user's standing authorization. Verify checks first, exclude unrelated edits/secrets/runtime data, never force-push, and report the commit link. Do not start the next level implicitly.
 - The student can explain context, invariant, design, failure mode, evidence, and trade-off.
+
+Sections 15–17: no automatic ASR weights/downloads. HF tokens do not create inference capacity; a hosted lab needs an explicit compatible endpoint. Retain the local-speech target/current carrier path until native quality/latency gates pass. Endpointing is code-owned; caller-language state is persisted metadata and never permission to change Hindi-base Hinglish production output.

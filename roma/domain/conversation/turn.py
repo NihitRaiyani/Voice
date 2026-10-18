@@ -24,6 +24,7 @@ from roma.domain.appointments.timeresolve import (
     resolve_visit_slot,
 )
 from roma.domain.conversation.confirmguard import TIME_CUES, lead_wants_out
+from roma.domain.conversation.language import route_language
 from roma.domain.conversation.machine import (
     Transition,
     TurnSignals,
@@ -771,6 +772,8 @@ async def advance_turn(
     state.today_iso = now.date().isoformat()
     state.turn_count += 1
     state.stage_turn_count += 1
+    # Live and text callers converge here once per accepted final transcript.
+    route_language(state.language_router, user_text)
     stage = state.stage
 
     # Checked in EVERY stage, not just open: a lead can ask the call to stop at any point, and

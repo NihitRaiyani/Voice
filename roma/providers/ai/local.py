@@ -1,4 +1,4 @@
-"""Named local/open-source provider placeholders for later levels.
+"""Local speech compatibility exports and later-level TTS/embedding placeholders.
 
 Level 1 owns dependency inversion and mockability. Actual model loading,
 hardware admission and quality benchmarks land in the model-specific levels.
@@ -13,11 +13,10 @@ from roma.providers.ai.contracts import (
     EmbeddingRequest,
     EmbeddingResult,
     ProviderUnavailable,
-    STTRequest,
-    STTResult,
     TTSRequest,
     TTSResult,
 )
+from roma.providers.ai.stt import IndicConformerSTT, WhisperSTT
 
 
 @dataclass(frozen=True)
@@ -30,16 +29,6 @@ class _UnavailableProvider:
             f"{self.provider_name} is selected but not implemented in this level; "
             f"complete {self.level} and its model/config checks first"
         )
-
-
-class IndicConformerSTT(_UnavailableProvider):
-    async def transcribe(self, request: STTRequest) -> STTResult:
-        self._raise()
-
-
-class WhisperSTT(_UnavailableProvider):
-    async def transcribe(self, request: STTRequest) -> STTResult:
-        self._raise()
 
 
 class IndicTTSProvider(_UnavailableProvider):

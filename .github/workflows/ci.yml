@@ -52,6 +52,13 @@ jobs:
         run: |
           PYTHONDONTWRITEBYTECODE=1 uv run --no-sync pytest -q -p no:cacheprovider \
             tests/domain/audio \
+            tests/domain/conversation/test_language.py \
+            tests/providers/ai/test_stt.py \
+            tests/providers/ai/test_hf_endpoint_handler.py \
+            tests/providers/ai/test_silero.py \
+            tests/core/test_speech_settings.py \
+            tests/services/test_speech_input.py \
+            tests/eval/test_speech_lab.py \
             tests/eval/test_audio_lab.py \
             tests/providers/telephony/twilio/test_audio_validation.py \
             tests/providers/telephony/twilio/test_twilio_serializer.py \
