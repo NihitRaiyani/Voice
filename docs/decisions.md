@@ -7,7 +7,7 @@ These decisions adapt the OpenAI roadmap to the actual `Voice_Agent` repository.
 | ID | Decision | Engineering consequence |
 |---|---|---|
 | A01 | `Voice_Agent` is the working project; the OpenAI Word roadmap supersedes v4 | Verify repository root; no work in Weltec for this task |
-| A02 | Implement one explicitly requested level or section at a time | Current scope implements Level 3 section 13 transactional booking, advisory holds and production controller/API confirmation; preserve all earlier foundations; other sections, live calls and deployments require their own scope |
+| A02 | Implement one explicitly requested level or section at a time | Current scope implements Level 4 section 14 pure audio foundations, fixed jitter lab and live pre-decode validation/metrics; preserve all earlier foundations; other sections, live calls and deployments require their own scope |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
 | A04 | Retain Twilio/Pipecat cloud comparison path | Keep the existing Twilio adapter and OpenAI LLM; local speech changes require later gates |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
@@ -68,3 +68,7 @@ Section 13 connects transactional booking and same-SID appointment reconciliatio
 ## Section 13 booking decisions
 
 Retain the existing `booked`/`confirmed` unique index and matching-slot FK; no migration is justified. Use short pessimistic slot locks with the constraint as final authority. Add advisory 90-second owner-token Redis holds outside SQL transactions, stable booking IDs for safe retries, and atomic cancellation/slot release. Commit before controller win or confirmed speech; restore same-SID appointment truth from PostgreSQL. Preserve the existing IST hours/90-minute lead/14-day horizon, capacity-one semantics and Hindi-base Hinglish policy. The static calendar remains an explicit offline baseline. Full policies, failure trade-offs and evidence: [Level 3](levels/level-03.md).
+
+## Section 14 audio decisions
+
+Move the unchanged pure-Python G.711 implementation inward and preserve its legacy import/asset contract. New streaming boundaries reject half-samples. Use an explicit, stateful, anti-alias FIR reference converter and bounded 20 ms frames. Default the offline fixed buffer to 60 ms (40–60 allowed) with virtual-clock impairment tests and explicit discontinuities, no PLC. Keep the live native codec/current rates; add pre-decode Twilio validation and media-chunk gap counts without a new TCP playout delay. Global control-message sequence gaps are not media loss. Adaptive jitter/PLC and real RTP impairment/ASR measurements wait for the full Level 4 gate. Scope and evidence: [Level 4](levels/level-04.md).

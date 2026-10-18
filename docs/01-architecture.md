@@ -66,3 +66,7 @@ Existing Compose is pre-v4 infrastructure tooling, not proof of Level 13. No pro
 ## Section 12 safety audit boundary
 
 The domain filter creates PII-minimized rule activations; `SafetyService` bounds persistence and chooses the fail-safe; `PostgresSafetyEventStore` writes existing call/turn/event relations. `roma/main.py` injects this into the existing pre-TTS processor, and the text orchestrator accepts the same service. REST routes call short-session query methods for event lists, grouped counts and call-specific events. No new schema, model download or provider change is involved. See [the safety contract](04-guardrails.md).
+
+## Section 14 audio ownership
+
+The dependency-free `roma/domain/audio` package owns the codec, strict PCM/framing, reference streaming resampler and fixed jitter primitives. `roma/eval/audio.py` drives a deterministic offline lab. The Twilio adapter validates media before native decoding and exposes per-stream sequence/alignment counters; production composition retains existing cloud rates and native control/output behavior. Local ASR/TTS consumption and adaptive buffering/PLC remain later gated work. See [audio contract](05-endpointing-vad.md#section-14-reusable-audio-contract).

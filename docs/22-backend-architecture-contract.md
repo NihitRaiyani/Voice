@@ -70,3 +70,7 @@ Return to the [documentation index](README.md).
 ## Section 13 booking boundary
 
 `BookingService` coordinates availability/holds/confirmation; `BookingSession` adapts the same service to a call-scoped calendar and commit gateway. `PostgresBookingStore` owns short read/write sessions; `RedisAppointmentHolds` owns atomic expiring lease operations. `roma/main.py` injects them into media and REST composition. The domain controller awaits a confirmation callback and never imports SQLAlchemy/Redis. No SQL session survives a Redis, provider or audio wait. Static calendars remain explicit offline baselines. See [Level 3](levels/level-03.md).
+
+## Section 14 audio boundary
+
+`roma/domain/audio` is standard-library-only; it imports no realtime/carrier/model SDK. The old `roma/realtime/ulaw.py` path is a compatibility shim. Evaluation/CLI code composes the primitives; the Twilio provider adapter owns protocol validation and native serialization integration. The production pipeline publishes per-call counters and retains its cloud-rate baseline. See [Level 4](levels/level-04.md).

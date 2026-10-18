@@ -84,3 +84,7 @@ The owner selected the OpenAI source on 2026-10-12. [The prerequisite audit](roa
 ## Section 13 transactional booking
 
 [Level 3 evidence](levels/level-03.md#acceptance-gate-and-evidence) records **1,825 offline tests**, the expanded **56 + 245** CI selection, Ruff and the 36-file mypy check. Native PostgreSQL tests exercise a 100-request HTTP race (one 201, 99 conflicts), concurrent different-slot attempts for one call, cancellation/reuse, stable retries, commit rollback and index enforcement. Native Redis verifies atomic ownership/TTL; controller/pre-TTS tests reject false confirmation and restore SQL appointment truth. No paid calls, schema mutation or configured-database seed is part of verification. Real approved slots, teacher demonstration and complete voice approval remain separate.
+
+## Section 14 digital audio
+
+[Level 4 section 14 evidence](levels/level-04.md#section-14-acceptance-and-reference-evidence) records **1,859 offline tests**, the **56 + 287** CI selection, Ruff and 44-file mypy checks. Codec/reference vectors, anti-alias/image rejection, streaming frame/phase/tail behavior, fixed 40/50/60 ms jitter cases, live pre-decode ordering and clean energy-based VAD consumption are covered. The reproducible virtual-clock impairment report is not neural ASR quality, actual carrier loss or end-to-end voice latency. The complete Level 4 and advanced adaptive/PLC/real UDP-ASR gates stay pending. Production retains native serialization and its current sample rates; no working-DB/secret/fixed-asset change is part of this increment.

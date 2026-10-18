@@ -159,3 +159,13 @@ Defend bounded caller/slot validation, Unicode combining marks, code-owned enums
 **When is “confirmed” truthful?** After explicit caller affirmation and a successful commit. The controller clears tentative lock/win while awaiting SQL; interruption/failure cannot fabricate success. Same-SID restore reads appointments before trusting Redis.
 
 **Why test cancellation and retries?** A stale cancel must not free a successor's slot. Cancellation changes both records atomically; stable booking IDs make retries return the same active appointment. Terminal records require a new identity. Compare pessimistic locking with optimistic insert/conflict handling and explain why the working slot-lock/index combination was retained. See [policy and tests](levels/level-03.md).
+
+## Level 4 section 14 explanation
+
+**Why convert 8 kHz mu-law to 16 kHz PCM?** Mu-law is compressed 8-bit sample coding; a model's PCM/rate contract is different. Upsampling changes the sample clock, not telephone bandwidth. Twenty milliseconds means 160 carrier bytes or 640 bytes of mono PCM16 at 16 kHz.
+
+**Why not drop every second sample or restart the resampler per chunk?** Unfiltered decimation aliases high frequencies into speech; restarting loses filter history/phase and introduces seams. Show the anti-alias test, arbitrary-chunk equivalence and delayed lossy round trip.
+
+**What does the jitter buffer prove?** A fixed, bounded queue can order normalized frames before decode, reject duplicates/late frames and expose gaps. A timer must release the last frame even when no later packet arrives. A gap is explicit; fabricated PLC and adaptive delay are still gated.
+
+**Why are TCP and UDP tests different?** TCP preserves application order through retransmission, so delay/backpressure is the normal issue. UDP-style missing/reordered/duplicate media needs explicit simulation and later real VAD/ASR measurement. Twilio global sequence includes controls; count media chunks separately. Ordering complete mu-law bytes does not itself break PCM byte alignment. See [the lab and evidence](levels/level-04.md).

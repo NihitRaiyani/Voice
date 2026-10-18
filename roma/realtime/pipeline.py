@@ -58,7 +58,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.processors.audio.vad_processor import VADProcessor
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.sarvam.stt import SarvamSTTService
 from pipecat.services.sarvam.tts import SarvamTTSService
@@ -93,6 +92,7 @@ from roma.domain.costs.spend import SpendLedger, Usage
 from roma.domain.persistence import hash_phone_e164
 from roma.domain.safety.audit import SafetyContext
 from roma.providers.calendar.google import build_calendar
+from roma.providers.telephony.twilio.audio import ValidatedTwilioSerializer
 from roma.providers.telephony.twilio.auth import external_url, valid_twilio_signature
 from roma.realtime import canned
 from roma.realtime.backchannel import (
@@ -256,6 +256,7 @@ class CallHandles:
     recorder: object = None
     usage: object = None
     health: object = None
+    audio_metrics: object = None
 
 
 def active_calls(app) -> "dict[str, CallHandles]":
@@ -1262,12 +1263,12 @@ def build_media_app(
         connected_at = time.monotonic()
         call_started_at = datetime.now(UTC)
 
-        serializer = TwilioFrameSerializer(
+        serializer = ValidatedTwilioSerializer(
             stream_sid=stream_sid,
             call_sid=call_sid,
             account_sid=settings.twilio_account_sid.get_secret_value(),
             auth_token=settings.twilio_auth_token.get_secret_value(),
-            params=TwilioFrameSerializer.InputParams(auto_hang_up=auto_hang_up),
+            params=ValidatedTwilioSerializer.InputParams(auto_hang_up=auto_hang_up),
         )
         vad = build_vad_fn(settings)
         transport = FastAPIWebsocketTransport(
@@ -1542,6 +1543,7 @@ def build_media_app(
             recorder=recorder,
             usage=usage,
             health=health,
+            audio_metrics=serializer.audio_metrics,
         )
         async with _registered_call(app, stream_sid, handles):
             try:
@@ -1580,6 +1582,10 @@ def build_media_app(
                     stage_ctrl.won,
                     recorder.bytes_written if recorder is not None else 0,
                     postcall,
+                )
+                _log.info(
+                    "carrier_audio_summary: stream_sid=%s metrics=%s",
+                    stream_sid, serializer.audio_metrics.snapshot(),
                 )
                 _log.info(
                     "endpoint timing: stream_sid=%s vad=%s vad_stop_secs=%s "

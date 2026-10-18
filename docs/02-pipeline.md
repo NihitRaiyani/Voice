@@ -3,7 +3,7 @@
 The actual processor list is in `roma/realtime/pipeline.py`; opening/noise/transcript/watchdog/close guards supplement the speech chain below.
 
 1. Verify Twilio WebSocket signature and start Account SID; resolve custom lead metadata.
-2. Decode carrier audio, run Silero/endpointing and obtain a final transcript.
+2. Validate carrier media identity/sequence/format before native decoding, check PCM alignment, run Silero/endpointing and obtain a final transcript.
 3. Normalize input, apply opening/noise guards and deterministic conversation routing.
 4. Extract bounded slot meaning where required, resolve dates in code and choose the stage/action.
 5. Use approved direct wording where possible; otherwise generate wording from the selected provider.
@@ -31,3 +31,5 @@ See [audio](05-endpointing-vad.md), [prompts](11-prompts.md) and [verification](
 
 
 Section 12 adds shared `SafetyService` audit to the existing pre-TTS processor and the text service. Production composition injects PostgreSQL; clean text needs no event write. A triggered rule commits its structured audit in a bounded short transaction before the processor forwards the replacement text. Audit failure/timeout uses approved fallback speech. See [the safety contract](04-guardrails.md#structured-audit-and-storage); the 500 ms audit deadline is a failure bound, not measured end-to-end voice latency.
+
+Section 14 preserves live 8 kHz cloud/VAD/recording behavior and native output/clear/hang-up, while adding bounded pre-decode media validation and per-call `carrier_audio_summary` counters. Its fixed 40–60 ms jitter/16 kHz conversion path is an explicit offline lab for later local ASR, not an added live TCP delay. See [audio contracts](05-endpointing-vad.md#section-14-reusable-audio-contract).

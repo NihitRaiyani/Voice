@@ -9,7 +9,7 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 | Boundary | Present in this repository | OpenAI roadmap target / remaining work |
 |---|---|---|
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
-| Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3 | OpenAI LLM provider, local ASR/TTS labs, then speech model serving |
+| Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3; section 14 pure audio lab and live sequence/alignment guard | OpenAI LLM provider, local ASR/TTS labs, then speech model serving |
 | Conversation | Seven deterministic stages, checkpoint adapter, OpenAI text seam, deterministic safety audit and bounded prompt inputs | Native quality review and full voice approval |
 | Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints, bounded pools/process budget, checkpoint/model/benchmark schema, turn-language metadata and versioned resource API | Section 13 booking/holds/API and same-SID appointment truth implemented; broader redial recovery pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue; PostgreSQL now has compatible latest-checkpoint restore by call SID | Bounded pressure, redial/session mapping and measured rate limits |
@@ -19,6 +19,8 @@ Roma is a backend-only counselling voice agent for Weltec's Digital Marketing co
 | Deployment | Local scripts and pre-v4 infrastructure Compose | Non-container local learning first; full deployment packaging at Level 13 |
 
 Production booking now uses PostgreSQL availability, expiring Redis holds and a short commit before confirmed speech. Cancellation releases the slot atomically; reconnect consults database appointment truth. Static calendars remain for explicit offline exercises. Schema tables do not prove all corresponding runtime writes exist. See [section 13](docs/levels/level-03.md).
+
+[Section 14](docs/levels/level-04.md) adds inspectable 8↔16 kHz conversion, exact framing and a fixed jitter lab (`make audio-lab`). Production retains native serialization/current cloud rates, with per-call sequence/alignment validation. Adaptive jitter/PLC and local ASR gates remain pending.
 
 There is no frontend. Live telephony still uses `/api/call`, `/api/call/{request_uuid}`, `/answer`, `/ws` and `/health`. Durable business resources now use versioned `/api/v1/...` JSON routes with consistent envelopes.
 

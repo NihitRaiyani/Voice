@@ -51,6 +51,12 @@ jobs:
       - name: Mocked unit/API checks
         run: |
           PYTHONDONTWRITEBYTECODE=1 uv run --no-sync pytest -q -p no:cacheprovider \
+            tests/domain/audio \
+            tests/eval/test_audio_lab.py \
+            tests/providers/telephony/twilio/test_audio_validation.py \
+            tests/providers/telephony/twilio/test_twilio_serializer.py \
+            tests/realtime/test_ulaw.py \
+            tests/realtime/test_audio_vad_boundary.py \
             tests/api/v1/test_rest_resources.py \
             tests/api/v1/test_booking_resources.py \
             tests/api/v1/test_webhook_idempotency.py \

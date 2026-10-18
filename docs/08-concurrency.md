@@ -1,6 +1,6 @@
 # Concurrency, cancellation and delivery
 
-Each call owns its Pipecat task/provider streams, controller state, aggregation, queues and recorder. Share only explicitly safe client pools/immutable data; never lead state. Async I/O does not make blocking CPU/GPU inference non-blocking. Offload it and measure event-loop lag.
+Each call owns its Pipecat task/provider streams, controller state, aggregation, queues, recorder and Twilio audio sequence counters. Section 14 lab streams separately own their fixed jitter queue/filter history; neither is shared across calls. Share only explicitly safe client pools/immutable data; never lead state. Async I/O does not make blocking CPU/GPU inference non-blocking. Offload it and measure event-loop lag.
 
 ## Current concurrency guarantees and limits
 

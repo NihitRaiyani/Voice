@@ -18,10 +18,11 @@ export EMBEDDING_PROVIDER ?= mock
 export TELEPHONY_PROVIDER ?= mock
 export PUBLIC_BASE_URL ?= https://example.invalid
 
-.PHONY: text-console language-lab help sync services-up services-down db-upgrade app-start lint type test test-ci test-provider-contracts ci pre-commit-install
+.PHONY: audio-lab text-console language-lab help sync services-up services-down db-upgrade app-start lint type test test-ci test-provider-contracts ci pre-commit-install
 
 help:
 	@printf '%s\n' \
+	  'make audio-lab               synthetic audio conversion/jitter report; no services' \
 	  'make text-console            synthetic mock text conversation; no paid calls' \
 	  'make language-lab            40 mock language cases; native review deferred' \
 	  'make sync                    install locked dev/telephony/worker dependencies' \
@@ -35,6 +36,9 @@ help:
 	  'make test                    run full offline pytest suite' \
 	  'make ci                      lint + type + migrations + mocked CI tests' \
 	  'make pre-commit-install      install local pre-commit hooks'
+
+audio-lab:
+	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync python scripts/audio_lab.py
 
 text-console:
 	$(UV) run --no-sync python scripts/text_console.py --provider mock
@@ -72,6 +76,12 @@ test-provider-contracts:
 
 test-ci: test-provider-contracts
 	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync pytest -q -p no:cacheprovider \
+		tests/domain/audio \
+		tests/eval/test_audio_lab.py \
+		tests/providers/telephony/twilio/test_audio_validation.py \
+		tests/providers/telephony/twilio/test_twilio_serializer.py \
+		tests/realtime/test_ulaw.py \
+		tests/realtime/test_audio_vad_boundary.py \
 		tests/api/v1/test_rest_resources.py \
 		tests/api/v1/test_booking_resources.py \
 		tests/api/v1/test_webhook_idempotency.py \

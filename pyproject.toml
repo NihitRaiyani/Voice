@@ -60,6 +60,8 @@ files = [
     "roma/repositories/postgres/booking.py",
     "roma/repositories/redis/appointment_holds.py",
     "roma/domain/safety",
+    "roma/domain/audio",
+    "roma/eval/audio.py",
     "roma/repositories/postgres/safety.py",
     "roma/eval/openai_language.py",
     "roma/providers/telephony",
