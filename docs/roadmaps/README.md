@@ -4,7 +4,7 @@ The owner selected the unchanged [OpenAI Word roadmap](AI_VOICE_AGENT_openai_llm
 
 OpenAI remains the LLM behind `LLMProvider`; ASR, TTS and embeddings become local in their later levels. No Qwen/MLX/Transformers LLM installation or vLLM serving is part of the active plan. Levels 0–14 and section numbering remain distinct. Introductory 0–13 wording is an editorial mismatch with the table/body.
 
-The file is requirements material, not authorization to call, spend, deploy, expose caller data or change credentials. Explicit owner policy wins: retain Twilio, layered `roma/`, earlier persistence/API/state-machine work and Hindi-base Hinglish live replies. Multilingual output stays in its lab; native scoring and complete voice approval remain deferred. Quota is unavailable, so this increment runs mocks/test files only. Model/API keys and actual production model selection come from the environment, not a tracked secret.
+The file is requirements material, not authorization to call, spend, deploy, expose caller data or change credentials. Explicit owner policy wins: retain Twilio, layered `roma/`, earlier persistence/API/state-machine work and Hindi-base Hinglish live replies. Multilingual output stays in its lab; native scoring and complete voice approval remain deferred. OpenAI quota remains unavailable and automated tests use mocks. The owner subsequently authorized explicit public HF speech checks; Gujarati, Hindi and English hosted ASR have now been exercised without local model weights. These lab checks do not approve production audio or complete voice quality. Model/API keys and actual production model selection come from the environment, not a tracked secret.
 
 ## Source coverage
 
