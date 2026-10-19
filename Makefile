@@ -93,6 +93,7 @@ test-ci: test-provider-contracts
 		tests/eval/test_benchmark_evidence.py \
 		tests/eval/test_tts_setup.py \
 		tests/eval/test_tts_lab.py \
+		tests/eval/test_tts_safety_lab.py \
 		tests/core/test_tts_settings.py \
 		tests/providers/ai/test_indic_tts.py \
 		tests/services/test_tts_service.py \

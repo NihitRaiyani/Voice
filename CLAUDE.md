@@ -44,3 +44,6 @@ After each completed user-requested level or section, verify applicable checks, 
 The [level briefs](docs/README.md) own scope/status/evidence. Topic docs own reusable contracts; [decisions](docs/decisions.md) owns adopted choices and owner questions; [runbook](docs/runbook.md) owns commands. Historical designs live under `docs/archive/`. Update affected documents together; do not duplicate acceptance rules into competing plans.
 
 Load `.claude/skills/roma-backend-roadmap/SKILL.md` for roadmap/architecture work and `.claude/skills/roma-guardrail/SKILL.md` for spoken-output changes. Skills follow the current contracts and actual package paths.
+
+
+Section 19 local approved fallbacks use six exact/hash-pinned canonical-to-Devanagari pronunciation bindings through SafetyService, Hindi synthesis and independent spoken-text checks. Global safety wording/live assets remain unchanged; native listening approval is pending. Hosted Whisper reads detailed same-job queue events and preserves fixed quota errors; both official demos exhausted ZeroGPU quota during the follow-up, so full comparison remains blocked by hosted capacity. Do not silently switch endpoint, retry, disclose HF tokens or buy/deploy capacity.

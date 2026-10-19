@@ -5,10 +5,16 @@ import json
 import logging
 import math
 from dataclasses import dataclass
+from hashlib import sha256
 from typing import Protocol
 
-from roma.domain.safety.audit import SafetyActivation, SafetyContext, check_sentence
-from roma.domain.safety.lexicon import HARD_FAIL_LINE
+from roma.domain.safety.audit import SafetyActivation, SafetyContext, activation, check_sentence
+from roma.domain.safety.lexicon import HARD_FAIL_LINE, BlockCategory
+from roma.domain.safety.pronunciation import (
+    SafetyPronunciation,
+    pronunciation_for,
+    validate_pronunciation,
+)
 
 _log = logging.getLogger("roma.safety.audit")
 
@@ -45,6 +51,7 @@ class SafeSpeech:
     text: str
     events: tuple[SafetyActivation, ...]
     audit_ok: bool
+    canonical_text: str | None = None
 
 
 class SafetyService:
@@ -83,3 +90,43 @@ class SafetyService:
         all_events = extra + events
         ok = await self.persist(context, all_events)
         return SafeSpeech(safe if ok else HARD_FAIL_LINE, all_events, ok)
+
+    async def check_pronunciation(
+        self, pronunciation: SafetyPronunciation, context: SafetyContext
+    ) -> SafeSpeech:
+        """Adjudicate only a pinned local rendering; never a caller allowlist.
+
+        Full independent screening remains mandatory. The pinned certificate
+        deferral has the checker's known generic-CERT false positive; only that
+        exact binding may retain that category. Every other violation/error fails
+        before model lookup, cache access or inference.
+        """
+        validate_pronunciation(pronunciation)
+        _, verdict, _ = check_sentence(pronunciation.spoken_text)
+        expected_certificate = (
+            pronunciation.name == "certificate"
+            and verdict.category == BlockCategory.CERT
+            and verdict.violations == (BlockCategory.CERT,)
+            and verdict.reason == "block:CERT"
+        )
+        if not verdict.allowed and not expected_certificate:
+            raise ValueError("Safety pronunciation failed its independent rule check")
+        # Stable binding identity keeps canonical + spoken provenance recoverable
+        # without recording raw caller/model input in the safety event.
+        identity = sha256("|".join(pronunciation.identity).encode()).hexdigest()
+        event = activation(
+            f"speech.pronunciation.v1.{identity}",
+            "PRONUNCIATION",
+            pronunciation.canonical_text,
+        )
+        ok = await self.persist(context, (event,))
+        if not ok:
+            # Explicit bounded outage route: no recursion or unaudited original.
+            fallback = pronunciation_for(HARD_FAIL_LINE)
+            if fallback is None:
+                raise ValueError("Approved hard-fail pronunciation is unavailable")
+            _, fallback_verdict, _ = check_sentence(fallback.spoken_text)
+            if not fallback_verdict.allowed:
+                raise ValueError("Hard-fail pronunciation failed independent safety")
+            pronunciation = fallback
+        return SafeSpeech(pronunciation.spoken_text, (event,), ok, pronunciation.canonical_text)

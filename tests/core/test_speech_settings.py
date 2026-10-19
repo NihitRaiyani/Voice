@@ -37,6 +37,7 @@ def test_token_alias_is_env_only_and_redacted(monkeypatch, key):
         {"stt_max_audio_secs": 31},
         {"indic_model_revision": "main"},
         {"stt_language": "xyz"},
+        {"hf_whisper_api_name": "../../secret"},
     ],
 )
 def test_invalid_speech_configuration_is_rejected(kwargs):
@@ -56,9 +57,21 @@ def test_public_lab_factory_has_discovered_defaults_and_never_needs_a_token():
     assert callable(provider.transcribe)
     assert cfg.hf_indic_space_url == "https://1219naveen-indicconformer-asr.hf.space"
     assert cfg.hf_whisper_space_url == "https://hf-audio-whisper-large-v3.hf.space"
+    assert cfg.hf_whisper_api_name == "transcribe"
+    assert provider._whisper.api_name == "transcribe"
 
 
 @pytest.mark.parametrize("timeout", [0, 121, float("nan"), float("inf")])
 def test_public_lab_deadline_is_finite_and_bounded(timeout):
     with pytest.raises(ValidationError):
         SpeechSettings(_env_file=None, hf_public_timeout_secs=timeout)
+
+
+def test_public_lab_factory_propagates_selected_whisper_api():
+    cfg = SpeechSettings(
+        _env_file=None,
+        stt_provider="hf_public_lab",
+        hf_whisper_space_url="https://hf-audio-whisper-large-v3.hf.space",
+        hf_whisper_api_name="transcribe",
+    )
+    assert build_stt_provider(cfg)._whisper.api_name == "transcribe"

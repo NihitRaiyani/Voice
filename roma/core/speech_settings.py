@@ -40,6 +40,7 @@ class SpeechSettings(BaseSettings):
     hf_whisper_space_url: str = Field(
         default="https://hf-audio-whisper-large-v3.hf.space", max_length=2048
     )
+    hf_whisper_api_name: Literal["predict", "transcribe"] = "transcribe"
     hf_whisper_model: Literal["openai/whisper-large-v3", "openai/whisper-large-v3-turbo"] = (
         "openai/whisper-large-v3-turbo"
     )

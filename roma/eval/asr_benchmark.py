@@ -24,6 +24,7 @@ from roma.domain.audio.pcm import pack, unpack
 from roma.domain.audio.resampling import PCMResampler
 from roma.eval.hosted_asr import normalized
 from roma.providers.ai.contracts import AudioFormat, STTProvider, STTRequest
+from roma.providers.ai.hf_asr import HFASRQuotaExceeded
 
 LANGUAGES = {"gu": "gu_in", "hi": "hi_in", "en": "en_us"}
 VARIANTS = ("clean", "noise", "telephone", "noise_telephone")
@@ -510,6 +511,8 @@ async def run_benchmark(
             )
         except asyncio.CancelledError:
             raise
+        except HFASRQuotaExceeded:
+            row["error_code"] = "asr-hosted-quota-exhausted"
         except Exception:  # noqa: BLE001 -- retain fixed code, never remote body/token details.
             row["error_code"] = "asr-request-failed"
         if elapsed is None:

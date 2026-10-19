@@ -183,6 +183,7 @@ async def run(args):
         "provider": "hf_public_lab",
         "indic_endpoint": config.hf_indic_space_url,
         "whisper_endpoint": config.hf_whisper_space_url,
+        "whisper_api_name": config.hf_whisper_api_name,
         "cases": cases,
         "public_samples_only": True,
         "new_model_weights_downloaded": False,

@@ -127,6 +127,9 @@ def _asr(
     if checked_summaries != report["summaries"]:
         raise ValueError("ASR aggregate measurements differ from case evidence")
     details = report["provider_details"]
+    whisper_api_name = details.get("whisper_api_name")
+    if whisper_api_name is not None and whisper_api_name not in {"predict", "transcribe"}:
+        raise ValueError("Unknown benchmark Whisper API name")
     model_by_language = {}
     models = {}
     for language in {case["language"] for case in cases}:
@@ -140,7 +143,12 @@ def _asr(
         if decoder not in {"whisper-space", "ctc", "rnnt"}:
             raise ValueError("Unknown benchmark decoder")
         # Public Spaces do not expose a trustworthy immutable weight revision.
-        version = "unpinned-hosted-" + hashlib.sha256(str(decoder).encode()).hexdigest()[:16]
+        protocol_identity = str(decoder)
+        if whisper and whisper_api_name is not None:
+            protocol_identity += ":" + whisper_api_name
+        version = (
+            "unpinned-hosted-" + hashlib.sha256(protocol_identity.encode()).hexdigest()[:16]
+        )
         model = ModelEvidence(
             "huggingface-space",
             urlsplit(endpoint).netloc + urlsplit(endpoint).path.rstrip("/"),
@@ -209,6 +217,8 @@ def _asr(
         },
         "source_count": report.get("source_count"),
     }
+    if whisper_api_name is not None:
+        config["provider_details"]["whisper_api_name"] = whisper_api_name
     _finite(details["timeout_secs"], positive=True)
     for key in ("indic_endpoint", "whisper_endpoint"):
         _endpoint(config["provider_details"][key])

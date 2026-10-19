@@ -400,22 +400,23 @@ def test_worker_uses_model_tokenizer_and_accepts_supported_speech(text, unsuppor
 
 
 @pytest.mark.parametrize("audit_failure", [False, True])
-def test_gujarati_safety_replacement_cannot_cache_audio_with_dropped_latin_letters(
+def test_gujarati_safety_replacement_uses_supported_hindi_but_raw_latin_still_fails(
     audit_failure,
 ):
     import unicodedata
 
     from roma.domain.safety.audit import SafetyContext
+    from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS, BlockCategory
+    from roma.domain.safety.pronunciation import pronunciation_for
     from roma.providers.ai._indic_tts_worker import _validate_vocabulary
+    from roma.providers.ai.contracts import TTSResult
     from roma.services.safety_service import InMemorySafetyEventStore, SafetyService
     from roma.services.tts_service import SpeechSynthesisService
 
-    class GujaratiTokenizer:
+    class NativeTokenizer:
         def text_to_ids(self, text):
             self.not_found_characters = [
-                char
-                for char in text
-                if char != "m" and unicodedata.name(char, "").startswith("LATIN")
+                char for char in text if unicodedata.name(char, "").startswith("LATIN")
             ]
             return [1, 2]
 
@@ -424,9 +425,10 @@ def test_gujarati_safety_replacement_cannot_cache_audio_with_dropped_latin_lette
             self.seen = []
 
         async def synthesize(self, request):
-            self.seen.append(request.text)
-            _validate_vocabulary(GujaratiTokenizer(), request.text)
-            pytest.fail("Unsupported safety replacement reached waveform generation")
+            self.seen.append(request)
+            _validate_vocabulary(NativeTokenizer(), request.text)
+            assert request.language == "hi"
+            return TTSResult(b"\x00\x00" * 800, AudioFormat(8000))
 
     class BrokenStore:
         async def record(self, context, events):
@@ -435,20 +437,27 @@ def test_gujarati_safety_replacement_cannot_cache_audio_with_dropped_latin_lette
     async def run():
         store = BrokenStore() if audit_failure else InMemorySafetyEventStore()
         provider = VocabularyCheckedProvider()
-        service = SpeechSynthesisService(provider, SafetyService(store), model_version="gu-v1")
-        for turn in (1, 2):
-            with pytest.raises(ValueError, match="vocabulary"):
-                await service.synthesize(
-                    TTSRequest("ફી 50000", language="gu"),
-                    SafetyContext("synthetic-gu-vocabulary", turn, "lab"),
-                )
-        assert len(provider.seen) == 2
-        expected = (
-            "Ye detail counsellor visit pe batayenge." if audit_failure else "counselling"
+        service = SpeechSynthesisService(
+            provider, SafetyService(store), model_version="native-v1"
         )
-        assert all("50000" not in line and expected in line for line in provider.seen)
+        canonical = HARD_FAIL_LINE if audit_failure else SUBSTITUTIONS[BlockCategory.FEE]
+        for turn in (1, 2):
+            result = await service.synthesize(
+                TTSRequest("ફી 50000", language="gu"),
+                SafetyContext("synthetic-gu-vocabulary", turn, "lab"),
+            )
+            assert result.text == pronunciation_for(canonical).spoken_text
+            assert result.audit_ok is (not audit_failure)
+        assert len(provider.seen) == 1
+        assert service.stores == service.hits == 1
         if not audit_failure:
             assert store.entries
-        assert not service._cache and service.stores == service.hits == 0
+        # Ordinary unsupported text still fails; no weakening of the worker guard.
+        with pytest.raises(ValueError, match="vocabulary"):
+            await service.synthesize(
+                TTSRequest("ordinary Roman input", language="gu"),
+                SafetyContext("synthetic-gu-vocabulary", 3, "lab"),
+            )
+        assert service.stores == 1 and len(service._cache) == 1
 
     asyncio.run(run())

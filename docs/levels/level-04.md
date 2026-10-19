@@ -221,3 +221,12 @@ Configured `roma` was read-only confirmed at `20261004_0003 (head)` before expli
 - [ ] Complete Level 4 and adaptive/PLC gates.
 
 Final integrated checks for this increment: **2,574 offline tests**, **56 + 1,002** CI-selected tests, Ruff, **62-file mypy**, pre-commit and Markdown links/anchors pass. See [verification](../12-verification.md#sections-1819-verification--2026-10-19) for boundaries and remaining approval gates.
+
+
+## Hosted Whisper failure diagnosis — 2026-10-19
+
+The original report remains unchanged. A separate official [OpenAI Whisper Space](https://huggingface.co/spaces/openai/whisper) probe could transcribe Gujarati, but its [complete same-manifest attempt](../../benchmarks/asr/section18/whisper-alternate-report.json) succeeded only **2/15 cases**, with 13 explicit service errors. The endpoint uses API `predict`; the retained hf-audio endpoint uses `transcribe`. Switching endpoints alone therefore did not fix the comparison, and the existing default is preserved.
+
+Detailed queue checks on **both** official Spaces subsequently reported **ZeroGPU runs limit exceeded**. Gradio's simplified `/call/{api}/{event}` stream forwards `output.data` and drops `output.error`, producing the earlier `error:null`. The corrected Whisper adapter submits one job with a unique session and reads `/gradio_api/queue/data` for that same session. It validates the completion event ID, preserves all byte/deadline/cancellation bounds, exposes only a fixed quota exception and records `asr-hosted-quota-exhausted` in new benchmark rows. Unknown provider text remains redacted; no retry or model/endpoint fallback occurs. [Sanitized check](../../benchmarks/asr/section18/whisper-quota-check.json) records real adapter verification without private audio or credentials.
+
+Quota exhaustion is an observed current service prerequisite, not proof of the cause of every historical error or of model language quality. Complete matched-model comparison remains **blocked by hosted capacity**. Resume with the same public corpus after quota is available, or explicitly configure an approved compatible endpoint with its matching API name; a token does not provision compute. No HF token was sent to a public Space, no credits purchased, no endpoint deployed and no ASR weights downloaded. Existing Indic routing, production speech and historical SQL benchmark evidence remain unchanged.

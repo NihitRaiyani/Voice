@@ -274,4 +274,22 @@ The recorded runtime snapshot is for this Mac ARM64/Python 3.11; other platforms
 
 Numbers are conservatively spelled digit by digit; valid ISO/Indian dates become day/month/year and reviewed course terms receive language-specific pronunciation. Native naturalness remains a review requirement. The 16 kHz waveform is filtered to 8 kHz where needed, mu-law encoded and padded only at the final 20 ms carrier tail. Existing Sarvam/Pipecat playback and fixed phrase assets remain the live path until later integration approval. See [Level 5](levels/level-05.md).
 
-The passing section 19 lab uses an explicit 60-second audio bound because the long Gujarati fixture produces 32.279 seconds; the default remains 30 seconds and correctly rejects it. Model workers reject unsupported lexical characters before synthesis; Roman safety substitutions need reviewed native rendering or an existing approved clip before future live integration. The new normalizer rejects invisible format controls, and failed cache attempts store no audio. Reports resolve the attempted model identity before synthesis; unresolved setup provenance is retained on disk and rejected by the SQL importer.
+The passing section 19 lab uses an explicit 60-second audio bound because the long Gujarati fixture produces 32.279 seconds; the default remains 30 seconds and correctly rejects it. Model workers reject unsupported lexical characters before synthesis; Exact approved Roman safety substitutions now resolve to hash-pinned Devanagari pronunciation through the safety service, with Hindi synthesis across caller routes. Native listening approval remains pending before future live integration. The new normalizer rejects invisible format controls, and failed cache attempts store no audio. Reports resolve the attempted model identity before synthesis; unresolved setup provenance is retained on disk and rejected by the SQL importer.
+
+
+The section 19 approved-line lab reuses already provisioned artifacts; no setup download is needed:
+
+```bash
+# Default is synthetic/offline; optional real inference below uses the installed runtime.
+uv run --no-sync python scripts/tts_safety_lab.py
+INDIC_TTS_PYTHON="$(pwd)/var/roma/tts-runtime/bin/python" \
+INDIC_TTS_MANIFEST="$(pwd)/var/roma/indic-tts/manifest.json" \
+TTS_TIMEOUT_SECS=180 \
+uv run --no-sync python scripts/tts_safety_lab.py --provider indic_tts \
+  --audio-dir var/roma/tts-safety-lab/audio \
+  --report var/roma/tts-safety-lab/report.json
+```
+
+Expect six misses/stores and 18 audited hits, actual Hindi voice for all requested language routes. The report marks its in-memory synthetic audit sink and pending native review. Preserve canonical policy text and existing fixed audio; unsupported ordinary text must still fail before inference/cache.
+
+For hosted Whisper, retain the default `HF_WHISPER_SPACE_URL=https://hf-audio-whisper-large-v3.hf.space` with `HF_WHISPER_API_NAME=transcribe`. If explicitly selecting `https://openai-whisper.hf.space`, set `HF_WHISPER_API_NAME=predict` as well. The corrected adapter reads detailed events from the same job; `asr-hosted-quota-exhausted` means the public service has no admitted GPU quota. Stop replaying until capacity is available; switching public demos, increasing timeout or changing language cannot establish a successful comparison. No token is sent to public Spaces and the credit-requiring HF router is never a silent fallback. Preserve immutable failed reports, then use a new report/run identity for a fresh complete comparison. [Level 4](levels/level-04.md#hosted-whisper-failure-diagnosis--2026-10-19) records current external limits.

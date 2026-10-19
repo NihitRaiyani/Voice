@@ -47,3 +47,12 @@ Level 9 supplies approved active/effective scoped document evidence, grounding a
 Maintain Gujarati/Devanagari/Latin injection canaries and native language review. Changed fixed wording requires matching audio identity; stale clips must be refused. See [prompt contract](11-prompts.md), [audio assets](../roma/realtime/assets/README.md) and [verification](12-verification.md).
 
 The boundary audit also tests exact known money labels attached directly to amounts (`fees25000`, `30000salary`, Gujarati/Hindi equivalents). The split is limited to known label/amount pairs, preserving Indic combining marks, standalone `20k`, substring guards and explicit corrections.
+
+
+## Local approved-line pronunciation
+
+Section 19 local synthesis retains canonical safety wording in `lexicon.py` and uses the finite exact/hash-pinned bindings in `pronunciation.py` solely for pronunciation. These render the same Hindi-base Hinglish words in Devanagari and select Hindi synthesis even for a Gujarati/English caller route. No arbitrary caller text, general translator or caller-provided allowlist can obtain a binding.
+
+`SpeechSynthesisService` audits the canonical decision, then `SafetyService.check_pronunciation()` validates current lexicon membership/both hashes and screens the actual rendering before model/cache access. The generic certificate rule flags the approved deferral's phonetic clause; only its exact pinned binding with CERT as the sole violation is adjudicated. Any other category, checker error, missing mapping or changed text fails before audio. A structured PRONUNCIATION event retains canonical replacement plus binding identity; canonical violations retain their original events. Rendering audit failure uses the independently screened pinned hard-fail pronunciation, reports `audit_ok=false` and does not recurse. Cancellation propagates. Legacy global checking and approved live assets remain unchanged.
+
+Every cache hit repeats the checks/audit. Cache identity includes actual text/language/voice/model, normalization and pronunciation identities. The worker still rejects unsupported lexical characters for ordinary text. The [actual local safety lab](levels/level-05.md#approved-safety-pronunciation-follow-up--2026-10-19) proves rendering/cache/transport mechanics, not native pronunciation approval or a complete production voice gate.

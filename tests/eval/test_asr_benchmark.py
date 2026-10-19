@@ -370,7 +370,13 @@ def test_cli_direct_provider_selection_and_replay_are_offline_with_injected_adap
     spec.loader.exec_module(module)
     provider = FakeSTT(fail_at=1)
     monkeypatch.setattr(module, "GradioIndicSTT", lambda **kwargs: provider)
-    monkeypatch.setattr(module, "GradioWhisperSTT", lambda **kwargs: provider)
+    whisper_options = []
+
+    def whisper_adapter(**kwargs):
+        whisper_options.append(kwargs)
+        return provider
+
+    monkeypatch.setattr(module, "GradioWhisperSTT", whisper_adapter)
     monkeypatch.setattr(
         module,
         "SpeechSettings",
@@ -380,6 +386,7 @@ def test_cli_direct_provider_selection_and_replay_are_offline_with_injected_adap
             {
                 "hf_indic_space_url": "https://indic.hf.space",
                 "hf_whisper_space_url": "https://whisper.hf.space",
+                "hf_whisper_api_name": "predict",
                 "hf_public_timeout_secs": 30,
                 "stt_max_audio_secs": 30,
                 "indic_decoder": "ctc",
@@ -425,4 +432,34 @@ def test_cli_direct_provider_selection_and_replay_are_offline_with_injected_adap
     )
     assert len(provider.requests) == 6
     assert read_json(report_path)["provider"] == "hf_whisper_space"
+    assert whisper_options == [
+        {
+            "endpoint_url": "https://whisper.hf.space",
+            "api_name": "predict",
+            "timeout_secs": 30,
+            "max_audio_secs": 30,
+        }
+    ]
+    assert read_json(report_path)["provider_details"]["whisper_api_name"] == "predict"
     capsys.readouterr()
+
+
+def test_known_hosted_quota_failure_has_fixed_benchmark_code(public_cache, tmp_path):
+    from roma.providers.ai.hf_asr import HFASRQuotaExceeded
+
+    class QuotaSTT:
+        async def transcribe(self, request):
+            raise HFASRQuotaExceeded()
+
+    report = asyncio.run(
+        run_benchmark(
+            build_manifest(public_cache, variants=("clean",)),
+            public_cache,
+            QuotaSTT(),
+            provider_name="quota",
+            report_path=tmp_path / "quota.json",
+        )
+    )
+    assert report["complete"]
+    assert {row["error_code"] for row in report["cases"]} == {"asr-hosted-quota-exhausted"}
+    assert all(row["metrics"] is None for row in report["cases"])

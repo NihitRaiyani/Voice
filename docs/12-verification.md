@@ -104,3 +104,14 @@ Fresh final checks: **2,574 offline tests passed** (23 existing dependency warni
 [Level 5](levels/level-05.md#actual-evidence-and-acceptance-gate) owns the approved local runtime/weights, real 18/18 case report, nine misses/nine hits, waveform identity and timing table. Its benchmark adds 18 samples / 81 metric rows; repeat import returns the same run ID without duplicates. Actual defaults and lab overrides are explicit. Unsupported lexical input and invisible formatting controls cannot produce cached corrupted speech; partial failures retain attempted model provenance. Native pronunciation/approved fallback rendering and later complete voice approval remain separate gates.
 
 The selected Word roadmap hash remains `89b99bbf959d1cc713d335a49037a03b63349cc91185a03e0a57bf9fa3149429`. Runtime models/WAVs, secrets and private caller data are excluded from Git. Production carrier/speech, OpenAI and Hindi-base Hinglish policy remain intact.
+
+
+## Scoped Whisper and safety pronunciation follow-up — 2026-10-19
+
+Fresh verification: **2,635 offline tests passed** (23 existing dependency warnings, 85.17 seconds), **56 provider/config + 1,063 CI-selected tests**, Ruff, **63-file mypy**, and all pre-commit hooks pass. Markdown validation checks **66 non-archive files / 390 local links and anchors**, with zero issues. The old native-alphabet rejection regression now verifies supported approved fallback speech and continued rejection of ordinary unsupported Roman text. No working-database/schema changes or paid API calls were made.
+
+[Level 5](levels/level-05.md#approved-safety-pronunciation-follow-up--2026-10-19) records actual local **24/24** approved-line cases, six verified PCM16 WAVs, six misses/stores and 18 audited cache hits. The installed runtime/weights were reused offline. Hash-bound canonical/rendered identities, exact certificate-only adjudication, audit outage/cancellation and cache invalidation are covered. The lab explicitly uses synthetic in-memory audit; native listening and live voice approval remain pending.
+
+[Level 4](levels/level-04.md#hosted-whisper-failure-diagnosis--2026-10-19) preserves the unsuccessful alternate endpoint comparison (**2/15**) and original historical failures. Detailed official service queues reported exhausted ZeroGPU quota on both endpoints. The corrected actual adapter check returns fixed `asr-hosted-quota-exhausted` for one public Gujarati clip; it does not resubmit or disclose remote bodies/tokens. Successful transcript handling is covered offline, but a complete real comparison is still blocked by hosted capacity. No quality scores are invented for failed requests.
+
+The selected Word roadmap retains SHA-256 `89b99bbf959d1cc713d335a49037a03b63349cc91185a03e0a57bf9fa3149429`. Production carrier/speech, OpenAI policy, canonical lexicon, fixed assets and configured database remain unchanged.

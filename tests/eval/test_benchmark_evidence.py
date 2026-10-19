@@ -291,3 +291,25 @@ def test_tts_partial_duplicate_or_inconsistent_reports_are_rejected(change):
     change(report)
     with pytest.raises(ValueError):
         convert(report)
+
+
+def test_whisper_api_provenance_is_retained_and_changes_only_whisper_identity():
+    old = convert(asr_report())
+    report = asr_report()
+    report["provider_details"]["whisper_api_name"] = "predict"
+    new = convert(report)
+    assert new.config["provider_details"]["whisper_api_name"] == "predict"
+    old_models = {model.name: model for model in old.models}
+    new_models = {model.name: model for model in new.models}
+    assert old_models["indic.example/asr"] == new_models["indic.example/asr"]
+    assert (
+        old_models["whisper.example/asr"].version != new_models["whisper.example/asr"].version
+    )
+    _prepare(new)
+
+
+def test_unknown_whisper_api_provenance_is_rejected():
+    report = asr_report()
+    report["provider_details"]["whisper_api_name"] = "arbitrary"
+    with pytest.raises(ValueError, match="API name"):
+        convert(report)

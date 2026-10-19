@@ -22,6 +22,7 @@ from roma.domain.audio.g711 import encode
 from roma.domain.audio.pcm import PCMFramer, validate_pcm16
 from roma.domain.audio.resampling import PCMResampler
 from roma.domain.safety.audit import SafetyContext
+from roma.domain.safety.pronunciation import pronunciation_for
 from roma.providers.ai.contracts import TTSProvider, TTSRequest, TTSResult
 from roma.providers.ai.indic_tts import language_code, validate_request
 from roma.services.safety_service import SafetyService
@@ -111,6 +112,14 @@ class SynthesizedSpeech:
     rtf: float
     model_version: str
     audit_ok: bool
+    canonical_text: str
+    requested_language: str
+    spoken_language: str
+    voice: str
+    pronunciation_version: str | None
+    canonical_sha256: str | None
+    spoken_canonical_text: str
+    spoken_sha256: str | None
 
     @property
     def cache_hit(self) -> bool:
@@ -222,17 +231,30 @@ class SpeechSynthesisService:
         started = perf_counter()
         # Check before spelling digits, so normalization cannot erase an amount signal.
         original = await self.safety.check(request.text, context)
+        requested_language = language_code(request.language)
         normalized = normalize_tts_text(original.text, request.language)
         if len(normalized.encode("utf-8")) > self.max_text_bytes:
             raise ValueError("Normalized TTS text exceeds its bounded UTF-8 size")
-        # This audit sees the exact text used for cache identity and inference, including hits.
         final = await self.safety.check(normalized, context)
+        canonical = final.text
+        pronunciation = pronunciation_for(canonical)
+        canonical_sha256 = pronunciation.canonical_sha256 if pronunciation else None
+        spoken = final
+        if pronunciation is not None:
+            # Same safety/audit authority adjudicates the exact pronunciation before
+            # any model identity/cache lookup. Caller language cannot change policy.
+            spoken = await self.safety.check_pronunciation(pronunciation, context)
+            # Audit failure uses the trusted hard-fail rendering, not the original line.
+            if spoken.canonical_text is None:
+                raise ValueError("Safety pronunciation did not retain its canonical binding")
+            pronunciation = pronunciation_for(spoken.canonical_text)
         request = replace(
             request,
-            text=final.text,
-            language=language_code(request.language),
+            text=spoken.text,
+            language=pronunciation.language if pronunciation else requested_language,
             voice=request.voice or self.default_voice,
         )
+        validate_request(request, self.max_text_bytes)
         identity_method = getattr(self.provider, "cache_identity", None)
         version = await identity_method(request) if identity_method else self.model_version
         if type(version) is not str or not version or len(version) > 256:
@@ -245,6 +267,7 @@ class SpeechSynthesisService:
                     request.voice,
                     version,
                     NORMALIZATION_VERSION,
+                    pronunciation.identity if pronunciation else None,
                     request.format.sample_rate_hz,
                     request.format.channels,
                     request.format.encoding,
@@ -301,5 +324,13 @@ class SpeechSynthesisService:
             elapsed,
             synthesis_ms / duration_ms,
             version,
-            original.audit_ok and final.audit_ok,
+            original.audit_ok and final.audit_ok and spoken.audit_ok,
+            canonical,
+            requested_language,
+            request.language,
+            request.voice or self.default_voice,
+            pronunciation.version if pronunciation else None,
+            canonical_sha256,
+            pronunciation.canonical_text if pronunciation else canonical,
+            pronunciation.spoken_sha256 if pronunciation else None,
         )

@@ -50,8 +50,9 @@ class Chunks(httpx.AsyncByteStream):
 
 
 class Space:
-    def __init__(self, *, upload=None, submitted=None, sse=None):
+    def __init__(self, *, upload=None, submitted=None, sse=None, api_name=None):
         self.calls = []
+        self.api_name = api_name
         self.upload = ["/tmp/gradio/audio.wav"] if upload is None else upload
         self.submitted = {"event_id": "event-123_abc"} if submitted is None else submitted
         self.sse = sse
@@ -77,14 +78,36 @@ class Space:
                 )
                 assert wav.readframes(160) == request().audio
             return httpx.Response(200, json=self.upload)
-        if req.url.path == "/gradio_api/call/transcribe":
+        api_name = self.api_name or "transcribe"
+        if req.url.path == f"/gradio_api/call/{api_name}":
             assert req.method == "POST"
             return httpx.Response(200, json=self.submitted)
         assert req.method == "GET"
-        assert req.url.path == "/gradio_api/call/transcribe/event-123_abc"
+        detailed = "indicconformer" not in req.url.host
+        assert req.url.path == (
+            "/gradio_api/queue/data"
+            if detailed
+            else f"/gradio_api/call/{api_name}/event-123_abc"
+        )
         result = ["  SEO  वर्ष २०२६  વર્ષ ૨૦૨૬ "]
         if "indicconformer" in req.url.host:
             result.append({"decoder": "ctc"})
+        if detailed and self.sse is None:
+            return httpx.Response(
+                200,
+                content=(
+                    "data: "
+                    + json.dumps(
+                        {
+                            "msg": "process_completed",
+                            "event_id": "event-123_abc",
+                            "success": True,
+                            "output": {"data": result},
+                        }
+                    )
+                    + "\n\n"
+                ).encode(),
+            )
         body = (
             self.sse
             if self.sse is not None
@@ -535,3 +558,99 @@ def test_cloud_module_can_be_constructed_without_optional_http_runtime(monkeypat
             await adapter.transcribe(request("hi"))
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("api_name", ["predict", "transcribe"])
+def test_whisper_api_name_is_explicit_and_used_for_submit_and_sse(api_name):
+    space = Space(api_name=api_name)
+    adapter = GradioWhisperSTT(api_name=api_name, transport=httpx.MockTransport(space))
+    assert asyncio.run(adapter.transcribe(request("gu"))).text
+    assert [str(call.url.path) for call in space.calls[1:]] == [
+        f"/gradio_api/call/{api_name}",
+        "/gradio_api/queue/data",
+    ]
+
+
+@pytest.mark.parametrize(
+    "api_name", ["../predict", "predict/secret", "", "unknown", "predict\n"]
+)
+def test_whisper_api_name_rejects_unreviewed_or_unsafe_paths(api_name):
+    with pytest.raises(ValueError, match="API"):
+        GradioWhisperSTT(api_name=api_name)
+
+
+def test_composition_propagates_explicit_historical_whisper_api():
+    space = Space(api_name="transcribe")
+    adapter = HFHostedSTT(
+        whisper_endpoint_url="https://hf-audio-whisper-large-v3.hf.space",
+        whisper_api_name="transcribe",
+        transport=httpx.MockTransport(space),
+    )
+    assert asyncio.run(adapter.transcribe(request("en"))).text
+    assert space.calls[1].url.path == "/gradio_api/call/transcribe"
+
+
+def test_selected_whisper_failure_never_retries_or_switches_endpoint():
+    space = Space(sse=b"event: error\ndata: null\n\n")
+    adapter = GradioWhisperSTT(transport=httpx.MockTransport(space))
+    with pytest.raises(ProviderUnavailable, match="response is invalid"):
+        asyncio.run(adapter.transcribe(request("gu")))
+    assert len(space.calls) == 3
+    assert {call.url.host for call in space.calls} == {"hf-audio-whisper-large-v3.hf.space"}
+
+
+@pytest.mark.parametrize("error", [None, "private secret remote error", {"nested": "secret"}])
+def test_whisper_queue_failures_never_expose_remote_error(error):
+    body = {
+        "msg": "process_completed",
+        "event_id": "event-123_abc",
+        "success": False,
+        "output": {"error": error},
+    }
+    space = Space(sse=("data: " + json.dumps(body) + "\n\n").encode())
+    adapter = GradioWhisperSTT(transport=httpx.MockTransport(space))
+    with pytest.raises(ProviderUnavailable, match=r"^HF ASR community inference failed$"):
+        asyncio.run(adapter.transcribe(request("gu")))
+    assert len(space.calls) == 3
+    payload = json.loads(space.calls[1].content)
+    assert space.calls[2].url.params["session_hash"] == payload["session_hash"]
+    assert len(payload["session_hash"]) == 32
+
+
+def test_whisper_queue_identifies_quota_without_retry_or_exposing_body():
+    body = {
+        "msg": "process_completed",
+        "event_id": "event-123_abc",
+        "success": False,
+        "output": {"error": "You have exceeded your ZeroGPU runs limit. PRIVATE suffix secret"},
+    }
+    space = Space(sse=("data: " + json.dumps(body) + "\n\n").encode())
+    adapter = GradioWhisperSTT(transport=httpx.MockTransport(space))
+    with pytest.raises(hf_asr.HFASRQuotaExceeded) as caught:
+        asyncio.run(adapter.transcribe(request("hi")))
+    assert str(caught.value) == "HF ASR hosted GPU quota exhausted; hosted capacity is required"
+    assert len(space.calls) == 3
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"event_id": "someone-elses-job"},
+        {"output": None},
+        {"output": {"data": ["text", "extra"]}},
+        {"output": {"data": [None]}},
+        {"success": 1},
+    ],
+)
+def test_whisper_queue_rejects_mismatched_or_malformed_completion(change):
+    body = {
+        "msg": "process_completed",
+        "event_id": "event-123_abc",
+        "success": True,
+        "output": {"data": ["safe transcript"]},
+        **change,
+    }
+    space = Space(sse=("data: " + json.dumps(body) + "\n\n").encode())
+    adapter = GradioWhisperSTT(transport=httpx.MockTransport(space))
+    with pytest.raises(ProviderUnavailable):
+        asyncio.run(adapter.transcribe(request("en")))

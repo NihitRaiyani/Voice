@@ -47,6 +47,7 @@ def build_stt_provider(settings) -> STTProvider:
             return HFHostedSTT(
                 endpoint_url=settings.hf_indic_space_url,
                 whisper_endpoint_url=settings.hf_whisper_space_url,
+                whisper_api_name=settings.hf_whisper_api_name,
                 language=settings.stt_language,
                 decoder=settings.indic_decoder,
                 timeout_secs=settings.hf_public_timeout_secs,

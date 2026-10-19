@@ -15,6 +15,7 @@ import threading
 import wave
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 if TYPE_CHECKING:
     import httpx
@@ -34,6 +35,13 @@ _WHISPER_SPACE = "https://hf-audio-whisper-large-v3.hf.space"
 _MODELS = frozenset({"openai/whisper-large-v3", "openai/whisper-large-v3-turbo"})
 _MAX_RESPONSE = 128 * 1024
 _ID = re.compile(r"[A-Za-z0-9_-]{1,128}")
+
+
+class HFASRQuotaExceeded(ProviderUnavailable):
+    """Fixed service prerequisite failure; never carries the remote error body."""
+
+    def __init__(self) -> None:
+        super().__init__("HF ASR hosted GPU quota exhausted; hosted capacity is required")
 
 
 class _HFResponseError(ProviderUnavailable):
@@ -135,6 +143,44 @@ async def _completed_text(response: httpx.Response, count: int) -> str:
     raise _HFResponseError("HF ASR stream ended without a completed transcript")
 
 
+async def _completed_queue_text(response: httpx.Response, event_id: str) -> str:
+    # Gradio's simplified /call SSE drops output.error and returns error:null.
+    # Read the SAME submitted job through its isolated queue session instead.
+    pending = bytearray()
+    async for chunk in _chunks(response):
+        pending.extend(chunk)
+        while b"\n" in pending:
+            raw_line, _, remainder = pending.partition(b"\n")
+            pending = bytearray(remainder)
+            line = raw_line.rstrip(b"\r").decode("utf-8")
+            if not line.startswith("data:"):
+                continue
+            message = json.loads(line[5:])
+            if not isinstance(message, dict):
+                raise _HFResponseError("HF ASR response is invalid")
+            if message.get("msg") != "process_completed":
+                continue
+            if message.get("event_id") != event_id:
+                raise _HFResponseError("HF ASR event identity differs")
+            output = message.get("output")
+            if not isinstance(output, dict):
+                raise _HFResponseError("HF ASR response is invalid")
+            if message.get("success") is not True:
+                error = output.get("error")
+                if isinstance(error, str) and "exceeded your ZeroGPU runs limit" in error:
+                    raise HFASRQuotaExceeded()
+                raise _HFResponseError("HF ASR community inference failed")
+            result = output.get("data")
+            if (
+                not isinstance(result, list)
+                or len(result) != 1
+                or not isinstance(result[0], str)
+            ):
+                raise _HFResponseError("HF ASR response is invalid")
+            return result[0]
+    raise _HFResponseError("HF ASR stream ended without a completed transcript")
+
+
 class _CloudSTT:
     def __init__(self, timeout_secs: float, max_audio_secs: float, transport: Any) -> None:
         _limits(timeout_secs, max_audio_secs)
@@ -161,6 +207,8 @@ class _CloudSTT:
             raise
         except TimeoutError:
             raise _HFResponseError("HF ASR request timed out") from None
+        except HFASRQuotaExceeded:
+            raise
         except _HFResponseError as exc:
             raise ProviderUnavailable(str(exc)) from None
         except Exception:  # noqa: BLE001 -- never expose bodies, URLs, tokens or caller audio.
@@ -180,6 +228,8 @@ class _GradioSTT(_CloudSTT):
     endpoint_url: str
     _output_count: int
     _forced_language: bool
+    api_name = "transcribe"
+    _detailed_queue = False
 
     def _data(self, path: str, language: str | None) -> list:
         raise NotImplementedError
@@ -203,19 +253,30 @@ class _GradioSTT(_CloudSTT):
             or any(ord(c) < 32 or ord(c) == 127 for c in paths[0])
         ):
             raise _HFResponseError("HF ASR upload response is invalid")
+        payload: dict[str, Any] = {"data": self._data(paths[0], language)}
+        session = uuid4().hex
+        if self._detailed_queue:
+            payload["session_hash"] = session
         async with client.stream(
             "POST",
-            f"{self.endpoint_url}/gradio_api/call/transcribe",
-            json={"data": self._data(paths[0], language)},
+            f"{self.endpoint_url}/gradio_api/call/{self.api_name}",
+            json=payload,
         ) as response:
             result = await _json_response(response)
         event_id = result.get("event_id") if isinstance(result, dict) else None
         if not isinstance(event_id, str) or not _ID.fullmatch(event_id):
             raise _HFResponseError("HF ASR event response is invalid")
-        async with client.stream(
-            "GET", f"{self.endpoint_url}/gradio_api/call/transcribe/{event_id}"
-        ) as response:
-            text = await _completed_text(response, self._output_count)
+        stream_url = (
+            f"{self.endpoint_url}/gradio_api/queue/data?session_hash={session}"
+            if self._detailed_queue
+            else f"{self.endpoint_url}/gradio_api/call/{self.api_name}/{event_id}"
+        )
+        async with client.stream("GET", stream_url) as response:
+            text = (
+                await _completed_queue_text(response, event_id)
+                if self._detailed_queue
+                else await _completed_text(response, self._output_count)
+            )
         return STTResult(
             normalize_transcript(text), language if self._forced_language else None
         )
@@ -266,16 +327,21 @@ class GradioWhisperSTT(_GradioSTT):
 
     _output_count = 1
     _forced_language = False
+    _detailed_queue = True
 
     def __init__(
         self,
         *,
         endpoint_url: str = _WHISPER_SPACE,
+        api_name: str = "transcribe",
         timeout_secs: float = 30,
         max_audio_secs: float = 30,
         transport: Any = None,
     ) -> None:
         self.endpoint_url = _endpoint(endpoint_url)
+        if api_name not in {"predict", "transcribe"}:
+            raise ValueError("Whisper API must be predict or transcribe")
+        self.api_name = api_name
         super().__init__(timeout_secs, max_audio_secs, transport)
 
     async def transcribe(self, request: STTRequest) -> STTResult:
@@ -345,6 +411,7 @@ class HFHostedSTT:
         token: str = "",
         endpoint_url: str = _SPACE,
         whisper_endpoint_url: str = _WHISPER_SPACE,
+        whisper_api_name: str = "transcribe",
         language: str = "hi",
         decoder: str = "ctc",
         timeout_secs: float = 30,
@@ -364,6 +431,7 @@ class HFHostedSTT:
         )
         self._whisper = GradioWhisperSTT(
             endpoint_url=whisper_endpoint_url,
+            api_name=whisper_api_name,
             timeout_secs=timeout_secs,
             max_audio_secs=max_audio_secs,
             transport=transport,
@@ -381,4 +449,10 @@ class HFHostedSTT:
             self._slot.release()
 
 
-__all__ = ["GradioIndicSTT", "GradioWhisperSTT", "HFHostedSTT", "HFWhisperSTT"]
+__all__ = [
+    "GradioIndicSTT",
+    "GradioWhisperSTT",
+    "HFASRQuotaExceeded",
+    "HFHostedSTT",
+    "HFWhisperSTT",
+]

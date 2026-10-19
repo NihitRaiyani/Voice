@@ -1,0 +1,12 @@
+{
+  "recorded_at": "2026-10-19T14:09:56.786893+00:00",
+  "endpoint": "https://hf-audio-whisper-large-v3.hf.space",
+  "api_name": "transcribe",
+  "public_samples_only": true,
+  "new_model_weights_downloaded": false,
+  "token_sent": false,
+  "automatic_retry": false,
+  "status": "blocked",
+  "error_code": "asr-hosted-quota-exhausted",
+  "diagnostic": "Hosted GPU quota exhausted"
+}

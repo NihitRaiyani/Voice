@@ -73,7 +73,8 @@ def test_safety_checks_actual_normalized_text_on_hits_and_caches_substitution():
         assert first.text != request.text and "50000" not in first.text
         assert provider.calls[0].text == first.text == second.text
         assert second.cache_hit and len(provider.calls) == 1
-        assert safety.seen[-1] == second.text
+        assert safety.seen[-1] == second.canonical_text
+        assert second.spoken_language == "hi" and second.requested_language == "en"
         assert len(safety.store.entries) >= 2
         assert all(len(frame) == 160 for frame in first.mulaw_frames)
         assert synth.hits == synth.misses == synth.stores == 1
@@ -280,5 +281,170 @@ def test_format_controls_cannot_hide_fee_claim_before_digit_spelling(control):
             await synth.synthesize(TTSRequest(f"f{control}ees 25000", language="en"), CTX)
         assert provider.calls == []
         assert synth.stores == synth.misses == 0
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("language", ["hi", "gu", "en"])
+@pytest.mark.parametrize(
+    "text,category",
+    [
+        ("fees 50000", "FEE"),
+        ("discount", "DISCOUNT"),
+        ("salary 50000", "SALARY"),
+        ("placement guaranteed", "PLACEMENT"),
+        ("Google certificate", "CERT"),
+    ],
+)
+def test_every_safety_category_uses_audited_pinned_hindi_speech(language, text, category):
+    from roma.domain.safety.lexicon import SUBSTITUTIONS, BlockCategory
+    from roma.domain.safety.pronunciation import pronunciation_for
+
+    async def run():
+        provider, safety = PCMProvider(), SafetyService()
+        synth = service(provider, safety)
+        first = await synth.synthesize(TTSRequest(text, language=language), CTX)
+        second = await synth.synthesize(TTSRequest(text, language=language), CTX)
+        canonical = SUBSTITUTIONS[BlockCategory(category)]
+        rendered = pronunciation_for(canonical)
+        assert first.canonical_text == canonical
+        assert first.text == rendered.spoken_text
+        assert first.spoken_language == provider.calls[0].language == "hi"
+        assert first.requested_language == language and first.voice == "female"
+        assert first.pronunciation_version == rendered.version
+        assert first.canonical_sha256 == rendered.canonical_sha256
+        assert first.audit_ok and second.audit_ok and second.cache_hit
+        events = [event for _, event in safety.store.entries]
+        assert sum(event.category == category for event in events) == 2
+        assert sum(event.category == "PRONUNCIATION" for event in events) == 2
+        assert all(event.replacement_used == canonical for event in events)
+        assert len(provider.calls) == 1
+
+    asyncio.run(run())
+
+
+def test_all_approved_renderings_share_actual_hindi_cache_across_requested_languages():
+    from roma.domain.safety.pronunciation import PRONUNCIATIONS
+
+    async def run():
+        provider = PCMProvider()
+        synth = service(provider)
+        for item in PRONUNCIATIONS:
+            results = [
+                await synth.synthesize(TTSRequest(item.canonical_text, language=language), CTX)
+                for language in ("hi", "gu", "en", "hi")
+            ]
+            assert [r.cache_status for r in results] == ["miss", "hit", "hit", "hit"]
+            assert all(r.spoken_language == "hi" for r in results)
+            assert all(r.text == item.spoken_text for r in results)
+        assert synth.misses == synth.stores == 6 and synth.hits == 18
+        assert len(provider.calls) == 6
+
+    asyncio.run(run())
+
+
+def test_rendering_uses_actual_provider_identity_voice_and_version_in_cache(monkeypatch):
+    from roma.domain.safety import pronunciation as bindings
+
+    class IdentityProvider(PCMProvider):
+        def __init__(self):
+            super().__init__()
+            self.identity = "actual-hi-v1"
+            self.identity_requests = []
+
+        async def cache_identity(self, request):
+            self.identity_requests.append(request)
+            return self.identity
+
+    async def run():
+        provider = IdentityProvider()
+        synth = service(provider)
+        item = bindings.PRONUNCIATIONS[0]
+        request = TTSRequest(item.canonical_text, language="gu")
+        first = await synth.synthesize(request, CTX)
+        provider.identity = "actual-hi-v2"
+        second = await synth.synthesize(request, CTX)
+        third = await synth.synthesize(replace(request, voice="male"), CTX)
+        updated = replace(item, version="roma-safety-pronunciation-hi-v2")
+        monkeypatch.setattr(bindings, "PRONUNCIATION_VERSION", updated.version)
+        monkeypatch.setattr(bindings, "PRONUNCIATIONS", (updated, *bindings.PRONUNCIATIONS[1:]))
+        fourth = await synth.synthesize(request, CTX)
+        assert all(r.cache_status == "miss" for r in (first, second, third, fourth))
+        assert all(r.language == "hi" for r in provider.identity_requests)
+        assert first.model_version == "actual-hi-v1"
+        assert second.model_version == "actual-hi-v2" and third.voice == "male"
+        assert fourth.pronunciation_version == updated.version
+
+    asyncio.run(run())
+
+
+def test_rendering_audit_outage_uses_pinned_hard_fail_without_recursive_audit():
+    from roma.domain.safety.lexicon import HARD_FAIL_LINE
+    from roma.domain.safety.pronunciation import pronunciation_for
+
+    class RenderingBrokenStore:
+        def __init__(self):
+            self.calls = []
+
+        async def record(self, context, events):
+            self.calls.append(events)
+            if events[0].category == "PRONUNCIATION":
+                raise OSError("synthetic rendering audit outage")
+
+    async def run():
+        provider, store = PCMProvider(), RenderingBrokenStore()
+        result = await service(provider, SafetyService(store)).synthesize(
+            TTSRequest("fees 50000", language="gu"), CTX
+        )
+        assert not result.audit_ok
+        assert result.text == pronunciation_for(HARD_FAIL_LINE).spoken_text
+        assert provider.calls[0].text == result.text and provider.calls[0].language == "hi"
+        assert len(store.calls) == 2
+        assert store.calls[0][0].category == "FEE"
+        assert store.calls[1][0].category == "PRONUNCIATION"
+
+    asyncio.run(run())
+
+
+def test_cancellation_during_rendering_audit_never_releases_audio():
+    class WaitingStore:
+        def __init__(self):
+            self.started = asyncio.Event()
+
+        async def record(self, context, events):
+            if events[0].category == "PRONUNCIATION":
+                self.started.set()
+                await asyncio.Event().wait()
+
+    async def run():
+        provider, store = PCMProvider(), WaitingStore()
+        synth = service(provider, SafetyService(store))
+        task = asyncio.create_task(synth.synthesize(TTSRequest("fees 50000"), CTX))
+        await store.started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not provider.calls and not synth._cache and not synth._flights
+        assert synth._pending == 0
+
+    asyncio.run(run())
+
+
+def test_missing_or_tampered_rendering_never_looks_up_model_or_cache(monkeypatch):
+    from roma.domain.safety import pronunciation as bindings
+
+    async def run():
+        provider = PCMProvider()
+        synth = service(provider)
+        item = bindings.PRONUNCIATIONS[0]
+        monkeypatch.setattr(
+            bindings, "PRONUNCIATIONS", (replace(item, spoken_text="फीस 50000"),)
+        )
+        with pytest.raises(ValueError, match="binding"):
+            await synth.synthesize(TTSRequest("fees 50000"), CTX)
+        monkeypatch.setattr(bindings, "PRONUNCIATIONS", ())
+        with pytest.raises(ValueError, match="reviewed pronunciation"):
+            await synth.synthesize(TTSRequest("fees 50000"), CTX)
+        assert not provider.calls and not synth._cache and synth.misses == 0
 
     asyncio.run(run())
