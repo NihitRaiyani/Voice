@@ -187,3 +187,21 @@ Defend bounded caller/slot validation, Unicode combining marks, code-owned enums
 ## Level 4 section 17 explanation
 
 **Why not switch on one English word?** SEO/Google Ads are normal borrowed terms. Combine script ratios, Latin vocabulary and recent informative turns; use hysteresis and abstain on ambiguity. Persist only the route and five labels with the conversation checkpoint so reconnects do not reset language context. This remains a tested heuristic with native/ASR accuracy pending. Caller language is metadata; live replies stay Hindi-base Hinglish. See [the implementation and evidence](levels/level-04.md#sections-1517-design-and-acceptance).
+
+## Level 4 section 18 explanation
+
+**Why can WER exceed 100%?** Insertions count too. Align reference and hypothesis deterministically, sum substitutions/deletions/insertions, then divide by reference words. Aggregate corpus edits and reference lengths; averaging percentages lets a two-word clip outweigh a long one. Empty references have no defined nonempty-hypothesis rate.
+
+**Why keep CER as well?** Indic spelling/spacing errors can make word scores harsh. NFC preserves combining marks; this lab counts Unicode code points without whitespace, not grapheme clusters. Save the normalization version, reference, hypothesis and audio hash so a score can be reproduced.
+
+**Why isn't request RTF model speed?** Hosted upload, queueing and transfer contribute to elapsed time. Record request time/audio duration explicitly; isolated inference RTF stays unknown when the service does not expose it. Error rows have no fabricated recognition score.
+
+**Why save failures and provenance?** Averages hide missing English spans and language-specific errors. Read/replay saved public failures, group clean/noise/telephone separately and label stitched code-mix as synthetic. Only after inference finishes, save aggregate model/run/results in one short transaction; an immutable run key makes retries safe. See [Level 4](levels/level-04.md).
+
+## Level 5 section 19 explanation
+
+**Why two TTS models?** FastPitch predicts acoustic features; HiFi-GAN generates waveform samples. Both checkpoints, their configs and speaker identity belong to the artifact manifest. Resample waveform before mu-law encoding; splitting compressed bytes is not resampling.
+
+**Why isn't a text-only cache key enough?** The same words in another language, voice or model version produce different audio. Include safe normalized text and those identities, plus normalization/PCM format. Bound memory and combine simultaneous misses; retain no failed output.
+
+**Why check safety on cache hits?** Cached bytes cannot grant permission to speak retired or unsafe wording. Check raw text before number spelling can hide amount signals, then check the actual normalized line, audit and only then resolve its audio identity. Cache latency and synthesis RTF are different measurements. Native pronunciation and complete voice approval remain separate from waveform/cache tests. See [Level 5](levels/level-05.md).

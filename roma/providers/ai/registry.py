@@ -85,7 +85,14 @@ def build_tts_provider(settings) -> TTSProvider:
         case "mock":
             return MockTTSProvider()
         case "indic_tts":
-            return IndicTTSProvider("IndicTTSProvider", "Level 5")
+            return IndicTTSProvider(
+                manifest_path=settings.indic_tts_manifest,
+                python_path=settings.indic_tts_python,
+                voice=settings.tts_voice,
+                timeout_secs=settings.tts_timeout_secs,
+                max_text_bytes=settings.tts_max_text_bytes,
+                max_audio_secs=settings.tts_max_audio_secs,
+            )
     raise ValueError(f"unknown TTS provider {settings.tts_provider!r}")
 
 

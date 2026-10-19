@@ -13,9 +13,8 @@ from roma.providers.ai.contracts import (
     EmbeddingRequest,
     EmbeddingResult,
     ProviderUnavailable,
-    TTSRequest,
-    TTSResult,
 )
+from roma.providers.ai.indic_tts import IndicTTSProvider
 from roma.providers.ai.stt import IndicConformerSTT, WhisperSTT
 
 
@@ -29,11 +28,6 @@ class _UnavailableProvider:
             f"{self.provider_name} is selected but not implemented in this level; "
             f"complete {self.level} and its model/config checks first"
         )
-
-
-class IndicTTSProvider(_UnavailableProvider):
-    async def synthesize(self, request: TTSRequest) -> TTSResult:
-        self._raise()
 
 
 class LocalMultilingualEmbedding(_UnavailableProvider):

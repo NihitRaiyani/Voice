@@ -204,3 +204,74 @@ uv run --no-sync python scripts/hf_asr_smoke.py --allow-network --fetch-public-s
 ```
 
 This command fetches only public FLEURS validation-row-0 audio/reference metadata for `gu_in`, `hi_in` and `en_us`, caches WAV/identity metadata under ignored `var/roma/asr-public`, and declares `public_benchmark` in every STT request. It downloads no ASR model weights and never uses the paid router. Conversion requires an already installed `afconvert` (macOS) or `ffmpeg`; the script installs neither. Omit `--fetch-public-samples` to reuse the hash-checked cache. The explicit smoke report includes public reference/hypothesis text, per-clip normalized WER/CER and observed total request time; it is not the default caller-transcript diagnostic. One clip per language is a smoke score, not a representative quality estimate. Public service failure exits nonzero with a safe error and does not trigger another provider.
+
+## Section 18 ASR benchmark and failure review
+
+Run from `<project-root>`. Public FLEURS downloads/inference require explicit network flags; no HF token is sent to public Spaces. Raw audio and exported failures stay under ignored `var/roma`. The [Level 4 brief](levels/level-04.md#section-18-asr-benchmark) owns dataset limitations and model decisions.
+
+```bash
+# Existing public cache can be reused without network. Add --allow-network
+# --fetch-public-samples --samples-per-language N to fetch more public rows.
+uv run --no-sync python scripts/asr_benchmark.py prepare \
+  --manifest var/roma/asr-benchmark/manifest.json \
+  --include-stitched-code-mix --variants clean noise telephone
+
+uv run --no-sync python scripts/asr_benchmark.py run \
+  --manifest var/roma/asr-benchmark/manifest.json \
+  --provider hf_indic --languages gu hi gu-en hi-en \
+  --report var/roma/asr-benchmark/indic.json --allow-network
+uv run --no-sync python scripts/asr_benchmark.py run \
+  --manifest var/roma/asr-benchmark/manifest.json \
+  --provider hf_whisper_space \
+  --report var/roma/asr-benchmark/whisper.json --allow-network
+
+# Offline read/export; JSON retains public reference/hypothesis/edit counts.
+uv run --no-sync python scripts/asr_benchmark.py failures \
+  --report var/roma/asr-benchmark/indic.json --min-wer 0.25 \
+  --manifest var/roma/asr-benchmark/manifest.json \
+  --export-dir var/roma/asr-benchmark/failures-indic
+# Inspect the exported per-clip JSON files and matching WAVs before replay.
+# A replay is another explicit network request, not an automatic retry.
+uv run --no-sync python scripts/asr_benchmark.py replay \
+  --manifest var/roma/asr-benchmark/manifest.json --provider hf_indic \
+  --report var/roma/asr-benchmark/indic.json --allow-network
+
+# Finish inference first. This command opens a short SQL transaction only.
+uv run --no-sync python scripts/save_benchmark.py \
+  --report var/roma/asr-benchmark/indic.json \
+  --run-key section18-indic-20261019-v1 --allow-database-write
+```
+
+`--resume` skips completed cases; `--retry-errors` explicitly retries errors. Keep provider/config/manifest identities identical. Changing an already saved run's evidence requires a **new run key**; the same key is immutable. Provider errors have no invented WER/CER. A completed report means every selected case was attempted; a report with errors exits nonzero and persists as failed. `request_rtf` includes remote transfer/queue time, while unavailable isolated compute timing stays null. Native code-mix audio is not created by joining two read-speech clips.
+
+## Section 19 local TTS and phrase cache
+
+`make tts-lab` exercises synthetic PCM, multilingual normalization, safety, cache hits and carrier frames without weights/network/credentials. Tones do not measure speech quality. Local Indic inference requires separate explicit setup; the owner approved required TTS downloads on 2026-10-19. It never occurs during app startup or automated tests.
+
+The official [Indic-TTS release](https://github.com/AI4Bharat/Indic-TTS/releases/tag/v1-checkpoints-release) supplies FastPitch/HiFi-GAN/speaker files. Archives are roughly 1.5 GB per language; maintain sufficient space for a temporary archive plus extracted artifacts. The setup script permits only reviewed GitHub release origins, verifies exact byte ranges, bounds extraction, hashes all five files and writes a manifest. Publisher checksums are absent: recorded hashes identify downloaded artifacts, not independent publisher attestation. Local pickle checkpoints are trusted code/data inputs; provision only reviewed official artifacts.
+
+```bash
+# Isolate legacy Coqui dependencies from the app's locked environment.
+uv venv --python 3.11 var/roma/tts-runtime
+uv pip install --python var/roma/tts-runtime/bin/python \
+  -r benchmarks/tts/runtime-macos-arm64-py311.txt
+uv run --no-sync python scripts/setup_indic_tts.py --allow-download \
+  --workers 8 --resume-downloads --languages gu hi en
+
+INDIC_TTS_PYTHON="$(pwd)/var/roma/tts-runtime/bin/python" \
+INDIC_TTS_MANIFEST="$(pwd)/var/roma/indic-tts/manifest.json" \
+TTS_TIMEOUT_SECS=180 TTS_MAX_AUDIO_SECS=60 \
+uv run --no-sync python scripts/tts_lab.py --provider indic_tts \
+  --language all --audio-dir var/roma/tts-lab \
+  --report var/roma/tts-lab/report.json
+
+uv run --no-sync python scripts/save_benchmark.py \
+  --report var/roma/tts-lab/report.json \
+  --run-key section19-indic-20261019-v1 --allow-database-write
+```
+
+The recorded runtime snapshot is for this Mac ARM64/Python 3.11; other platforms need a separately verified compatible environment. The model manifest pins the runtime distribution/version and every acoustic/config/speaker/vocoder hash. The adapter rejects absent/tampered files without downloading or falling back. CPU workers are killed/reaped on cancellation/timeout and cold-load on each cache miss; reported synthesis time includes process startup and model loading. No resident-model or streaming-TTFA claim is made. A process-local bounded LRU shares simultaneous misses and keys exact safety-approved normalized text, language, voice, model/artifact version, normalization version and format. Every cache hit still passes safety audit.
+
+Numbers are conservatively spelled digit by digit; valid ISO/Indian dates become day/month/year and reviewed course terms receive language-specific pronunciation. Native naturalness remains a review requirement. The 16 kHz waveform is filtered to 8 kHz where needed, mu-law encoded and padded only at the final 20 ms carrier tail. Existing Sarvam/Pipecat playback and fixed phrase assets remain the live path until later integration approval. See [Level 5](levels/level-05.md).
+
+The passing section 19 lab uses an explicit 60-second audio bound because the long Gujarati fixture produces 32.279 seconds; the default remains 30 seconds and correctly rejects it. Model workers reject unsupported lexical characters before synthesis; Roman safety substitutions need reviewed native rendering or an existing approved clip before future live integration. The new normalizer rejects invisible format controls, and failed cache attempts store no audio. Reports resolve the attempted model identity before synthesis; unresolved setup provenance is retained on disk and rejected by the SQL importer.

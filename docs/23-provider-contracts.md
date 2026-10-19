@@ -11,11 +11,11 @@ yet.
 |---|---|---|---|
 | `STTProvider` | `roma.providers.ai.contracts` | `transcribe(STTRequest) -> STTResult` | `MockSTTProvider`; section 16 cache-only `IndicConformerSTT`, faster-whisper `WhisperSTT`, opt-in custom-endpoint `HuggingFaceSTT`, public-lab `HFHostedSTT` and separate router `HFWhisperSTT` |
 | `LLMProvider` | `roma.providers.ai.contracts` | `generate(LLMRequest) -> AsyncIterator[LLMChunk]` | `MockLLMProvider`; section 11 `OpenAILLM` with env-selected model/key and bounded SDK streaming |
-| `TTSProvider` | `roma.providers.ai.contracts` | `synthesize(TTSRequest) -> TTSResult` | `MockTTSProvider`; `IndicTTSProvider` placeholder |
+| `TTSProvider` | `roma.providers.ai.contracts` | `synthesize(TTSRequest) -> TTSResult` | `MockTTSProvider`; section 19 manifest-pinned local `IndicTTSProvider` (isolated CPU worker) |
 | `EmbeddingProvider` | `roma.providers.ai.contracts` | `embed(EmbeddingRequest) -> EmbeddingResult` | `MockEmbeddingProvider`; `LocalMultilingualEmbedding` placeholder |
 | `TelephonyProvider` | `roma.providers.telephony.base` | `place_call(PlaceCallRequest) -> PlaceCallResult` | `MockTelephonyProvider`; `TwilioTelephonyProvider` |
 
-TTS and embedding placeholders remain unavailable until their levels. Section 16 speech adapters are implemented but require an explicitly provisioned optional runtime/cache or an explicitly selected compatible hosted route. Their construction never loads/downloads weights. Missing prerequisites raise `ProviderUnavailable`; software interface tests do not imply native model quality or GPU admission.
+The embedding placeholder remains unavailable until its level. Local TTS requires explicitly provisioned runtime/artifacts and validates all five checkpoint/config/speaker hashes; construction performs no download or model load. Section 16 speech adapters are implemented but require an explicitly provisioned optional runtime/cache or an explicitly selected compatible hosted route. Their construction never loads/downloads weights. Missing prerequisites raise `ProviderUnavailable`; software interface tests do not imply native model quality or GPU admission.
 
 ## Config switching
 
@@ -54,3 +54,9 @@ STT config supports `mock`, `indic_conformer`, `whisper`, `hf_indic_conformer`, 
 Return to the [documentation index](README.md).
 
 ASR maximum-size chunks are aggregated inside `SpeechInputService` until true end-of-turn (silence/flush/discontinuity). Exact-cap silence is a control boundary, never an empty inference request or a second caller turn. Pending text is bounded by the existing caller limit; errors/overflow fail the whole turn safely.
+
+## Section 19 local synthesis boundary
+
+`roma/providers/ai/indic_tts.py` verifies a local five-file acoustic/vocoder/speaker manifest and invokes a pinned isolated CPU runtime through `TTSProvider`. Worker cancellation kills/reaps the process; no model-name downloader or cloud fallback is invoked. `roma/services/tts_service.py` owns normalization, mandatory safety audits, bounded cache/admission and carrier framing. The new lab is separate from the existing Sarvam media integration. [Level 5](levels/level-05.md) records actual compatibility, measurements and limits; [runbook](runbook.md#section-19-local-tts-and-phrase-cache) owns setup.
+
+Local TTS inference now has actual three-language evidence. The worker rebinds legacy speaker paths only in a temporary config, rejects unsupported lexical characters, and preserves hashed source artifacts. The service rejects invisible format controls before spelling digits. Default audio bound stays 30 seconds; the long Gujarati lab uses an explicit 60-second bound. Native rendering of Roman safety replacements and live integration remain gated.

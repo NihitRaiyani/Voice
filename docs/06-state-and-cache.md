@@ -8,7 +8,7 @@ PostgreSQL is already the durable record/job foundation: relationships, constrai
 | Appointments and exact slot availability | PostgreSQL; section 13 controller/API commit and atomic cancellation implemented |
 | Offered-slot hold | Redis, default 90 seconds, owner-token compare-and-delete; never a reservation |
 | Live conversation checkpoint | Redis for hot same-call state; PostgreSQL `conversation_states` now has a Level 2 latest-checkpoint writer/restore adapter keyed through `calls.provider_call_id` |
-| Model and benchmark evidence | PostgreSQL registry/runs/results schema present; benchmark runners pending |
+| Model and benchmark evidence | PostgreSQL registry/runs/results; sections 18–19 completed-report persistence with immutable run keys, model provenance and finite aggregate metrics |
 | Lead token lookup, call status, rate counters, opener cache | Redis with explicit lifetime |
 | Turns, safety events, provider usage/costs, audit | PostgreSQL models/repositories tested; complete live collection pending later levels |
 | OpenAI testing spend ceiling | Protected append-only disk ledger today; preserve until durable metering integration |
@@ -33,7 +33,7 @@ Count retained capacity as `size × processes`, worst-case peak as `(size + over
 
 Current phrase/opener clips use content/manifest identity and optional Redis mirroring. A synthesis cache hit does not skip all upstream work. Dynamic caller readbacks cannot reuse another caller's clip. Changed fixed text invalidates audio; no stale wording may be spoken.
 
-L5 expands keys to text/language/voice/model version. L9 evidence caching also includes scope/content/policy/eligibility versions and expiration. Inactive/stale documents must be excluded even on cache hits. Never store raw audio streams or secrets in Redis.
+Section 19 adds a separate bounded process-local LRU (64 entries / 8 MiB by default), keyed by actual safe normalized text, language, voice, model/artifact version, normalization version and PCM format. Concurrent identical requests share synthesis; failed or cancelled synthesis never populates the cache. Every hit still crosses SafetyService, and artifact changes invalidate the version. Existing live Sarvam assets/cache remain intact. A process restart empties the new cache; it does not persist caller text in Redis. The [Level 5 brief](levels/level-05.md) owns inference and gate evidence. L9 evidence caching also includes scope/content/policy/eligibility versions and expiration. Inactive/stale documents must be excluded even on cache hits. Never store raw audio streams or secrets in Redis.
 
 Delivery queues are not durable business authority. PostgreSQL retains job intent; Redis/Dramatiq sends IDs and the dispatcher may republish. See [jobs](19-background-task-framework.md), [webhooks](18-webhook-idempotency.md) and [data](14-data-and-concurrency.md).
 

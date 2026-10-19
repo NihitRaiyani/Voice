@@ -13,10 +13,11 @@ from pydantic_settings import SettingsConfigDict
 
 from roma.core.openai_llm_settings import OpenAILLMSettings
 from roma.core.speech_settings import SpeechSettings
+from roma.core.tts_settings import TTSSettings
 
 
 # BaseSettings automatically reads values from environment variables.
-class Settings(OpenAILLMSettings, SpeechSettings):
+class Settings(OpenAILLMSettings, SpeechSettings, TTSSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -49,7 +50,6 @@ class Settings(OpenAILLMSettings, SpeechSettings):
     # Optional for compatibility; the capacity checker verifies the real server.
     database_connection_budget: int | None = Field(default=None, gt=0)
 
-    tts_provider: Literal["mock", "indic_tts"] = "mock"
     embedding_provider: Literal["mock", "local_multilingual"] = "mock"
     telephony_provider: Literal["mock", "twilio"] = "twilio"
 

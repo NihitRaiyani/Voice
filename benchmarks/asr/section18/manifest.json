@@ -1,0 +1,197 @@
+{
+  "schema": "roma-asr-manifest-v1",
+  "data_classification": "public_benchmark",
+  "normalization": "nfc-casefold-unicode-lmn-decimal-words-char-no-spaces-v1",
+  "derivation": {
+    "seed": 18,
+    "snr_db": 15,
+    "stitch_gap_ms": 250,
+    "telephone": "fir-16k-8k-g711-mulaw-8k-16k-v1",
+    "noise": "seeded-uniform-rms-snr-v1"
+  },
+  "sources": [
+    {
+      "source_id": "en-0000",
+      "language": "en",
+      "wav_file": "en.wav",
+      "dataset": "google/fleurs",
+      "config": "en_us",
+      "split": "validation",
+      "row": 0,
+      "license": "CC-BY-4.0",
+      "sha256": "b7f0a6435fadcad7fbaf2cc23d994afa125ee72a2e3929088aeb4deb4c9594a9",
+      "reference": "when you call someone who is thousands of miles away you are using a satellite",
+      "audio_seconds": 6.54
+    },
+    {
+      "source_id": "gu-0000",
+      "language": "gu",
+      "wav_file": "gu.wav",
+      "dataset": "google/fleurs",
+      "config": "gu_in",
+      "split": "validation",
+      "row": 0,
+      "license": "CC-BY-4.0",
+      "sha256": "24033a8895c049a262e687b68e778418d28e140a7227d3e90992cbfc69b8b292",
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "audio_seconds": 11.88
+    },
+    {
+      "source_id": "hi-0000",
+      "language": "hi",
+      "wav_file": "hi.wav",
+      "dataset": "google/fleurs",
+      "config": "hi_in",
+      "split": "validation",
+      "row": 0,
+      "license": "CC-BY-4.0",
+      "sha256": "e48bd82c4a695b8eb5bc703e34f48710018e95499a5929caa15d4d66abf03dd8",
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+      "audio_seconds": 12.24
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "en-0000:clean",
+      "source_ids": [
+        "en-0000"
+      ],
+      "language": "en",
+      "corpus_kind": "public_read_speech",
+      "variant": "clean"
+    },
+    {
+      "case_id": "en-0000:noise",
+      "source_ids": [
+        "en-0000"
+      ],
+      "language": "en",
+      "corpus_kind": "public_read_speech",
+      "variant": "noise"
+    },
+    {
+      "case_id": "en-0000:telephone",
+      "source_ids": [
+        "en-0000"
+      ],
+      "language": "en",
+      "corpus_kind": "public_read_speech",
+      "variant": "telephone"
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "source_ids": [
+        "gu-0000"
+      ],
+      "language": "gu",
+      "corpus_kind": "public_read_speech",
+      "variant": "clean"
+    },
+    {
+      "case_id": "gu-0000:noise",
+      "source_ids": [
+        "gu-0000"
+      ],
+      "language": "gu",
+      "corpus_kind": "public_read_speech",
+      "variant": "noise"
+    },
+    {
+      "case_id": "gu-0000:telephone",
+      "source_ids": [
+        "gu-0000"
+      ],
+      "language": "gu",
+      "corpus_kind": "public_read_speech",
+      "variant": "telephone"
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "source_ids": [
+        "hi-0000"
+      ],
+      "language": "hi",
+      "corpus_kind": "public_read_speech",
+      "variant": "clean"
+    },
+    {
+      "case_id": "hi-0000:noise",
+      "source_ids": [
+        "hi-0000"
+      ],
+      "language": "hi",
+      "corpus_kind": "public_read_speech",
+      "variant": "noise"
+    },
+    {
+      "case_id": "hi-0000:telephone",
+      "source_ids": [
+        "hi-0000"
+      ],
+      "language": "hi",
+      "corpus_kind": "public_read_speech",
+      "variant": "telephone"
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "source_ids": [
+        "gu-0000",
+        "en-0000"
+      ],
+      "language": "gu-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "clean"
+    },
+    {
+      "case_id": "gu-0000+en-0000:noise",
+      "source_ids": [
+        "gu-0000",
+        "en-0000"
+      ],
+      "language": "gu-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "noise"
+    },
+    {
+      "case_id": "gu-0000+en-0000:telephone",
+      "source_ids": [
+        "gu-0000",
+        "en-0000"
+      ],
+      "language": "gu-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "telephone"
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "source_ids": [
+        "hi-0000",
+        "en-0000"
+      ],
+      "language": "hi-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "clean"
+    },
+    {
+      "case_id": "hi-0000+en-0000:noise",
+      "source_ids": [
+        "hi-0000",
+        "en-0000"
+      ],
+      "language": "hi-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "noise"
+    },
+    {
+      "case_id": "hi-0000+en-0000:telephone",
+      "source_ids": [
+        "hi-0000",
+        "en-0000"
+      ],
+      "language": "hi-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "telephone"
+    }
+  ],
+  "native_code_mix_included": false
+}

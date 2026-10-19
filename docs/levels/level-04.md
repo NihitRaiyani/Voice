@@ -1,10 +1,10 @@
 # Level 4 — Audio and local ASR
 
-**Roadmap sections:** 14–18. **Status:** Sections 14–17 audio, deterministic endpointing, ASR adapters and persisted language routing are implemented and hardened. Real hosted IndicConformer Gujarati/Hindi and Whisper English inference succeeded on three public benchmark clips. Representative section 18 quality/noise/code-mix measurements, native review and the complete Level 4 gate remain pending.
+**Roadmap sections:** 14–18. **Status:** Sections 14–17 audio, deterministic endpointing, ASR adapters and persisted language routing are implemented and hardened. Real hosted IndicConformer Gujarati/Hindi and Whisper English inference succeeded on three public benchmark clips. Section 18 now adds a reproducible public-corpus benchmark, failure export/replay and PostgreSQL evidence storage. Its small-corpus hosted results do not pass representative/native quality or the complete Level 4 gate.
 
 ## Entry gate and authorized scope
 
-Reuse Level 1 provider seams, Level 0 audio concepts and existing Twilio/codec/VAD foundations. The authorized increments cover sections 14–17, an audit of the implemented foundations and an opt-in hosted ASR lab without local model downloads; a complete section 18 benchmark and advanced adaptive buffering/PLC remain outside this increment. OpenAI remains the LLM; Hindi-base Hinglish output and the separate multilingual lab remain unchanged. No new ASR weight download, working-DB mutation or next-section implementation is needed. Existing bundled Silero weights may run locally. The owner permits opt-in Hugging Face ASR lab calls to avoid local ASR weights; this does not change the self-hosted speech target or approve purchasing credits or a paid deployment.
+Reuse Level 1 provider seams, Level 0 audio concepts and existing Twilio/codec/VAD foundations. The authorized increments now cover sections 14–18 and the separate section 19 TTS lab. Section 18 measures existing hosted adapters without local ASR downloads; adaptive buffering/PLC remain outside this increment. OpenAI remains the LLM; Hindi-base Hinglish output and the separate multilingual lab remain unchanged. No new ASR weight download is needed. Completed benchmark evidence is explicitly written to existing PostgreSQL tables after inference; no schema changes are needed. Existing bundled Silero weights may run locally. The owner permits opt-in Hugging Face ASR lab calls to avoid local ASR weights; this does not change the self-hosted speech target or approve purchasing credits or a paid deployment.
 
 ## Section 14 design and implementation
 
@@ -182,3 +182,42 @@ Hard ASR size splits are internal chunks, not new accepted caller turns. The spe
 Automated tests use mocks/disposable services; real public ASR checks are explicit separate runs. No working-DB mutation, migration, new model/runtime installation, private audio upload, token to a public Space, fixed audio edit, credit purchase or deployment occurred. Public speech samples are cached under ignored runtime storage; the tracked report contains public benchmark references/hypotheses only. Existing cloud speech, OpenAI and Hindi-base Hinglish production behavior remain. Native/representative section 18 evaluation and later complete voice approval are separate gates.
 
 Pre-commit verification for this audit also passed: Ruff, mypy and mock provider contracts.
+
+## Section 18 ASR benchmark
+
+`roma/eval/asr_benchmark.py`, `scripts/asr_benchmark.py` and their tests implement deterministic S/D/I alignment, WER/CER, weighted corpus summaries, reproducible noise/telephone variants, network opt-in and atomic resumable reports. Scoring retains the smoke's NFC/casefold/digit/punctuation normalization; CER uses code points without whitespace. Equal-cost alignments choose a deterministic edit path. Scores may exceed one; empty-reference insertions have no defined rate.
+
+The [manifest](../../benchmarks/asr/section18/manifest.json) identifies three CC-BY-4.0 public FLEURS validation row-0 recordings, source hashes, seed 18 and 15 dB synthetic uniform noise. Telephone simulation uses filtered 16→8 kHz, G.711 mu-law round trip and 8→16 kHz; duration is cropped to the original sample count. Each source is evaluated clean/noisy/telephone. Gujarati/Hindi followed by English with a 250 ms silent join form explicitly **stitched public code-mix** cases; these are not native code-switch conversations.
+
+### Actual run — 2026-10-19
+
+| Adapter / scope | Successful requests | WER observed (clean / noise / telephone) | CER observed (clean / noise / telephone) |
+|---|---:|---|---|
+| IndicConformer CTC / Gujarati | 3/3 | 12.5% / 12.5% / 12.5% | 3.125% / 3.125% / 3.125% |
+| IndicConformer CTC / Hindi | 3/3 | 20% / 13.33% / 20% | 5.217% / 4.348% / 5.217% |
+| IndicConformer CTC / stitched Gujarati–English | 3/3 | 46.15% / 46.15% / 46.15% | 35.42% / 35.42% / 35.42% |
+| IndicConformer CTC / stitched Hindi–English | 3/3 | 46.67% / 42.22% / 42.22% | 39.11% / 38.55% / 38.55% |
+| Whisper large-v3 / English | 3/3 | 0% / 0% / 0% | 0% / 0% / 0% |
+| Whisper large-v3 / remaining same-corpus scopes | 0/12 | Unavailable: public service returned failed inference events | No invented scores |
+
+The saved [Indic report](../../benchmarks/asr/section18/indic.json) has 12 successful cases; the [Whisper report](../../benchmarks/asr/section18/whisper.json) has three successful and 12 explicit error rows. A later diagnostic also received a Gradio `error` event with `null` detail; the cause is unreported and must not be guessed as quota or model accuracy. Successful hosted request RTF includes upload/queue/network/inference, not isolated compute. The service does not expose model timing here, so `inference_rtf` stays null. Remote source/config names are recorded, but deployed weights are not attested. No p95/capacity claim follows from these samples.
+
+Failure export/read was exercised: six Indic high-WER cases and 12 Whisper service errors produce retained public WAV/metadata under ignored `var/roma/asr-benchmark/failures-*`. Reviewing the Indic hypotheses shows the appended English sentence missing; the three Gujarati variants each have 15 deletions. Failure WAVs are regenerated and hash-checked against the manifest; public references/hypotheses remain in the tracked reports. [Runbook](../runbook.md#section-18-asr-benchmark-and-failure-review) gives offline read/export and explicit network replay commands.
+
+### Chosen development configuration and persistence
+
+Retain **IndicConformer 600M CTC for Gujarati/Hindi and Whisper large-v3 for English as the development lab routing**, with strict 16 kHz mono PCM16, 30-second audio bound and 90-second hosted deadline. This preserves section 17's router and existing production speech. Indic English-span deletion makes an all-language Indic choice unjustified. The failed Whisper comparison prevents choosing it for Gujarati/Hindi from this evidence. Broader data, native code-mix and matched-model success are required before a production choice.
+
+`PostgresBenchmarkStore` validates detached non-PII evidence before opening a session, then writes registry/run/results atomically. Identical immutable run keys return the existing ID; changed evidence or model provenance rolls back. The save CLI accepts completed reports only and rechecks aggregates. Store audio/ref/hypothesis in the public failure artifacts, not SQL; SQL holds finite aggregate metrics, manifest/config/environment and report location/hash.
+
+Configured `roma` was read-only confirmed at `20261004_0003 (head)` before explicit benchmark inserts. Run `section18-indic-20261019-v1` persisted 12 samples / 72 metric rows; `section18-whisper-20261019-v1` persisted 15 attempted samples / 30 metric rows with failure status and only valid aggregates/error rates. A repeated Indic save returned the same run ID with `created:false`. No migration or pre-existing business row was modified.
+
+### Section 18 gate position
+
+- [x] Scoring, reproducible variants, saved/readable failures and immutable SQL evidence are implemented and exercised.
+- [x] Existing out-of-order sequence tests remain part of offline CI; no sequence-check bypass is introduced.
+- [ ] Both models successfully compared across the complete language/code-mix matrix: public Whisper inference failures prevent this.
+- [ ] Representative native code-mix/noise corpus, native review and final model approval: three read recordings plus stitched variants are insufficient.
+- [ ] Complete Level 4 and adaptive/PLC gates.
+
+Final integrated checks for this increment: **2,574 offline tests**, **56 + 1,002** CI-selected tests, Ruff, **62-file mypy**, pre-commit and Markdown links/anchors pass. See [verification](../12-verification.md#sections-1819-verification--2026-10-19) for boundaries and remaining approval gates.

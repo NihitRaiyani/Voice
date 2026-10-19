@@ -1,0 +1,97 @@
+{
+  "schema": "roma-indic-tts-v1",
+  "runtime_distribution": "TTS",
+  "runtime_version": "0.22.0",
+  "languages": {
+    "gu": {
+      "voices": [
+        "female",
+        "male"
+      ],
+      "files": {
+        "tts_checkpoint": {
+          "path": "gu/fastpitch/best_model.pth",
+          "sha256": "82f853f96a5e41ea00e526611b4cd0b8a343063c6dd8a1800bbe65921fe1ae89"
+        },
+        "tts_config_path": {
+          "path": "gu/fastpitch/config.json",
+          "sha256": "bae995ad4e63c25e623fafb41d34505c1c8b9dd11539071b318daf8506a8e437"
+        },
+        "tts_speakers_file": {
+          "path": "gu/fastpitch/speakers.pth",
+          "sha256": "f665e358b34b232fb27f7c8cd3968fcd47784a7be065ae127f611c33ee809bea"
+        },
+        "vocoder_checkpoint": {
+          "path": "gu/hifigan/best_model.pth",
+          "sha256": "92d86da63b3c323f1d315b482e951eca12e019039af9dd08cd75d8e28fe26079"
+        },
+        "vocoder_config": {
+          "path": "gu/hifigan/config.json",
+          "sha256": "b3c998de0dfa24939448fd900ce361d10cbce7aedef688668834015cda8b7aa3"
+        }
+      },
+      "source": "https://github.com/AI4Bharat/Indic-TTS/releases/download/v1-checkpoints-release/gu.zip",
+      "archive_sha256": "7cb5bfa35e14f93469c3f56afa9225d0494615a961868b2966ac4f04f8f7e8d0"
+    },
+    "hi": {
+      "voices": [
+        "female",
+        "male"
+      ],
+      "files": {
+        "tts_checkpoint": {
+          "path": "hi/fastpitch/best_model.pth",
+          "sha256": "d0f8f98e3d9eaf1cf842821087de31889df67635e77dd74e4a967fd5b3ada8cd"
+        },
+        "tts_config_path": {
+          "path": "hi/fastpitch/config.json",
+          "sha256": "f667614a8cfa52b2653b2212a5fa417e70ad7b121fb78ce05ac47c063944117b"
+        },
+        "tts_speakers_file": {
+          "path": "hi/fastpitch/speakers.pth",
+          "sha256": "f665e358b34b232fb27f7c8cd3968fcd47784a7be065ae127f611c33ee809bea"
+        },
+        "vocoder_checkpoint": {
+          "path": "hi/hifigan/best_model.pth",
+          "sha256": "66c11563f376ba9ff247d873f0f26acb9886ba8db8f0db8c20e4ee4770b3cb46"
+        },
+        "vocoder_config": {
+          "path": "hi/hifigan/config.json",
+          "sha256": "fddebe7eb93ef7e01f5d8c3b95be1bd8e1a785c70cae4873bd5bd0aa4c837c51"
+        }
+      },
+      "source": "https://github.com/AI4Bharat/Indic-TTS/releases/download/v1-checkpoints-release/hi.zip",
+      "archive_sha256": "97837585b45ebe9454845fe98004a01f8311692016ec5b14bfbc046bda6b1203"
+    },
+    "en": {
+      "voices": [
+        "female",
+        "male"
+      ],
+      "files": {
+        "tts_checkpoint": {
+          "path": "en/fastpitch/best_model.pth",
+          "sha256": "bb878164c8807aeb02ec266e3062ee49bc743205d78704cbaa000c907e3b94a8"
+        },
+        "tts_config_path": {
+          "path": "en/fastpitch/config.json",
+          "sha256": "06c03831ab17fa00a23baa3019f92690c7b658f7af8d7836fca9a5ea289f7a2a"
+        },
+        "tts_speakers_file": {
+          "path": "en/fastpitch/speakers.pth",
+          "sha256": "1c561da454a08756ed5223bfd6682b7f966176b0d8b8bdb41cd1456fdf4e32f2"
+        },
+        "vocoder_checkpoint": {
+          "path": "en/hifigan/best_model.pth",
+          "sha256": "4b0730a38f75f990a6ecf0aa2cf99c822af821e2240ee943951c9fa365731047"
+        },
+        "vocoder_config": {
+          "path": "en/hifigan/config.json",
+          "sha256": "89714d42417cdc6ec75459b6d1a4e0d9519fe4e546df3ba96451d4dc66ef22dd"
+        }
+      },
+      "source": "https://github.com/AI4Bharat/Indic-TTS/releases/download/v1-checkpoints-release/en.zip",
+      "archive_sha256": "df2703987372d3637a60a00705f5f43c9642fa794bc22ad13fb17b7173a3889d"
+    }
+  }
+}

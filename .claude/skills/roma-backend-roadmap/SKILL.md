@@ -15,7 +15,7 @@ authoritative project context is `CLAUDE.md`; the selected source and gates are 
 
 ## Start with status and scope
 
-Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment audits/hardens implemented sections through 17 and completes explicit hosted HF ASR lab access without local model downloads, preserving section 14 audio and sections 15–17 endpointing/STT/language contracts plus earlier foundations. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
+Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment implements sections 18–19 ASR benchmarking/failure evidence and isolated local TTS/cache, preserving sections 14–17 audio/input/language contracts and earlier foundations. Required TTS runtime/weight downloads were explicitly approved on 2026-10-19; ASR download policy is unchanged. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
 
 Before proposing a change:
 

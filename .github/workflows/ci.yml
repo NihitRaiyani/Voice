@@ -56,6 +56,14 @@ jobs:
             tests/providers/ai/test_stt.py \
             tests/providers/ai/test_hf_asr.py \
             tests/eval/test_hosted_asr.py \
+            tests/eval/test_asr_benchmark.py \
+            tests/eval/test_benchmark_evidence.py \
+            tests/eval/test_tts_setup.py \
+            tests/eval/test_tts_lab.py \
+            tests/core/test_tts_settings.py \
+            tests/providers/ai/test_indic_tts.py \
+            tests/services/test_tts_service.py \
+            tests/repositories/postgres/test_benchmarks.py \
             tests/providers/ai/test_hf_endpoint_handler.py \
             tests/providers/ai/test_silero.py \
             tests/core/test_speech_settings.py \

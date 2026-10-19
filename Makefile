@@ -18,10 +18,11 @@ export EMBEDDING_PROVIDER ?= mock
 export TELEPHONY_PROVIDER ?= mock
 export PUBLIC_BASE_URL ?= https://example.invalid
 
-.PHONY: speech-lab audio-lab text-console language-lab help sync services-up services-down db-upgrade app-start lint type test test-ci test-provider-contracts ci pre-commit-install
+.PHONY: tts-lab speech-lab audio-lab text-console language-lab help sync services-up services-down db-upgrade app-start lint type test test-ci test-provider-contracts ci pre-commit-install
 
 help:
 	@printf '%s\n' \
+	  'make tts-lab                 synthetic TTS/cache/frames report; no model loads' \
 	  'make speech-lab              synthetic endpoint/STT/language report; no downloads' \
 	  'make audio-lab               synthetic audio conversion/jitter report; no services' \
 	  'make text-console            synthetic mock text conversation; no paid calls' \
@@ -37,6 +38,9 @@ help:
 	  'make test                    run full offline pytest suite' \
 	  'make ci                      lint + type + migrations + mocked CI tests' \
 	  'make pre-commit-install      install local pre-commit hooks'
+
+tts-lab:
+	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync python scripts/tts_lab.py
 
 speech-lab:
 	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync python scripts/speech_lab.py
@@ -85,6 +89,14 @@ test-ci: test-provider-contracts
 		tests/providers/ai/test_stt.py \
 		tests/providers/ai/test_hf_asr.py \
 		tests/eval/test_hosted_asr.py \
+		tests/eval/test_asr_benchmark.py \
+		tests/eval/test_benchmark_evidence.py \
+		tests/eval/test_tts_setup.py \
+		tests/eval/test_tts_lab.py \
+		tests/core/test_tts_settings.py \
+		tests/providers/ai/test_indic_tts.py \
+		tests/services/test_tts_service.py \
+		tests/repositories/postgres/test_benchmarks.py \
 		tests/providers/ai/test_hf_endpoint_handler.py \
 		tests/providers/ai/test_silero.py \
 		tests/core/test_speech_settings.py \
