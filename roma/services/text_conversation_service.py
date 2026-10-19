@@ -42,7 +42,13 @@ from roma.domain.conversation.state_machine import (
 )
 from roma.domain.conversation.turn import advance_turn
 from roma.domain.safety.audit import SafetyActivation, SafetyContext, activation, check_sentence
-from roma.domain.safety.inputs import caller_text, discovery_value, injection_attempt, slot_text
+from roma.domain.safety.inputs import (
+    CALLER_TEXT_LIMIT,
+    caller_text,
+    discovery_value,
+    injection_attempt,
+    slot_text,
+)
 from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS
 from roma.domain.safety.normalize import tokens
 from roma.providers.ai.contracts import LLMMessage, LLMProvider, LLMRequest, ProviderUnavailable
@@ -259,7 +265,8 @@ class TextConversationService:
             from roma.domain.conversation.confirmguard import SAFE_SIGNOFF_LINE, lead_wants_out
 
             state.turn_count += 1
-            state.lead_wants_out = state.lead_wants_out or lead_wants_out(user_text[:4096])
+            stop_text = user_text[:CALLER_TEXT_LIMIT] if isinstance(user_text, str) else ""
+            state.lead_wants_out = state.lead_wants_out or lead_wants_out(stop_text)
             final = SAFE_SIGNOFF_LINE if state.lead_wants_out else HARD_FAIL_LINE
             event = activation(
                 "input.untrusted.v2", "INPUT", final, (perf_counter() - input_started) * 1000

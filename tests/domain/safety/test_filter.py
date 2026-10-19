@@ -340,3 +340,60 @@ def test_every_substitution_survives_its_own_filter():
 
     for category, line in SUBSTITUTIONS.items():
         assert screen(line).allowed, f"{category} substitution is itself blocked: {line!r}"
+
+
+@pytest.mark.parametrize(
+    "text,category",
+    [
+        ("Fees:25000 hai.", BlockCategory.FEE),
+        ("fees=25000", BlockCategory.FEE),
+        ("Fees-25000 hai.", BlockCategory.FEE),
+        ("ફી:૨૫૦૦૦ છે.", BlockCategory.FEE),
+        ("फीस:२५००० है।", BlockCategory.FEE),
+        ("salary:30000 milegi.", BlockCategory.SALARY),
+        ("salary/30000 milegi.", BlockCategory.SALARY),
+        ("પગાર—૩૦૦૦૦ મળશે.", BlockCategory.SALARY),
+        ("सैलरी=३०००० मिलेगी।", BlockCategory.SALARY),
+        ("Fees nahi batati; salary:30000 milegi.", BlockCategory.SALARY),
+        ("Google-certificate milega.", BlockCategory.CERT),
+    ],
+)
+def test_punctuation_cannot_hide_category_anchors_and_figures(text, category):
+    verdict = screen(text)
+    assert not verdict.allowed
+    assert verdict.category == category
+
+
+@pytest.mark.parametrize("text", ["coffees:25000", "classes:3", "Monday-11:00 AM"])
+def test_punctuation_boundaries_do_not_enable_substring_or_bare_number_matches(text):
+    assert screen(text).allowed
+
+
+def test_punctuated_figure_can_still_be_explicitly_corrected():
+    assert screen("Fees:25000 nahi hain.").allowed
+
+
+@pytest.mark.parametrize(
+    "text,category",
+    [
+        ("Fees25000 hai.", BlockCategory.FEE),
+        ("25000fees hai.", BlockCategory.FEE),
+        ("ફી૨૫૦૦૦ છે.", BlockCategory.FEE),
+        ("फीस२५००० है।", BlockCategory.FEE),
+        ("salary30000 milegi.", BlockCategory.SALARY),
+        ("30000salary milegi.", BlockCategory.SALARY),
+        ("પગાર૩૦૦૦૦ મળશે.", BlockCategory.SALARY),
+        ("सैलरी३०००० मिलेगी।", BlockCategory.SALARY),
+    ],
+)
+def test_compact_money_labels_cannot_hide_the_amount(text, category):
+    verdict = screen(text)
+    assert not verdict.allowed
+    assert verdict.category == category
+
+
+@pytest.mark.parametrize(
+    "text", ["coffees25000", "salaryman30000", "classes3", "SEO2026", "Fees25000 nahi hain."]
+)
+def test_compact_labels_preserve_substring_and_correction_rules(text):
+    assert screen(text).allowed

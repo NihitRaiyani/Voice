@@ -394,3 +394,46 @@ def test_endpoint_does_not_expose_transport_exception_text():
     with pytest.raises(ProviderUnavailable) as exc:
         asyncio.run(endpoint(transport=httpx.MockTransport(handler)).transcribe(request()))
     assert "hf_private" not in str(exc.value)
+
+
+@pytest.mark.parametrize("provider_type", [IndicConformerSTT, WhisperSTT])
+@pytest.mark.parametrize(
+    "format",
+    [
+        AudioFormat(16000.0),
+        AudioFormat(16000, True),
+        AudioFormat(16000, 1.0),
+    ],
+)
+def test_noninteger_format_metadata_never_loads_or_infers(provider_type, format):
+    loads = []
+
+    def loader():
+        loads.append(True)
+        return lambda audio, language: STTResult("unexpected inference", language)
+
+    provider = provider_type(loader=loader)
+    with pytest.raises(ValueError, match="16000"):
+        asyncio.run(provider.transcribe(request(format=format)))
+    assert not loads
+
+
+def test_normalization_rejects_canonical_expansion_beyond_output_limit():
+    # U+0344 canonically decomposes into two combining marks even under NFC.
+    expanded = "\u0344" * 20000
+    assert len(expanded) < 32768
+    with pytest.raises(ValueError, match="bounded"):
+        normalize_transcript(expanded)
+    at_limit = normalize_transcript("\u0344" * 16384)
+    assert len(at_limit) == 32768
+
+
+def test_expanded_model_output_is_sanitized_and_optional_language_is_preserved():
+    oversized = WhisperSTT(loader=lambda: lambda audio, language: STTResult("\u0344" * 20000))
+    with pytest.raises(ProviderUnavailable):
+        asyncio.run(oversized.transcribe(request()))
+    unknown_language = WhisperSTT(
+        loader=lambda: lambda audio, language: STTResult("SEO", None, 0.9)
+    )
+    result = asyncio.run(unknown_language.transcribe(request()))
+    assert result == STTResult("SEO", None, None)

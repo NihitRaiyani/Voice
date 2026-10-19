@@ -38,9 +38,12 @@ def normalize_transcript(text: str) -> str:
     if not isinstance(text, str) or len(text) > _MAX_TEXT:
         raise ValueError("STT transcript must be bounded text")
     normalized = unicodedata.normalize("NFC", text)
-    return " ".join(
+    normalized = " ".join(
         "".join(str(unicodedata.decimal(c)) if c.isdecimal() else c for c in normalized).split()
     )
+    if len(normalized) > _MAX_TEXT:
+        raise ValueError("STT transcript must be bounded text after normalization")
+    return normalized
 
 
 def _language(value: str | None, allowed: frozenset[str]) -> str | None:
@@ -66,7 +69,11 @@ def _limits(timeout_secs: float, max_audio_secs: float) -> None:
 
 def _validate_audio(request: STTRequest, max_audio_secs: float) -> None:
     fmt = request.format
-    if (fmt.sample_rate_hz, fmt.channels, fmt.encoding) != (16000, 1, "pcm_s16le"):
+    if (
+        type(fmt.sample_rate_hz) is not int
+        or type(fmt.channels) is not int
+        or (fmt.sample_rate_hz, fmt.channels, fmt.encoding) != (16000, 1, "pcm_s16le")
+    ):
         raise ValueError("STT requires mono 16000 Hz pcm_s16le audio; convert before inference")
     if not isinstance(request.audio, bytes) or not request.audio or len(request.audio) % 2:
         raise ValueError("STT audio must be nonempty, sample-aligned PCM16 bytes")

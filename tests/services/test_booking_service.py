@@ -141,3 +141,16 @@ def test_idempotent_retry_overlapping_the_first_commit_returns_the_booking():
         store.reserve.assert_not_awaited()
 
     asyncio.run(run())
+
+
+def test_native_postgres_capacity_failure_never_claims_booking_success():
+    from asyncpg.exceptions import TooManyConnectionsError
+
+    async def run():
+        service, store, holds = setup()
+        store.reserve.side_effect = TooManyConnectionsError("private database capacity")
+        with pytest.raises(BookingError, match="BOOKING_UNAVAILABLE"):
+            await service.confirm(record())
+        holds.release.assert_not_awaited()
+
+    asyncio.run(run())

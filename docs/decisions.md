@@ -7,7 +7,7 @@ These decisions adapt the OpenAI roadmap to the actual `Voice_Agent` repository.
 | ID | Decision | Engineering consequence |
 |---|---|---|
 | A01 | `Voice_Agent` is the working project; the OpenAI Word roadmap supersedes v4 | Verify repository root; no work in Weltec for this task |
-| A02 | Implement one explicitly requested level or section at a time | Current scope adds Level 4 sections 15–17 endpointing, speech adapters and persisted language routing to section 14; preserve all earlier foundations; other sections, live calls and deployments require their own scope |
+| A02 | Implement one explicitly requested level or section at a time | Current scope audits/hardens implemented sections through 17 and completes explicit hosted ASR lab access without local downloads; preserve all earlier foundations; section 18 quality approval, live carrier calls and deployments remain separate |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
 | A04 | Retain Twilio/Pipecat cloud comparison path | Keep the existing Twilio adapter and OpenAI LLM; local speech changes require later gates |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
@@ -35,6 +35,7 @@ These decisions adapt the OpenAI roadmap to the actual `Voice_Agent` repository.
 | A26 | The OpenAI source supersedes the local-LLM plan | No Qwen runtime; local speech/embeddings remain later work; OpenAI is the only permitted target cloud GenAI provider |
 | A27 | Quota-safe section 11 validation | Use injected SDK transports/mocks; native scoring, paid latency, full voice approval and live integration remain separate gates |
 | A28 | Reuse the deterministic filter and existing safety schema for section 12 | Versioned rule activations, no raw transcript in audit; short bounded writes before forwarding speech; audit failures use a safe fallback and explicit failure signal; native review stays pending |
+| A29 | Hosted HF ASR is an explicit lab exception to the local-speech target | `hf_public_lab` uses only declared public benchmark audio, never HF tokens/private caller audio; Gujarati/Hindi use the selected Indic Space and English the official Whisper Space. The authenticated router is separately selected, with no fallback/retry on 402 or automatic credit purchase/deployment. Three successful public clips prove access, not native quality or a Level 4 pass. |
 
 ## Preserved operational invariants
 

@@ -43,7 +43,7 @@ All v1 JSON resource routes return one of two envelope shapes:
 }
 ```
 
-List routes include `meta.limit`, `meta.offset`, `meta.total`, `meta.sort` and the applied `meta.filters`. Validation failures use `422 VALIDATION_ERROR`. Missing authentication uses `401 UNAUTHORIZED`; configured-but-unavailable durable storage uses `503 DATABASE_UNAVAILABLE`; not-found resources use `404`; conflicting writes use `409`.
+List routes include `meta.limit`, `meta.offset`, `meta.total`, `meta.sort` and the applied `meta.filters`. Validation failures use `422 VALIDATION_ERROR`. Missing, malformed or non-ASCII bearer credentials use `401 UNAUTHORIZED`; configured-but-unavailable durable storage, including SQL/native connection-capacity failures, uses `503 DATABASE_UNAVAILABLE`; not-found resources use `404`; conflicting writes use `409`.
 
 ## Validation and OpenAPI
 

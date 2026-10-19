@@ -91,6 +91,12 @@ class EndpointConfig:
 
 @dataclass(frozen=True)
 class Utterance:
+    """Bounded ASR chunk, or an empty final boundary after an exact maximum split.
+
+    Only reasons other than max_duration finalize a caller turn. An empty PCM
+    boundary finalizes previously emitted chunks and must never be sent to ASR.
+    """
+
     pcm: bytes
     start_sample: int
     end_sample: int
@@ -127,7 +133,7 @@ class EndpointDetector:
 
     @property
     def state(self) -> Literal["idle", "starting", "speaking", "ending"]:
-        if self._audio:
+        if self._audio or self._continuing:
             return "ending" if self._silent else "speaking"
         return "starting" if self._candidate else "idle"
 
@@ -143,6 +149,7 @@ class EndpointDetector:
         self._pre.clear()
         self._audio.clear()
         self._candidate = 0
+        self._continuing = False
         self._silent = 0
         self._speech_frames = 0
         self._last_speech = 0
@@ -159,6 +166,8 @@ class EndpointDetector:
         self._speech_frames = self._candidate
         self._last_speech = len(self._audio)
         self._candidate = 0
+        self._continuing = False
+        self._silent = 0
 
     def _emit(self, reason: EndReason) -> Utterance:
         end = min(len(self._audio), self._last_speech + self._hangover_frames)
@@ -170,7 +179,13 @@ class EndpointDetector:
             self._speech_frames,
             reason,
         )
+        silent = self._silent
         self._clear_segment()
+        if reason == "max_duration":
+            # An ASR size boundary is not an acoustic end of speech. Keep the
+            # lower continuation threshold and elapsed silence until real EOT.
+            self._continuing = True
+            self._silent = silent
         return utterance
 
     def feed(
@@ -195,11 +210,20 @@ class EndpointDetector:
         self._position += FRAME_SAMPLES
         if not self._audio:
             self._pre.append((offset, pcm))
-            self._candidate = (
-                self._candidate + 1 if probability >= self.config.speech_threshold else 0
-            )
-            if self._candidate >= self._start_frames:
-                self._begin()
+            if self._continuing:
+                if probability >= self.config.silence_threshold:
+                    self._candidate = 1
+                    self._begin()
+                else:
+                    self._silent += 1
+                    if self._silent >= self._silence_frames:
+                        output.append(self._emit("silence"))
+            else:
+                self._candidate = (
+                    self._candidate + 1 if probability >= self.config.speech_threshold else 0
+                )
+                if self._candidate >= self._start_frames:
+                    self._begin()
         else:
             self._audio.append(pcm)
             if probability >= self.config.silence_threshold:
@@ -218,7 +242,7 @@ class EndpointDetector:
     def _finish(self, reason: EndReason) -> tuple[Utterance, ...]:
         if not self._audio and self._candidate:
             self._begin()
-        if self._audio:
+        if self._audio or self._continuing:
             return (self._emit(reason),)
         self._clear_segment()
         return ()

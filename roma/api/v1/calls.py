@@ -41,7 +41,8 @@ def mount_web_api(app, *, reachable_fn=None, session_factory=None) -> None:
             )
         scheme, _, presented = request.headers.get("authorization", "").partition(" ")
         if scheme.lower() != "bearer" or not secrets.compare_digest(
-            presented.strip(), settings.api_token.get_secret_value()
+            presented.strip().encode("utf-8"),
+            settings.api_token.get_secret_value().encode("utf-8"),
         ):
             raise HTTPException(status_code=401, detail="bad or missing bearer token")
 

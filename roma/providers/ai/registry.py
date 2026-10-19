@@ -8,6 +8,7 @@ from roma.providers.ai.contracts import (
     STTProvider,
     TTSProvider,
 )
+from roma.providers.ai.hf_asr import HFHostedSTT, HFWhisperSTT
 from roma.providers.ai.local import (
     IndicTTSProvider,
     LocalMultilingualEmbedding,
@@ -39,6 +40,22 @@ def build_stt_provider(settings) -> STTProvider:
         case "whisper":
             return WhisperSTT(
                 model_id=settings.whisper_model_id,
+                timeout_secs=settings.stt_timeout_secs,
+                max_audio_secs=settings.stt_max_audio_secs,
+            )
+        case "hf_public_lab":
+            return HFHostedSTT(
+                endpoint_url=settings.hf_indic_space_url,
+                whisper_endpoint_url=settings.hf_whisper_space_url,
+                language=settings.stt_language,
+                decoder=settings.indic_decoder,
+                timeout_secs=settings.hf_public_timeout_secs,
+                max_audio_secs=settings.stt_max_audio_secs,
+            )
+        case "hf_whisper":
+            return HFWhisperSTT(
+                token=settings.hf_token.get_secret_value(),
+                model_id=settings.hf_whisper_model,
                 timeout_secs=settings.stt_timeout_secs,
                 max_audio_secs=settings.stt_max_audio_secs,
             )

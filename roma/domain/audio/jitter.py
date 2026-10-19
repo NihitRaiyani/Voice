@@ -77,6 +77,7 @@ class FixedJitterBuffer:
             or packet.sequence < 0
             or type(packet.timestamp_ms) is not int
             or packet.timestamp_ms < 0
+            or not isinstance(packet.payload, bytes)
             or len(packet.payload) != 160
         ):
             self.metrics.invalid += 1

@@ -201,3 +201,74 @@ def test_short_flush_keeps_exact_preroll_and_config_enforces_hard_max():
     assert utterance.start_sample == 14 * FRAME_SAMPLES
     with pytest.raises(AudioFormatError):
         EndpointConfig(max_utterance_ms=257)
+
+
+def test_max_duration_preserves_hysteresis_for_quiet_continuing_speech():
+    detector = EndpointDetector(EndpointConfig(pre_roll_ms=0, max_utterance_ms=193))
+    results = list(feed(detector, [0.9, 0.9] + [0.4] * 8))
+    results.extend(detector.flush())
+    assert [result.reason for result in results] == ["max_duration", "flush"]
+    assert b"".join(result.pcm for result in results) == b"".join(
+        frame(i) for i in range(1, 11)
+    )
+    assert sum(result.speech_frames for result in results) == 10
+    assert all(result.duration_ms <= 193 for result in results)
+    assert results[0].end_sample == results[1].start_sample
+
+
+def test_silence_timer_spans_max_split_and_requires_fresh_onset_after_real_end():
+    detector = EndpointDetector(
+        EndpointConfig(
+            pre_roll_ms=0,
+            hangover_ms=32,
+            silence_ms=320,
+            max_utterance_ms=193,
+        )
+    )
+    results = feed(detector, [0.9, 0.9] + [0.1] * 4)
+    assert len(results) == 1 and results[0].reason == "max_duration"
+    assert detector.state == "ending"
+    (final,) = feed(detector, [0.1] * 6)
+    assert final.reason == "silence" and final.pcm == b""
+    assert detector.state == "idle"
+    assert feed(detector, [0.4] * 2) == ()
+    assert detector.flush() == ()
+
+
+@pytest.mark.parametrize("operation", ["flush", "discontinuity", "reset"])
+def test_explicit_stream_boundary_clears_max_split_hysteresis(operation):
+    detector = EndpointDetector(EndpointConfig(pre_roll_ms=0, max_utterance_ms=193))
+    assert len(feed(detector, [0.9] * 6)) == 1
+    getattr(detector, operation)()
+    assert feed(detector, [0.4] * 4) == ()
+    assert detector.flush() == ()
+
+
+def test_speech_returning_before_silence_limit_after_max_uses_continuation_threshold():
+    detector = EndpointDetector(EndpointConfig(pre_roll_ms=0, max_utterance_ms=193))
+    assert len(feed(detector, [0.9] * 6)) == 1
+    assert feed(detector, [0.1] * 15) == ()
+    assert feed(detector, [0.4] * 2) == ()
+    (tail,) = detector.flush()
+    assert len(tail.pcm) == 2 * FRAME_BYTES and tail.speech_frames == 2
+
+
+def test_exact_max_split_emits_one_empty_final_boundary_at_true_silence():
+    detector = EndpointDetector(EndpointConfig(pre_roll_ms=0, max_utterance_ms=193))
+    (chunk,) = feed(detector, [0.9] * 6)
+    assert chunk.reason == "max_duration" and len(chunk.pcm) == 6 * FRAME_BYTES
+    assert feed(detector, [0.1] * 15) == ()
+    (final,) = feed(detector, [0.1])
+    assert final.reason == "silence" and final.pcm == b""
+    assert final.duration_ms == 0 and final.speech_frames == 0
+    assert detector.state == "idle"
+    assert detector.flush() == detector.discontinuity() == ()
+
+
+@pytest.mark.parametrize("operation", ["flush", "discontinuity"])
+def test_exact_max_split_explicit_boundary_finalizes_once(operation):
+    detector = EndpointDetector(EndpointConfig(pre_roll_ms=0, max_utterance_ms=193))
+    feed(detector, [0.9] * 6)
+    (boundary,) = getattr(detector, operation)()
+    assert boundary.reason == operation and boundary.pcm == b""
+    assert detector.flush() == detector.discontinuity() == ()

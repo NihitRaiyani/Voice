@@ -26,6 +26,7 @@ from roma.domain.persistence import (
     PersistenceUnavailable,
     RecordNotFound,
 )
+from roma.repositories.postgres.unit_of_work import AsyncpgAvailabilityError
 
 _log = logging.getLogger(__name__)
 T = TypeVar("T")
@@ -53,7 +54,13 @@ class BookingService:
             raise BookingError("APPOINTMENT_SLOT_UNAVAILABLE") from exc
         except RecordNotFound as exc:
             raise BookingError("APPOINTMENT_NOT_FOUND") from exc
-        except (SQLAlchemyError, PersistenceUnavailable, OSError, TimeoutError) as exc:
+        except (
+            SQLAlchemyError,
+            PersistenceUnavailable,
+            OSError,
+            TimeoutError,
+            *AsyncpgAvailabilityError,
+        ) as exc:
             raise BookingError("BOOKING_UNAVAILABLE") from exc
 
     async def _redis(self, operation: Awaitable[T]) -> T:

@@ -18,6 +18,7 @@ from roma.providers.ai.contracts import (
     TTSRequest,
     TTSResult,
 )
+from roma.providers.ai.hf_asr import GradioIndicSTT, GradioWhisperSTT, HFHostedSTT, HFWhisperSTT
 from roma.providers.ai.mocks import (
     MockEmbeddingProvider,
     MockLLMProvider,
@@ -36,6 +37,10 @@ from roma.providers.ai.stt import HuggingFaceSTT, IndicConformerSTT, WhisperSTT
 __all__ = [
     "AudioFormat",
     "HuggingFaceSTT",
+    "GradioIndicSTT",
+    "GradioWhisperSTT",
+    "HFHostedSTT",
+    "HFWhisperSTT",
     "IndicConformerSTT",
     "WhisperSTT",
     "EmbeddingProvider",

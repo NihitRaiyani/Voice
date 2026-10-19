@@ -44,8 +44,8 @@ _PRECEDENCE = [
 ]
 
 _SYMBOL_SPLIT_RE = re.compile(
-    r"([₹%])"
-)  # this regex is used to split the text on the symbols ₹ and % so that they can be treated as separate tokens ['Fee ', '₹', '25000']
+    r"(\blimited-time\b|[₹%])|[:=/\-\u2010-\u2015]"
+)  # Preserve the lexicon compound/currency signals; delimit joined words and amounts.
 _CLAUSE_RE = re.compile(
     r"\s+-\s+|[,;।!?]|(?<!\d)\.(?!\d)|\b(?:but|lekin|however|aur|and|लेकिन|પણ|પરંતુ)\b"
 )  # it’s used to split text into clauses ["Fee ₹25000. , Hostel available ; Placement support."]
@@ -53,6 +53,14 @@ _NK_RE = re.compile(
     r"\d+k"
 )  # This matches: any number followed by the letter 'k', such as 10k, 20k, 100k, etc
 _PERMITTED_NORM = normalize(PERMITTED_MONEY_LINE)
+# Split only exact known money labels joined to an amount. This retains Indic
+# combining marks, unrelated identifiers, substring rules and standalone "20k".
+_MONEY_LABELS = "|".join(
+    re.escape(word)
+    for word in sorted(FEE_KEYWORDS | FEE_CURRENCY | SALARY_ANCHOR, key=len, reverse=True)
+)
+_COMPACT_LABEL_FIRST = re.compile(rf"({_MONEY_LABELS})(\d+(?:[.,]\d+)*k?)")
+_COMPACT_AMOUNT_FIRST = re.compile(rf"(\d+(?:[.,]\d+)*k?)({_MONEY_LABELS})")
 
 
 @dataclass(frozen=True)
@@ -82,9 +90,11 @@ def _tokens(text: str) -> list[str]:
     marks in every script survive (see `normalize.STRIP_CHARS`). Do not reintroduce a
     `\\w`- or `\\W`-based tokenizer here or anywhere else.
     """
-    return tokens(
-        _SYMBOL_SPLIT_RE.sub(r" \1 ", text), keep="₹%"
-    )  # regex.sub(replacement, text)
+    result: list[str] = []
+    for token in tokens(_SYMBOL_SPLIT_RE.sub(r" \1 ", text), keep="₹%"):
+        match = _COMPACT_LABEL_FIRST.fullmatch(token) or _COMPACT_AMOUNT_FIRST.fullmatch(token)
+        result.extend(match.groups() if match else (token,))
+    return result
 
 
 def _clauses(norm: str) -> list[list[str]]:

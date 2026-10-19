@@ -118,7 +118,13 @@ def test_audit_failure_is_bounded_and_cancellation_propagates(failure, caplog, m
             )
             assert result.text == HARD_FAIL_LINE and not result.audit_ok
             assert "safety_audit_write_failed" in caplog.text
-            for private in ("Amit", "919123456789", "private-input", "secret-sid", "Fees 5000 hai."):
+            for private in (
+                "Amit",
+                "919123456789",
+                "private-input",
+                "secret-sid",
+                "Fees 5000 hai.",
+            ):
                 assert private not in caplog.text
 
     asyncio.run(run())
@@ -277,3 +283,37 @@ def test_caller_questions_in_three_languages_cannot_release_unsafe_model_answers
         assert trace.final_response == SUBSTITUTIONS[BlockCategory(category)]
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("text", [None, 42, {}, {"text": "hello"}, [], b"hello"])
+def test_non_string_caller_input_fails_closed_without_provider_or_state_advance(text):
+    class Never:
+        async def generate(self, request):
+            raise AssertionError("Rejected input reached the provider")
+            yield
+
+    async def run():
+        state = CallState(call_sid="synthetic", stage="value", stage_turn_count=2)
+        trace = await TextConversationService(Never()).turn(state, text, now=datetime.now(UTC))
+        assert state.stage == "value" and state.stage_turn_count == 2
+        assert state.turn_count == 1
+        assert state.language_router.recent == []
+        assert not state.lead_wants_out
+        assert trace.final_response == HARD_FAIL_LINE
+        assert trace.safety_events[0]["category"] == "INPUT"
+        assert trace.raw_model_output == "" and trace.prompt == ()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("timeout", [float("nan"), float("inf"), float("-inf"), 0, -1])
+def test_audit_timeout_must_be_finite_and_positive(timeout):
+    with pytest.raises(ValueError, match="finite and positive"):
+        SafetyService(timeout=timeout)
+
+
+def test_caller_length_bound_applies_after_unicode_normalization():
+    # U+0344 decomposes into two combining marks under NFC.
+    with pytest.raises(ValueError, match="turn limit"):
+        caller_text("\u0344" * 2049)
+    assert len(caller_text("\u0344" * 2048)) == 4096

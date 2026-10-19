@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from roma.domain.audio.g711 import decode, encode
 from roma.domain.audio.jitter import AudioPacket, FixedJitterBuffer
-from roma.domain.audio.pcm import PCMFramer, validate_pcm16
+from roma.domain.audio.pcm import AudioFormatError, PCMFramer, validate_pcm16
 from roma.domain.audio.resampling import PCMResampler
 
 
@@ -60,6 +60,10 @@ class TelephoneEgress:
         self.framer = PCMFramer(8000)
 
     def feed(self, pcm16k: bytes) -> tuple[bytes, ...]:
+        validate_pcm16(pcm16k)
+        converted_bytes = self.resampler.output_samples(len(pcm16k) // 2) * 2
+        if self.framer.pending_bytes + converted_bytes > self.framer.max_bytes:
+            raise AudioFormatError("PCM input exceeds the bounded egress batch")
         return tuple(encode(frame) for frame in self.framer.feed(self.resampler.feed(pcm16k)))
 
     def finish(self) -> tuple[bytes, ...]:

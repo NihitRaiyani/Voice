@@ -55,6 +55,7 @@ files = [
     "roma/domain/conversation/language.py",
     "roma/services/speech_input.py",
     "roma/eval/speech.py",
+    "roma/eval/hosted_asr.py",
     "roma/core/prompt_privacy.py",
     "roma/services/conversation_prompts.py",
     "roma/services/text_conversation_service.py",

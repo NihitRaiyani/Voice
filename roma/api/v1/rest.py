@@ -36,7 +36,7 @@ def require_api_auth(request: Request) -> None:
         raise ApiError(503, "API_TOKEN_NOT_CONFIGURED", "API_TOKEN is not configured.")
     scheme, _, presented = request.headers.get("authorization", "").partition(" ")
     if scheme.lower() != "bearer" or not secrets.compare_digest(
-        presented.strip(), settings.api_token.get_secret_value()
+        presented.strip().encode("utf-8"), settings.api_token.get_secret_value().encode("utf-8")
     ):
         raise ApiError(401, "UNAUTHORIZED", "Bad or missing bearer token.")
 
@@ -91,7 +91,10 @@ async def list_calls(
         language=language,
         sort=sort,
     )
-    data, meta = await service.list_calls(query)
+    try:
+        data, meta = await service.list_calls(query)
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
     return success_response(data, meta=meta)
 
 
@@ -124,7 +127,10 @@ async def list_leads(
         preferred_language=preferred_language,
         sort=sort,
     )
-    data, meta = await service.list_leads(query)
+    try:
+        data, meta = await service.list_leads(query)
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
     return success_response(data, meta=meta)
 
 
@@ -191,7 +197,10 @@ async def list_appointments(
         status=status,
         sort=sort,
     )
-    data, meta = await service.list_appointments(query)
+    try:
+        data, meta = await service.list_appointments(query)
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
     return success_response(data, meta=meta)
 
 
@@ -224,7 +233,11 @@ async def delete_appointment(
 async def analytics_overview(
     service: Annotated[RestApiService, Depends(_service_from_request)],
 ):
-    return success_response(await service.analytics_overview())
+    try:
+        data = await service.analytics_overview()
+    except RestApiServiceError as exc:
+        raise _translate(exc) from exc
+    return success_response(data)
 
 
 @router.get("/safety/events", tags=["safety"])

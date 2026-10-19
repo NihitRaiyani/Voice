@@ -65,6 +65,16 @@ class PCMResampler:
             self._phase ^= 1
         return pack(output)
 
+    def output_samples(self, input_samples: int) -> int:
+        """Predict feed output length without changing FIR history or decimation phase."""
+        if type(input_samples) is not int or input_samples < 0:
+            raise AudioFormatError("Expected a nonnegative integer sample count")
+        if self.source_rate == self.target_rate:
+            return input_samples
+        if self.source_rate < self.target_rate:
+            return input_samples * 2
+        return (input_samples + 1 - self._phase) // 2
+
     def feed(self, pcm: bytes) -> bytes:
         samples = unpack(pcm)
         if self._finished:

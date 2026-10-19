@@ -1,6 +1,6 @@
 # Custom IndicConformer endpoint template
 
-This directory is a reviewable **template**, not a deployed endpoint or a generic Hugging Face serverless ASR integration. No deployment, model download, inference call, or billing action occurs automatically. Copy `handler.py` into the dedicated endpoint artifact only after review. It has no dependency on the Roma package.
+This directory is a reviewable **template** for the optional `hf_indic_conformer` provider, not a deployed endpoint or a generic Hugging Face serverless ASR integration. The separate `hf_public_lab` public-benchmark Space route and `hf_whisper` authenticated router do not use this handler; their commands/privacy boundaries are in [the runbook](../../../docs/runbook.md#sections-1517-speech-input-lab). No deployment, model download, inference call, or billing action occurs automatically. Copy `handler.py` into the dedicated endpoint artifact only after review. It has no dependency on the Roma package.
 
 The handler implements the exact custom client contract:
 

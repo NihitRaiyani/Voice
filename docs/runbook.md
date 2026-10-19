@@ -171,21 +171,36 @@ make speech-lab
 
 This default uses synthetic probabilities/transcripts, no `.env`, services, credentials, new weights or model/API calls. It reports short-ack/pause segmentation, smoothed caller routes and checkpoint round-trip. Synthetic timings are not ASR performance. Existing bundled Silero has a separate silence/reset smoke test.
 
-For a **separately provisioned** real lab, supply an uncompressed mono 16 kHz PCM16 WAV (at most five minutes). No OpenAI call or TTS is made. Default diagnostics omit caller text; add `--show-transcripts` only for approved local data. The script uses real bundled Silero, a bounded sequential segment path and the selected STT adapter. ASR errors fail with safe codes; native/quality approval is not automatic.
+For an explicit real lab, supply an uncompressed mono 16 kHz PCM16 WAV (at most five minutes). No OpenAI call or TTS is made. Default diagnostics omit caller text; add `--show-transcripts` only for approved local data. The script uses real bundled Silero, a bounded sequential segment path and the selected STT adapter. ASR errors fail with safe codes; native/quality approval is not automatic.
 
 ```bash
 # Cached local baseline only; never downloads a missing model.
 uv run --no-sync python scripts/speech_lab.py --provider whisper --wav /path/to/approved.wav
 # Cached, reviewed IndicConformer only. Set INDIC_MODEL_REVISION to the reviewed 40-character commit.
 HF_HUB_OFFLINE=1 INDIC_TRUST_REMOTE_CODE=true uv run --no-sync python scripts/speech_lab.py --provider indic_conformer --wav /path/to/approved.wav
-# Explicit hosted lab; requires a compatible custom handler and separately approved capacity/cost.
+# Public benchmark audio only; never supply private caller audio to public Spaces.
+# Use STT_LANGUAGE=hi for Hindi or en for the separate public Whisper Space.
+STT_LANGUAGE=gu uv run --no-sync python scripts/speech_lab.py --provider hf_public_lab --allow-network --public-benchmark --wav /path/to/public-fleurs.wav
+# Optional private custom handler; requires its separately approved endpoint/capacity.
 uv run --no-sync python scripts/speech_lab.py --provider hf_indic_conformer --allow-network --wav /path/to/approved.wav
+# Separate authenticated HF router, only when explicitly selected and credits exist.
+STT_LANGUAGE=en uv run --no-sync python scripts/speech_lab.py --provider hf_whisper --allow-network --wav /path/to/approved.wav
 ```
 
-`roma/core/speech_settings.py` reads `STT_LANGUAGE=hi|gu|en`, timeout/segment cap, Indic decoder/revision/code opt-in, Whisper model/cache path, `HF_ASR_ENDPOINT_URL` and redacted `HF_TOKEN`. Token aliases `HUGGING_FACE_HUB_TOKEN`, `HUGGINGFACE_API_KEY` and `HUGGING_FACE_API_KEY` are accepted; `HF_TOKEN` wins when several are present. Keep tokens in environment/ignored `.env`, never paste them into commands/logs. Do not point the URL at a Hub page or generic hosted handler; see [the custom endpoint template](../benchmarks/asr/hf_endpoint/README.md). No endpoint creation/inference or ASR runtime installation is part of the automated checks.
+`roma/core/speech_settings.py` reads `STT_LANGUAGE=hi|gu|en`, `STT_TIMEOUT_SECS` (default 30, maximum 60), `STT_MAX_AUDIO_SECS` (default/maximum 30), Indic decoder/revision/code opt-in, Whisper model/cache path, `HF_ASR_ENDPOINT_URL` and redacted `HF_TOKEN`. Public-Space calls use `HF_PUBLIC_TIMEOUT_SECS` (default 90, maximum 120), including upload/queue/response, to accommodate the observed 61.589-second English smoke. `HF_INDIC_SPACE_URL` and `HF_WHISPER_SPACE_URL` default to the selected HTTPS Space roots; `HF_WHISPER_MODEL` configures the separate router route. Token aliases `HUGGING_FACE_HUB_TOKEN`, `HUGGINGFACE_API_KEY` and `HUGGING_FACE_API_KEY` are accepted; `HF_TOKEN` wins when several are present. Keep tokens in environment/ignored `.env`, never paste them into commands/logs. Do not point the URL at a Hub page or generic hosted handler; see [the custom endpoint template](../benchmarks/asr/hf_endpoint/README.md). No endpoint creation/inference or ASR runtime installation is part of automated checks. The real public smoke is separately recorded in [Level 4](levels/level-04.md#implemented-boundary-audit-and-hosted-smoke).
 
 The optional Indic runtime uses the official model card's PyTorch/torchaudio/Transformers plus ONNX dependencies; faster-whisper uses its own optional runtime/converted cache. Provision these in a separately reviewed compatible environment; they are deliberately absent from the default lock/install. Cache misses fail without a network fallback. The selected gated Indic model needs accepted access terms and reviewed pinned custom code; `HF_HUB_OFFLINE=1` must precede Python/Hub imports. It does not support English; select the comparison baseline for English rather than overriding the hint.
 
-`EndpointConfig` owns the lab's thresholds/durations; [Level 4](levels/level-04.md#sections-1517-design-and-acceptance) records defaults and limits. Production retains the current cloud/VAD/recording path. Native ASR WER/CER, RTF, noisy/code-mix endpoint quality, later serving and complete voice approval remain pending.
+`hf_public_lab` uses the community IndicConformer 600M CTC Space for Gujarati/Hindi and the official Whisper large-v3 Space for English. It requires `--allow-network --public-benchmark`; the CLI marks each request `data_classification=public_benchmark`. Both public clients omit HF tokens even if one is configured. Keep private audio on an approved private route. `hf_whisper` sends its token only to the fixed official HF inference router. The read-valid token returned 402 for unavailable inference credits on 2026-10-18; that is an operator prerequisite failure with no automatic retry, fallback, credit purchase or deployment.
+
+`EndpointConfig` owns the lab's thresholds/durations; [Level 4](levels/level-04.md#sections-1517-design-and-acceptance) records defaults and limits. Production retains the current cloud/VAD/recording path. Three public clips have real hosted inference/timing evidence; representative ASR WER/CER/RTF, noisy/code-mix endpoint quality, later serving and complete voice approval remain pending.
 
 A saved English route with an Indic adapter returns `stt-unsupported-or-invalid-request`; it never relabels English as Hindi or silently switches models. Select the explicit Whisper comparison for that lab. The real-WAV CLI exits nonzero on segment errors and sanitizes malformed/truncated WAV failures.
+
+To reproduce the three-language public smoke through the actual configured adapters:
+
+```bash
+uv run --no-sync python scripts/hf_asr_smoke.py --allow-network --fetch-public-samples --report benchmarks/asr/hosted_smoke.json
+```
+
+This command fetches only public FLEURS validation-row-0 audio/reference metadata for `gu_in`, `hi_in` and `en_us`, caches WAV/identity metadata under ignored `var/roma/asr-public`, and declares `public_benchmark` in every STT request. It downloads no ASR model weights and never uses the paid router. Conversion requires an already installed `afconvert` (macOS) or `ffmpeg`; the script installs neither. Omit `--fetch-public-samples` to reuse the hash-checked cache. The explicit smoke report includes public reference/hypothesis text, per-clip normalized WER/CER and observed total request time; it is not the default caller-transcript diagnostic. One clip per language is a smoke score, not a representative quality estimate. Public service failure exits nonzero with a safe error and does not trigger another provider.

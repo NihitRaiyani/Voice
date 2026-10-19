@@ -2,7 +2,7 @@
 
 ## Existing trust boundaries
 
-Validate `X-Twilio-Signature` against the exact configured external HTTP/WebSocket URL and verify start-event Account SID before constructing media. Human/client bearer authentication is distinct from carrier signature validation and worker access. The current service has no frontend; its static bearer API token is not a user/role/session system.
+Validate `X-Twilio-Signature` against the exact configured external HTTP/WebSocket URL and verify start-event Account SID before constructing media. Human/client bearer authentication is distinct from carrier signature validation and worker access. Malformed/non-ASCII bearer credentials fail authentication with 401 before any resource/provider action. The current service has no frontend; its static bearer API token is not a user/role/session system.
 
 Keep secrets in environment-backed secret settings, hide SQL parameters and redact errors/logs. Full phone numbers, transcripts and authorization tokens do not belong in ordinary logs, metrics or fixtures. `var/roma`, Redis dumps and credentials remain ignored and access-controlled.
 

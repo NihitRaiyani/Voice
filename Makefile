@@ -83,6 +83,8 @@ test-ci: test-provider-contracts
 		tests/domain/audio \
 		tests/domain/conversation/test_language.py \
 		tests/providers/ai/test_stt.py \
+		tests/providers/ai/test_hf_asr.py \
+		tests/eval/test_hosted_asr.py \
 		tests/providers/ai/test_hf_endpoint_handler.py \
 		tests/providers/ai/test_silero.py \
 		tests/core/test_speech_settings.py \

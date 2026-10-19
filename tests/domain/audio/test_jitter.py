@@ -82,3 +82,14 @@ def test_reordered_first_packet_does_not_erase_earlier_packets_or_start_early():
     assert buffer.drain(now_ms=59) == ()
     assert [frame.sequence for frame in buffer.drain(now_ms=80)] == [1, 2]
     assert buffer.metrics.sequence_gaps == 0
+
+
+@pytest.mark.parametrize("payload", ["x" * 160, [255] * 160, None, bytearray(160)])
+def test_invalid_payload_type_is_rejected_before_anchor_or_decode(payload):
+    stream = TelephoneIngress()
+    assert not stream.receive(AudioPacket(1, 0, payload), now_ms=0)
+    assert stream.jitter.pending == 0 and stream.jitter.expected == 1
+    assert stream.metrics()["invalid"] == 1
+    assert stream.receive(packet(1), now_ms=1)
+    frames = stream.drain(now_ms=61)
+    assert len(frames) == 1 and frames[0].pcm == bytes(640)

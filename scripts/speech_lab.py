@@ -28,10 +28,15 @@ async def run(args) -> dict:
         return await report()
     if args.wav is None:
         raise ValueError("Select a caller-provided --wav for real ASR")
-    if args.provider == "hf_indic_conformer" and not args.allow_network:
+    if (
+        args.provider in {"hf_indic_conformer", "hf_public_lab", "hf_whisper"}
+        and not args.allow_network
+    ):
         raise ValueError(
             "Hosted inference requires explicit --allow-network; charges may apply"
         )
+    if args.provider == "hf_public_lab" and not args.public_benchmark:
+        raise ValueError("Public Spaces accept only explicitly declared public benchmark audio")
     cfg = SpeechSettings(stt_provider=args.provider)
     state = CallState(call_sid="speech-lab")
     # Seed the first hint explicitly; subsequent accepted transcripts update the route.
@@ -43,6 +48,9 @@ async def run(args) -> dict:
         build_stt_provider(cfg),
         SileroFrameProbability(),
         state,
+        stt_metadata={"data_classification": "public_benchmark"}
+        if args.public_benchmark
+        else None,
         endpoint=EndpointDetector(
             EndpointConfig(max_utterance_ms=int(cfg.stt_max_audio_secs * 1000))
         ),
@@ -84,11 +92,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--provider",
-        choices=("mock", "indic_conformer", "whisper", "hf_indic_conformer"),
+        choices=(
+            "mock",
+            "indic_conformer",
+            "whisper",
+            "hf_indic_conformer",
+            "hf_public_lab",
+            "hf_whisper",
+        ),
         default="mock",
     )
     parser.add_argument("--wav", type=Path)
     parser.add_argument("--allow-network", action="store_true")
+    parser.add_argument(
+        "--public-benchmark",
+        action="store_true",
+        help="Declare the supplied WAV is public benchmark audio, suitable for public demo upload",
+    )
     parser.add_argument(
         "--show-transcripts",
         action="store_true",

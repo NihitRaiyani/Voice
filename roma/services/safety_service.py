@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import math
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -48,8 +49,8 @@ class SafeSpeech:
 
 class SafetyService:
     def __init__(self, store: SafetyEventStore | None = None, *, timeout: float = 0.5) -> None:
-        if timeout <= 0:
-            raise ValueError("Audit timeout must be positive")
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError("Audit timeout must be finite and positive")
         self.store = store if store is not None else InMemorySafetyEventStore()
         self.timeout = timeout
 

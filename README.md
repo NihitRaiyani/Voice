@@ -42,10 +42,10 @@ make test
 uv run --no-sync python scripts/run_eval.py
 ```
 
-See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–9 now include persistence/pool safeguards, additive relational foundations, the [migration/separate-demo workflow](docs/21-database-migrations.md), provider contracts, the [versioned REST API](docs/24-rest-api-design.md) and day-one testing/CI skeleton. Hosted CI passed on 2026-10-05 for the Level 1 workflow. Verification uses no provider spending or live calls.
+See [verification](docs/12-verification.md) for environment requirements and what those results prove. Level 1 sections 3–9 now include persistence/pool safeguards, additive relational foundations, the [migration/separate-demo workflow](docs/21-database-migrations.md), provider contracts, the [versioned REST API](docs/24-rest-api-design.md) and day-one testing/CI skeleton. Hosted CI passed on 2026-10-05 for the Level 1 workflow. That Level 1 verification used no provider spending or live calls; the later public ASR smoke is separately documented below.
 
 ## Code map
 
 `roma/main.py` composes `api`, `services`, `domain`, `repositories`, `providers`, `realtime` and `workers`. Business rules live in the domain; provider SDKs and storage remain at the edges. Runtime prompts live in `roma/prompts/` and affect speech directly. Read [architecture](docs/01-architecture.md) before changing those boundaries.
 
-Sections 15–17 add deterministic endpointing over bundled Silero, cache-only IndicConformer/faster-whisper adapters, an opt-in HF ASR endpoint seam and a persisted caller-language router. Run `make speech-lab` for a synthetic demonstration with no credentials/downloads. Real ASR and noise/native-quality gates remain pending; see [Level 4](docs/levels/level-04.md) and [setup](docs/runbook.md#sections-1517-speech-input-lab).
+Sections 15–17 add deterministic endpointing over bundled Silero, cache-only IndicConformer/faster-whisper adapters, explicit HF ASR labs and a persisted caller-language router. Run `make speech-lab` for a synthetic demonstration with no credentials/downloads. Real hosted Gujarati/Hindi IndicConformer and English Whisper inference succeeded on three public FLEURS clips without local ASR downloads. The public lab requires explicit public-benchmark/network flags and never receives HF tokens. Representative noise/native-quality and full Level 4 gates remain pending; see [Level 4](docs/levels/level-04.md) and [setup](docs/runbook.md#sections-1517-speech-input-lab).

@@ -375,3 +375,82 @@ def test_actual_safety_database_outages_are_enveloped_and_private(client, path):
         },
     }
     assert "private-password" not in response.text
+
+
+@pytest.mark.parametrize("path", ["/api/v1/calls", "/api/call/offline-request"])
+def test_non_ascii_bearer_credentials_are_rejected(client, path):
+    response = client.get(path, headers={"Authorization": b"Bearer \xff"})
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        ("GET", "/api/v1/calls", None),
+        ("GET", f"/api/v1/calls/{CALL_ID}", None),
+        ("POST", "/api/v1/calls", {"direction": "inbound"}),
+        ("GET", "/api/v1/leads", None),
+        ("GET", "/api/v1/appointments", None),
+        ("GET", "/api/v1/analytics/overview", None),
+        ("GET", "/api/v1/safety/events", None),
+        ("GET", "/api/v1/safety/stats", None),
+        ("GET", f"/api/v1/calls/{CALL_ID}/safety-events", None),
+    ],
+)
+@pytest.mark.parametrize("error_kind", ["os", "sql", "persistence", "timeout", "pool"])
+def test_database_failure_at_resource_boundaries_is_enveloped(
+    client, method, path, payload, error_kind
+):
+    from asyncpg.exceptions import TooManyConnectionsError
+    from roma.domain.persistence import PersistenceUnavailable
+    from roma.services.rest_api_service import RestApiService
+    from sqlalchemy.exc import OperationalError
+
+    private = "private-password-and-connection-string"
+    errors = {
+        "os": OSError(private),
+        "sql": OperationalError("SELECT private", {}, OSError(private)),
+        "persistence": PersistenceUnavailable(private),
+        "timeout": TimeoutError(private),
+        "pool": TooManyConnectionsError(private),
+    }
+
+    class DownSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        def add(self, row):
+            pass
+
+        async def flush(self):
+            raise errors[error_kind]
+
+        async def scalar(self, *args):
+            raise errors[error_kind]
+
+        async def get(self, *args):
+            raise errors[error_kind]
+
+        async def execute(self, *args):
+            raise errors[error_kind]
+
+        async def rollback(self):
+            pass
+
+        async def close(self):
+            pass
+
+    client.app.dependency_overrides[_service_from_request] = lambda: RestApiService(DownSession)
+    response = client.request(method, path, json=payload, headers=AUTH)
+    assert response.status_code == 503
+    assert response.json() == {
+        "success": False,
+        "error": {
+            "code": "DATABASE_UNAVAILABLE",
+            "message": "Database is temporarily unavailable.",
+        },
+    }
+    assert private not in response.text

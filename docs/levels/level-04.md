@@ -1,10 +1,10 @@
 # Level 4 — Audio and local ASR
 
-**Roadmap sections:** 14–18. **Status:** Sections 14–17 audio, deterministic endpointing, ASR adapters and persisted language routing are implemented with offline evidence. Native ASR inference/quality, section 18 noise benchmarks and the complete Level 4 gate remain pending.
+**Roadmap sections:** 14–18. **Status:** Sections 14–17 audio, deterministic endpointing, ASR adapters and persisted language routing are implemented and hardened. Real hosted IndicConformer Gujarati/Hindi and Whisper English inference succeeded on three public benchmark clips. Representative section 18 quality/noise/code-mix measurements, native review and the complete Level 4 gate remain pending.
 
 ## Entry gate and authorized scope
 
-Reuse Level 1 provider seams, Level 0 audio concepts and existing Twilio/codec/VAD foundations. The authorized increments cover sections 14–17; section 18 and advanced adaptive buffering/PLC remain outside this increment. OpenAI remains the LLM; Hindi-base Hinglish output and the separate multilingual lab remain unchanged. No new ASR weight download, paid/provider inference, working-DB mutation or next-section implementation is needed. Existing bundled Silero weights may run locally. The owner permits an opt-in Hugging Face ASR lab endpoint to avoid local ASR weights; this does not change the self-hosted speech target or approve a paid deployment.
+Reuse Level 1 provider seams, Level 0 audio concepts and existing Twilio/codec/VAD foundations. The authorized increments cover sections 14–17, an audit of the implemented foundations and an opt-in hosted ASR lab without local model downloads; a complete section 18 benchmark and advanced adaptive buffering/PLC remain outside this increment. OpenAI remains the LLM; Hindi-base Hinglish output and the separate multilingual lab remain unchanged. No new ASR weight download, working-DB mutation or next-section implementation is needed. Existing bundled Silero weights may run locally. The owner permits opt-in Hugging Face ASR lab calls to avoid local ASR weights; this does not change the self-hosted speech target or approve purchasing credits or a paid deployment.
 
 ## Section 14 design and implementation
 
@@ -68,7 +68,8 @@ Use `make test` / `make test-ci` to reproduce after the runbook prerequisites. N
 ## Remaining Level 4 gate and advanced boundary
 
 - [x] Sections 15–17 code: bounded endpointing, lazy/cache-only ASR adapters, explicit hosted lab seam and persisted five-state language router.
-- [ ] Provision an approved ASR runtime or compatible hosted endpoint, execute real IndicConformer/Whisper inference, and complete section 18 approved multilingual/noisy/code-mix WER/CER, RTF, endpoint failure cases, hardware/license/access review and native review.
+- [x] Execute real hosted IndicConformer Gujarati/Hindi and Whisper English inference on explicitly public benchmark audio; see the hosted smoke below.
+- [ ] Complete section 18 representative multilingual/noisy/code-mix WER/CER, RTF, endpoint failure cases, hardware/license/access review and native review. A three-clip hosted smoke does not pass this gate.
 - [ ] Pass the complete Level 4 gate before beginning adaptive jitter or PLC.
 - [ ] Advanced track: real UDP/RTP parsing and sequence rollover, bounded adaptive delay, selected PLC policy and measured VAD/ASR under realistic impairment/network emulation.
 
@@ -82,11 +83,11 @@ Return to the [documentation index](../README.md).
 
 Section 15 keeps Silero as the frame classifier. `SileroFrameProbability` uses the ONNX weights already bundled in installed Pipecat, lazily, on CPU. The model needs **512 samples / 1,024 PCM bytes / 32 ms** at 16 kHz. Section 14 transport frames are **20 ms**; `SpeechInputService` reframes them with bounded carry instead of passing the wrong shape to the model.
 
-`EndpointDetector` owns decisions, independent of the model/framework. Defaults: speech probability **0.60**, lower continuation threshold **0.35**, onset **64 ms**, pre-roll **192 ms**, retained hangover **128 ms**, silence completion **512 ms**, maximum utterance **30,000 ms**. Durations round up to frames except the maximum, which rounds down to **29,984 ms**. Resumed speech before the silence limit resets the wait. Short confirmed acknowledgements have no extra minimum-length veto; flush/gap also preserves a pending high-probability frame. Thresholds are development defaults, not a native-speaker quality or latency approval.
+`EndpointDetector` owns decisions, independent of the model/framework. Defaults: speech probability **0.60**, lower continuation threshold **0.35**, onset **64 ms**, pre-roll **192 ms**, retained hangover **128 ms**, silence completion **512 ms**, maximum utterance **30,000 ms**. Durations round up to frames except the maximum, which rounds down to **29,984 ms**. Resumed speech before the silence limit resets the wait. Lower-threshold continuation remains active across a hard ASR maximum split, so quiet continuing speech is not reclassified as a new onset solely because of that split. Short confirmed acknowledgements have no extra minimum-length veto; flush/gap also preserves a pending high-probability frame. Thresholds are development defaults, not a native-speaker quality or latency approval.
 
 Endpoint waits use received sample duration. Network stalls cannot manufacture silence. Gaps split the old segment, discard partial framing and reset recurrent model state. Missing duration is not inferred from a variable-sized Twilio message. Explicit end-of-file tail padding adds less than 32 ms of zeros; normal operation never silently fills missing packets. Reset discards old audio. Per-call state, hard bounds, overlap rejection and cancellation cleanup prevent cross-call/audio contamination. The lab service is sequential, with at most one second per input batch; it is not the future live inference queue/serving system.
 
-Section 16 implements `IndicConformerSTT` and `WhisperSTT` behind `STTProvider`, plus `HuggingFaceSTT` for a separately configured **custom** ASR endpoint. All accept aligned mono 16 kHz PCM16 and return normalized text. NFC, decimal-digit and whitespace normalization preserve English course terms. IndicConformer follows its documented tensor/language/CTC-or-RNNT API; faster-whisper consumes its lazy segment iterator inside the worker, with transcription rather than translation and internal VAD disabled.
+Section 16 implements `IndicConformerSTT` and `WhisperSTT` behind `STTProvider`, `HuggingFaceSTT` for a separately configured **custom** ASR endpoint, and explicit public-Space/HF-router lab adapters in `roma/providers/ai/hf_asr.py`. All require nonempty immutable aligned mono 16 kHz PCM16 bytes and strict format/language metadata before loading a model or admitting inference. They return normalized text with bounds checked before and after NFC, decimal-digit and whitespace normalization, preserving English course terms. IndicConformer follows its documented tensor/language/CTC-or-RNNT API; faster-whisper consumes its lazy segment iterator inside the worker, with transcription rather than translation and internal VAD disabled.
 
 The 600M Indic model supports Gujarati/Hindi but **does not list English**. Explicit English therefore requires the Whisper comparison adapter or the retained cloud baseline; it is never silently forced into Hindi. No automatic quality fallback/model switch is authorized. The classifier/router cannot recover words that an ASR decoder lost.
 
@@ -94,9 +95,13 @@ Local model loading is cache-only, lazy and single-worker per adapter. Indic add
 
 ### Hosted ASR decision
 
-The owner prefers avoiding local ASR weights/RAM. A Hugging Face token authenticates access; it does not create a running model or guarantee serverless availability. Public Hub metadata on **2026-10-18** returned an empty `inferenceProviderMapping` for the [selected model](https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual). Therefore no public endpoint, free service, zero remote RAM or successful transcription is claimed.
+The owner prefers avoiding local ASR weights/RAM. A Hugging Face token authenticates access; it does not create inference capacity. Public Hub metadata on **2026-10-18** returned an empty `inferenceProviderMapping` for the [selected model](https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual). That absence is distinct from an independently running public Space.
 
-The opt-in adapter requires an explicit HTTPS `HF_ASR_ENDPOINT_URL`, `HF_TOKEN` and compatible custom handler. Its wire format is JSON `inputs` containing base64 WAV, `language` and `decoder`; response is bounded JSON `text`/`language`. Generic hosted ASR endpoints are not assumed compatible. It rejects redirects/compressed responses, bounds requests/responses, sanitizes failures and applies a total timeout. No endpoint was deployed or called. Hosting consumes remote memory and may incur charges; local ASR model weights stay absent. [Hugging Face custom handlers](https://huggingface.co/docs/inference-endpoints/guides/custom_handler) explain the deployment boundary. The template and exact contract are in [the endpoint guide](../../benchmarks/asr/hf_endpoint/README.md).
+`hf_public_lab` explicitly selects the discovered [community IndicConformer Space](https://1219naveen-indicconformer-asr.hf.space) for Gujarati/Hindi with the 600M CTC decoder and the [official public Whisper Space](https://hf-audio-whisper-large-v3.hf.space) for English with Whisper large-v3. The composition uses Gradio upload/call/SSE, sends no HF token to either public Space, and requires request metadata `data_classification=public_benchmark`. `scripts/speech_lab.py` additionally requires both `--allow-network` and `--public-benchmark`. Private caller audio is not permitted on this route. Public-service queue time and availability are external conditions; this is a lab selection, never an automatic production fallback.
+
+`hf_whisper` is a separate explicit authenticated route to the official HF inference router. The existing `HUGGING_FACE_API_KEY` alias was valid for read access on **2026-10-18**, but inference returned **402, credits unavailable**. Do not retry a credit failure, switch routes automatically, purchase credits or deploy an endpoint as a fallback. No token value is recorded in evidence.
+
+`hf_indic_conformer` retains the optional private custom-handler contract: explicit HTTPS `HF_ASR_ENDPOINT_URL`, token, JSON `inputs` containing base64 WAV/`language`/`decoder`, and bounded JSON `text`/`language`. A Hub page or generic ASR handler is not compatible by implication. Hosted clients reject redirects/compressed responses, bound responses, sanitize failures and apply a total timeout. The custom template was not deployed. Remote hosting still requires model RAM/compute and may incur charges. See [the custom endpoint guide](../../benchmarks/asr/hf_endpoint/README.md) and [runbook provider commands](../runbook.md#sections-1517-speech-input-lab).
 
 ### Persisted language contract
 
@@ -106,7 +111,7 @@ Section 17 adds `Language` states **GUJARATI, HINDI, ENGLISH, GUJARATI_ENGLISH, 
 
 ### Verification boundary
 
-`make speech-lab` exercises synthetic short acknowledgement, resumed speech before the silence limit, sustained language switching and checkpoint round-trip. It uses scripted probabilities/transcripts and never reads `.env`, calls an ASR endpoint or downloads weights. `scripts/speech_lab.py --provider ... --wav ...` is a separate opt-in diagnostic with actual bundled Silero; hosted inference additionally needs `--allow-network`. Real transcript printing requires `--show-transcripts`.
+`make speech-lab` exercises synthetic short acknowledgement, resumed speech before the silence limit, sustained language switching and checkpoint round-trip. It uses scripted probabilities/transcripts and never reads `.env`, calls an ASR endpoint or downloads weights. `scripts/speech_lab.py --provider ... --wav ...` is a separate opt-in diagnostic with actual bundled Silero; hosted inference additionally needs `--allow-network`, and public Spaces also need `--public-benchmark`. Real transcript printing requires `--show-transcripts`.
 
 Offline tests cover threshold boundaries, trailing speech, short acknowledgements, flush/reset/discontinuity/hard bounds, actual bundled Silero silence/reset, lazy/cache-only SDK mapping, normalization, language restrictions, endpoint response/error/privacy limits, worker timeout/cancellation, 20→32 ms reframing, accepted-controller/checkpoint integration and language smoothing/restore. They prove mechanics; they do not establish ASR WER/CER, native conversational quality, real-time factor or end-to-end voice latency. The production 8 kHz Sarvam/Pipecat route remains the tested baseline until later measured integration. OpenAI remains the main LLM.
 
@@ -123,6 +128,57 @@ Integrated verification on **2026-10-18**, using the locked development environm
 | Silero | Existing bundled ONNX silence/reset smoke passed; no new model download |
 | Selected Word roadmap | SHA-256 unchanged (`89b99bbf959d1cc713d335a49037a03b63349cc91185a03e0a57bf9fa3149429`) |
 
-The hosted CI workflow includes the same bounded speech/handler tests and runs on push. No HF/OpenAI inference, carrier call, new model/runtime installation, working-DB mutation, migration, real `.env` edit or fixed speech-asset edit occurred. Test execution time is not ASR/voice latency. Section 18 and native/complete voice approval remain pending.
+The hosted CI workflow includes the same bounded speech/handler tests and runs on push. That original offline implementation verification made no HF/OpenAI inference or carrier call and made no new model/runtime installation, working-DB mutation, migration, real `.env` edit or fixed speech-asset edit. Test execution time is not ASR/voice latency. Section 18 and native/complete voice approval remain pending.
 
 A saved English route with an Indic adapter returns `stt-unsupported-or-invalid-request`; it never relabels English as Hindi or silently switches models. Select the explicit Whisper comparison for that lab. The real-WAV CLI exits nonzero on segment errors and sanitizes malformed/truncated WAV failures.
+
+
+## Implemented-boundary audit and hosted smoke
+
+The audit on **2026-10-19** through section 17 hardened fee/salary punctuation and compact amount-label anchors (`fees25000`, `30000salary`, and Indic equivalents); caller/slot bounds after NFC normalization; safe rejection of non-string text; finite safety-audit deadlines; malformed/non-ASCII bearer rejection as 401; consistent 503 handling of SQL/native connection-capacity outages; immutable PCM/strict metadata preflight; egress rejection before FIR state mutation; quiet-speech continuation across hard ASR splits; and STT metadata validation before model loading with post-NFC output bounds. These are specific reviewed failure cases, not proof that every possible bug is absent. Reusable policy belongs to the safety, API, audio and provider topic contracts.
+
+The initial hosted smoke on **2026-10-18** used public FLEURS validation row 0 for each language, clean read speech and one request per language. Local ASR weights were not downloaded. The reusable adapter-run evidence artifact is [hosted_smoke.json](../../benchmarks/asr/hosted_smoke.json); the initial prototype timings below remain historical. [The runbook](../runbook.md#sections-1517-speech-input-lab) owns the reproduction command.
+
+| Language / remote model | Audio duration | Total observed request time | Space-reported compute time |
+|---|---:|---:|---:|
+| Gujarati / IndicConformer 600M CTC | 11.88 s | 6.232 s | 3.29 s |
+| Hindi / IndicConformer 600M CTC | 12.24 s | 6.461 s | 2.65 s |
+| English / Whisper large-v3 | 6.54 s | 61.589 s | Not separately reported |
+
+RTF is **compute seconds / audio seconds**; the Indic compute values above correspond to approximately 0.277 and 0.217. A Space's inverse audio/compute display is throughput, not this RTF definition. Total observed time includes transfer/queue/service overhead and must remain separate from reported compute. English total/audio is approximately 9.42, not an isolated compute RTF.
+
+These three successful transcriptions demonstrate accessible hosted inference and language selection. They do not establish statistical WER/CER, noisy telephone/code-mix quality, native acceptance, sustained capacity or production latency/SLOs. The production 8 kHz Sarvam/Pipecat path, OpenAI LLM and Hindi-base Hinglish replies remain unchanged. The preceding offline tables retain their historical dates and counts; current integrated audit verification is recorded separately.
+
+
+### Actual configured-adapter smoke — 2026-10-19
+
+The implementation's `hf_public_lab` provider successfully completed all three public samples again; this is a real adapter run, separate from the October 18 prototype. The [saved report](../../benchmarks/asr/hosted_smoke.json) records UTC timestamp, dataset/config/split/row, WAV identity hashes, public reference/hypothesis, scoring rules and endpoint identities. No caller/project asset, HF token or signed download URL is included.
+
+| Language | Public audio | Total request time | Per-clip WER | Per-clip CER |
+|---|---:|---:|---:|---:|
+| Gujarati | 11.88 s | 6.583 s | 3/24 = 12.5% | 4/128 = 3.125% |
+| Hindi | 12.24 s | 6.755 s | 6/30 = 20% | 6/115 = 5.217% |
+| English | 6.54 s | 4.585 s | 0/15 = 0% | 0/64 = 0% |
+
+These are one-clip scores, not language-wide estimates. Scoring applies NFC/casefold/decimal normalization, replaces punctuation/symbols with spaces, uses word edit distance for WER and Unicode-code-point edit distance without whitespace for CER. Reordering, noise, telephone impairment, code-mix, short acknowledgements and native conversational acceptance need the later representative evaluation. The earlier 61.589-second English request and this 4.585-second request illustrate public-service variability, not a p95 result. Remote model names come from inspected public Space source/configuration; runtime weights are not cryptographically attested.
+
+The cloud clients bound upload/JSON/SSE bytes, enforce one request slot, close streams on cancellation and apply a total deadline through heartbeats/queueing. Adapter-owned safe errors preserve useful status codes; arbitrary transport exceptions are sanitized. Optional HTTP imports cannot break base/mock provider construction. Remote cancellation closes the client's stream but does not prove a queued remote model stopped; no automatic replay/fallback is made.
+
+Hard ASR size splits are internal chunks, not new accepted caller turns. The speech-input service aggregates bounded transcripts until real silence, flush or discontinuity; an exact size boundary can finish via an empty control boundary without an empty ASR request. Retained text uses the existing 4,096-character caller limit; overflow/provider failures cannot accept an incomplete turn. Reset/cancellation discards pending text and audio.
+
+
+### Integrated audit verification — 2026-10-19
+
+| Check | Observed result |
+|---|---|
+| Full offline pytest | **2,412 passed**, 23 existing dependency warnings, 80.45 seconds |
+| `make test-ci` | **56 provider/config + 840 bounded tests passed** |
+| `make lint type` | Ruff clean; mypy **54 source files** clean |
+| Markdown checks | **65** non-archive files; **355** local links/anchors; zero issues |
+| Actual hosted adapters | Three public FLEURS samples transcribed successfully; per-clip scores in saved report |
+| Real Silero + cloud + router | Public Gujarati WAV: two final speech segments, both route `GUJARATI`, zero ASR errors; transcript omitted from the diagnostic |
+| Word roadmap identity | Existing SHA-256 unchanged (`89b99bbf959d1cc713d335a49037a03b63349cc91185a03e0a57bf9fa3149429`) |
+
+Automated tests use mocks/disposable services; real public ASR checks are explicit separate runs. No working-DB mutation, migration, new model/runtime installation, private audio upload, token to a public Space, fixed audio edit, credit purchase or deployment occurred. Public speech samples are cached under ignored runtime storage; the tracked report contains public benchmark references/hypotheses only. Existing cloud speech, OpenAI and Hindi-base Hinglish production behavior remain. Native/representative section 18 evaluation and later complete voice approval are separate gates.
+
+Pre-commit verification for this audit also passed: Ruff, mypy and mock provider contracts.

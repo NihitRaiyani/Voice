@@ -2,7 +2,7 @@
 
 ## Current API versus Level 1 target
 
-Current external paths include `/health`, `/answer`, `/ws`, `/api/call`, `/api/call/{request_uuid}` and the versioned `/api/v1/...` resource API. The call command and v1 resources are bearer-protected; this is not an Admin/Counsellor/Viewer identity system.
+Current external paths include `/health`, `/answer`, `/ws`, `/api/call`, `/api/call/{request_uuid}` and the versioned `/api/v1/...` resource API. The call command and v1 resources are bearer-protected; malformed/non-ASCII bearer input returns 401. Resource SQL/native connection-capacity outages map to stable 503 unavailable envelopes. The shared bearer is not an Admin/Counsellor/Viewer identity system.
 
 L1 now implements `/api/v1` resources for calls/leads/appointments/analytics/safety with stable success/error envelopes, pagination/filter/sort and OpenAPI. Preserve compatibility routes until an explicit tested client migration. Use domain error codes such as `APPOINTMENT_SLOT_UNAVAILABLE`; provider SDK payloads stay internal.
 

@@ -8,8 +8,8 @@ class AudioFormatError(ValueError):
 
 
 def validate_pcm16(pcm: bytes) -> None:
-    if len(pcm) % 2:
-        raise AudioFormatError("PCM16 must contain complete two-byte samples")
+    if not isinstance(pcm, bytes) or len(pcm) % 2:
+        raise AudioFormatError("PCM16 must be bytes containing complete two-byte samples")
 
 
 def unpack(pcm: bytes) -> tuple[int, ...]:
@@ -25,7 +25,12 @@ class PCMFramer:
     """Strict 20 ms mono frames; bounded input/carry and explicit final-tail policy."""
 
     def __init__(self, sample_rate: int, *, max_frames: int = 50) -> None:
-        if sample_rate not in (8000, 16000) or not 1 <= max_frames <= 100:
+        if (
+            type(sample_rate) is not int
+            or sample_rate not in (8000, 16000)
+            or type(max_frames) is not int
+            or not 1 <= max_frames <= 100
+        ):
             raise AudioFormatError("Expected 8/16 kHz and a finite frame bound")
         self.frame_bytes = sample_rate // 50 * 2
         self.max_bytes = self.frame_bytes * max_frames

@@ -23,6 +23,8 @@ def caller_text(text: str) -> str:
     if not isinstance(text, str) or len(text) > CALLER_TEXT_LIMIT:
         raise ValueError("Caller text exceeds the turn limit")
     text = unicodedata.normalize("NFC", text)
+    if len(text) > CALLER_TEXT_LIMIT:
+        raise ValueError("Caller text exceeds the turn limit")
     if any(unicodedata.category(c).startswith("C") or c in "<>{}`" for c in text):
         raise ValueError("Caller text contains unsupported characters")
     return text.strip()

@@ -17,6 +17,7 @@ from roma.domain.persistence import (
     AppointmentRecord,
     CallRecord,
     PersistenceConflict,
+    PersistenceUnavailable,
 )
 from roma.repositories.postgres.booking import PostgresBookingStore
 from roma.repositories.postgres.models import (
@@ -26,7 +27,10 @@ from roma.repositories.postgres.models import (
     Caller,
     SafetyEvent,
 )
-from roma.repositories.postgres.unit_of_work import PostgresUnitOfWork
+from roma.repositories.postgres.unit_of_work import (
+    AsyncpgAvailabilityError,
+    PostgresUnitOfWork,
+)
 from roma.schemas.rest_api import (
     AppointmentsQuery,
     CallsQuery,
@@ -53,14 +57,25 @@ class RestApiServiceError(RuntimeError):
 
 
 @asynccontextmanager
-async def _safety_read_session(factory):
+async def _database_errors():
     try:
-        async with factory() as session:
-            yield session
-    except (SQLAlchemyError, OSError) as exc:
+        yield
+    except (
+        SQLAlchemyError,
+        PersistenceUnavailable,
+        OSError,
+        TimeoutError,
+        *AsyncpgAvailabilityError,
+    ) as exc:
         raise RestApiServiceError(
             503, "DATABASE_UNAVAILABLE", "Database is temporarily unavailable."
         ) from exc
+
+
+@asynccontextmanager
+async def _read_session(factory):
+    async with _database_errors(), factory() as session:
+        yield session
 
 
 def _now() -> datetime:
@@ -289,7 +304,7 @@ class RestApiService:
             updated_at=now,
         )
         try:
-            async with PostgresUnitOfWork(self._session_factory) as uow:
+            async with _database_errors(), PostgresUnitOfWork(self._session_factory) as uow:
                 created = await uow.calls.add(record)
                 await uow.commit()
         except PersistenceConflict as exc:
@@ -314,7 +329,7 @@ class RestApiService:
             "started_at_asc": Call.started_at.asc(),
         }[query.sort]
         statement = statement.order_by(order, Call.id).limit(query.limit).offset(query.offset)
-        async with self._session_factory() as session:
+        async with _read_session(self._session_factory) as session:
             total = await _count(session, total_statement)
             rows = tuple(await session.scalars(statement))
         meta = _page_meta(
@@ -325,7 +340,7 @@ class RestApiService:
         return [_call_row_data(row) for row in rows], meta
 
     async def get_call(self, call_id: UUID) -> dict[str, object]:
-        async with PostgresUnitOfWork(self._session_factory) as uow:
+        async with _database_errors(), PostgresUnitOfWork(self._session_factory) as uow:
             record = await uow.calls.get(call_id)
         if record is None or record.deleted_at is not None:
             raise RestApiServiceError(404, "CALL_NOT_FOUND", "Call was not found.")
@@ -345,7 +360,7 @@ class RestApiService:
             "created_at_asc": Caller.created_at.asc(),
         }[query.sort]
         statement = statement.order_by(order, Caller.id).limit(query.limit).offset(query.offset)
-        async with self._session_factory() as session:
+        async with _read_session(self._session_factory) as session:
             total = await _count(session, total_statement)
             rows = tuple(await session.scalars(statement))
         meta = _page_meta(
@@ -404,7 +419,7 @@ class RestApiService:
         statement = (
             statement.order_by(*order, Appointment.id).limit(query.limit).offset(query.offset)
         )
-        async with self._session_factory() as session:
+        async with _read_session(self._session_factory) as session:
             total = await _count(session, total_statement)
             rows = tuple(await session.scalars(statement))
         meta = _page_meta(
@@ -434,7 +449,7 @@ class RestApiService:
         return await self.update_appointment(appointment_id, payload)
 
     async def analytics_overview(self) -> dict[str, object]:
-        async with self._session_factory() as session:
+        async with _read_session(self._session_factory) as session:
             total_calls = await session.scalar(select(func.count()).select_from(Call))
             completed_calls = await session.scalar(
                 select(func.count()).select_from(Call).where(Call.status == "completed")
@@ -476,7 +491,7 @@ class RestApiService:
         statement = (
             statement.order_by(order, SafetyEvent.id).limit(query.limit).offset(query.offset)
         )
-        async with _safety_read_session(self._session_factory) as session:
+        async with _read_session(self._session_factory) as session:
             total = await _count(session, total_statement)
             rows = tuple(await session.scalars(statement))
         meta = _page_meta(
@@ -491,7 +506,7 @@ class RestApiService:
         return [_safety_event_row_data(row) for row in rows], meta
 
     async def list_call_safety_events(self, call_id: UUID, query: SafetyEventsQuery):
-        async with _safety_read_session(self._session_factory) as session:
+        async with _read_session(self._session_factory) as session:
             existing = await session.scalar(
                 select(Call.id).where(Call.id == call_id, Call.deleted_at.is_(None))
             )
@@ -510,7 +525,7 @@ class RestApiService:
         if query.category is not None:
             statement = statement.where(SafetyEvent.original_category == query.category)
         statement = statement.group_by(SafetyEvent.original_category, SafetyEvent.rule)
-        async with _safety_read_session(self._session_factory) as session:
+        async with _read_session(self._session_factory) as session:
             rows = (await session.execute(statement)).all()
         categories: dict[str, int] = {}
         rules: dict[str, int] = {}

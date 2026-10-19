@@ -127,3 +127,69 @@ def test_all_mulaw_decode_codes_match_the_independent_stdlib_reference():
     audioop = pytest.importorskip("audioop")
     payload = bytes(range(256))
     assert g711.decode(payload) == audioop.ulaw2lin(payload, 2)
+
+
+def test_rejected_egress_batch_does_not_advance_filter_or_decimation_state():
+    for prefix in (b"", pack([12000])):
+        sender, control = TelephoneEgress(), TelephoneEgress()
+        assert sender.feed(prefix) == control.feed(prefix)
+        before_carry = sender.framer.pending_bytes
+        with pytest.raises(AudioFormatError):
+            sender.feed(pack([20000] * 16001))
+        assert sender.framer.pending_bytes == before_carry
+        assert sender.feed(pack([0] * 320)) == control.feed(pack([0] * 320))
+        assert sender.finish() == control.finish()
+
+
+def test_egress_preflight_accounts_for_odd_decimation_phase_at_exact_capacity():
+    sender = TelephoneEgress()
+    # One 16 kHz sample emits one 8 kHz sample; the next source sample emits none.
+    sender.feed(pack([0]))
+    assert sender.resampler.output_samples(15997) == 7998
+    output = sender.feed(pack([0] * 15997))
+    assert len(output) == 49 and sender.framer.pending_bytes == 318
+    assert len(sender.feed(pack([0] * 2))) == 1
+    assert sender.framer.pending_bytes == 0
+
+
+@pytest.mark.parametrize(
+    "rate,max_frames",
+    [
+        (8000.0, 50),
+        (True, 50),
+        ("16000", 50),
+        (None, 50),
+        (8000, 1.5),
+        (8000, True),
+        (8000, "50"),
+        (8000, None),
+    ],
+)
+def test_pcm_framer_rejects_noninteger_metadata_before_buffering(rate, max_frames):
+    with pytest.raises(AudioFormatError):
+        PCMFramer(rate, max_frames=max_frames)
+
+
+@pytest.mark.parametrize("payload", ["xx", [1, 2], None, bytearray(2), memoryview(bytes(2))])
+def test_pcm_boundary_rejects_nonbytes_before_mutating_framer(payload):
+    framer = PCMFramer(16000)
+    framer.feed(pack([100]))
+    with pytest.raises(AudioFormatError):
+        framer.feed(payload)
+    assert framer.pending_bytes == 2
+    with pytest.raises(AudioFormatError):
+        unpack(payload)
+    with pytest.raises(AudioFormatError):
+        g711.encode(payload)
+
+
+def test_oversized_egress_input_is_rejected_before_expensive_resampling(monkeypatch):
+    sender = TelephoneEgress()
+
+    def should_not_run(pcm):
+        pytest.fail("Rejected batch reached resampling")
+
+    monkeypatch.setattr(sender.resampler, "feed", should_not_run)
+    with pytest.raises(AudioFormatError):
+        sender.feed(bytes(32002))
+    assert sender.framer.pending_bytes == 0

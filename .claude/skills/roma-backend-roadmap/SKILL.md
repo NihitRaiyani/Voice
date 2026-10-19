@@ -10,12 +10,12 @@ description: >-
 
 # Roma backend roadmap
 
-Use this skill to turn one requested v4 level into a focused, testable backend increment. The
+Use this skill to turn one requested OpenAI-roadmap level into a focused, testable backend increment. The
 authoritative project context is `CLAUDE.md`; the selected source and gates are `docs/roadmaps/README.md`, `docs/levels/` and `docs/10-build-order.md`. Topic contracts and readiness are indexed by `docs/README.md`.
 
 ## Start with status and scope
 
-Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment implements Level 4 sections 15–17 deterministic endpointing with bundled Silero, cache-only ASR/opt-in hosted lab adapters and persisted caller-language routing on section 14 audio contracts, preserving all earlier foundations. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
+Verify the repository is `/Users/nihitraiyani/Voice_Agent`. Implement only the level or section explicitly requested by the user; the current increment audits/hardens implemented sections through 17 and completes explicit hosted HF ASR lab access without local model downloads, preserving section 14 audio and sections 15–17 endpointing/STT/language contracts plus earlier foundations. Live replies remain Hindi-base Hinglish, with separate multilingual labs. Existing PostgreSQL, booking repository, signed answer and Dramatiq jobs are reusable foundations, not full gate passes.
 
 Before proposing a change:
 
@@ -76,7 +76,7 @@ handling, and operator guidance exist.
 
 ## Complexity gate
 
-v4 deliberately adds conditional governed RAG with local embeddings/pgvector at Level 9. Provider contracts precede local models; direct local speech inference precedes speech model serving; full Docker packaging is Level 13. Existing Compose is compatibility tooling. Do not add Kafka, Kubernetes, microservices, a separate vector database or LangGraph without a measured need. Record the evidence and decision in `docs/decisions.md`.
+The selected roadmap adds conditional governed RAG with local embeddings/pgvector at Level 9. Provider contracts precede local models; direct local speech inference precedes speech model serving; full Docker packaging is Level 13. Existing Compose is compatibility tooling. Do not add Kafka, Kubernetes, microservices, a separate vector database or LangGraph without a measured need. Record the evidence and decision in `docs/decisions.md`.
 
 ## Completion checklist
 
@@ -88,4 +88,4 @@ v4 deliberately adds conditional governed RAG with local embeddings/pgvector at 
 - Commit the completed requested level/section changes and push to the configured GitHub branch automatically under the user's standing authorization. Verify checks first, exclude unrelated edits/secrets/runtime data, never force-push, and report the commit link. Do not start the next level implicitly.
 - The student can explain context, invariant, design, failure mode, evidence, and trade-off.
 
-Sections 15–17: no automatic ASR weights/downloads. HF tokens do not create inference capacity; a hosted lab needs an explicit compatible endpoint. Retain the local-speech target/current carrier path until native quality/latency gates pass. Endpointing is code-owned; caller-language state is persisted metadata and never permission to change Hindi-base Hinglish production output.
+Sections 15–17: no automatic ASR weights/downloads. HF tokens do not create inference capacity. The explicit `hf_public_lab` route uses declared public benchmark audio only, selected Indic Gujarati/Hindi and Whisper English Spaces, and never sends an HF token to a public Space. `hf_whisper` is a separately selected official authenticated router; 402 credits unavailable means stop without automatic retry/fallback, credit purchase or deployment. Three public-clip inference successes are access evidence, not representative WER/CER/native approval. Retain the local-speech target/current carrier path until native quality/latency gates pass. Endpointing is code-owned; caller-language state is persisted metadata and never permission to change Hindi-base Hinglish production output.

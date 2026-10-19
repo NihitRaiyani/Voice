@@ -48,3 +48,17 @@ def test_hosted_factory_requires_explicit_endpoint_and_token():
     cfg = SpeechSettings(_env_file=None, stt_provider="hf_indic_conformer", hf_token="")
     with pytest.raises((ValueError, RuntimeError)):
         build_stt_provider(cfg)
+
+
+def test_public_lab_factory_has_discovered_defaults_and_never_needs_a_token():
+    cfg = SpeechSettings(_env_file=None, stt_provider="hf_public_lab", hf_token="")
+    provider = build_stt_provider(cfg)
+    assert callable(provider.transcribe)
+    assert cfg.hf_indic_space_url == "https://1219naveen-indicconformer-asr.hf.space"
+    assert cfg.hf_whisper_space_url == "https://hf-audio-whisper-large-v3.hf.space"
+
+
+@pytest.mark.parametrize("timeout", [0, 121, float("nan"), float("inf")])
+def test_public_lab_deadline_is_finite_and_bounded(timeout):
+    with pytest.raises(ValidationError):
+        SpeechSettings(_env_file=None, hf_public_timeout_secs=timeout)

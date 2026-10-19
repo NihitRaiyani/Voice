@@ -14,7 +14,14 @@ class SpeechSettings(BaseSettings):
         hide_input_in_errors=True,
         populate_by_name=True,
     )
-    stt_provider: Literal["mock", "indic_conformer", "whisper", "hf_indic_conformer"] = "mock"
+    stt_provider: Literal[
+        "mock",
+        "indic_conformer",
+        "whisper",
+        "hf_indic_conformer",
+        "hf_public_lab",
+        "hf_whisper",
+    ] = "mock"
     stt_language: Literal["hi", "gu", "en"] = "hi"
     stt_timeout_secs: float = Field(default=30, gt=0, le=60, allow_inf_nan=False)
     stt_max_audio_secs: float = Field(default=30, ge=1, le=30, allow_inf_nan=False)
@@ -25,7 +32,17 @@ class SpeechSettings(BaseSettings):
     indic_trust_remote_code: bool = False
     indic_decoder: Literal["ctc", "rnnt"] = "ctc"
     whisper_model_id: str = Field(default="small", min_length=1, max_length=256)
+    hf_public_timeout_secs: float = Field(default=90, gt=0, le=120, allow_inf_nan=False)
     hf_asr_endpoint_url: str = Field(default="", max_length=2048)
+    hf_indic_space_url: str = Field(
+        default="https://1219naveen-indicconformer-asr.hf.space", max_length=2048
+    )
+    hf_whisper_space_url: str = Field(
+        default="https://hf-audio-whisper-large-v3.hf.space", max_length=2048
+    )
+    hf_whisper_model: Literal["openai/whisper-large-v3", "openai/whisper-large-v3-turbo"] = (
+        "openai/whisper-large-v3-turbo"
+    )
     hf_token: SecretStr = Field(
         default=SecretStr(""),
         validation_alias=AliasChoices(
