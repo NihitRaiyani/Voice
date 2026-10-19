@@ -75,3 +75,20 @@ def test_public_lab_factory_propagates_selected_whisper_api():
         hf_whisper_api_name="transcribe",
     )
     assert build_stt_provider(cfg)._whisper.api_name == "transcribe"
+
+
+def test_whisper_authentication_requires_explicit_opt_in_even_with_key():
+    cfg = SpeechSettings(_env_file=None, hf_token="private-test-key")
+    assert cfg.hf_whisper_space_authenticated is False
+
+
+def test_whisper_official_authentication_is_propagated_without_changing_indic():
+    cfg = SpeechSettings(
+        _env_file=None,
+        stt_provider="hf_public_lab",
+        hf_token="private-test-key",
+        hf_whisper_space_authenticated=True,
+    )
+    provider = build_stt_provider(cfg)
+    assert provider._whisper._auth_headers == {"X-HF-Authorization": "Bearer private-test-key"}
+    assert not getattr(provider._indic, "_auth_headers", {})

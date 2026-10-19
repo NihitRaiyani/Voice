@@ -64,6 +64,8 @@ jobs:
             tests/core/test_tts_settings.py \
             tests/providers/ai/test_indic_tts.py \
             tests/services/test_tts_service.py \
+            tests/services/test_voice_prototype.py \
+            tests/providers/audio \
             tests/repositories/postgres/test_benchmarks.py \
             tests/providers/ai/test_hf_endpoint_handler.py \
             tests/providers/ai/test_silero.py \

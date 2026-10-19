@@ -35,7 +35,7 @@ These decisions adapt the OpenAI roadmap to the actual `Voice_Agent` repository.
 | A26 | The OpenAI source supersedes the local-LLM plan | No Qwen runtime; local speech/embeddings remain later work; OpenAI is the only permitted target cloud GenAI provider |
 | A27 | Quota-safe section 11 validation | Use injected SDK transports/mocks; native scoring, paid latency, full voice approval and live integration remain separate gates |
 | A28 | Reuse the deterministic filter and existing safety schema for section 12 | Versioned rule activations, no raw transcript in audit; short bounded writes before forwarding speech; audit failures use a safe fallback and explicit failure signal; native review stays pending |
-| A29 | Hosted HF ASR is an explicit lab exception to the local-speech target | `hf_public_lab` uses only declared public benchmark audio, never HF tokens/private caller audio; Gujarati/Hindi use the selected Indic Space and English the official Whisper Space. The authenticated router is separately selected, with no fallback/retry on 402 or automatic credit purchase/deployment. Three successful public clips prove access, not native quality or a Level 4 pass. |
+| A29 | Hosted HF ASR is an explicit lab exception to the local-speech target | `hf_public_lab` uses only declared public benchmark audio, never private caller audio; anonymous defaults remain, with the later user-authorized official Whisper edge authentication exception; Gujarati/Hindi use the selected Indic Space and English the official Whisper Space. The authenticated router is separately selected, with no fallback/retry on 402 or automatic credit purchase/deployment. Three successful public clips prove access, not native quality or a Level 4 pass. |
 
 ## Preserved operational invariants
 
@@ -94,3 +94,10 @@ The owner explicitly approved required local TTS runtime and weight downloads. I
 Keep the existing Whisper endpoint selection; an alternate official Space also exhausts public ZeroGPU quota. Correct same-job detailed queue handling and explicit API-name configuration, sanitize failures and retain failed comparison evidence. Available hosted capacity remains required; no retry loop, token disclosure, paid provisioning or local ASR download is authorized by this correction.
 
 Preserve all canonical safety wording and live assets. Bind only the six distinct approved lines to literal/hash-pinned Hindi-base Hinglish Devanagari pronunciation. Audit canonical decisions plus exact pronunciation identity; independently screen actual speech, with a sole-CERT adjudication restricted to the exact pinned certificate deferral. Use the Hindi model/cache identity across caller routes. Actual synthesis passes 24/24 cases; native listening and complete live voice approval remain separate.
+
+
+## 2026-10-19 — Official Whisper authentication and section 20
+
+The user explicitly authorizes the `.env` token for official Whisper inference without downloads. Use the standard Gradio HF edge header only for the reviewed official hosts, with explicit opt-in and no secret logging/redirect/proxy handling. Keep anonymous/community routes unchanged. Authentication produced seven successful corpus cases before account quota exhausted; the router still requires unavailable credits. Stop at the first future quota rejection, preserve reports and never buy/deploy capacity automatically.
+
+Implement section 20 as an isolated half-duplex local composition, with mocks by default, optional PortAudio dependency, final safety and durable receipt/ready/result writes. Reuse SQL booking/Redis holds and state checkpoints; no schema change or model installation. Exact native pronunciations preserve canonical controller templates and validated values. Hindi-base Hinglish remains the output policy. All-local microphone mode rejects hosted ASR; missing local ASR runtimes/weights and unfinished native entry gates prevent claiming full Level 6 acceptance.

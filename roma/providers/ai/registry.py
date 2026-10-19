@@ -48,6 +48,11 @@ def build_stt_provider(settings) -> STTProvider:
                 endpoint_url=settings.hf_indic_space_url,
                 whisper_endpoint_url=settings.hf_whisper_space_url,
                 whisper_api_name=settings.hf_whisper_api_name,
+                whisper_token=(
+                    settings.hf_token.get_secret_value()
+                    if settings.hf_whisper_space_authenticated
+                    else None
+                ),
                 language=settings.stt_language,
                 decoder=settings.indic_decoder,
                 timeout_secs=settings.hf_public_timeout_secs,

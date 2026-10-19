@@ -526,6 +526,9 @@ async def run_benchmark(
         report["summaries"] = summaries(report["cases"])
         report["complete"] = len(report["cases"]) == len(selected)
         write_json(report_path, report)
+        if row["error_code"] == "asr-hosted-quota-exhausted":
+            report["stopped_reason"] = "asr-hosted-quota-exhausted"
+            break
     report["summaries"] = summaries(report["cases"])
     report["complete"] = len(report["cases"]) == len(selected)
     if report["complete"]:

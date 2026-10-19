@@ -654,3 +654,37 @@ def test_whisper_queue_rejects_mismatched_or_malformed_completion(change):
     adapter = GradioWhisperSTT(transport=httpx.MockTransport(space))
     with pytest.raises(ProviderUnavailable):
         asyncio.run(adapter.transcribe(request("en")))
+
+
+@pytest.mark.parametrize(
+    "host", ["https://arbitrary.hf.space", "https://1219naveen-indicconformer-asr.hf.space"]
+)
+def test_authentication_refuses_unreviewed_hosts(host):
+    with pytest.raises(ValueError, match="official reviewed"):
+        GradioWhisperSTT(endpoint_url=host, token=SECRET)
+
+
+@pytest.mark.parametrize("token", ["", "secret\n", "secret é"])
+def test_authentication_rejects_invalid_token_without_echo(token):
+    with pytest.raises(ValueError, match="valid HF token") as caught:
+        GradioWhisperSTT(token=token)
+    assert SECRET not in str(caught.value)
+
+
+def test_explicit_authentication_uses_hf_edge_header_only_on_whisper():
+    space = Space()
+    seen = []
+
+    def transport(req):
+        auth = req.headers.pop("x-hf-authorization", None)
+        if "whisper" in req.url.host:
+            assert auth == "Bearer " + SECRET
+        else:
+            assert auth is None
+        seen.append(req.url.host)
+        return space(req)
+
+    provider = HFHostedSTT(whisper_token=SECRET, transport=httpx.MockTransport(transport))
+    asyncio.run(provider.transcribe(request("gu")))
+    asyncio.run(provider.transcribe(request("en")))
+    assert len(seen) == 6

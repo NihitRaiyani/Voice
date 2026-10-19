@@ -16,6 +16,7 @@ from roma.providers.ai.contracts import LLMMessage, LLMRequest
 
 PROMPT_VERSION = "openai-text-v1"
 LANGUAGE_INSTRUCTIONS = {
+    "voice_hi": "Reply in Hindi-base Hinglish using Devanagari phonetic spelling, including common English words. Dialogue only; preserve the current task and approved facts.",
     "gu": "Reply only in natural Gujarati script.",
     "hi": "Reply only in natural Hindi script.",
     "en": "Reply only in natural English.",

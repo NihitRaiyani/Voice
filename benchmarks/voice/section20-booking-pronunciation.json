@@ -1,0 +1,16 @@
+{
+  "schema": "section20-booking-pronunciation-v1",
+  "synthetic_controller_state": true,
+  "real_booking_created": false,
+  "microphone_used": false,
+  "network_calls": false,
+  "model_downloads": false,
+  "native_review_passed": false,
+  "audit_sink": "synthetic_in_memory",
+  "canonical": "Aapki Vadodara branch visit Wednesday 21 October, 6:00 PM ke liye confirm ho gayi hai. Shukriya, milte hain.",
+  "spoken": "आपकी वडोदरा ब्रांच विजिट वेडनेसडे दो एक ऑक्टोबर, छह:शून्य शून्य पी एम के लिए कन्फर्म हो गई है। शुक्रिया, मिलते हैं।",
+  "audio_ms": 7791,
+  "audio_sha256": "9703c035835b6743902b4119761d31aa541645fc600e65b655b27c86f61017fa",
+  "audit_ok": true,
+  "model_version": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad"
+}

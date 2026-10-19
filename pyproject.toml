@@ -30,6 +30,9 @@ telephony = [
     "uvicorn[standard]>=0.51.0",
     "websockets>=16.1.1",
 ]
+voice-lab = [
+    "sounddevice>=0.5,<0.6",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -61,6 +64,10 @@ files = [
     "roma/eval/tts.py",
     "roma/core/tts_settings.py",
     "roma/services/tts_service.py",
+    "roma/services/voice_prototype.py",
+    "roma/services/voice_pronunciation.py",
+    "roma/providers/audio",
+    "roma/repositories/postgres/voice_lab.py",
     "roma/repositories/postgres/benchmarks.py",
     "roma/core/prompt_privacy.py",
     "roma/services/conversation_prompts.py",

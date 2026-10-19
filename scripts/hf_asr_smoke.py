@@ -184,6 +184,7 @@ async def run(args):
         "indic_endpoint": config.hf_indic_space_url,
         "whisper_endpoint": config.hf_whisper_space_url,
         "whisper_api_name": config.hf_whisper_api_name,
+        "whisper_authenticated": config.hf_whisper_space_authenticated,
         "cases": cases,
         "public_samples_only": True,
         "new_model_weights_downloaded": False,

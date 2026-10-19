@@ -1,0 +1,317 @@
+"""Section 20: offline integration by default; explicit local microphone mode."""
+
+import argparse
+import asyncio
+import importlib.util
+import json
+import os
+import sys
+from contextlib import AsyncExitStack
+from dataclasses import asdict
+from pathlib import Path
+from time import perf_counter
+from uuid import uuid4
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from roma.core.migration_settings import MigrationSettings  # noqa: E402
+from roma.core.openai_llm_settings import OpenAILLMSettings  # noqa: E402
+from roma.core.speech_settings import SpeechSettings  # noqa: E402
+from roma.core.tts_settings import TTSSettings  # noqa: E402
+from roma.domain.conversation.language import Language  # noqa: E402
+from roma.domain.conversation.state import CallState  # noqa: E402
+from roma.domain.safety.audit import SafetyContext  # noqa: E402
+from roma.eval.speech import ScriptedProbability, ScriptedSTT  # noqa: E402
+from roma.eval.tts import SyntheticPCMProvider  # noqa: E402
+from roma.providers.ai.contracts import AudioFormat, STTRequest, TTSRequest  # noqa: E402
+from roma.providers.ai.local_routing import LocalLanguageSTT  # noqa: E402
+from roma.providers.ai.mocks import MockLLMProvider  # noqa: E402
+from roma.providers.ai.registry import (  # noqa: E402
+    build_llm_provider,
+    build_stt_provider,
+    build_tts_provider,
+)
+from roma.providers.ai.silero import SileroFrameProbability  # noqa: E402
+from roma.providers.ai.stt import WhisperSTT  # noqa: E402
+from roma.providers.audio.local_device import LocalAudioDevice  # noqa: E402
+from roma.repositories.postgres.booking import PostgresBookingStore  # noqa: E402
+from roma.repositories.postgres.conversation_state import (  # noqa: E402
+    PostgresConversationStateStore,
+)
+from roma.repositories.postgres.safety import PostgresSafetyEventStore  # noqa: E402
+from roma.repositories.postgres.voice_lab import PostgresVoiceLabStore  # noqa: E402
+from roma.repositories.redis.appointment_holds import RedisAppointmentHolds  # noqa: E402
+from roma.services.booking_service import BookingService  # noqa: E402
+from roma.services.booking_session import BookingSession  # noqa: E402
+from roma.services.safety_service import SafetyService  # noqa: E402
+from roma.services.speech_input import SpeechInputService  # noqa: E402
+from roma.services.text_conversation_service import TextConversationService  # noqa: E402
+from roma.services.tts_service import SpeechSynthesisService  # noqa: E402
+from roma.services.voice_prototype import (  # noqa: E402
+    InMemoryVoiceTurnStore,
+    TimedLLMProvider,
+    VoicePrototype,
+)
+
+
+class SyntheticSpeaker:
+    def __init__(self):
+        self.played = 0
+
+    async def play(self, result):
+        if not result.audio:
+            raise ValueError("Missing synthetic PCM")
+        self.played += 1
+
+
+async def mock_lab():
+    cases = []
+    for language, text in (
+        ("gu", "ફી 50000"),
+        ("hi", "फीस 50000"),
+        ("en", "fees 50000"),
+        ("code_mix", "fees kitni hai 50000"),
+    ):
+        state = CallState(call_sid="voice-lab-" + uuid4().hex)
+        speaker, store = SyntheticSpeaker(), InMemoryVoiceTurnStore()
+        safety = SafetyService()
+        text_service = TextConversationService(
+            TimedLLMProvider(MockLLMProvider(response="नमस्ते।")),
+            safety=safety,
+            dialogue_language="voice_hi",
+        )
+        synth = SpeechSynthesisService(
+            SyntheticPCMProvider(), safety, model_version="synthetic-pcm-v1"
+        )
+        voice = VoicePrototype(state, text_service, synth, speaker, store)
+        speech = SpeechInputService(ScriptedSTT((text,)), ScriptedProbability(), state)
+        results = []
+        for speaking in [1] * 4 + [0] * 20:
+            results.extend(await speech.feed(bytes([speaking, 0]) * 512))
+        if len(results) != 1:
+            raise ValueError("Synthetic endpoint did not finalize")
+        outcome = await voice.respond(results[0])
+        cases.append(
+            {
+                "input_language": language,
+                **asdict(outcome),
+                "speaker_outputs": speaker.played,
+                "durable_database": False,
+                "saved_phases": len(store.records),
+                "restored_state": CallState.from_dict(state.to_dict()).to_dict()
+                == state.to_dict(),
+            }
+        )
+    return {
+        "schema": "section20-voice-prototype-v1",
+        "synthetic_only": True,
+        "microphone_used": False,
+        "network_calls": False,
+        "model_downloads": False,
+        "gate_passed": False,
+        "cases": cases,
+    }
+
+
+def local_preflight(args):
+    if not (args.allow_microphone and args.allow_paid_api and args.allow_database_write):
+        raise ValueError("Local mode requires explicit microphone, OpenAI and database opt-ins")
+    cfg = SpeechSettings()
+    if cfg.stt_provider not in {"indic_conformer", "whisper"}:
+        raise ValueError(
+            "Local-only mode requires STT_PROVIDER=indic_conformer or whisper; hosted ASR is not permitted"
+        )
+    packages = ["faster_whisper", "sounddevice"]
+    if cfg.stt_provider == "indic_conformer":
+        packages.append("transformers")
+    if any(importlib.util.find_spec(package) is None for package in packages):
+        raise ValueError(
+            "Local ASR runtime/model prerequisite is missing; no download attempted"
+        )
+    if cfg.stt_provider == "indic_conformer" and (
+        os.environ.get("HF_HUB_OFFLINE") != "1"
+        or not cfg.indic_trust_remote_code
+        or not cfg.indic_model_revision
+    ):
+        raise ValueError("Indic ASR requires offline startup and reviewed pinned custom code")
+    llm_cfg = OpenAILLMSettings(llm_provider="openai")
+    if not llm_cfg.openai_api_key.get_secret_value() or not llm_cfg.openai_model:
+        raise ValueError("OpenAI key/model prerequisite is missing")
+    return cfg, llm_cfg, TTSSettings(tts_provider="indic_tts")
+
+
+def initial_lab_state(language, branch):
+    state = CallState(call_sid="voice-lab-" + uuid4().hex, branch=branch, booking_required=True)
+    state.language_router.current = {
+        "gu": Language.GUJARATI,
+        "hi": Language.HINDI_ENGLISH,
+        "en": Language.ENGLISH,
+    }[language]
+    return state
+
+
+async def ready_local_models(stt, tts, scorer):
+    # Synthetic readiness only: no participant audio, microphone, paid LLM or DB.
+    for language in ("gu", "hi", "en"):
+        await stt.transcribe(STTRequest(b"\0\0" * 16000, AudioFormat(16000), language))
+    safe = await SafetyService().check("नमस्ते।", SafetyContext("voice-lab-preflight", 1, "open"))
+    await tts.synthesize(TTSRequest(safe.text, language="hi"))
+    scorer.probability(b"\0\0" * 512)
+    scorer.reset()
+
+
+async def local_run(args):
+    cfg, llm_cfg, tts_cfg = local_preflight(args)
+    from pydantic import SecretStr
+    from pydantic_settings import BaseSettings, SettingsConfigDict
+    from redis.asyncio import Redis
+    from sqlalchemy import text
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    class RedisSettings(BaseSettings):
+        model_config = SettingsConfigDict(
+            env_file=".env", extra="ignore", hide_input_in_errors=True
+        )
+        redis_url: SecretStr
+
+    engine = create_async_engine(
+        MigrationSettings().require_url(),
+        echo=False,
+        hide_parameters=True,
+        pool_size=2,
+        max_overflow=0,
+        pool_timeout=3,
+        connect_args={"timeout": 3, "command_timeout": 3},
+    )
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    redis = Redis.from_url(
+        RedisSettings().redis_url.get_secret_value(), socket_connect_timeout=1, socket_timeout=1
+    )
+    llm, booking, store = None, None, None
+    state = initial_lab_state(cfg.stt_language, args.branch)
+    failed = True
+    cleanup = AsyncExitStack()
+    cleanup.push_async_callback(engine.dispose)
+    cleanup.push_async_callback(redis.aclose)
+    try:
+        async with engine.connect() as connection:
+            if (
+                await connection.scalar(text("SELECT version_num FROM alembic_version"))
+                != "20261004_0003"
+            ):
+                raise ValueError("Schema head prerequisite is missing; no migration attempted")
+        await redis.ping()
+        stt, tts = build_stt_provider(cfg), build_tts_provider(tts_cfg)
+        if cfg.stt_provider == "indic_conformer":
+            stt = LocalLanguageSTT(
+                stt,
+                WhisperSTT(
+                    model_id=cfg.whisper_model_id,
+                    timeout_secs=cfg.stt_timeout_secs,
+                    max_audio_secs=cfg.stt_max_audio_secs,
+                ),
+            )
+        # Read/verify provisioned TTS artifacts before opening the microphone.
+        await tts.cache_identity(TTSRequest("नमस्ते", language="hi"))
+        scorer = SileroFrameProbability()
+        await ready_local_models(stt, tts, scorer)
+        store = PostgresVoiceLabStore(factory, persist_transcripts=args.persist_transcripts)
+        await store.start(state.call_sid)
+
+        async def finish_call():
+            await store.finish(state.call_sid, failed=failed)
+
+        cleanup.push_async_callback(finish_call)
+        safety = SafetyService(PostgresSafetyEventStore(factory, source="voice"))
+        booking = BookingSession(
+            BookingService(PostgresBookingStore(factory), RedisAppointmentHolds(redis)), state
+        )
+        cleanup.push_async_callback(booking.aclose)
+        llm = build_llm_provider(llm_cfg)
+        cleanup.push_async_callback(llm.aclose)
+        conversation = TextConversationService(
+            TimedLLMProvider(llm),
+            safety=safety,
+            store=PostgresConversationStateStore(factory),
+            booking_session=booking,
+            temperature=llm_cfg.openai_temperature,
+            dialogue_language="voice_hi",
+        )
+        synthesis = SpeechSynthesisService(
+            tts,
+            safety,
+            model_version="manifest-validated",
+            timeout_secs=tts_cfg.tts_timeout_secs,
+            max_audio_secs=tts_cfg.tts_max_audio_secs,
+            default_voice=tts_cfg.tts_voice,
+            cache_entries=tts_cfg.tts_cache_entries,
+            cache_bytes=tts_cfg.tts_cache_bytes,
+            max_text_bytes=tts_cfg.tts_max_text_bytes,
+            max_concurrency=tts_cfg.tts_max_concurrency,
+        )
+        device = LocalAudioDevice(
+            input_device=args.input_device, output_device=args.output_device
+        )
+        speech = SpeechInputService(stt, scorer, state)
+        voice = VoicePrototype(state, conversation, synthesis, device, store)
+        print(
+            "Headphones required. Local ASR/TTS; only OpenAI inference is remote. Ctrl+C stops. No audio recording."
+        )
+        print("Voice lab id: " + state.call_sid)
+        tick = perf_counter()
+        for _ in range(args.max_turns):
+            if perf_counter() - tick >= 300 or state.lead_wants_out:
+                break
+            transcript, timings = await asyncio.wait_for(
+                device.listen(speech, max_seconds=min(30, 300 - (perf_counter() - tick))),
+                timeout=max(0.01, 300 - (perf_counter() - tick)),
+            )
+            if transcript is None:
+                # Silent attempts are recorded without feeding silence into the controller.
+                from roma.services.speech_input import SpeechTranscript
+
+                transcript = SpeechTranscript("", None, 0, "listen_limit", 0, "listen-timeout")
+            outcome = await voice.respond(transcript, timings)
+            print(
+                json.dumps({"call_sid": state.call_sid, **asdict(outcome)}, ensure_ascii=False)
+            )
+        failed = False
+    finally:
+        await cleanup.aclose()
+
+
+def parser():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--mode", choices=("mock", "local"), default="mock")
+    p.add_argument("--allow-microphone", action="store_true")
+    p.add_argument("--allow-paid-api", action="store_true")
+    p.add_argument("--allow-database-write", action="store_true")
+    p.add_argument("--persist-transcripts", action="store_true")
+    p.add_argument("--branch", choices=("Vadodara", "Ahmedabad"), default="Vadodara")
+    p.add_argument("--input-device", type=int)
+    p.add_argument("--output-device", type=int)
+    p.add_argument("--max-turns", type=int, default=30, choices=range(1, 61), metavar="1..60")
+    return p
+
+
+def main():
+    args = parser().parse_args()
+    try:
+        if args.mode == "mock":
+            print(json.dumps(asyncio.run(mock_lab()), ensure_ascii=False, indent=2))
+        else:
+            asyncio.run(local_run(args))
+        return 0
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        return 130
+    except Exception:  # noqa: BLE001 -- no .env, provider payload or participant text in ordinary errors.
+        print(
+            "Voice prototype unavailable: verify local ASR runtime/cached weights, local TTS, PostgreSQL/Redis, opt-ins and OpenAI quota. No downloads or hosted-ASR fallback attempted.",
+            file=sys.stderr,
+        )
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

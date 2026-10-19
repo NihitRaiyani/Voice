@@ -14,7 +14,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 3 | [Transactional booking](levels/level-03.md) | Booking/holds/controller/API implemented; offline evidence in brief, live demo deferred |
 | 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–18 audio/input/benchmark tooling implemented; public ASR/failure evidence in brief; Whisper quota blocks full comparison; representative/native quality pending |
 | 5 | [Local TTS](levels/level-05.md) | Section 19 local Indic-TTS: 18 general and 24 approved-line cases passed; native approval pending |
-| 6 | [Local voice prototype](levels/level-06.md) | Planned |
+| 6 | [Local voice prototype](levels/level-06.md) | Section 20 integration/offline lab implemented; local ASR and real microphone/native gates pending |
 | 7 | [Real-time reliability](levels/level-07.md) | Cloud seams; local-stack gate pending |
 | 8 | [Secure jobs/access](levels/level-08.md) | Signed answer/durable jobs present; full gate pending |
 | 9 | [Governed retrieval](levels/level-09.md) | Planned |

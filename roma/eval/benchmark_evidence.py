@@ -130,6 +130,9 @@ def _asr(
     whisper_api_name = details.get("whisper_api_name")
     if whisper_api_name is not None and whisper_api_name not in {"predict", "transcribe"}:
         raise ValueError("Unknown benchmark Whisper API name")
+    authenticated = details.get("whisper_authenticated")
+    if authenticated is not None and type(authenticated) is not bool:
+        raise ValueError("Invalid Whisper authentication provenance")
     model_by_language = {}
     models = {}
     for language in {case["language"] for case in cases}:
@@ -219,6 +222,8 @@ def _asr(
     }
     if whisper_api_name is not None:
         config["provider_details"]["whisper_api_name"] = whisper_api_name
+    if authenticated is not None:
+        config["provider_details"]["whisper_authenticated"] = authenticated
     _finite(details["timeout_secs"], positive=True)
     for key in ("indic_endpoint", "whisper_endpoint"):
         _endpoint(config["provider_details"][key])

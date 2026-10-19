@@ -205,3 +205,10 @@ Defend bounded caller/slot validation, Unicode combining marks, code-owned enums
 **Why isn't a text-only cache key enough?** The same words in another language, voice or model version produce different audio. Include safe normalized text and those identities, plus normalization/PCM format. Bound memory and combine simultaneous misses; retain no failed output.
 
 **Why check safety on cache hits?** Cached bytes cannot grant permission to speak retired or unsafe wording. Check raw text before number spelling can hide amount signals, then check the actual normalized line, audit and only then resolve its audio identity. Cache latency and synthesis RTF are different measurements. Native pronunciation and complete voice approval remain separate from waveform/cache tests. See [Level 5](levels/level-05.md).
+
+
+## Level 6 section 20 explanation
+
+The prototype is half duplex: close the microphone before controller/OpenAI/TTS/playback, so the speaker cannot become the next caller turn. Silero and endpointing finalize bounded audio; the saved language state selects an explicit local ASR route, then the existing state machine/booking and final safety remain authoritative. `VoicePrototype` saves a receipt and ready turn in short database operations, then plays validated PCM and records completion/timings. No transaction stays open during inference or audio.
+
+An HF token solves identity, not unlimited inference capacity. Hosted ASR is a useful separate lab, but it would add a second cloud call and cannot prove the all-local Level 6 gate. Four synthetic language paths and five actual local question renders prove integration mechanics only; hardware, local ASR and native review remain required. Discovery/booking pronunciation uses exact current controller wording and validated slots, never a general translation that could invent a booking.

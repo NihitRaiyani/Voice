@@ -275,3 +275,77 @@ def test_failed_run_preserves_artifact_without_fabricated_measurements(session_f
             assert await session.scalar(select(func.count()).select_from(BenchmarkResult)) == 0
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("retain", [False, True])
+def test_voice_lab_short_turn_writes_reuse_safety_anchor_and_preserve_privacy(
+    session_factory, retain
+):
+    from roma.domain.safety.audit import SafetyContext, check_sentence
+    from roma.repositories.postgres.models import Call, CallEvent, CallTurn, SafetyEvent
+    from roma.repositories.postgres.safety import PostgresSafetyEventStore
+    from roma.repositories.postgres.voice_lab import PostgresVoiceLabStore
+
+    async def run():
+        sid = "voice-lab-" + uuid4().hex
+        store = PostgresVoiceLabStore(session_factory, persist_transcripts=retain)
+        await store.start(sid)
+        _, _, events = check_sentence("fees 50000")
+        await PostgresSafetyEventStore(session_factory).record(
+            SafetyContext(sid, 1, "discover"), events
+        )
+        record = {
+            "attempt": 1,
+            "turn_number": 1,
+            "status": "played",
+            "stage": "discover",
+            "language": "hi",
+            "caller": "PRIVATE synthetic caller words",
+            "agent": "approved synthetic agent words",
+            "timings": {"asr_ms": 2.0, "llm_ms": 3.0, "response_total_ms": 10.0},
+            "error_code": None,
+        }
+        await store.save(sid, record)
+        await store.save(sid, record)
+        async with session_factory() as session:
+            call = await session.scalar(select(Call).where(Call.provider_call_id == sid))
+            turns = list(
+                await session.scalars(select(CallTurn).where(CallTurn.call_id == call.id))
+            )
+            logs = list(
+                await session.scalars(select(CallEvent).where(CallEvent.call_id == call.id))
+            )
+            safety = await session.get(SafetyEvent, events[0].id)
+            assert len(turns) == len(logs) == 1 and safety.turn_id == turns[0].id
+            assert (
+                turns[0].latency_ms == 10 and turns[0].retention_until == call.retention_until
+            )
+            assert turns[0].transcript == (record["agent"] if retain else None)
+            assert ("PRIVATE" in str(logs[0].payload)) is retain
+        await store.finish(sid)
+        with pytest.raises(ValueError, match="Missing lab call"):
+            await store.save(sid, record)
+        async with session_factory() as session:
+            call = await session.scalar(select(Call).where(Call.provider_call_id == sid))
+            assert call.status == "completed" and call.ended_at is not None
+            await session.delete(call)
+            await session.commit()
+
+    asyncio.run(run())
+
+
+def test_voice_store_rejects_private_or_invalid_metric_keys_before_database():
+    from roma.repositories.postgres.voice_lab import PostgresVoiceLabStore
+
+    class NoDatabase:
+        def __call__(self):
+            pytest.fail("Invalid evidence opened a database session")
+
+    async def run():
+        for timings in ({"secret-transcript": 1}, {"asr_ms": float("nan")}, {"asr_ms": -1}):
+            with pytest.raises(ValueError, match="timings"):
+                await PostgresVoiceLabStore(NoDatabase()).save(
+                    "voice-lab-test", {"timings": timings}
+                )
+
+    asyncio.run(run())

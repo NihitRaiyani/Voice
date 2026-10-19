@@ -202,6 +202,11 @@ async def run(args) -> int:
         provider = GradioWhisperSTT(
             endpoint_url=config.hf_whisper_space_url,
             api_name=config.hf_whisper_api_name,
+            token=(
+                config.hf_token.get_secret_value()
+                if config.hf_whisper_space_authenticated
+                else None
+            ),
             **options,
         )
     else:
@@ -209,6 +214,11 @@ async def run(args) -> int:
             endpoint_url=config.hf_indic_space_url,
             whisper_endpoint_url=config.hf_whisper_space_url,
             whisper_api_name=config.hf_whisper_api_name,
+            whisper_token=(
+                config.hf_token.get_secret_value()
+                if config.hf_whisper_space_authenticated
+                else None
+            ),
             decoder=config.indic_decoder,
             **options,
         )
@@ -226,6 +236,7 @@ async def run(args) -> int:
         "indic_endpoint": config.hf_indic_space_url,
         "whisper_endpoint": config.hf_whisper_space_url,
         "whisper_api_name": config.hf_whisper_api_name,
+        "whisper_authenticated": config.hf_whisper_space_authenticated,
         "decoder": config.indic_decoder,
         "timeout_secs": config.hf_public_timeout_secs,
         "remote_model_revision": None,

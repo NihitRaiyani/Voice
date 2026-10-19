@@ -200,7 +200,10 @@ class _CloudSTT:
                     timeout=self.timeout_secs,
                     follow_redirects=False,
                     trust_env=False,
-                    headers={"Accept-Encoding": "identity"},
+                    headers={
+                        "Accept-Encoding": "identity",
+                        **getattr(self, "_auth_headers", {}),
+                    },
                 ) as client:
                     return await self._transcribe(client, _wav(request.audio), language)
         except asyncio.CancelledError:
@@ -334,6 +337,7 @@ class GradioWhisperSTT(_GradioSTT):
         *,
         endpoint_url: str = _WHISPER_SPACE,
         api_name: str = "transcribe",
+        token: str | None = None,
         timeout_secs: float = 30,
         max_audio_secs: float = 30,
         transport: Any = None,
@@ -342,6 +346,22 @@ class GradioWhisperSTT(_GradioSTT):
         if api_name not in {"predict", "transcribe"}:
             raise ValueError("Whisper API must be predict or transcribe")
         self.api_name = api_name
+        self._auth_headers: dict[str, str] = {}
+        if token is not None:
+            if self.endpoint_url not in {
+                "https://hf-audio-whisper-large-v3.hf.space",
+                "https://openai-whisper.hf.space",
+            }:
+                raise ValueError("Whisper authentication requires an official reviewed Space")
+            if (
+                not isinstance(token, str)
+                or not token
+                or any(ord(c) <= 32 or ord(c) >= 127 for c in token)
+            ):
+                raise ValueError("Whisper authentication requires a valid HF token")
+            # Official gradio_client protocol: HF edge authentication, not app OAuth.
+            # No redirects/proxies; never sent to arbitrary or Indic community hosts.
+            self._auth_headers = {"X-HF-Authorization": "Bearer " + token}
         super().__init__(timeout_secs, max_audio_secs, transport)
 
     async def transcribe(self, request: STTRequest) -> STTResult:
@@ -412,6 +432,7 @@ class HFHostedSTT:
         endpoint_url: str = _SPACE,
         whisper_endpoint_url: str = _WHISPER_SPACE,
         whisper_api_name: str = "transcribe",
+        whisper_token: str | None = None,
         language: str = "hi",
         decoder: str = "ctc",
         timeout_secs: float = 30,
@@ -432,6 +453,7 @@ class HFHostedSTT:
         self._whisper = GradioWhisperSTT(
             endpoint_url=whisper_endpoint_url,
             api_name=whisper_api_name,
+            token=whisper_token,
             timeout_secs=timeout_secs,
             max_audio_secs=max_audio_secs,
             transport=transport,

@@ -1,0 +1,50 @@
+{
+  "schema": "section20-fixed-questions-v1",
+  "model_downloads": false,
+  "network_calls": false,
+  "native_review_passed": false,
+  "microphone_used": false,
+  "audit_sink": "synthetic_in_memory",
+  "cases": [
+    {
+      "canonical": "Aapka naam kya hai?",
+      "spoken": "आपका नाम क्या है?",
+      "audio_ms": 1603,
+      "audio_sha256": "2a5880e099be1536181177721e0bba29a7f9d7a0a38399bb1812399e68c452a3",
+      "audit_ok": true,
+      "model_version": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad"
+    },
+    {
+      "canonical": "Aap abhi padh rahe hain ya job kar rahe hain?",
+      "spoken": "आप अभी पढ़ रहे हैं या जॉब कर रहे हैं?",
+      "audio_ms": 2938,
+      "audio_sha256": "eb4a8ca20d860d768a4a3229f1167cd387ce2dce01da2e17b8fd57c952ba6246",
+      "audit_ok": true,
+      "model_version": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad"
+    },
+    {
+      "canonical": "Aap kya padh rahe hain, ya kya padha hai?",
+      "spoken": "आप क्या पढ़ रहे हैं, या क्या पढ़ा है?",
+      "audio_ms": 2799,
+      "audio_sha256": "9988277bdf23a76c1b9bd3326b504fc16337779e0e9fc1cd29d2a424cf97754d",
+      "audit_ok": true,
+      "model_version": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad"
+    },
+    {
+      "canonical": "Aapki padhai kis saal poori hogi, ya hui thi?",
+      "spoken": "आपकी पढ़ाई किस साल पूरी होगी, या हुई थी?",
+      "audio_ms": 3414,
+      "audio_sha256": "9ca5a1c9e4e4b8f8fb47a69f4b93becb5f54d89e82574d9e87725309f7a05bef",
+      "audit_ok": true,
+      "model_version": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad"
+    },
+    {
+      "canonical": "Aap kis city se hain?",
+      "spoken": "आप किस सिटी से हैं?",
+      "audio_ms": 1731,
+      "audio_sha256": "b1749030c53dbaae4e8f03bd064d69525c381a16c002e40d126c9811cd437b1b",
+      "audit_ok": true,
+      "model_version": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad"
+    }
+  ]
+}

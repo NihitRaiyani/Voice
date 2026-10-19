@@ -97,6 +97,8 @@ test-ci: test-provider-contracts
 		tests/core/test_tts_settings.py \
 		tests/providers/ai/test_indic_tts.py \
 		tests/services/test_tts_service.py \
+		tests/services/test_voice_prototype.py \
+		tests/providers/audio \
 		tests/repositories/postgres/test_benchmarks.py \
 		tests/providers/ai/test_hf_endpoint_handler.py \
 		tests/providers/ai/test_silero.py \
@@ -134,3 +136,6 @@ ci: services-up lint type db-upgrade test-ci
 
 pre-commit-install:
 	$(UV) run --no-sync pre-commit install
+
+voice-prototype:
+	$(UV) run --no-sync python scripts/voice_prototype.py

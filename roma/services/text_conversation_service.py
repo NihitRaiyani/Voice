@@ -52,7 +52,7 @@ from roma.domain.safety.inputs import (
 from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS
 from roma.domain.safety.normalize import tokens
 from roma.providers.ai.contracts import LLMMessage, LLMProvider, LLMRequest, ProviderUnavailable
-from roma.services.conversation_prompts import dialogue_request
+from roma.services.conversation_prompts import LANGUAGE_INSTRUCTIONS, dialogue_request
 from roma.services.safety_service import SafetyService
 
 
@@ -237,7 +237,11 @@ class TextConversationService:
         temperature: float = 0.7,
         safety: SafetyService | None = None,
         booking_session=None,
+        dialogue_language: str = "code_mix",
     ) -> None:
+        if dialogue_language not in LANGUAGE_INSTRUCTIONS:
+            raise ValueError("Unsupported dialogue output policy")
+        self.dialogue_language = dialogue_language
         self.provider = provider
         self.booking_session = booking_session
         self._booking_restored = False
@@ -296,13 +300,19 @@ class TextConversationService:
             nonlocal collection_output
             collection_output = ""
             text = []
-            async for chunk in self.provider.generate(request):
-                text.append(chunk.text)
-                collection_output = "".join(text)
-                if chunk.metrics:
-                    metrics.append(asdict(chunk.metrics))
-                if chunk.finish_reason not in {None, "stop", "length"}:
-                    raise ProviderUnavailable("Provider returned a fallback/error")
+            stream = self.provider.generate(request)
+            try:
+                async for chunk in stream:
+                    text.append(chunk.text)
+                    collection_output = "".join(text)
+                    if chunk.metrics:
+                        metrics.append(asdict(chunk.metrics))
+                    if chunk.finish_reason not in {None, "stop", "length"}:
+                        raise ProviderUnavailable("Provider returned a fallback/error")
+            finally:
+                close = getattr(stream, "aclose", None)
+                if close is not None:
+                    await close()
             return "".join(text)
 
         async def extract(
@@ -421,6 +431,7 @@ class TextConversationService:
             state,
             user_text,
             narrow_task,
+            language=self.dialogue_language,
             max_tokens=min(self.max_tokens, stage_max_tokens(state.stage)),
             temperature=self.temperature,
         )

@@ -191,7 +191,7 @@ STT_LANGUAGE=en uv run --no-sync python scripts/speech_lab.py --provider hf_whis
 
 The optional Indic runtime uses the official model card's PyTorch/torchaudio/Transformers plus ONNX dependencies; faster-whisper uses its own optional runtime/converted cache. Provision these in a separately reviewed compatible environment; they are deliberately absent from the default lock/install. Cache misses fail without a network fallback. The selected gated Indic model needs accepted access terms and reviewed pinned custom code; `HF_HUB_OFFLINE=1` must precede Python/Hub imports. It does not support English; select the comparison baseline for English rather than overriding the hint.
 
-`hf_public_lab` uses the community IndicConformer 600M CTC Space for Gujarati/Hindi and the official Whisper large-v3 Space for English. It requires `--allow-network --public-benchmark`; the CLI marks each request `data_classification=public_benchmark`. Both public clients omit HF tokens even if one is configured. Keep private audio on an approved private route. `hf_whisper` sends its token only to the fixed official HF inference router. The read-valid token returned 402 for unavailable inference credits on 2026-10-18; that is an operator prerequisite failure with no automatic retry, fallback, credit purchase or deployment.
+`hf_public_lab` uses the community IndicConformer 600M CTC Space for Gujarati/Hindi and the official Whisper large-v3 Space for English. It requires `--allow-network --public-benchmark`; the CLI marks each request `data_classification=public_benchmark`. Both clients are anonymous by default. Only the later explicit official Whisper authentication option uses the HF edge token; the Indic community client remains credential-free. Keep private audio on an approved private route. `hf_whisper` sends its token only to the fixed official HF inference router. The read-valid token returned 402 for unavailable inference credits on 2026-10-18; that is an operator prerequisite failure with no automatic retry, fallback, credit purchase or deployment.
 
 `EndpointConfig` owns the lab's thresholds/durations; [Level 4](levels/level-04.md#sections-1517-design-and-acceptance) records defaults and limits. Production retains the current cloud/VAD/recording path. Three public clips have real hosted inference/timing evidence; representative ASR WER/CER/RTF, noisy/code-mix endpoint quality, later serving and complete voice approval remain pending.
 
@@ -207,7 +207,7 @@ This command fetches only public FLEURS validation-row-0 audio/reference metadat
 
 ## Section 18 ASR benchmark and failure review
 
-Run from `<project-root>`. Public FLEURS downloads/inference require explicit network flags; no HF token is sent to public Spaces. Raw audio and exported failures stay under ignored `var/roma`. The [Level 4 brief](levels/level-04.md#section-18-asr-benchmark) owns dataset limitations and model decisions.
+Run from `<project-root>`. Public FLEURS downloads/inference require explicit network flags. Anonymous mode sends no token; the explicitly enabled official Whisper edge authentication below is the sole public-host exception. Raw audio and exported failures stay under ignored `var/roma`. The [Level 4 brief](levels/level-04.md#section-18-asr-benchmark) owns dataset limitations and model decisions.
 
 ```bash
 # Existing public cache can be reused without network. Add --allow-network
@@ -292,4 +292,48 @@ uv run --no-sync python scripts/tts_safety_lab.py --provider indic_tts \
 
 Expect six misses/stores and 18 audited hits, actual Hindi voice for all requested language routes. The report marks its in-memory synthetic audit sink and pending native review. Preserve canonical policy text and existing fixed audio; unsupported ordinary text must still fail before inference/cache.
 
-For hosted Whisper, retain the default `HF_WHISPER_SPACE_URL=https://hf-audio-whisper-large-v3.hf.space` with `HF_WHISPER_API_NAME=transcribe`. If explicitly selecting `https://openai-whisper.hf.space`, set `HF_WHISPER_API_NAME=predict` as well. The corrected adapter reads detailed events from the same job; `asr-hosted-quota-exhausted` means the public service has no admitted GPU quota. Stop replaying until capacity is available; switching public demos, increasing timeout or changing language cannot establish a successful comparison. No token is sent to public Spaces and the credit-requiring HF router is never a silent fallback. Preserve immutable failed reports, then use a new report/run identity for a fresh complete comparison. [Level 4](levels/level-04.md#hosted-whisper-failure-diagnosis--2026-10-19) records current external limits.
+For hosted Whisper, retain the default `HF_WHISPER_SPACE_URL=https://hf-audio-whisper-large-v3.hf.space` with `HF_WHISPER_API_NAME=transcribe`. If explicitly selecting `https://openai-whisper.hf.space`, set `HF_WHISPER_API_NAME=predict` as well. The corrected adapter reads detailed events from the same job; `asr-hosted-quota-exhausted` means the public service has no admitted GPU quota. Stop replaying until capacity is available; switching public demos, increasing timeout or changing language cannot establish a successful comparison. Anonymous mode sends no token, the explicit official Whisper edge option below is scoped to reviewed hosts, and the credit-requiring HF router is never a silent fallback. Preserve immutable failed reports, then use a new report/run identity for a fresh complete comparison. [Level 4](levels/level-04.md#hosted-whisper-failure-diagnosis--2026-10-19) records current external limits.
+
+
+## Authenticated official Whisper benchmark
+
+The user's existing HF key is now read from `.env` with `HF_WHISPER_SPACE_AUTHENTICATED=true` for the requested official Whisper benchmark. The library default remains false. The token uses Gradio's `X-HF-Authorization` edge header, restricted to `hf-audio-whisper-large-v3.hf.space` or `openai-whisper.hf.space`, with redirects/proxies disabled. It is never forwarded to the Indic community Space or arbitrary endpoints, logged, stored in reports or committed. Existing key values are unchanged.
+
+```bash
+# Use only the existing public FLEURS cache; no model download.
+HF_WHISPER_SPACE_AUTHENTICATED=true \
+uv run --no-sync python scripts/asr_benchmark.py run --allow-network \
+  --manifest benchmarks/asr/section18/manifest.json \
+  --audio-dir var/roma/asr-public --provider hf_whisper_space \
+  --report var/roma/asr-benchmark/whisper-authenticated-new.json
+```
+
+The actual authenticated run passed 7/15 cases, then the account's own ZeroGPU allowance was exhausted. The separately authenticated inference router returned credits unavailable. A valid token identifies the account and may unlock its free allowance; it does not add unlimited GPU time or buy credits. New runs stop at the first quota exception and preserve a resumable checkpoint. Resume explicitly only after account capacity resets/is available, using `--resume --retry-errors` and the same endpoint/API/auth provenance. Do not rotate keys/endpoints to conceal capacity failures, purchase credits automatically or download weights. Historical reports remain unchanged; [Level 4](levels/level-04.md#authenticated-whisper-follow-up--2026-10-19) owns the measurements.
+
+## Section 20 microphone-to-speaker prototype
+
+```bash
+# Default integration exercise: no hardware, keys, network or DB writes.
+make voice-prototype
+
+# Install optional audio I/O software only; PortAudio is required by the host.
+uv sync --locked --extra dev --extra telephony --extra workers --extra voice-lab
+
+# Only after local ASR runtime/caches and the earlier quality gates are ready.
+# Do not resolve a venv interpreter symlink to its base Python executable.
+HF_HUB_OFFLINE=1 STT_PROVIDER=whisper \
+WHISPER_MODEL_ID=/absolute/path/to/already-provisioned-whisper-cache \
+INDIC_TTS_PYTHON="$(pwd)/var/roma/tts-runtime/bin/python" \
+INDIC_TTS_MANIFEST="$(pwd)/var/roma/indic-tts/manifest.json" \
+TTS_TIMEOUT_SECS=180 \
+uv run --no-sync python scripts/voice_prototype.py --mode local \
+  --allow-microphone --allow-paid-api --allow-database-write
+```
+
+Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms the cached ASR routes, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. `STT_PROVIDER=indic_conformer` additionally needs its reviewed immutable revision/custom-code opt-in and the cached English Whisper baseline; all providers remain offline/cache-only. Existing OpenAI timeout/fallback/spend caps apply, and exhausted OpenAI quota cannot demonstrate a successful live LLM gate.
+
+Set `STT_LANGUAGE=gu`, `hi` or `en` for the caller’s starting test language; this initializes the saved ASR route before any transcript exists. Subsequent changes still use the existing smoothed language router. Optional `--input-device N --output-device N` select PortAudio indices; `--max-turns N` defaults to 30, capped at 60 and five minutes. The microphone closes before speaking; barge-in is later work. Every attempt/ready/result uses short PostgreSQL writes in an isolated `voice-lab-…` call. Redis holds and existing DB reference slots back actual booking; startup creates no slots, seed data or migration. Schema head must already be `20261004_0003`.
+
+By default, durable events/turns omit full transcript text; checkpoint slots remain necessary persisted participant data. Use `--persist-transcripts` only for approved test retention: caller text is in the call event and final agent text in the correlated call_turn row. Existing schema has one row per logical turn, so speaker pairs are not forced into duplicate turn numbers. Failed/unaccepted input remains an attempt event. Four-hour expiry metadata requires the project's retention/deletion procedure; do not assume automatic purging or delete committed booking truth. No microphone audio is written to disk or uploaded to HF.
+
+The default lab and automated CI use synthetic PCM, scripted ASR and a fake speaker, never the physical microphone or paid API. [Level 6](levels/level-06.md) distinguishes implemented integration, actual fixed-question synthesis and the still-pending hardware/native gate.

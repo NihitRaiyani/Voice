@@ -120,6 +120,7 @@ class SynthesizedSpeech:
     canonical_sha256: str | None
     spoken_canonical_text: str
     spoken_sha256: str | None
+    safety_normalization_ms: float = 0.0
 
     @property
     def cache_hit(self) -> bool:
@@ -255,6 +256,7 @@ class SpeechSynthesisService:
             voice=request.voice or self.default_voice,
         )
         validate_request(request, self.max_text_bytes)
+        safety_normalization_ms = (perf_counter() - started) * 1000
         identity_method = getattr(self.provider, "cache_identity", None)
         version = await identity_method(request) if identity_method else self.model_version
         if type(version) is not str or not version or len(version) > 256:
@@ -333,4 +335,5 @@ class SpeechSynthesisService:
             canonical_sha256,
             pronunciation.canonical_text if pronunciation else canonical,
             pronunciation.spoken_sha256 if pronunciation else None,
+            safety_normalization_ms,
         )

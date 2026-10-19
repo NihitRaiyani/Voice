@@ -387,6 +387,7 @@ def test_cli_direct_provider_selection_and_replay_are_offline_with_injected_adap
                 "hf_indic_space_url": "https://indic.hf.space",
                 "hf_whisper_space_url": "https://whisper.hf.space",
                 "hf_whisper_api_name": "predict",
+                "hf_whisper_space_authenticated": False,
                 "hf_public_timeout_secs": 30,
                 "stt_max_audio_secs": 30,
                 "indic_decoder": "ctc",
@@ -436,6 +437,7 @@ def test_cli_direct_provider_selection_and_replay_are_offline_with_injected_adap
         {
             "endpoint_url": "https://whisper.hf.space",
             "api_name": "predict",
+            "token": None,
             "timeout_secs": 30,
             "max_audio_secs": 30,
         }
@@ -460,6 +462,8 @@ def test_known_hosted_quota_failure_has_fixed_benchmark_code(public_cache, tmp_p
             report_path=tmp_path / "quota.json",
         )
     )
-    assert report["complete"]
+    assert not report["complete"]
+    assert len(report["cases"]) == 1
+    assert report["stopped_reason"] == "asr-hosted-quota-exhausted"
     assert {row["error_code"] for row in report["cases"]} == {"asr-hosted-quota-exhausted"}
     assert all(row["metrics"] is None for row in report["cases"])
