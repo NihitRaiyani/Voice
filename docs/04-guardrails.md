@@ -59,3 +59,6 @@ Every cache hit repeats the checks/audit. Cache identity includes actual text/la
 
 
 Section 20's isolated local prototype additionally renders exact controller discovery/booking/readback/sign-off lines in Devanagari. Dynamic wording must equal the pinned current template reconstructed from controller slots; branch values are closed and confirmation still requires the existing SQL-owned state. These pronunciations receive the ordinary complete final safety check and cannot invoke the six-line safety binding exception. Generated local dialogue requests the same Hindi-base Hinglish policy in the native script. Unsupported text or audit/storage failure never releases raw model output; production prompts/assets are unchanged.
+
+
+The local-base microphone follow-up adds exact finite pronunciations for the two existing confirmation re-offer constants in `roma/services/voice_pronunciation.py`. Constant equality guards reject stale or extended wording; normal final safety still screens spoken text. This repairs local rendering when absent booking setup produces the existing re-offer, without changing business/safety wording, approving a booking or changing production assets. See [Level 6](levels/level-06.md#local-base-microphone-follow-up--2026-10-19).

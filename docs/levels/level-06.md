@@ -1,10 +1,10 @@
 # Level 6 — Local voice prototype
 
-**Roadmap sections:** 20–21. **Status:** Section 20 integration implemented and verified offline; actual all-local microphone gate remains pending. Section 21 is not implemented by this increment.
+**Roadmap sections:** 20–21. **Status:** Section 20 integration verified offline and one physical English microphone/local-TTS turn passed with a mock LLM; the complete OpenAI/native microphone gate remains pending. Section 21 is not implemented by this increment.
 
 ## Entry gate
 
-Levels 2, 3, 4 and 5 core gates remain prerequisites for a passed microphone demonstration. Existing controller/booking/safety and local TTS evidence is reusable, but native speech review and representative ASR evidence remain pending. This Mac has no local ASR runtime/weights; the owner prohibits new model downloads. Authenticated HF Whisper is a separate cloud benchmark, so it cannot satisfy the requirement that OpenAI be the only cloud inference call. No hosted microphone workaround or private-audio upload is added.
+Levels 2, 3, 4 and 5 core gates remain prerequisites for a passed microphone demonstration. Existing controller/booking/safety and local TTS evidence is reusable, but native speech review and representative ASR evidence remain pending. The owner subsequently approved only multilingual Whisper base; its optional runtime and pinned local weights are installed. The separate 15-case run completed, but Gujarati/Hindi/stitched quality failed, so the model is an integration baseline. Authenticated HF Whisper is a separate cloud benchmark, so it cannot satisfy the requirement that OpenAI be the only cloud inference call. No hosted microphone workaround or private-audio upload is added.
 
 ## Section 20 implementation
 
@@ -37,9 +37,23 @@ The [runbook](../runbook.md#section-20-microphone-to-speaker-prototype) owns com
 - [x] Local audio adapter overflow/underflow/cleanup/cancellation tested with an injected backend.
 - [x] Existing discovery question pronunciations synthesize with the installed Hindi model.
 - [ ] Levels 2–5 native/representative prerequisite gates approved.
-- [ ] Local ASR runtimes and already-provisioned model caches available on the demonstration machine.
+- [x] Local Whisper base runtime and pinned model cache available on this machine; local readiness verified with installed TTS and bundled Silero.
 - [ ] Real microphone/headphone conversation with OpenAI in Gujarati, Hindi, English and code-mix, including booking and native review.
 
-Local startup first verifies cached ASR inference for all three language hints, short safe TTS and bundled Silero on synthetic silence before opening the microphone or creating the lab call. No failed model setup can capture participant audio. Actual local startup preflight was exercised: it refuses the missing local-ASR prerequisites before microphone capture, paid OpenAI calls or configured-database writes. OpenAI quota remains a separate prerequisite; automated tests never consume it. The local microphone gate is **not passed**. No ASR weights were downloaded and the production Twilio/Sarvam path remains unchanged.
+The owner deferred OpenAI calls while quota is exhausted. The new explicit `--llm-provider mock` local mode uses physical audio and real local ASR/TTS without reading OpenAI settings or constructing its adapter; it still requires microphone/DB opt-ins. This is a hardware integration check, not a completed OpenAI conversation. The default local LLM selection stays OpenAI behind the existing paid opt-in.
+
+Local startup first verifies cached ASR inference for all three language hints, short safe TTS and bundled Silero on synthetic silence before opening the microphone or creating the lab call. No failed model setup can capture participant audio. The previous missing-runtime rejection is superseded by the [actual local readiness check](../../benchmarks/voice/section20-local-readiness.json): local base ASR, installed TTS and bundled Silero passed in 29.826 seconds without capture, OpenAI or DB writes. OpenAI quota remains a separate prerequisite; automated tests never consume it. The local microphone gate is **not passed**. Only the explicitly approved Whisper base snapshot was downloaded; the production Twilio/Sarvam path remains unchanged.
 
 Return to the [documentation index](../README.md).
+
+
+## Local base microphone follow-up — 2026-10-19
+
+Only the pinned multilingual Whisper base snapshot was provisioned. The local readiness evidence confirms ASR, installed TTS and bundled Silero are available. Configured `roma` was read-only confirmed at head, and its existing local Redis endpoint was started without changing `.env`. The first physical English capture finalized on silence with **1.921 s ASR processing**; no LLM generation ran (`llm_ms=0`, no OpenAI metrics), and playback failed. A second explicit mock-LLM attempt timed out without speech; neither attempt passes the microphone gate.
+
+The first failure exposed an existing approved re-offer pronunciation gap: absent branch setup selects booking-unavailable wording, and the unchanged confirmation filter selects `SAFE_REOFFER_LINE`. Both exact existing re-offer variants now have finite Hindi phonetic bindings in `voice_pronunciation.py`, following the existing constant-equality guards. Additional words do not match a binding. Canonical wording, business/safety rules, fixed production audio and booking authority are unchanged. [Actual local synthesis](../../benchmarks/voice/section20-reoffer-pronunciation.json) passed both variants with normal safety checks and no OpenAI/downloads; native listening approval remains separate. No branch/slot was seeded to make the lab appear bookable.
+
+
+After the exact pronunciation repair, the [physical English microphone report](../../benchmarks/voice/section20-base-microphone-mock.json) records one completed turn: actual microphone → bundled Silero/endpointing → local base ASR → controller/safety → installed local TTS → physical speaker/headphones. OpenAI configuration/client construction was explicitly forbidden in this run; the mock LLM was selected, and no LLM generation was needed for this deterministic response. ASR finalized on silence in **585 ms**; cold TTS took **8.768 s**, playback **5.160 s**, and response processing including playback **14.041 s**. These are boundary timings, not first-audible latency or p95. No microphone audio was retained or uploaded.
+
+Configured `roma` readback confirms the isolated call is `completed` with one `played` event, `error_code=null` and transcript retention disabled. The owner confirmed **“Heard it clearly”**. This is a single English-input/Hindi-base Hinglish-response hardware integration pass; it does not approve multilingual ASR, all stages, booking, interruptions or native language quality. Branch/reference-slot setup was absent, so the unchanged controller used its approved re-offer rather than inventing availability. OpenAI remains the main LLM for later authorized quota-available testing; all further API calls remain deferred.

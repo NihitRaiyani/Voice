@@ -1,0 +1,27 @@
+{
+  "schema": "section20-reoffer-local-tts-v1",
+  "network_calls": false,
+  "model_downloads": false,
+  "openai_called": false,
+  "microphone_used": false,
+  "audit_sink": "synthetic_in_memory",
+  "native_review_passed": false,
+  "cases": [
+    {
+      "canonical": "Abhi wo time final nahi hua hai. Aapko subah ka time theek rahega ya shaam ka?",
+      "spoken": "अभी वो टाइम फाइनल नहीं हुआ है। आपको सुबह का टाइम ठीक रहेगा या शाम का?",
+      "audit_ok": true,
+      "audio_ms": 4796,
+      "synthesis_ms": 8690.94324996695,
+      "audio_sha256": "ff1e605c1a7c5c22e06785986ac0faf2abf25c2e51aef46bd04ae7661ca075a0"
+    },
+    {
+      "canonical": "Abhi wo time final nahi hua hai.",
+      "spoken": "अभी वो टाइम फाइनल नहीं हुआ है।",
+      "audit_ok": true,
+      "audio_ms": 2578,
+      "synthesis_ms": 7008.48550000228,
+      "audio_sha256": "7b120a4403b8a4743b1e5000115e899421369f6f5aece2ea9870964ac6447603"
+    }
+  ]
+}

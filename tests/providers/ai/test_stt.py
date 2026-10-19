@@ -196,7 +196,7 @@ def test_daemon_work_does_not_block_event_loop():
 def test_whisper_real_sdk_mapping_is_cache_only_and_consumes_generator_in_worker(
     monkeypatch, tmp_path
 ):
-    for name in ("tokenizer.json", "preprocessor_config.json"):
+    for name in ("config.json", "model.bin", "tokenizer.json", "vocabulary.txt"):
         (tmp_path / name).write_text("{}")
     calls = []
 
@@ -437,3 +437,22 @@ def test_expanded_model_output_is_sanitized_and_optional_language_is_preserved()
     )
     result = asyncio.run(unknown_language.transcribe(request()))
     assert result == STTResult("SEO", None, None)
+
+
+def test_whisper_missing_tokenizer_rejected_before_sdk_can_fetch_one(monkeypatch, tmp_path):
+    for name in ("model.bin", "config.json"):
+        (tmp_path / name).write_text("{}")
+    monkeypatch.setitem(
+        sys.modules,
+        "faster_whisper",
+        SimpleNamespace(
+            WhisperModel=lambda *a, **kw: pytest.fail("SDK could fetch missing tokenizer")
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "faster_whisper.utils",
+        SimpleNamespace(download_model=lambda *a, **kw: pytest.fail("unexpected lookup")),
+    )
+    with pytest.raises(ProviderUnavailable, match=r"tokenizer\.json"):
+        asyncio.run(WhisperSTT(model_id=str(tmp_path)).transcribe(request()))

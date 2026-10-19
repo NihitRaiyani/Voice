@@ -428,6 +428,14 @@ async def run_benchmark(
         "expected_cases": len(selected),
         "complete": False,
     }
+    if provider_name == "whisper_local":
+        report["network_calls"] = False
+        report["limits"] = (
+            "Small public read-speech lab; stitched code-mix is synthetic. Local CPU wall RTF "
+            "includes first-case model loading, feature extraction, decoding and worker overhead; "
+            "inference_rtf is not isolated. Weights were provisioned before this offline run. "
+            "No native review, microphone test or production approval is implied."
+        )
     if case_ids is not None and not resume:
         raise ValueError("Replay requires an existing report checkpoint")
     previous: dict[str, dict] = {}

@@ -1,0 +1,53 @@
+import hashlib
+import json
+
+import pytest
+from roma.eval import local_whisper
+
+
+@pytest.fixture
+def artifacts(tmp_path, monkeypatch):
+    folder = tmp_path / "base"
+    folder.mkdir()
+    files = {}
+    for name in ("config.json", "model.bin", "tokenizer.json", "vocabulary.txt"):
+        data = name.encode()
+        (folder / name).write_bytes(data)
+        files[name] = {"bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    spec = tmp_path / "spec.json"
+    spec.write_text(
+        json.dumps(
+            {"repository": "Systran/faster-whisper-base", "revision": "a" * 40, "files": files}
+        )
+    )
+    monkeypatch.setattr(local_whisper, "SPEC", spec)
+    monkeypatch.setattr(local_whisper, "version", lambda name: "test-version")
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    return folder
+
+
+def test_local_provenance_hashes_every_artifact_without_loading_a_model(artifacts):
+    detail = local_whisper.local_base_details(artifacts)
+    assert detail["network_calls"] is False
+    assert detail["compute_type"] == "int8" and detail["cpu_threads"] == 2
+    assert detail["model_sha256"] == hashlib.sha256(b"model.bin").hexdigest()
+    assert str(artifacts) not in json.dumps(detail)
+
+
+@pytest.mark.parametrize("kind", ["checksum", "missing", "extra", "symlink", "online"])
+def test_local_artifact_drift_rejected_before_model_loading(artifacts, monkeypatch, kind):
+    weight = artifacts / "model.bin"
+    if kind == "checksum":
+        weight.write_bytes(b"wrong.bin")
+    elif kind == "missing":
+        weight.unlink()
+    elif kind == "extra":
+        (artifacts / "preprocessor_config.json").write_text("{}")
+    elif kind == "symlink":
+        target = artifacts.parent / "weight.bin"
+        weight.rename(target)
+        weight.symlink_to(target)
+    else:
+        monkeypatch.delenv("HF_HUB_OFFLINE")
+    with pytest.raises(ValueError):
+        local_whisper.local_base_details(artifacts)

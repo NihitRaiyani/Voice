@@ -4,7 +4,7 @@
 
 ## Entry gate and authorized scope
 
-Reuse Level 1 provider seams, Level 0 audio concepts and existing Twilio/codec/VAD foundations. The authorized increments now cover sections 14–18 and the separate section 19 TTS lab. Section 18 measures existing hosted adapters without local ASR downloads; adaptive buffering/PLC remain outside this increment. OpenAI remains the LLM; Hindi-base Hinglish output and the separate multilingual lab remain unchanged. No new ASR weight download is needed. Completed benchmark evidence is explicitly written to existing PostgreSQL tables after inference; no schema changes are needed. Existing bundled Silero weights may run locally. The owner permits opt-in Hugging Face ASR lab calls to avoid local ASR weights; this does not change the self-hosted speech target or approve purchasing credits or a paid deployment.
+Reuse Level 1 provider seams, Level 0 audio concepts and existing Twilio/codec/VAD foundations. The authorized increments now cover sections 14–18 and the separate section 19 TTS lab. Section 18 measures hosted adapters and a separately approved local Whisper base baseline; adaptive buffering/PLC remain outside this increment. OpenAI remains the LLM; Hindi-base Hinglish output and the separate multilingual lab remain unchanged. The owner explicitly approved downloading only multilingual Whisper base on 2026-10-19; no larger Whisper or IndicConformer weights are authorized. Completed benchmark evidence is explicitly written to existing PostgreSQL tables after inference; no schema changes are needed. Existing bundled Silero weights may run locally. The owner permits opt-in Hugging Face ASR lab calls to avoid local ASR weights; this does not change the self-hosted speech target or approve purchasing credits or a paid deployment.
 
 ## Section 14 design and implementation
 
@@ -239,3 +239,26 @@ The user explicitly authorized using the `.env` HF token for Whisper. A single a
 The [authenticated same-manifest report](../../benchmarks/asr/section18/whisper-authenticated-report.json) records **7 successful / 8 quota-blocked cases**: English clean/noise/telephone WER/CER 0%; Gujarati WER **37.5% / 33.3% / 29.2%**, CER **13.28% / 11.72% / 10.16%**; Hindi clean WER **40%**, CER **12.17%**. Remaining noisy Hindi and stitched paths have no invented accuracy scores. The account's authenticated ZeroGPU allowance then exhausted; the official authenticated inference router separately returned credits unavailable. This fixes authentication, not account capacity or model quality. Keep the existing model choice/routing; representative/native approval and full matched comparison remain pending.
 
 Subsequent benchmark code stops immediately on the first recognized quota rejection and retains resumable evidence, rather than submitting the remaining cases into exhausted capacity. No credit purchase, service deployment, new ASR weights, production switch or hosted microphone upload occurred. The token cannot satisfy Level 6's all-local ASR requirement; see [Level 6](level-06.md).
+
+
+## Local Whisper base baseline — 2026-10-19
+
+The owner authorized only multilingual Whisper **base**. The optional `voice-lab` extra now installs faster-whisper 1.2.1 / CTranslate2 4.8.3; the core/default dependency set and production provider choices remain unchanged. The [artifact manifest](../../benchmarks/asr/whisper-base-artifacts.json) pins `Systran/faster-whisper-base` revision `ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66`. Four files total **147,882,941 bytes** (about 148 MB decimal); weights remain ignored under `var/roma/models/whisper-base`. No tiny, larger Whisper, IndicConformer or new TTS weights were downloaded. The runtime is CPU INT8, two threads and one worker; this is not Apple Metal acceleration or a RAM measurement.
+
+The new explicit `whisper_local` benchmark option validates every artifact size/SHA-256, requires `HF_HUB_OFFLINE=1`, refuses `--allow-network` and reuses the cache-only adapter. The official converted base snapshot has no `preprocessor_config.json`; faster-whisper supports its standard feature defaults. The adapter now requires the model/config/local tokenizer rather than inventing a missing feature file or allowing an implicit tokenizer fetch. Regression tests cover the official layout and missing tokenizer.
+
+The [separate report](../../benchmarks/asr/section18/whisper-base-local-report.json) ran **all 15** same-manifest cases offline: **15 execution successes, zero provider errors**. Existing hosted large-v3 reports are unchanged and are not merged into this run. The following are per-case WER values, not accepted quality thresholds:
+
+| Language | Clean WER | Noise WER | Telephone WER |
+|---|---:|---:|---:|
+| English | 0% | 33.3% | 0% |
+| Gujarati | 100% | 100% | 100% |
+| Hindi | 100% | 100% | 100% |
+| Gujarati–English, stitched | 100% | 100% | 100% |
+| Hindi–English, stitched | 100% | 100% | 100% |
+
+Failure inspection found Gujarati rendered largely in Latin script, Hindi largely in Urdu script, and omitted English spans in stitched cases. No transliteration, reference rewriting or failed-case exclusion was used to improve scores. CER and exact edit counts remain in the report; WER/CER may exceed 100%. **Base is an integration/benchmark baseline and does not pass multilingual recognition quality.** IndicConformer remains the roadmap primary candidate; downloading it or escalating Whisper size requires a separate owner decision.
+
+The first English case took **16.507 s**, including initial model/runtime loading. The remaining 14 cases had median wall latency **0.887 s**; these public clips are 6.54–19.03 s long, and one warm case took 9.407 s. Request RTF includes native loading/features/decoding/worker overhead; isolated inference RTF remains null. These figures are not conversational p95 or end-of-speech-to-audible measurements.
+
+Thirteen public high-WER failure WAVs and review JSONs are saved under ignored `var/roma/asr-benchmark/failures-whisper-base-local`; read them with the existing failure-review command. The completed run was saved to configured `roma` as `section18-whisper-base-local-20261019-v1`, run ID `34c31fd5-9847-4109-9f43-c1b4a30b2912`: **15 samples, 90 metric rows, one distinct local model identity**. SQL status `succeeded` describes execution, not a quality gate. Schema remains at `20261004_0003`; no migration or business records were changed by the benchmark. See the [runbook](../runbook.md#local-whisper-base-benchmark) and [Level 6](level-06.md) for microphone evidence and remaining gates.

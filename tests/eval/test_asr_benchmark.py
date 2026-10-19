@@ -467,3 +467,60 @@ def test_known_hosted_quota_failure_has_fixed_benchmark_code(public_cache, tmp_p
     assert report["stopped_reason"] == "asr-hosted-quota-exhausted"
     assert {row["error_code"] for row in report["cases"]} == {"asr-hosted-quota-exhausted"}
     assert all(row["metrics"] is None for row in report["cases"])
+
+
+def test_local_cli_requires_offline_artifacts_and_never_constructs_hosted_adapter(
+    public_cache, tmp_path, monkeypatch, capsys
+):
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[2] / "scripts/asr_benchmark.py"
+    spec = importlib.util.spec_from_file_location("local_benchmark_cli", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    provider = FakeSTT()
+    constructed = []
+    monkeypatch.setattr(
+        module, "local_base_details", lambda folder: {"model_revision": "a" * 40}
+    )
+    monkeypatch.setattr(module, "WhisperSTT", lambda **kw: constructed.append(kw) or provider)
+    for name in ("HFHostedSTT", "GradioWhisperSTT", "GradioIndicSTT"):
+        monkeypatch.setattr(
+            module, name, lambda **kw: pytest.fail("hosted inference attempted")
+        )
+    manifest_path, report = tmp_path / "manifest.json", tmp_path / "local.json"
+    manifest_path.write_text(json.dumps(build_manifest(public_cache, variants=("clean",))))
+    common = [
+        "run",
+        "--provider",
+        "whisper_local",
+        "--manifest",
+        str(manifest_path),
+        "--audio-dir",
+        str(public_cache),
+        "--report",
+        str(report),
+    ]
+    with pytest.raises(ValueError, match="local-model-dir"):
+        asyncio.run(module.run(module.parser().parse_args(common)))
+    local = [*common, "--local-model-dir", str(tmp_path)]
+    with pytest.raises(ValueError, match="forbids"):
+        asyncio.run(module.run(module.parser().parse_args([*local, "--allow-network"])))
+    assert not constructed
+    assert asyncio.run(module.run(module.parser().parse_args(local))) == 0
+    result = read_json(report)
+    assert result["provider"] == "whisper_local" and result["network_calls"] is False
+    assert len(provider.requests) == 3
+    assert constructed == [{"model_id": str(tmp_path.resolve()), "timeout_secs": 60}]
+    with pytest.raises(ValueError, match="identity differs"):
+        asyncio.run(
+            run_benchmark(
+                read_json(manifest_path),
+                public_cache,
+                provider,
+                provider_name="hf_whisper_space",
+                report_path=report,
+                resume=True,
+            )
+        )
+    capsys.readouterr()

@@ -313,3 +313,38 @@ def test_unknown_whisper_api_provenance_is_rejected():
     report["provider_details"]["whisper_api_name"] = "arbitrary"
     with pytest.raises(ValueError, match="API name"):
         convert(report)
+
+
+def test_local_whisper_sql_identity_stays_separate_from_hosted_reports():
+    report = asr_report()
+    report.update(provider="whisper_local", network_calls=False)
+    report["provider_details"] = {
+        "model_name": "Systran/faster-whisper-base",
+        "model_revision": "a" * 40,
+        "model_sha256": "d" * 64,
+        "artifact_manifest_sha256": "e" * 64,
+        "artifact_source": "https://huggingface.co/Systran/faster-whisper-base/tree/"
+        + "a" * 40,
+        "device": "cpu",
+        "compute_type": "int8",
+        "cpu_threads": 2,
+        "num_workers": 1,
+        "beam_size": 1,
+        "condition_on_previous_text": False,
+        "vad_filter": False,
+        "timeout_secs": 60,
+        "runtime_versions": {"faster-whisper": "test"},
+        "machine": "arm64",
+        "network_calls": False,
+        "setup": "provisioned separately",
+    }
+    item = convert(report)
+    _prepare(item)
+    assert len(item.models) == 1
+    assert item.models[0].provider == "faster-whisper"
+    assert item.models[0].checksum_sha256 == "d" * 64
+    assert item.config["model_revision_known"] is True
+    assert "public reference excluded" not in json.dumps(item.config)
+    report["network_calls"] = True
+    with pytest.raises(ValueError, match="provenance"):
+        convert(report)

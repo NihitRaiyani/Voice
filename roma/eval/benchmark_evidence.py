@@ -88,7 +88,7 @@ def _asr(
     if report.get("complete") is not True or report.get("public_samples_only") is not True:
         raise ValueError("Only completed public ASR benchmark reports can be saved")
     provider = report["provider"]
-    if provider not in {"hf_indic", "hf_whisper_space", "hf_public_lab"}:
+    if provider not in {"hf_indic", "hf_whisper_space", "hf_public_lab", "whisper_local"}:
         raise ValueError("Unsupported ASR benchmark provider")
     cases = report["cases"]
     if (
@@ -133,9 +133,33 @@ def _asr(
     authenticated = details.get("whisper_authenticated")
     if authenticated is not None and type(authenticated) is not bool:
         raise ValueError("Invalid Whisper authentication provenance")
+    local_model = None
+    if provider == "whisper_local":
+        if (
+            report.get("network_calls") is not False
+            or details.get("network_calls") is not False
+            or details.get("model_name") != "Systran/faster-whisper-base"
+            or not re.fullmatch(r"[0-9a-f]{40}", details.get("model_revision", ""))
+            or details.get("device") != "cpu"
+            or details.get("compute_type") != "int8"
+        ):
+            raise ValueError("Invalid local base benchmark provenance")
+        local_model = ModelEvidence(
+            "faster-whisper",
+            details["model_name"],
+            details["model_revision"],
+            artifact_uri=_endpoint(details["artifact_source"]),
+            checksum_sha256=_checksum(details["model_sha256"]),
+            license_name="MIT",
+        )
+        _checksum(details["artifact_manifest_sha256"])
     model_by_language = {}
     models = {}
     for language in {case["language"] for case in cases}:
+        if local_model is not None:
+            models[local_model.key] = local_model
+            model_by_language[language] = local_model
+            continue
         whisper = provider == "hf_whisper_space" or (
             provider == "hf_public_lab" and language == "en"
         )
@@ -205,13 +229,35 @@ def _asr(
         "provider": provider,
         "provider_details": {
             key: details[key]
-            for key in ("indic_endpoint", "whisper_endpoint", "decoder", "timeout_secs")
+            for key in (
+                (
+                    "model_name",
+                    "model_revision",
+                    "model_sha256",
+                    "artifact_manifest_sha256",
+                    "artifact_source",
+                    "device",
+                    "compute_type",
+                    "cpu_threads",
+                    "num_workers",
+                    "beam_size",
+                    "condition_on_previous_text",
+                    "vad_filter",
+                    "timeout_secs",
+                    "runtime_versions",
+                    "machine",
+                    "network_calls",
+                    "setup",
+                )
+                if local_model is not None
+                else ("indic_endpoint", "whisper_endpoint", "decoder", "timeout_secs")
+            )
         },
         "normalization": report["normalization"],
         "public_samples_only": True,
         "native_review_passed": False,
         "production_voice_approved": False,
-        "model_revision_known": False,
+        "model_revision_known": local_model is not None,
         "dataset_revision": report.get("dataset_revision"),
         "derivation": {
             key: report.get("derivation", {})[key]
@@ -225,8 +271,9 @@ def _asr(
     if authenticated is not None:
         config["provider_details"]["whisper_authenticated"] = authenticated
     _finite(details["timeout_secs"], positive=True)
-    for key in ("indic_endpoint", "whisper_endpoint"):
-        _endpoint(config["provider_details"][key])
+    if local_model is None:
+        for key in ("indic_endpoint", "whisper_endpoint"):
+            _endpoint(config["provider_details"][key])
     status = "failed" if any(case["status"] == "error" for case in cases) else "succeeded"
     return (
         list(models.values()),

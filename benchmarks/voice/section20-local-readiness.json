@@ -1,0 +1,11 @@
+{
+  "schema": "section20-local-readiness-v1",
+  "asr": "Systran/faster-whisper-base",
+  "local_models_ready": true,
+  "readiness_seconds": 29.826,
+  "microphone_opened": false,
+  "openai_called": false,
+  "database_written": false,
+  "new_downloads_during_readiness": false,
+  "gate_passed": false
+}

@@ -8,7 +8,12 @@ from roma.domain.appointments.booking import (
     SLOT_CONFLICT_LINE,
     confirmed_line,
 )
-from roma.domain.conversation.confirmguard import SAFE_READBACK_HOLD_LINE, SAFE_SIGNOFF_LINE
+from roma.domain.conversation.confirmguard import (
+    SAFE_READBACK_HOLD_LINE,
+    SAFE_REOFFER_LINE,
+    SAFE_REOFFER_LINE_IN_OFFER,
+    SAFE_SIGNOFF_LINE,
+)
 from roma.domain.conversation.state import spoken_slot
 from roma.services.text_conversation_service import DISCOVERY_QUESTIONS
 
@@ -24,6 +29,16 @@ _FIXED_QUESTIONS = {
 
 
 _STATIC = (
+    (
+        "Abhi wo time final nahi hua hai. Aapko subah ka time theek rahega ya shaam ka?",
+        SAFE_REOFFER_LINE,
+        "अभी वो टाइम फाइनल नहीं हुआ है। आपको सुबह का टाइम ठीक रहेगा या शाम का?",
+    ),
+    (
+        "Abhi wo time final nahi hua hai.",
+        SAFE_REOFFER_LINE_IN_OFFER,
+        "अभी वो टाइम फाइनल नहीं हुआ है।",
+    ),
     (
         "Abhi visit ka time confirm nahi hua hai. Counsellor se sahi availability check karwa dete hain.",
         BOOKING_UNAVAILABLE_LINE,

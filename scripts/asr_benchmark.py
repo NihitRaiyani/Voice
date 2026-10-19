@@ -1,6 +1,6 @@
 """Public FLEURS benchmark: prepare, run/resume, inspect/export failures and replay.
 
-Network is opt-in, public Spaces receive no token, and no local weights are loaded.
+Hosted network is opt-in. Local Whisper base uses a separately provisioned, hash-verified snapshot.
 """
 
 import argparse
@@ -25,11 +25,13 @@ from roma.eval.asr_benchmark import (  # noqa: E402
     run_benchmark,
     write_json,
 )
+from roma.eval.local_whisper import local_base_details  # noqa: E402
 from roma.providers.ai.hf_asr import (  # noqa: E402
     GradioIndicSTT,
     GradioWhisperSTT,
     HFHostedSTT,
 )
+from roma.providers.ai.stt import WhisperSTT  # noqa: E402
 
 
 async def fetch_public_samples(audio_dir: Path, count: int) -> None:
@@ -110,12 +112,13 @@ def parser() -> argparse.ArgumentParser:
             else "Replay saved error/high-WER public cases",
         )
         run.add_argument("--allow-network", action="store_true")
+        run.add_argument("--local-model-dir", type=Path)
         run.add_argument("--manifest", type=Path, required=True)
         run.add_argument("--audio-dir", type=Path, default=ROOT / "var/roma/asr-public")
         run.add_argument("--report", type=Path, required=True)
         run.add_argument(
             "--provider",
-            choices=("hf_public_lab", "hf_indic", "hf_whisper_space"),
+            choices=("hf_public_lab", "hf_indic", "hf_whisper_space", "whisper_local"),
             default="hf_public_lab",
         )
         run.add_argument("--languages", nargs="+", choices=(*LANGUAGES, "gu-en", "hi-en"))
@@ -176,8 +179,12 @@ async def run(args) -> int:
             )
         )
         return 0
-    if not args.allow_network:
+    if args.provider != "whisper_local" and not args.allow_network:
         raise ValueError("Hosted benchmark requests require --allow-network")
+    if args.provider == "whisper_local" and (args.allow_network or not args.local_model_dir):
+        raise ValueError(
+            "Local benchmark requires --local-model-dir and forbids --allow-network"
+        )
     manifest = read_json(args.manifest)
     languages = (
         set(args.languages)
@@ -194,7 +201,10 @@ async def run(args) -> int:
         "timeout_secs": config.hf_public_timeout_secs,
         "max_audio_secs": config.stt_max_audio_secs,
     }
-    if args.provider == "hf_indic":
+    if args.provider == "whisper_local":
+        details = local_base_details(args.local_model_dir)
+        provider = WhisperSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60)
+    elif args.provider == "hf_indic":
         provider = GradioIndicSTT(
             endpoint_url=config.hf_indic_space_url, decoder=config.indic_decoder, **options
         )
@@ -232,16 +242,17 @@ async def run(args) -> int:
                 )
             )
             return 0
-    details = {
-        "indic_endpoint": config.hf_indic_space_url,
-        "whisper_endpoint": config.hf_whisper_space_url,
-        "whisper_api_name": config.hf_whisper_api_name,
-        "whisper_authenticated": config.hf_whisper_space_authenticated,
-        "decoder": config.indic_decoder,
-        "timeout_secs": config.hf_public_timeout_secs,
-        "remote_model_revision": None,
-        "model_provenance": "Public Space deployment; remote model revision unverified",
-    }
+    if args.provider != "whisper_local":
+        details = {
+            "indic_endpoint": config.hf_indic_space_url,
+            "whisper_endpoint": config.hf_whisper_space_url,
+            "whisper_api_name": config.hf_whisper_api_name,
+            "whisper_authenticated": config.hf_whisper_space_authenticated,
+            "decoder": config.indic_decoder,
+            "timeout_secs": config.hf_public_timeout_secs,
+            "remote_model_revision": None,
+            "model_provenance": "Public Space deployment; remote model revision unverified",
+        }
     report = await run_benchmark(
         manifest,
         args.audio_dir,

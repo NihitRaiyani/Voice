@@ -276,7 +276,7 @@ class WhisperSTT(_LocalSTT):
             )
             if not all(
                 (Path(model_path) / name).is_file()
-                for name in ("tokenizer.json", "preprocessor_config.json")
+                for name in ("model.bin", "config.json", "tokenizer.json")
             ):
                 raise ValueError("incomplete cache")
             model = WhisperModel(
@@ -289,7 +289,7 @@ class WhisperSTT(_LocalSTT):
             )
         except Exception:  # noqa: BLE001 -- never include SDK exception text.
             raise _STTSetupError(
-                "Whisper cache/runtime unavailable; provision converted model, tokenizer.json and preprocessor_config.json separately"
+                "Whisper cache/runtime unavailable; provision converted model.bin, config.json and tokenizer.json separately"
             ) from None
 
         def infer(audio: bytes, language: str | None) -> STTResult:

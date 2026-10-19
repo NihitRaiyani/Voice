@@ -310,25 +310,57 @@ uv run --no-sync python scripts/asr_benchmark.py run --allow-network \
 
 The actual authenticated run passed 7/15 cases, then the account's own ZeroGPU allowance was exhausted. The separately authenticated inference router returned credits unavailable. A valid token identifies the account and may unlock its free allowance; it does not add unlimited GPU time or buy credits. New runs stop at the first quota exception and preserve a resumable checkpoint. Resume explicitly only after account capacity resets/is available, using `--resume --retry-errors` and the same endpoint/API/auth provenance. Do not rotate keys/endpoints to conceal capacity failures, purchase credits automatically or download weights. Historical reports remain unchanged; [Level 4](levels/level-04.md#authenticated-whisper-follow-up--2026-10-19) owns the measurements.
 
+## Local Whisper base benchmark
+
+Only multilingual `base` is approved for this local follow-up. Install the optional locked runtime, then provision its pinned four-file snapshot once. This step downloads approximately 148 MB; runtime dependencies use additional disk/RAM. No HF inference service or token is required for this public model.
+
+```bash
+uv sync --locked --extra dev --extra telephony --extra workers --extra voice-lab
+HF_HUB_DISABLE_IMPLICIT_TOKEN=1 uv run --no-sync hf download Systran/faster-whisper-base \
+  config.json model.bin tokenizer.json vocabulary.txt \
+  --revision ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66 \
+  --local-dir var/roma/models/whisper-base --max-workers 2
+
+# All 15 cases, using the existing public audio cache. No network/download during inference.
+HF_HUB_OFFLINE=1 uv run --no-sync python scripts/asr_benchmark.py run \
+  --provider whisper_local --local-model-dir var/roma/models/whisper-base \
+  --manifest benchmarks/asr/section18/manifest.json \
+  --report var/roma/asr-benchmark/whisper-base-local.json
+
+uv run --no-sync python scripts/asr_benchmark.py failures \
+  --report var/roma/asr-benchmark/whisper-base-local.json \
+  --manifest benchmarks/asr/section18/manifest.json \
+  --export-dir var/roma/asr-benchmark/failures-whisper-base-local
+
+uv run --no-sync python scripts/save_benchmark.py \
+  --report var/roma/asr-benchmark/whisper-base-local.json \
+  --run-key section18-whisper-base-local-20261019-v1 --allow-database-write
+```
+
+Do not overwrite the saved run/report and reuse its immutable SQL run key for a new measurement. Use a new report filename/run key for each fresh run; `--resume` is only for the same identity/checkpoint. Hosted large-v3 evidence remains separate. The [Level 4 brief](levels/level-04.md#local-whisper-base-baseline--2026-10-19) records successful execution and failed multilingual quality; runtime availability alone does not pass the gate.
+
 ## Section 20 microphone-to-speaker prototype
 
 ```bash
 # Default integration exercise: no hardware, keys, network or DB writes.
 make voice-prototype
 
-# Install optional audio I/O software only; PortAudio is required by the host.
+# Install optional audio I/O and faster-whisper runtime; host PortAudio is required.
 uv sync --locked --extra dev --extra telephony --extra workers --extra voice-lab
 
-# Only after local ASR runtime/caches and the earlier quality gates are ready.
+# Explicit integration test using the approved base cache; full native/quality gates remain pending.
 # Do not resolve a venv interpreter symlink to its base Python executable.
 HF_HUB_OFFLINE=1 STT_PROVIDER=whisper \
-WHISPER_MODEL_ID=/absolute/path/to/already-provisioned-whisper-cache \
+WHISPER_MODEL_ID="$(pwd)/var/roma/models/whisper-base" \
+STT_TIMEOUT_SECS=60 STT_LANGUAGE=en \
 INDIC_TTS_PYTHON="$(pwd)/var/roma/tts-runtime/bin/python" \
 INDIC_TTS_MANIFEST="$(pwd)/var/roma/indic-tts/manifest.json" \
 TTS_TIMEOUT_SECS=180 \
-uv run --no-sync python scripts/voice_prototype.py --mode local \
-  --allow-microphone --allow-paid-api --allow-database-write
+uv run --no-sync python scripts/voice_prototype.py --mode local --llm-provider mock \
+  --allow-microphone --allow-database-write
 ```
+
+The owner has deferred OpenAI usage while quota is unavailable. The command above uses a mock LLM with real local microphone/ASR/TTS and never constructs the OpenAI adapter. This verifies audio integration only. After the owner resumes live API testing, set the existing approved `OPENAI_MODEL=gpt-4o`, change to `--llm-provider openai` and explicitly add `--allow-paid-api`; this does not change production defaults.
 
 Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms the cached ASR routes, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. `STT_PROVIDER=indic_conformer` additionally needs its reviewed immutable revision/custom-code opt-in and the cached English Whisper baseline; all providers remain offline/cache-only. Existing OpenAI timeout/fallback/spend caps apply, and exhausted OpenAI quota cannot demonstrate a successful live LLM gate.
 

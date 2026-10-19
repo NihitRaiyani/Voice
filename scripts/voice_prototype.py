@@ -115,8 +115,10 @@ async def mock_lab():
 
 
 def local_preflight(args):
-    if not (args.allow_microphone and args.allow_paid_api and args.allow_database_write):
-        raise ValueError("Local mode requires explicit microphone, OpenAI and database opt-ins")
+    if not (args.allow_microphone and args.allow_database_write):
+        raise ValueError("Local mode requires explicit microphone and database opt-ins")
+    if args.llm_provider == "openai" and not args.allow_paid_api:
+        raise ValueError("OpenAI mode requires the explicit paid API opt-in")
     cfg = SpeechSettings()
     if cfg.stt_provider not in {"indic_conformer", "whisper"}:
         raise ValueError(
@@ -135,6 +137,8 @@ def local_preflight(args):
         or not cfg.indic_model_revision
     ):
         raise ValueError("Indic ASR requires offline startup and reviewed pinned custom code")
+    if args.llm_provider == "mock":
+        return cfg, None, TTSSettings(tts_provider="indic_tts")
     llm_cfg = OpenAILLMSettings(llm_provider="openai")
     if not llm_cfg.openai_api_key.get_secret_value() or not llm_cfg.openai_model:
         raise ValueError("OpenAI key/model prerequisite is missing")
@@ -228,14 +232,19 @@ async def local_run(args):
             BookingService(PostgresBookingStore(factory), RedisAppointmentHolds(redis)), state
         )
         cleanup.push_async_callback(booking.aclose)
-        llm = build_llm_provider(llm_cfg)
-        cleanup.push_async_callback(llm.aclose)
+        llm = (
+            MockLLMProvider(response="नमस्ते।")
+            if args.llm_provider == "mock"
+            else build_llm_provider(llm_cfg)
+        )
+        if getattr(llm, "aclose", None) is not None:
+            cleanup.push_async_callback(llm.aclose)
         conversation = TextConversationService(
             TimedLLMProvider(llm),
             safety=safety,
             store=PostgresConversationStateStore(factory),
             booking_session=booking,
-            temperature=llm_cfg.openai_temperature,
+            temperature=llm_cfg.openai_temperature if llm_cfg else 0.7,
             dialogue_language="voice_hi",
         )
         synthesis = SpeechSynthesisService(
@@ -256,7 +265,13 @@ async def local_run(args):
         speech = SpeechInputService(stt, scorer, state)
         voice = VoicePrototype(state, conversation, synthesis, device, store)
         print(
-            "Headphones required. Local ASR/TTS; only OpenAI inference is remote. Ctrl+C stops. No audio recording."
+            "Headphones required. Local ASR/TTS; "
+            + (
+                "mock LLM, no cloud inference."
+                if args.llm_provider == "mock"
+                else "only OpenAI inference is remote."
+            )
+            + " Ctrl+C stops. No audio recording."
         )
         print("Voice lab id: " + state.call_sid)
         tick = perf_counter()
@@ -284,6 +299,7 @@ async def local_run(args):
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--mode", choices=("mock", "local"), default="mock")
+    p.add_argument("--llm-provider", choices=("openai", "mock"), default="openai")
     p.add_argument("--allow-microphone", action="store_true")
     p.add_argument("--allow-paid-api", action="store_true")
     p.add_argument("--allow-database-write", action="store_true")

@@ -331,3 +331,68 @@ def test_explicit_starting_language_reaches_asr_before_transcript_router(languag
     state = module.initial_lab_state(language, "Vadodara")
     assert language_hint(state) == language and state.booking_required
     assert state.call_sid.startswith("voice-lab-")
+
+
+def test_local_mock_preflight_does_not_read_openai_settings_or_require_paid_opt_in(monkeypatch):
+    from types import SimpleNamespace
+
+    spec = importlib.util.spec_from_file_location(
+        "voice_local_mock", Path(__file__).resolve().parents[2] / "scripts/voice_prototype.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(
+        module, "SpeechSettings", lambda: SimpleNamespace(stt_provider="whisper")
+    )
+    monkeypatch.setattr(module.importlib.util, "find_spec", lambda name: object())
+    monkeypatch.setattr(
+        module, "OpenAILLMSettings", lambda **kw: pytest.fail("OpenAI configured")
+    )
+    args = module.parser().parse_args(
+        [
+            "--mode",
+            "local",
+            "--llm-provider",
+            "mock",
+            "--allow-microphone",
+            "--allow-database-write",
+        ]
+    )
+    cfg, llm, tts = module.local_preflight(args)
+    assert cfg.stt_provider == "whisper" and llm is None and tts.tts_provider == "indic_tts"
+    args.llm_provider = "openai"
+    with pytest.raises(ValueError, match="paid API opt-in"):
+        module.local_preflight(args)
+
+
+@pytest.mark.parametrize("offer_stage", [False, True])
+def test_existing_approved_reoffer_has_exact_local_pronunciation(offer_stage):
+    from roma.domain.conversation.confirmguard import (
+        SAFE_REOFFER_LINE,
+        SAFE_REOFFER_LINE_IN_OFFER,
+    )
+    from roma.services.voice_pronunciation import render_voice_line
+
+    canonical = SAFE_REOFFER_LINE_IN_OFFER if offer_stage else SAFE_REOFFER_LINE
+    rendered = render_voice_line(canonical, CallState())
+    assert not any(c.isascii() and c.isalpha() for c in rendered)
+    assert rendered == (
+        "अभी वो टाइम फाइनल नहीं हुआ है।"
+        if offer_stage
+        else "अभी वो टाइम फाइनल नहीं हुआ है। आपको सुबह का टाइम ठीक रहेगा या शाम का?"
+    )
+
+
+def test_booking_unavailable_filter_output_uses_the_approved_reoffer_rendering():
+    from roma.domain.appointments.booking import BOOKING_UNAVAILABLE_LINE
+    from roma.domain.conversation.confirmguard import SAFE_REOFFER_LINE
+    from roma.services.text_conversation_service import filter_response
+    from roma.services.voice_pronunciation import render_voice_line
+
+    state = CallState(slot_status="unavailable", booking_required=True)
+    final, _ = filter_response(BOOKING_UNAVAILABLE_LINE, state)
+    assert (
+        final == SAFE_REOFFER_LINE
+    )  # Preserve existing deterministic business/safety behavior.
+    assert render_voice_line(final, state).startswith("अभी वो टाइम फाइनल")
+    assert render_voice_line(final + " extra", state) == final + " extra"
