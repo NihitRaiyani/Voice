@@ -373,32 +373,16 @@ def test_a_swallowed_exception_is_counted():
     assert h.deaf is False, "a degraded call is not a deaf call"
 
 
-def test_the_conversational_llm_caps_its_first_attempt_and_retries():
-    """Live call acf8e78f (2026-08-01) was SILENT. The lead answered, said "Hello", and heard
-    nothing before hanging up at thirty seconds:
+def test_llm_uses_a_bounded_provider_instead_of_unbounded_sdk_retry():
+    from roma.core.claude_llm_settings import ClaudeLLMSettings
+    from roma.realtime.pipeline import build_llm
+    from roma.realtime.provider_llm import ProviderLLMService
 
-        OpenAILLMService#0 TTFB: 63.978s
-
-    One request stalled and nothing capped it. `build_slot_client` has carried explicit
-    connect/read timeouts all along, so the throwaway extraction call was protected while the
-    one Roma actually speaks with was not — this pins that asymmetry closed.
-
-    Pipecat defaults `retry_on_timeout` to False, so this is opt-in and must stay opted in."""
-    from roma.core.config import Settings
-    from roma.realtime.pipeline import LLM_FIRST_ATTEMPT_TIMEOUT_SECS, build_llm
-
-    llm = build_llm(
-        Settings(
-            sarvam_api_key="x",
-            openai_api_key="x",
-            redis_url="redis://localhost:6379",
-            twilio_from_number="+16295550100",
-        )
-    )
-    assert llm._retry_on_timeout is True, "a stalled completion would hang the call again"
-    assert llm._retry_timeout_secs == LLM_FIRST_ATTEMPT_TIMEOUT_SECS
-    # Well clear of a merely slow turn: live TTFB runs 0.8-3.0s on this path.
-    assert LLM_FIRST_ATTEMPT_TIMEOUT_SECS >= 4.0
+    llm = build_llm(ClaudeLLMSettings(_env_file=None, llm_provider="claude", anthropic_api_key="test"))
+    assert isinstance(llm, ProviderLLMService)
+    assert llm.provider.settings.anthropic_attempt_timeout_secs <= 5
+    assert llm.provider.settings.anthropic_turn_timeout_secs <= 10
+    assert llm.provider.settings.anthropic_max_retries <= 1
 
 
 def test_stt_connect_does_not_block_the_pipeline_start():

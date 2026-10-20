@@ -1,6 +1,6 @@
 # Voice_Agent documentation
 
-This is the project's canonical documentation entry point. The selected OpenAI roadmap defines development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–9 cover persistence/pool safeguards, relational foundations, migration/separate-demo workflow, backend architecture boundaries, provider contracts, versioned REST resources and the day-one testing/CI skeleton.
+This is the project's canonical documentation entry point. The selected Claude roadmap defines development; actual source and verification define present capability. Implementation status is recorded in each level brief; Level 1 sections 3–9 cover persistence/pool safeguards, relational foundations, migration/separate-demo workflow, backend architecture boundaries, provider contracts, versioned REST resources and the day-one testing/CI skeleton.
 
 ## Level briefs
 
@@ -10,11 +10,11 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 |---|---|---|
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
 | 1 | [Backend foundation](levels/level-01.md) | Sections 3–9 foundations implemented; hosted CI green, full review evidence still separate |
-| 2 | [Text/OpenAI LLM](levels/level-02.md) | Sections 10–12 state/checkpoints, OpenAI/mock text seam and deterministic safety audit present; native/live quality pending |
+| 2 | [Text/Claude LLM](levels/level-02.md) | Sections 10–12 state/checkpoints, Claude/mock text seam and deterministic safety audit present; native/live quality pending |
 | 3 | [Transactional booking](levels/level-03.md) | Booking/holds/controller/API implemented; offline evidence in brief, live demo deferred |
 | 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–18 audio/input/benchmark tooling implemented; public ASR/failure evidence in brief; separate local base run completed 15/15; multilingual quality failed; native approval pending |
 | 5 | [Local TTS](levels/level-05.md) | Section 19 local Indic-TTS: 18 general and 24 approved-line cases passed; native approval pending |
-| 6 | [Local voice prototype](levels/level-06.md) | Section 20 offline lab and one English physical microphone/TTS turn passed with mock LLM; OpenAI/native gates pending |
+| 6 | [Local voice prototype](levels/level-06.md) | Section 20 offline lab and one English physical microphone/TTS turn passed with mock LLM; Claude/native gates pending |
 | 7 | [Real-time reliability](levels/level-07.md) | Cloud seams; local-stack gate pending |
 | 8 | [Secure jobs/access](levels/level-08.md) | Signed answer/durable jobs present; full gate pending |
 | 9 | [Governed retrieval](levels/level-09.md) | Planned |
@@ -51,14 +51,13 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [21 Database migrations](21-database-migrations.md) | Preserved revision history, forward workflow, rollback impact and separate opt-in demo seeds |
 | [22 Backend architecture contract](22-backend-architecture-contract.md) | Modular monolith map, dependency direction and section 6 boundary enforcement |
 | [23 Provider contracts](23-provider-contracts.md) | STT/LLM/TTS/embedding/telephony interfaces, mocks and config switching |
-
-| [25 OpenAI LLM](25-openai-llm.md) | Thin SDK adapter, text flow, failure/budget/privacy contract and deferred native review |
+| [25 Claude LLM](25-claude-llm.md) | Thin SDK adapter, text flow, failure/budget/privacy contract and deferred native review |
 
 ## Decisions, source and operation
 
 - [Decision register](decisions.md): adopted choices, owner decisions and known gaps.
 - [Runbook](runbook.md): baseline setup, migrations, workers and recovery procedures.
-- [OpenAI source mapping](roadmaps/README.md): unchanged Word file and section-to-level coverage.
+- [Claude source mapping](roadmaps/README.md): unchanged Word file and section-to-level coverage.
 - [Baseline evidence](roadmaps/level-00-baseline.md): source/environment identity and fresh results.
 - [Completion contract](completion-contract.md): nine mandatory areas, final demo and student deliverables.
 - [Historical archive](archive/README.md): pre-v4 references, not active build instructions.

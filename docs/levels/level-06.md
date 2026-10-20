@@ -1,10 +1,10 @@
 # Level 6 — Local voice prototype
 
-**Roadmap sections:** 20–21. **Status:** Section 20 integration verified offline and one physical English microphone/local-TTS turn passed with a mock LLM; the complete OpenAI/native microphone gate remains pending. Section 21 is not implemented by this increment.
+**Roadmap sections:** 20–21. **Status:** Section 20 integration verified offline and one physical English microphone/local-TTS turn passed with a mock LLM; the complete Claude/native microphone gate remains pending. Section 21 is not implemented by this increment.
 
 ## Entry gate
 
-Levels 2, 3, 4 and 5 core gates remain prerequisites for a passed microphone demonstration. Existing controller/booking/safety and local TTS evidence is reusable, but native speech review and representative ASR evidence remain pending. The owner subsequently approved only multilingual Whisper base; its optional runtime and pinned local weights are installed. The separate 15-case run completed, but Gujarati/Hindi/stitched quality failed, so the model is an integration baseline. Authenticated HF Whisper is a separate cloud benchmark, so it cannot satisfy the requirement that OpenAI be the only cloud inference call. No hosted microphone workaround or private-audio upload is added.
+Levels 2, 3, 4 and 5 core gates remain prerequisites for a passed microphone demonstration. Existing controller/booking/safety and local TTS evidence is reusable, but native speech review and representative ASR evidence remain pending. The owner subsequently approved only multilingual Whisper base; its optional runtime and pinned local weights are installed. The separate 15-case run completed, but Gujarati/Hindi/stitched quality failed, so the model is an integration baseline. Authenticated HF Whisper is a separate cloud benchmark, so it cannot satisfy the requirement that Claude be the only cloud inference call. No hosted microphone workaround or private-audio upload is added.
 
 ## Section 20 implementation
 
@@ -38,11 +38,11 @@ The [runbook](../runbook.md#section-20-microphone-to-speaker-prototype) owns com
 - [x] Existing discovery question pronunciations synthesize with the installed Hindi model.
 - [ ] Levels 2–5 native/representative prerequisite gates approved.
 - [x] Local Whisper base runtime and pinned model cache available on this machine; local readiness verified with installed TTS and bundled Silero.
-- [ ] Real microphone/headphone conversation with OpenAI in Gujarati, Hindi, English and code-mix, including booking and native review.
+- [ ] Real microphone/headphone conversation with Claude in Gujarati, Hindi, English and code-mix, including booking and native review.
 
-The owner deferred OpenAI calls while quota is exhausted. The new explicit `--llm-provider mock` local mode uses physical audio and real local ASR/TTS without reading OpenAI settings or constructing its adapter; it still requires microphone/DB opt-ins. This is a hardware integration check, not a completed OpenAI conversation. The default local LLM selection stays OpenAI behind the existing paid opt-in.
+The current LLM selection is Claude Haiku 5.5 behind `--llm-provider claude`; `--allow-paid-api` remains required. Explicit `--llm-provider mock` uses real local audio/ASR/TTS without constructing any paid client, and still requires microphone/DB opt-ins. Synthetic mode remains mocked. A mock-LLM hardware result cannot establish Claude quality. No OpenAI calls or fallback.
 
-Local startup first verifies cached ASR inference for all three language hints, short safe TTS and bundled Silero on synthetic silence before opening the microphone or creating the lab call. No failed model setup can capture participant audio. The previous missing-runtime rejection is superseded by the [actual local readiness check](../../benchmarks/voice/section20-local-readiness.json): local base ASR, installed TTS and bundled Silero passed in 29.826 seconds without capture, OpenAI or DB writes. OpenAI quota remains a separate prerequisite; automated tests never consume it. The local microphone gate is **not passed**. Only the explicitly approved Whisper base snapshot was downloaded; the production Twilio/Sarvam path remains unchanged.
+Local startup first verifies cached ASR inference for all three language hints, short safe TTS and bundled Silero on synthetic silence before opening the microphone or creating the lab call. No failed model setup can capture participant audio. The previous missing-runtime rejection is superseded by the [actual local readiness check](../../benchmarks/voice/section20-local-readiness.json): local base ASR, installed TTS and bundled Silero passed in 29.826 seconds without capture, any LLM call or DB writes. Claude API availability is a separate prerequisite; automated tests never consume it. The local microphone gate is **not passed**. Only the explicitly approved Whisper base snapshot was downloaded; the production Twilio/Sarvam path remains unchanged.
 
 Return to the [documentation index](../README.md).
 
@@ -57,3 +57,11 @@ The first failure exposed an existing approved re-offer pronunciation gap: absen
 After the exact pronunciation repair, the [physical English microphone report](../../benchmarks/voice/section20-base-microphone-mock.json) records one completed turn: actual microphone → bundled Silero/endpointing → local base ASR → controller/safety → installed local TTS → physical speaker/headphones. OpenAI configuration/client construction was explicitly forbidden in this run; the mock LLM was selected, and no LLM generation was needed for this deterministic response. ASR finalized on silence in **585 ms**; cold TTS took **8.768 s**, playback **5.160 s**, and response processing including playback **14.041 s**. These are boundary timings, not first-audible latency or p95. No microphone audio was retained or uploaded.
 
 Configured `roma` readback confirms the isolated call is `completed` with one `played` event, `error_code=null` and transcript retention disabled. The owner confirmed **“Heard it clearly”**. This is a single English-input/Hindi-base Hinglish-response hardware integration pass; it does not approve multilingual ASR, all stages, booking, interruptions or native language quality. Branch/reference-slot setup was absent, so the unchanged controller used its approved re-offer rather than inventing availability. OpenAI remains the main LLM for later authorized quota-available testing; all further API calls remain deferred.
+
+
+The preceding 2026-10-19 results retain their original provider exclusions. On 2026-10-20 the owner replaced OpenAI with Claude Haiku 5.5 and authorized synthetic paid Claude verification. The physical turn remains mock-LLM evidence; native multilingual, booking and complete Claude microphone gates remain pending.
+
+
+## Claude provider replacement — 2026-10-20
+
+The local CLI now accepts only `--llm-provider claude|mock`; Claude additionally requires `--allow-paid-api`, while the default synthetic path and real-hardware mock mode remain quota-free. No OpenAI selection/fallback is available on active paths. Existing ASR/TTS, microphone ownership, short DB writes and timings remain intact. Actual synthetic Claude text passed safety and rendered with installed local TTS; no fresh microphone session, new weights, schema migration or booking seed was performed for this provider replacement. The full Claude Gujarati/Hindi/English/code-mix microphone gate is still pending prerequisite ASR/native approval and a separately coordinated physical demonstration.

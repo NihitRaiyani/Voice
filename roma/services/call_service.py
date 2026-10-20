@@ -155,7 +155,7 @@ async def place_outbound_call(to_number: str, *, settings, reachable_fn) -> dict
         datetime.now(CALL_TIMEZONE),
         registry,
         spend=SpendLedger(spend_ledger_path(settings)),
-        budget_inr=settings.openai_budget_inr,
+        budget_inr=settings.anthropic_budget_inr,
     )
     if not verdict.may_dial:
         _log.info("dial refused: %s", verdict.reason)

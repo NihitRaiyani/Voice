@@ -1,0 +1,8 @@
+{
+  "schema": "claude-model-access-v1",
+  "requested_model": "claude-haiku-5-5",
+  "returned_model": "claude-haiku-5-5",
+  "display_name": "Claude Haiku 5.5",
+  "available": true,
+  "generation_called": false
+}

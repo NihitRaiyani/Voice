@@ -1,5 +1,8 @@
 # Voice_Agent Level 0 baseline evidence
 
+Current source/provider policy changed on 2026-10-20: [Claude roadmap](README.md) and Claude Haiku 5.5 replace OpenAI. Dated checks, model names, counts and former source hashes below remain historical evidence; they do not prove Claude quality/cost/latency. No OpenAI requests or fallback are permitted. Native/representative and complete voice gates remain pending.
+
+
 Assessment: 2026-10-04. Working repository: `/Users/nihitraiyani/Voice_Agent`. Source revision: `28403729b0575adf233498c58a9c67c3f7194177`. This identifies the source; it is not a new baseline tag or complete Level 0 gate.
 
 Two pre-existing local edits in `roma/repositories/redis/postcall_queue.py` and `roma/workers/postcall/worker.py` were preserved. No level feature, dependency, secret setting, runtime prompt or audio asset was changed during documentation redesign. Small script docstrings were synchronized only; executable behavior is unchanged.

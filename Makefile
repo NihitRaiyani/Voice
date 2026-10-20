@@ -52,7 +52,7 @@ text-console:
 	$(UV) run --no-sync python scripts/text_console.py --provider mock
 
 language-lab:
-	$(UV) run --no-sync python scripts/openai_language_lab.py --provider mock
+	$(UV) run --no-sync python scripts/claude_language_lab.py --provider mock
 
 sync:
 	$(UV) sync --locked --extra dev --extra telephony --extra workers
@@ -66,6 +66,7 @@ services-down:
 db-upgrade:
 	$(UV) run --no-sync alembic upgrade head
 
+app-start: export LLM_PROVIDER = claude
 app-start: services-up db-upgrade
 	$(UV) run --extra telephony uvicorn roma.main:create_app --factory --host $(HOST) --port $(PORT)
 
@@ -79,6 +80,7 @@ test-provider-contracts:
 	PYTHONDONTWRITEBYTECODE=1 $(UV) run --no-sync pytest -q -p no:cacheprovider \
 		tests/providers/ai/test_provider_contracts.py \
 		tests/providers/ai/test_openai_llm.py \
+		tests/providers/ai/test_claude_llm.py \
 		tests/providers/telephony/test_telephony_provider_contracts.py \
 		tests/core/test_config.py
 
@@ -100,6 +102,8 @@ test-ci: test-provider-contracts
 		tests/services/test_tts_service.py \
 		tests/services/test_voice_prototype.py \
 		tests/providers/audio \
+		tests/realtime/test_provider_llm.py \
+		tests/eval/test_cli.py \
 		tests/repositories/postgres/test_benchmarks.py \
 		tests/providers/ai/test_hf_endpoint_handler.py \
 		tests/providers/ai/test_silero.py \
@@ -127,6 +131,7 @@ test-ci: test-provider-contracts
 		tests/realtime/test_safety_audit.py \
 		tests/repositories/postgres/test_safety_audit.py \
 		tests/eval/test_openai_language.py \
+		tests/core/test_claude_llm_settings.py \
 		tests/core/test_openai_llm_settings.py
 
 test:

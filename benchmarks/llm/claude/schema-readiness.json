@@ -1,0 +1,70 @@
+{
+  "schema": "claude-haiku-schema-readiness-v1",
+  "synthetic_only": true,
+  "openai_requests": 0,
+  "native_review_passed": false,
+  "cases": [
+    {
+      "schema_readiness": true,
+      "attempt_timeout_secs": 15.0,
+      "extraction_results": [
+        {
+          "schema": "ValidatedDiscoveryValue",
+          "valid": true
+        }
+      ],
+      "final_response": "Aap kya padh rahe hain, ya kya padha hai?",
+      "provider_error": null,
+      "metrics": [
+        {
+          "model": "claude-haiku-5-5",
+          "ttft_ms": 1698.615749948658,
+          "generation_secs": 1.9329538330202922,
+          "attempts": 1,
+          "input_tokens": 829,
+          "output_tokens": 32,
+          "cached_input_tokens": 0,
+          "cost_inr": 0.02,
+          "charged_inr": 0.02,
+          "usage_known": true,
+          "call_tokens_used": 861,
+          "call_spent_inr": 0.02,
+          "error_code": null,
+          "cache_creation_input_tokens": 807,
+          "provider": "claude"
+        }
+      ]
+    },
+    {
+      "schema_readiness": false,
+      "attempt_timeout_secs": 4.0,
+      "extraction_results": [
+        {
+          "schema": "ValidatedDiscoveryValue",
+          "valid": true
+        }
+      ],
+      "final_response": "Aap kya padh rahe hain, ya kya padha hai?",
+      "provider_error": null,
+      "metrics": [
+        {
+          "model": "claude-haiku-5-5",
+          "ttft_ms": 1487.6030830200762,
+          "generation_secs": 1.8327673750463873,
+          "attempts": 1,
+          "input_tokens": 829,
+          "output_tokens": 32,
+          "cached_input_tokens": 807,
+          "cost_inr": 0.01,
+          "charged_inr": 0.01,
+          "usage_known": true,
+          "call_tokens_used": 861,
+          "call_spent_inr": 0.01,
+          "error_code": null,
+          "cache_creation_input_tokens": 0,
+          "provider": "claude"
+        }
+      ]
+    }
+  ]
+}

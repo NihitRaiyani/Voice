@@ -10,7 +10,7 @@ Use the locked project environment with telephony/dev/workers extras, or let the
 make sync
 ```
 
-Use `.env.example` as the settings reference; do not overwrite an existing `.env`. Configure local PostgreSQL and Redis endpoints, Twilio/Sarvam/OpenAI settings as needed by the selected baseline, `API_TOKEN`, public HTTPS base and keyed caller identity. Do not print or commit their values.
+Use `.env.example` as the settings reference; do not overwrite an existing `.env`. Configure local PostgreSQL and Redis endpoints, Twilio/Sarvam/Anthropic settings as needed by the selected baseline, `API_TOKEN`, public HTTPS base and keyed caller identity. Do not print or commit their values.
 
 For the v4 foundation use native PostgreSQL/Redis services, each bound to the intended local/private interface with persistent data outside source. `DATABASE_URL` uses `postgresql+asyncpg://`; `REDIS_URL` matches the configured private Redis service. Use the installed service's administrator tools to create a dedicated development database/user; credentials are local secrets.
 
@@ -124,14 +124,18 @@ Recovery drills at L8–13 cover GPU OOM/restart/admission, Redis reconstruction
 
 See [verification](12-verification.md), [security](07-security.md), [webhooks](18-webhook-idempotency.md), [jobs](19-background-task-framework.md) and [decisions](decisions.md).
 
-## OpenAI section 11 text workflow
+## Claude section 11 text workflow
 
-Read [the selected source](roadmaps/README.md) and [OpenAI adapter contract](25-openai-llm.md). `make text-console` is the safe synthetic/mock console command; `make language-lab` writes 40 mock cases with blank native reviews. Tests cover these commands through subprocesses and SDK HTTP mock transports. No live OpenAI call, carrier operation or appointment commit is needed for this verification.
+Read [the selected source](roadmaps/README.md) and [Claude adapter contract](25-claude-llm.md). `make text-console` and `make language-lab` default to mocks. Tests use injected SDK transports and never dial, spend or download models. Preserve the existing private `.env`; set `ANTHROPIC_API_KEY` there and use `ANTHROPIC_MODEL=claude-haiku-5-5`. Never print key values. `.env.example` documents anthropic output/deadline/retry/token/spend limits; low effort is the default and temperature/top_p/top_k must be omitted.
 
-Real text generation is a later separately authorized action while quota is unavailable. It requires environment-only `OPENAI_API_KEY`, explicit `OPENAI_MODEL`, `--provider openai` and `--allow-paid-api`. Preserve an existing `.env`; `.env.example` documents output/temperature, prompt-byte, deadline/retry and per-call token/spend limits. Never print keys, raw caller information or remote error bodies. On a quota/billing error use the approved fallback without retries; transient retries are bounded and only before any text. Missing usage retains a conservative reservation. Budget exhaustion calls no SDK endpoint.
+Synthetic paid Claude verification is explicitly authorized for this switch. Use synthetic identities/prompts only:
 
-Native language scores, real TTFT/cost measurements and full voice/interruption approval remain pending. No local LLM is installed. ASR/TTS/embedding and live audio integration remain their later phases. The working `roma` database remains at `20261004_0003`; the new text seam needs no schema change or seed.
+```bash
+uv run --no-sync python scripts/text_console.py --provider claude --allow-paid-api
+uv run --no-sync python scripts/claude_language_lab.py --provider claude --allow-paid-api
+```
 
+The scripts still require the explicit paid flag; no OpenAI calls or fallback. Native language scoring and full voice/interruption approval remain pending. A successful synthetic API response proves access/stream/accounting, not native quality. No local LLM is installed, and the text switch needs no schema change or seed. On auth/billing/credit/invalid requests stop immediately; transient pre-text retries remain inside the total budget. Discard partial failed text, use approved fallback and retain conservative reservations when usage is uncertain. Investigate Claude 429/5xx/outage without retrying beyond the turn deadline or weakening safety/booking. Distinguish cache creation/read and ordinary input cost; preserve fail-closed spend metering.
 
 ## Section 12 safety audit
 
@@ -149,7 +153,7 @@ Defaults in `.env.example`: `BOOKING_HOLD_TTL_SECS=90`, `BOOKING_DB_TIMEOUT_SECS
 
 A 409 means choose another verified slot; repeated 503 means check PostgreSQL/Redis availability, configured references and pool pressure. Do not restore static unlimited availability in production. Cancellation updates appointment and slot together; never manually clear a booked flag without reconciling active appointments. Capacity remains one, and terminal records require a new booking rather than PATCH reactivation. Reconnect reconciles same-SID appointment truth before prompts; redial identity/recovery drills remain later work. External calendar/CRM/WhatsApp delivery is not promised.
 
-Run `make test-ci` for mocked provider/API/controller checks plus native disposable PostgreSQL/Redis booking races and failure tests. `make test` includes the complete existing suite. Native binaries and tokenizer preparation are covered above. Tests never need OpenAI quota, real caller data or mutation of the configured `roma` database. See [Level 3 evidence](levels/level-03.md) and [API bodies](24-rest-api-design.md#appointment-holds-and-confirmation).
+Run `make test-ci` for mocked provider/API/controller checks plus native disposable PostgreSQL/Redis booking races and failure tests. `make test` includes the complete existing suite. Native binaries and tokenizer preparation are covered above. Tests never need paid AI quota, real caller data or mutation of the configured `roma` database. See [Level 3 evidence](levels/level-03.md) and [API bodies](24-rest-api-design.md#appointment-holds-and-confirmation).
 
 ## Section 14 audio lab and stream metrics
 
@@ -360,12 +364,15 @@ uv run --no-sync python scripts/voice_prototype.py --mode local --llm-provider m
   --allow-microphone --allow-database-write
 ```
 
-The owner has deferred OpenAI usage while quota is unavailable. The command above uses a mock LLM with real local microphone/ASR/TTS and never constructs the OpenAI adapter. This verifies audio integration only. After the owner resumes live API testing, set the existing approved `OPENAI_MODEL=gpt-4o`, change to `--llm-provider openai` and explicitly add `--allow-paid-api`; this does not change production defaults.
+The command above uses mock wording with real local microphone/ASR/TTS and no paid client. For the authorized Claude path set private `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL=claude-haiku-5-5`, change to `--llm-provider claude` and add `--allow-paid-api`. This does not pass native/representative prerequisites or change production speech. Synthetic mode remains mocked; OpenAI calls/fallback are forbidden.
 
-Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms the cached ASR routes, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. `STT_PROVIDER=indic_conformer` additionally needs its reviewed immutable revision/custom-code opt-in and the cached English Whisper baseline; all providers remain offline/cache-only. Existing OpenAI timeout/fallback/spend caps apply, and exhausted OpenAI quota cannot demonstrate a successful live LLM gate.
+Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms cached ASR, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. Only the already approved pinned Whisper base cache is currently provisioned; IndicConformer would additionally require separately approved reviewed weights/custom code. All local providers remain offline/cache-only. Claude timeout/fallback/spend caps apply; actual model availability and native quality are separate gates.
 
 Set `STT_LANGUAGE=gu`, `hi` or `en` for the caller’s starting test language; this initializes the saved ASR route before any transcript exists. Subsequent changes still use the existing smoothed language router. Optional `--input-device N --output-device N` select PortAudio indices; `--max-turns N` defaults to 30, capped at 60 and five minutes. The microphone closes before speaking; barge-in is later work. Every attempt/ready/result uses short PostgreSQL writes in an isolated `voice-lab-…` call. Redis holds and existing DB reference slots back actual booking; startup creates no slots, seed data or migration. Schema head must already be `20261004_0003`.
 
 By default, durable events/turns omit full transcript text; checkpoint slots remain necessary persisted participant data. Use `--persist-transcripts` only for approved test retention: caller text is in the call event and final agent text in the correlated call_turn row. Existing schema has one row per logical turn, so speaker pairs are not forced into duplicate turn numbers. Failed/unaccepted input remains an attempt event. Four-hour expiry metadata requires the project's retention/deletion procedure; do not assume automatic purging or delete committed booking truth. No microphone audio is written to disk or uploaded to HF.
 
 The default lab and automated CI use synthetic PCM, scripted ASR and a fake speaker, never the physical microphone or paid API. [Level 6](levels/level-06.md) distinguishes implemented integration, actual fixed-question synthesis and the still-pending hardware/native gate.
+
+
+Claude schema readiness is distinct from a caller turn. The official SDK transforms the Pydantic schema for API compatibility; first-time remote schema compilation can exceed the ordinary four-second attempt budget and should fail to the approved line. Do not silently raise live-turn timeouts or make paid startup requests. The explicit synthetic readiness evidence uses a separate larger timeout, then confirms the normal budget. Current short Haiku requests use low effort with optional thinking disabled; temperature/top_p/top_k are omitted. The 40-case lab admits requests against its remaining ₹2 run ceiling and retains blank native scores.

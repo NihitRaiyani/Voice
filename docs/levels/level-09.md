@@ -4,7 +4,7 @@
 
 ## Entry gate
 
-OpenAI text and local speech foundation, Level 8 governance/access and reliable job execution.
+Claude text and local speech foundation, Level 8 governance/access and reliable job execution.
 
 ## Scope when implementation is requested
 
@@ -23,7 +23,7 @@ Approved facts/direct routing, final safety and existing PostgreSQL/worker bound
 - [ ] Eligible versioned documents ingest idempotently; inactive/stale/out-of-scope evidence cannot answer.
 - [ ] Golden Recall@K/MRR, grounding, fallback, safety and P50/P95/P99 are recorded.
 - [ ] Injection/blocked-topic tests remain safe even when documents contain prohibited claims.
-- [ ] Local embeddings and deterministic no-evidence deferral need no cloud embeddings; eligible grounded wording uses OpenAI under its budgets.
+- [ ] Local embeddings and deterministic no-evidence deferral need no cloud embeddings; eligible grounded wording uses Claude under its budgets.
 
 ## Boundaries and advanced work
 

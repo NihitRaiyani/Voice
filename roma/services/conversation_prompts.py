@@ -1,4 +1,4 @@
-"""Narrow OpenAI text prompts; the existing controller owns flow and booking.
+"""Narrow provider-neutral text prompts; the existing controller owns flow and booking.
 
 Cloud call fragments remain unchanged. Caller/state values are confined to the
 user message. Only selected state fields and redacted caller text cross the provider boundary.
@@ -14,7 +14,7 @@ from roma.domain.conversation.state import DISCOVERY_ORDER, CallState, spoken_sl
 from roma.domain.safety.inputs import branch_value, caller_text, discovery_value, slot_text
 from roma.providers.ai.contracts import LLMMessage, LLMRequest
 
-PROMPT_VERSION = "openai-text-v1"
+PROMPT_VERSION = "claude-text-v1"
 LANGUAGE_INSTRUCTIONS = {
     "voice_hi": "Reply in Hindi-base Hinglish using Devanagari phonetic spelling, including common English words. Dialogue only; preserve the current task and approved facts.",
     "gu": "Reply only in natural Gujarati script.",

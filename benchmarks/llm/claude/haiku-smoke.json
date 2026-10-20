@@ -1,0 +1,58 @@
+{
+  "schema": "claude-haiku-live-smoke-v1",
+  "recorded_at": "2026-10-20T08:46:45.654169+00:00",
+  "model": "claude-haiku-5-5",
+  "effort": "low",
+  "openai_requests": 0,
+  "synthetic_prompts_only": true,
+  "native_review_passed": false,
+  "voice_gate_passed": false,
+  "cases": [
+    {
+      "language": "code_mix",
+      "raw_output": "आप डिजिटल मार्केटिंग सीखना चाहते हैं?",
+      "safe_output": "आप डिजिटल मार्केटिंग सीखना चाहते हैं?",
+      "finish_reason": "stop",
+      "metrics": {
+        "model": "claude-haiku-5-5",
+        "ttft_ms": 2448.4181250445545,
+        "generation_secs": 2.454245000029914,
+        "attempts": 1,
+        "input_tokens": 133,
+        "output_tokens": 30,
+        "cached_input_tokens": 0,
+        "cost_inr": 0.01,
+        "charged_inr": 0.01,
+        "usage_known": true,
+        "call_tokens_used": 163,
+        "call_spent_inr": 0.01,
+        "error_code": null,
+        "cache_creation_input_tokens": 0,
+        "provider": "claude"
+      }
+    },
+    {
+      "language": "gu",
+      "raw_output": "Digital Marketing શીખવામાં તમને સૌથી વધુ રસ કયા વિષયમાં છે: સોશિયલ મીડિયા, SEO કે ઓનલાઇન જાહેરાત?",
+      "safe_output": "Digital Marketing શીખવામાં તમને સૌથી વધુ રસ કયા વિષયમાં છે: સોશિયલ મીડિયા, SEO કે ઓનલાઇન જાહેરાત?",
+      "finish_reason": "stop",
+      "metrics": {
+        "model": "claude-haiku-5-5",
+        "ttft_ms": 998.5038329614326,
+        "generation_secs": 1.1753149159485474,
+        "attempts": 1,
+        "input_tokens": 124,
+        "output_tokens": 80,
+        "cached_input_tokens": 0,
+        "cost_inr": 0.01,
+        "charged_inr": 0.01,
+        "usage_known": true,
+        "call_tokens_used": 367,
+        "call_spent_inr": 0.02,
+        "error_code": null,
+        "cache_creation_input_tokens": 0,
+        "provider": "claude"
+      }
+    }
+  ]
+}

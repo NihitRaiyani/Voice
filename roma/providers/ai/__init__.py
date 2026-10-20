@@ -1,5 +1,6 @@
 """Provider contracts and factories for AI model boundaries."""
 
+from roma.providers.ai.claude_llm import ClaudeLLM
 from roma.providers.ai.contracts import (
     AudioFormat,
     EmbeddingProvider,
@@ -57,6 +58,7 @@ __all__ = [
     "MockTTSProvider",
     "ProviderUnavailable",
     "OpenAILLM",
+    "ClaudeLLM",
     "STTProvider",
     "STTRequest",
     "STTResult",

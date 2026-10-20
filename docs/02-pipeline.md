@@ -25,7 +25,7 @@ Measure user-stop-to-first-audible-response directly. Also record endpoint decis
 
 Do not add stage percentiles to create an end-to-end percentile. Fillers can improve perceived responsiveness but are not evidence of an actual completed answer. Roadmap targets such as 1.2 seconds are hypotheses until L12 evidence supports an SLO.
 
-Current source uses GPT-4o, Saaras v3 code-mix and Bulbul v3/ishita/Hindi at pace 1.05. `openai_budget_inr` defaults to ₹200; this is a spend ceiling, not remaining account credit. Local models and their queues have different resource/cost limits and require new benchmarks.
+The current LLM is Claude Haiku 5.5; retained speech uses Saaras v3 code-mix and Bulbul v3/ishita/Hindi at pace 1.05. Claude token/spend settings bound requests; the protected live spend ledger remains fail-closed. A configured spend ceiling is not remaining account credit. No OpenAI calls/fallback. Local models and their queues have different resource/cost limits and require new benchmarks.
 
 See [audio](05-endpointing-vad.md), [prompts](11-prompts.md) and [verification](12-verification.md).
 

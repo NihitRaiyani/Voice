@@ -6,7 +6,6 @@ from pydantic import ValidationError
 from roma.core.openai_llm_settings import OpenAILLMSettings
 from roma.providers.ai import (
     MockLLMProvider,
-    OpenAILLM,
     ProviderUnavailable,
     build_llm_provider,
 )
@@ -17,20 +16,20 @@ def test_mock_defaults_construct_without_any_cloud_keys():
     assert s.llm_provider == "mock" and isinstance(build_llm_provider(s), MockLLMProvider)
 
 
-def test_real_factory_requires_explicit_key_model_and_rejects_old_qwen_selector():
+def test_current_factory_rejects_openai_and_old_qwen_selectors():
     with pytest.raises(ProviderUnavailable):
         build_llm_provider(OpenAILLMSettings(_env_file=None, llm_provider="openai"))
     with pytest.raises(ValidationError):
         OpenAILLMSettings(_env_file=None, llm_provider="qwen3_transformers")
-    p = build_llm_provider(
-        OpenAILLMSettings(
-            _env_file=None,
-            llm_provider="openai",
-            openai_model="gpt-4o",
-            openai_api_key="offline-key",
+    with pytest.raises(ProviderUnavailable, match="disabled"):
+        build_llm_provider(
+            OpenAILLMSettings(
+                _env_file=None,
+                llm_provider="openai",
+                openai_model="gpt-4o",
+                openai_api_key="offline-key",
+            )
         )
-    )
-    assert isinstance(p, OpenAILLM) and p._client is None
 
 
 @pytest.mark.parametrize(
@@ -55,7 +54,7 @@ def test_console_refuses_implicit_paid_generation_before_any_client_is_construct
             str(root / ".venv/bin/python"),
             str(root / "scripts/text_console.py"),
             "--provider",
-            "openai",
+            "claude",
         ],
         cwd=root,
         capture_output=True,

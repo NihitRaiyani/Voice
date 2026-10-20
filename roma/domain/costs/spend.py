@@ -1,4 +1,4 @@
-"""What OpenAI costs, per model, and the ledger that makes the ₹100 cap mean ₹100.
+"""What model inference costs, per model, and the ledger that makes the ₹100 cap mean ₹100.
 
 docs/02 is explicit that the testing-phase cap is **enforced by a hard spend limit in the
 OpenAI dashboard, not by discipline**, and nothing here changes that. This module is the
@@ -44,9 +44,13 @@ class Prices:
     input: float
     cached_input: float
     output: float
+    cache_write: float | None = None
 
 
 PRICES: "dict[str, Prices]" = {
+    # Anthropic official price list, verified 2026-10-20; 5-minute cache writes.
+    # Application input ceiling is below Haiku's 100k-token price tier.
+    "claude-haiku-5-5": Prices(input=0.10, cached_input=0.01, output=0.50, cache_write=0.125),
     "gpt-4o-mini": Prices(input=0.15, cached_input=0.075, output=0.60),
     "gpt-4o": Prices(input=2.50, cached_input=1.25, output=10.00),
 }
@@ -61,6 +65,9 @@ def _dearest() -> Prices:
         input=max(p.input for p in PRICES.values()),
         cached_input=max(p.cached_input for p in PRICES.values()),
         output=max(p.output for p in PRICES.values()),
+        cache_write=max(
+            p.cache_write if p.cache_write is not None else p.input for p in PRICES.values()
+        ),
     )
 
 
@@ -83,19 +90,23 @@ def prices_for(model: str) -> Prices:
 
 @dataclass(frozen=True)
 class Usage:
-    """One OpenAI call's token counts, as `response.usage` reports them.
+    """Normalized token counts from one LLM completion.
 
     `cached_input_tokens` is a SUBSET of `input_tokens` (that is how OpenAI reports prompt
-    caching), so `billable_input` subtracts it rather than adding the two.
+    caching). Anthropic normalizes ordinary + cache-read + cache-write into total
+    input here; billable_input subtracts both cache subsets before ordinary pricing.
     """
 
     input_tokens: int = 0
     output_tokens: int = 0
     cached_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
 
     @property
     def billable_input(self) -> int:
-        return max(0, self.input_tokens - self.cached_input_tokens)
+        return max(
+            0, self.input_tokens - self.cached_input_tokens - self.cache_creation_input_tokens
+        )
 
     @classmethod
     def from_response(cls, response) -> "Usage":
@@ -126,6 +137,9 @@ def inr_for(usage: Usage, model: str) -> float:
         usage.billable_input / 1_000_000 * p.input
         + usage.cached_input_tokens / 1_000_000 * p.cached_input
         + usage.output_tokens / 1_000_000 * p.output
+        + usage.cache_creation_input_tokens
+        / 1_000_000
+        * (p.cache_write if p.cache_write is not None else p.input)
     )
     return math.ceil(usd * USD_TO_INR * 100) / 100
 
@@ -181,6 +195,35 @@ class SpendLedger:
         """True when there is no headroom left, OR when the ledger cannot be trusted."""
         total, ok = self._read()
         return (not ok) or total >= budget_inr
+
+    def record_charge(
+        self, charged_inr: float, model: str, *, call_sid=None, prefix=None
+    ) -> float:
+        """Persist an adapter's conservative charge, including failed/cancelled reservations.
+
+        Raise on corruption/write failure: the protocol bridge stops this call rather
+        than letting unknown usage disappear from the next pre-call check.
+        """
+        if not math.isfinite(charged_inr) or charged_inr < 0 or not model:
+            raise ValueError("Invalid reserved LLM charge")
+        if not self._read()[1]:
+            raise ValueError("LLM spend ledger cannot be trusted")
+        cost = math.ceil(charged_inr * 100 - 1e-9) / 100
+        if not cost:
+            return 0.0
+        row = {
+            "at": datetime.now(UTC).isoformat(),
+            "model": model,
+            "inr": cost,
+            "source": "provider-reservation",
+        }
+        if call_sid:
+            row["sid"] = call_sid
+        if prefix:
+            row["prefix"] = prefix
+        with open_private(self.path, "ab") as fh:
+            fh.write((json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8"))
+        return cost
 
     def record(
         self,

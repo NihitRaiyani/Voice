@@ -98,7 +98,7 @@ def main() -> int:
         # `place_call` normally applies would be skipped on this path. Run them here — the
         # gate is the reason a script may dial at all, and minting a lead is no exemption.
         verdict = precall_check(
-            args.callee, now, registry, spend=ledger, budget_inr=s.openai_budget_inr
+            args.callee, now, registry, spend=ledger, budget_inr=s.anthropic_budget_inr
         )
         if not verdict.may_dial:
             print(f"dialed=False reason={verdict.reason}")
@@ -153,8 +153,8 @@ def main() -> int:
         print(f"dialed=True reason=ok call_id={fired.request_uuid} direction=OUTBOUND")
         print(f"answer_url={base}/answer?lead=***")
         print(
-            f"openai spend: ₹{ledger.spent_inr:.2f} of ₹{s.openai_budget_inr:.2f} "
-            f"(₹{ledger.remaining_inr(s.openai_budget_inr):.2f} left)"
+            f"LLM spend: ₹{ledger.spent_inr:.2f} of ₹{s.anthropic_budget_inr:.2f} "
+            f"(₹{ledger.remaining_inr(s.anthropic_budget_inr):.2f} left)"
         )
         return 0
 
@@ -171,17 +171,17 @@ def main() -> int:
         s.twilio_from_number.get_secret_value(),
         answer_url,
         spend=ledger,
-        budget_inr=s.openai_budget_inr,
+        budget_inr=s.anthropic_budget_inr,
     )
     print(f"dialed={result.dialed} reason={result.reason} call_id={result.call_sid}")
     print(f"answer_url={answer_url}")
     print(
-        f"openai spend: ₹{ledger.spent_inr:.2f} of ₹{s.openai_budget_inr:.2f} "
-        f"(₹{ledger.remaining_inr(s.openai_budget_inr):.2f} left)"
+        f"LLM spend: ₹{ledger.spent_inr:.2f} of ₹{s.anthropic_budget_inr:.2f} "
+        f"(₹{ledger.remaining_inr(s.anthropic_budget_inr):.2f} left)"
     )
     if result.reason == "block:budget":
         print(
-            "The testing budget is spent. Raise OPENAI_BUDGET_INR *and* the OpenAI "
+            "The testing budget is spent. Raise ANTHROPIC_BUDGET_INR *and* the Anthropic "
             "dashboard hard limit — the dashboard is the real ceiling (docs/02).",
             file=sys.stderr,
         )

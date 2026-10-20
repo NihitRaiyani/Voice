@@ -14,6 +14,7 @@ DOMAIN_FORBIDDEN_PREFIXES = (
     "roma.services",
     "roma.workers",
     "asyncpg",
+    "anthropic",
     "dramatiq",
     "fastapi",
     "openai",

@@ -1,10 +1,10 @@
-# Selected OpenAI roadmap and interpretation
+# Selected Claude roadmap and interpretation
 
-The owner selected the unchanged [OpenAI Word roadmap](AI_VOICE_AGENT_openai_llm.docx) on 2026-10-12. SHA-256: `89b99bbf959d1cc713d335a49037a03b63349cc91185a03e0a57bf9fa3149429`. It supersedes the [former v4 source](AI_Voice_Agent_Unified_Roadmap_for_Student_Skill_Development_v4.docx), retained only as historical reference.
+The owner selected the unchanged [Claude Word roadmap](AI_VOICE_AGENT_claude_llm.docx) on 2026-10-20. SHA-256: `67a79ba87fbec07051d460fd4ec9d5520f7047c0e242da72a65bfdd09ede5f48`. It replaces the [OpenAI source](AI_VOICE_AGENT_openai_llm.docx) selected on 2026-10-12 (SHA-256 `89b99bbf959d1cc713d335a49037a03b63349cc91185a03e0a57bf9fa3149429`), which remains historical alongside [v4](AI_Voice_Agent_Unified_Roadmap_for_Student_Skill_Development_v4.docx). All Word files are preserved byte-for-byte; source snippets are requirements examples, not permission to rewrite foundations.
 
-OpenAI remains the LLM behind `LLMProvider`; ASR, TTS and embeddings become local in their later levels. No Qwen/MLX/Transformers LLM installation or vLLM serving is part of the active plan. Levels 0–14 and section numbering remain distinct. Introductory 0–13 wording is an editorial mismatch with the table/body.
+Claude Haiku 5.5 (`claude-haiku-5-5`) at low effort is the main LLM behind `LLMProvider`, with the official async Anthropic SDK and private `ANTHROPIC_API_KEY`. No temperature/top_p/top_k overrides. The owner authorizes synthetic paid Claude verification; automated tests remain mock/offline and CLI paid runs require explicit opt-in. No OpenAI requests or fallback. Local ASR/TTS/embeddings remain the target; carrier/internal services and the explicitly permitted public HF ASR labs retain their existing boundaries.
 
-The file is requirements material, not authorization to call, spend, deploy, expose caller data or change credentials. Explicit owner policy wins: retain Twilio, layered `roma/`, earlier persistence/API/state-machine work and Hindi-base Hinglish live replies. Multilingual output stays in its lab; native scoring and complete voice approval remain deferred. OpenAI quota remains unavailable and automated tests use mocks. The owner subsequently authorized explicit public HF speech checks; Gujarati, Hindi and English hosted ASR have now been exercised without local model weights. These lab checks do not approve production audio or complete voice quality. Model/API keys and actual production model selection come from the environment, not a tracked secret.
+Explicit owner policy preserves Twilio, layered `roma/`, migrations, PostgreSQL/Redis/booking/API/state foundations, deterministic safety and Hindi-base Hinglish live replies. Multilingual generation is a separate lab. Only the pinned Whisper base ASR artifact is approved; the completed 15-case local benchmark failed Gujarati/Hindi/stitched quality. Local TTS is installed, and one English physical microphone/mock-LLM/TTS turn was heard clearly. These results do not pass native/representative or complete Level 6 gates. Current alignment scope ends at section 20; section 21 remains unimplemented.
 
 ## Source coverage
 
@@ -12,7 +12,7 @@ The file is requirements material, not authorization to call, spend, deploy, exp
 |---|---|
 | 1–2 | [Level 0](../levels/level-00.md) |
 | 3–9 | [Level 1](../levels/level-01.md) |
-| 10–12 | [Level 2 OpenAI conversation brain](../levels/level-02.md) |
+| 10–12 | [Level 2 Claude conversation brain](../levels/level-02.md) |
 | 13 | [Level 3](../levels/level-03.md) |
 | 14–18 | [Level 4](../levels/level-04.md) |
 | 19 | [Level 5](../levels/level-05.md) |
@@ -27,8 +27,5 @@ The file is requirements material, not authorization to call, spend, deploy, exp
 | 54–55 | [Level 14](../levels/level-14.md) |
 | 56–68 | [Cross-level completion](../completion-contract.md) |
 
-See the [sections 1–10 audit](sections-01-10-review.md), [readiness](../13-backend-roadmap.md), [docs index](../README.md) and [gate policy](../10-build-order.md). Historical evidence about unchanged v4 bytes is historical evidence, not the active source identity.
 
-Owner steering for sections 15–17 permits an opt-in compatible HF ASR lab endpoint to avoid local weight downloads. This is a lab exception to the eventual self-hosted speech target; it does not replace OpenAI, change production reply language, imply hosted availability or approve a paid deployment. Cache-only local adapters preserve the direct-inference learning interface. See [Level 4](../levels/level-04.md#sections-1517-design-and-acceptance).
-
-On 2026-10-19 the owner requested sections 18–19 and explicitly approved the required local TTS runtime/weight downloads. ASR remains on the explicit public hosted lab; this new approval does not download ASR weights, change OpenAI or authorize a production speech switch. Actual measurements and incomplete review gates are recorded in [Level 4](../levels/level-04.md) and [Level 5](../levels/level-05.md).
+[The sections 1–20 audit](sections-01-10-review.md#claude-source-review-through-section-20--2026-10-20), [readiness](../13-backend-roadmap.md), [Claude contract](../25-claude-llm.md) and [gate policy](../10-build-order.md) distinguish implemented foundations from acceptance. Levels 0–14 and section numbering are distinct; introductory 0–13 wording is an editorial mismatch. Historical OpenAI/HF results retain their dates/models and cannot prove Claude latency, cost or native quality.

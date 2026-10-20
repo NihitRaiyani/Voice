@@ -2,15 +2,15 @@
 
 Roma is a backend-only counselling voice agent for Weltec's Digital Marketing course. Its goal is a specific branch, day and time with explicit readback and caller confirmation. It understands Gujarati, Hindi, English and code-mix. Live replies remain Hindi-base Hinglish; multilingual output is evaluated separately.
 
-**Working repository: `Voice_Agent`.** The [OpenAI roadmap](docs/roadmaps/AI_VOICE_AGENT_openai_llm.docx) governs future level-by-level development. Start with the [documentation index](docs/README.md) and [engineering rules](CLAUDE.md).
+**Working repository: `Voice_Agent`.** The [Claude roadmap](docs/roadmaps/AI_VOICE_AGENT_claude_llm.docx) governs future level-by-level development. Start with the [documentation index](docs/README.md) and [engineering rules](CLAUDE.md).
 
 ## Current system and accepted target
 
-| Boundary | Present in this repository | OpenAI roadmap target / remaining work |
+| Boundary | Present in this repository | Claude roadmap target / remaining work |
 |---|---|---|
 | Calls | Twilio bidirectional Media Streams; signed HTTP/WS callbacks | Retain Twilio; integrate measured local providers at Level 10 |
-| Voice | Pipecat, Silero, Saaras v3, GPT-4o, Bulbul v3; sections 14–17 audio/endpoint/STT/language labs and live sequence/alignment guard | OpenAI LLM provider, local ASR/TTS labs, then speech model serving |
-| Conversation | Seven deterministic stages, checkpoint adapter, OpenAI text seam, deterministic safety audit and bounded prompt inputs | Native quality review and full voice approval |
+| Voice | Pipecat, Silero, Saaras v3, Claude Haiku 5.5, Bulbul v3; sections 14–20 audio/ASR/TTS/prototype labs and live sequence/alignment guard | Representative/native local speech and complete Claude microphone gate, then speech model serving |
+| Conversation | Seven deterministic stages, checkpoint adapter, Claude text seam, deterministic safety audit and bounded prompt inputs | Native quality review and full voice approval |
 | Data | PostgreSQL schema, Alembic, repositories, booking locks/constraints, bounded pools/process budget, checkpoint/model/benchmark schema, turn-language metadata and versioned resource API | Section 13 booking/holds/API and same-SID appointment truth implemented; broader redial recovery pending |
 | Transient state | Redis checkpoints, leads, status, caches and recording queue; PostgreSQL now has compatible latest-checkpoint restore by call SID | Bounded pressure, redial/session mapping and measured rate limits |
 | Webhooks | Atomic `/answer` receipt/call/event acceptance | Extend only to required callback kinds with explicit replay policy |
@@ -49,3 +49,5 @@ See [verification](docs/12-verification.md) for environment requirements and wha
 `roma/main.py` composes `api`, `services`, `domain`, `repositories`, `providers`, `realtime` and `workers`. Business rules live in the domain; provider SDKs and storage remain at the edges. Runtime prompts live in `roma/prompts/` and affect speech directly. Read [architecture](docs/01-architecture.md) before changing those boundaries.
 
 Sections 15–17 add deterministic endpointing over bundled Silero, cache-only IndicConformer/faster-whisper adapters, explicit HF ASR labs and a persisted caller-language router. Run `make speech-lab` for a synthetic demonstration with no credentials/downloads. Real hosted Gujarati/Hindi IndicConformer and English Whisper inference succeeded on three public FLEURS clips without local ASR downloads. The public lab requires explicit public-benchmark/network flags and never receives HF tokens. Representative noise/native-quality and full Level 4 gates remain pending; see [Level 4](docs/levels/level-04.md) and [setup](docs/runbook.md#sections-1517-speech-input-lab).
+
+The current owner-selected source is aligned through section 20; [the audit](docs/roadmaps/sections-01-10-review.md#claude-source-review-through-section-20--2026-10-20) records remaining gates. Claude Haiku 5.5 uses the private `ANTHROPIC_API_KEY`; no OpenAI calls/fallback. Automated checks and the default synthetic prototype remain mocked. [The Claude contract](docs/25-claude-llm.md) owns streaming, cache accounting, spend limits and explicitly authorized paid commands. This switch does not approve native language quality or the complete microphone/booking flow.

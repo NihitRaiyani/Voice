@@ -1,11 +1,11 @@
-# OpenAI roadmap progression and gate policy
+# Claude roadmap progression and gate policy
 
-Develop Levels 0–14 from the selected OpenAI source. Introductory prose says 0–13, but its table/body include optional Level 14. Engineering levels are distinct from Roma's seven runtime conversation stages.
+Develop Levels 0–14 from the selected Claude source. Introductory prose says 0–13, but its table/body include optional Level 14. Engineering levels are distinct from Roma's seven runtime conversation stages.
 
 | Levels | Outcome |
 |---|---|
 | 0–1 | Baseline/prerequisites, durable backend, contracts/mocks, versioned API and CI foundation |
-| 2–3 | OpenAI text inference, deterministic safety/state and truthful transactional booking |
+| 2–3 | Claude text inference, deterministic safety/state and truthful transactional booking |
 | 4–6 | Measured local ASR/TTS and end-to-end microphone prototype |
 | 7–8 | Bounded streaming/cancellation/recovery and secure idempotent jobs/access/privacy |
 | 9–10 | Conditional governed retrieval, local serving/GPU admission and Twilio integration |
@@ -28,8 +28,6 @@ One level brief owns status/evidence; do not create competing active plans or re
 
 Provider interfaces precede integration; direct local ASR/TTS inference precedes speech model serving, RAG begins at Level 9 and full Docker packaging begins at Level 13. Retain existing PostgreSQL/Redis Compose as pre-v4 compatibility tooling without making it the native foundation requirement.
 
-Latest authorized task: official authenticated Whisper benchmarking and section 20 microphone-to-speaker integration, on the existing sections 18–19 evaluation/TTS foundation. Section 20 code/offline tests do not waive unfinished entry gates or establish a real all-local conversation. The owner approved required TTS runtime/weight downloads on 2026-10-19; The later owner approval allows only the pinned multilingual Whisper base download; inference remains cache-only. Level 4/5 briefs distinguish actual small-corpus measurements, synthetic checks and remaining representative/native quality approval. Adaptive jitter/PLC and the complete voice gate remain separate. No automatic credit purchase, endpoint deployment or provider fallback is authorized; the authenticated HF router returned 402 for unavailable credits. Level 0 teacher/timing gates and later-level acceptance remain separate. See [readiness](13-backend-roadmap.md).
+Current authorized task: align implementation and documentation through section 20 with the [Claude source](roadmaps/README.md). Claude Haiku 5.5 replaces OpenAI for wording/extraction. Synthetic paid Claude verification is authorized; tests and the synthetic prototype remain mocked. This does not waive unfinished teacher/native gates or expand into section 21. No OpenAI requests or automatic provider fallback.
 
-The approved local base follow-up completed all 15 benchmark requests separately; multilingual quality failed. This removes the missing-runtime blocker for the isolated microphone attempt without waiving native quality or changing production providers. See [Level 4](levels/level-04.md#local-whisper-base-baseline--2026-10-19) and [Level 6](levels/level-06.md).
-
-Owner steering during the local-base follow-up: **do not use OpenAI now; quota is exhausted**. Further microphone checks use explicit `--llm-provider mock` with real local ASR/TTS; no OpenAI settings/client construction or paid opt-in. OpenAI stays the main production LLM for later authorized testing. A mock-LLM hardware result cannot pass the real OpenAI conversation gate.
+Only pinned multilingual Whisper base ASR weights are approved. The 15-case local benchmark completed, but Gujarati/Hindi/stitched quality failed. Installed TTS and one physical English microphone/mock-LLM turn were heard clearly; multilingual/native/booking and whole Level 6 acceptance remain pending. See the [sections 1–20 audit](roadmaps/sections-01-10-review.md#claude-source-review-through-section-20--2026-10-20), [Level 4](levels/level-04.md#local-whisper-base-baseline--2026-10-19) and [Level 6](levels/level-06.md).

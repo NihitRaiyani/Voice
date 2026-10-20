@@ -10,7 +10,7 @@ Stream metadata carries the lead token via TwiML `<Parameter>` and `start.custom
 
 ## Dial safeguards and limits
 
-The current API validates Indian mobiles, calling window (09:00–21:00 IST), configured denylist, OpenAI spend, public reachability and hourly cap (default 20), with bearer auth first. An empty denylist blocks nothing; no real DND/DLT feed is implied. Source ₹200 budget is a configured ceiling, not remaining provider credit; Sarvam readiness/credits are not covered by it.
+The current API validates Indian mobiles, calling window (09:00–21:00 IST), configured denylist, Claude spend, public reachability and hourly cap (default 20), with bearer auth first. An empty denylist blocks nothing; no real DND/DLT feed is implied. `ANTHROPIC_BUDGET_INR` defaults to ₹200 as a configured ceiling, not remaining provider credit; Sarvam readiness/credits are not covered by it.
 
 Owner-approved contact/recording policy is required before real lead/production traffic. These code defaults do not establish legal clearance. Pending recording wording/audio causes capture discard rather than retained storage.
 

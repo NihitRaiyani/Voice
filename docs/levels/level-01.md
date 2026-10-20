@@ -50,7 +50,7 @@ Implementation sequence:
 
 Default engine settings stay 5 retained + 10 overflow with a 5-second checkout wait. Count API replicas, one recording worker, dispatcher and each Dramatiq process; threads in one process share its engine. Budget is optional for compatibility, so operators must set/check their real allocation before scaling. Mixed configurations require summing each pool's peak rather than one shared multiplier.
 
-The modeled turns, safety events, costs and audit records have repository round-trip coverage. That does not claim all live events are collected: durable milestones/safety audit are L2/L7, booking integration L3, complete metering/privacy jobs L8/L11. The current OpenAI spend guard is a protected append-only disk ledger, not Redis; preserve its fail-closed behavior until durable metering is integrated.
+The modeled turns, safety events, costs and audit records have repository round-trip coverage. That does not claim all live events are collected: durable milestones/safety audit are L2/L7, booking integration L3, complete metering/privacy jobs L8/L11. The protected live spend guard uses an append-only disk ledger, not Redis; preserve its fail-closed behavior until durable metering is integrated.
 
 ## Section 3 verification evidence
 
@@ -246,7 +246,7 @@ whole-repository lint debt remains as recorded in [verification](../12-verificat
 
 STT, LLM, TTS, embeddings and telephony now expose narrow provider protocols
 under `roma.providers`. The request/result dataclasses are independent of
-Pipecat, OpenAI, Sarvam, Twilio and local inference runtimes:
+Pipecat, Anthropic, Sarvam, Twilio and local inference runtimes:
 
 - `STTProvider.transcribe(STTRequest) -> STTResult`
 - `LLMProvider.generate(LLMRequest) -> AsyncIterator[LLMChunk]`
@@ -255,20 +255,12 @@ Pipecat, OpenAI, Sarvam, Twilio and local inference runtimes:
 - `TelephonyProvider.place_call(PlaceCallRequest) -> PlaceCallResult`
 
 Config fields select providers: `STT_PROVIDER`, `LLM_PROVIDER`, `TTS_PROVIDER`,
-`EMBEDDING_PROVIDER` and `TELEPHONY_PROVIDER`. AI defaults are mocks so
-automated tests do not call paid providers. Telephony defaults to Twilio to
+`EMBEDDING_PROVIDER` and `TELEPHONY_PROVIDER`. The current main LLM is Claude; automated tests explicitly select mocks to avoid paid providers. Telephony defaults to Twilio to
 preserve current runtime behavior; tests select the mock explicitly.
 
-Current concrete adapters are deterministic mocks plus named future adapters:
-`IndicConformerSTT`, `WhisperSTT`, `IndicTTSProvider` and
-`LocalMultilingualEmbedding`. The new roadmap replaces Qwen LLM placeholders
-with an OpenAI adapter in section 11. Future
-adapters raise `ProviderUnavailable` until their own level installs models,
-credentials, hardware checks and benchmarks. The [provider guide](../23-provider-contracts.md)
-owns the contract details.
+Section 7 introduced deterministic mocks and named future adapters. Later sections 16/19 implement cache-only `IndicConformerSTT`, `WhisperSTT` and manifest-pinned `IndicTTSProvider`; runtime availability/native quality remain separate. `LocalMultilingualEmbedding` remains unavailable until Level 9. The 2026-10-20 source replaces the historical OpenAI wording/extraction adapter with `ClaudeLLM` in section 11. [The provider guide](../23-provider-contracts.md) owns current interfaces and availability.
 
-This section does not rewire the Pipecat media pipeline away from its current
-OpenAI/Sarvam processors. The OpenAI provider text seam belongs to section 11; speech replacement belongs with the local ASR/TTS levels
+The current Claude provider text seam belongs to section 11; Sarvam speech replacement belongs with the local ASR/TTS levels
 where quality, latency, cancellation and GPU/serving behavior can be measured.
 
 ## Section 7 verification evidence

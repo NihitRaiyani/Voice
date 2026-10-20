@@ -152,28 +152,24 @@ def test_the_watchdog_and_the_controller_share_one_flight():
     assert "flight=flight," in src, "the stage controller must get the same object"
 
 
-def test_the_slot_client_is_shared_across_calls_and_bounded():
-    """A1 + A2. Two separate failures pinned together because both are invisible at runtime.
-
-    SHARED: `build_slot_client` used to run per websocket, so every call got a fresh httpx
-    pool and therefore a guaranteed cold TLS handshake on its first extraction — measured
-    4058ms cold against 1932ms warm.
-
-    BOUNDED: the client carried no timeout, so the SDK defaults applied — `read=600s` with
-    `max_retries=2`, a **thirty-minute** worst case on the live critical path, because
-    `advance_turn` awaits this before the conversation LLM is asked."""
+def test_slot_and_wording_share_a_bounded_call_scoped_provider():
+    """One call owns one budget; a later caller never inherits its spent counters."""
     import inspect
 
+    from roma.core.claude_llm_settings import ClaudeLLMSettings
     from roma.realtime import pipeline as media
 
     src = inspect.getsource(media.build_media_app)
-    assert "app.state.slot_client = build_slot_client_fn(settings)" in src
-    assert "slot_client = app.state.slot_client" in src, "per-call construction is back"
-
-    built = media.build_slot_client(_settings_stub())
-    assert built.timeout.read == media.SLOT_READ_TIMEOUT_SECS
-    assert built.timeout.connect == media.SLOT_CONNECT_TIMEOUT_SECS
-    assert built.max_retries == 1, "the SDK default of 2 doubles the worst case"
+    assert "app.state.slot_client_factory = build_slot_client_fn" in src
+    assert "app.state.slot_client_factory(settings)" in src
+    assert "build_llm_fn(settings, provider=slot_client)" in src
+    settings = ClaudeLLMSettings(_env_file=None, llm_provider="claude", anthropic_api_key="test")
+    first, second = media.build_slot_client(settings), media.build_slot_client(settings)
+    assert first is not second
+    assert first.tokens_used == second.tokens_used == 0
+    assert first.settings.anthropic_attempt_timeout_secs <= 8
+    assert first.settings.anthropic_turn_timeout_secs <= 10
+    assert first.settings.anthropic_max_retries <= 1
 
 
 def test_the_prelude_read_is_bounded():

@@ -6,7 +6,7 @@ Twilio dials the callee (see dialer.py) and opens a Media Streams websocket to
 
     input -> VADProcessor -> InboundAudioCounter -> SarvamSTT -> TranscriptionLogger
           -> PickupGreeter -> NoiseGate -> OpeningTurnGuard
-          -> user_agg -> OpenAILLM -> usage -> InterruptibleSentenceAggregator
+          -> user_agg -> ProviderLLM -> usage -> InterruptibleSentenceAggregator
           -> PreTTSFilter -> BulbulTTS -> output -> assistant_agg
 
 with Silero VAD as its own pipeline stage (docs/05 Layer 1) — NOT as a transport param,
@@ -34,9 +34,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from openai import AsyncOpenAI
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.frames.frames import (
@@ -58,7 +56,6 @@ from pipecat.processors.aggregators.llm_response_universal import (
 )
 from pipecat.processors.audio.vad_processor import VADProcessor
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.services.sarvam.stt import SarvamSTTService
 from pipecat.services.sarvam.tts import SarvamTTSService
 from pipecat.services.tts_service import TextAggregationMode
@@ -91,6 +88,7 @@ from roma.domain.conversation.state import spoken_slot
 from roma.domain.costs.spend import SpendLedger, Usage
 from roma.domain.persistence import hash_phone_e164
 from roma.domain.safety.audit import SafetyContext
+from roma.providers.ai.registry import build_llm_provider
 from roma.providers.calendar.google import build_calendar
 from roma.providers.telephony.twilio.audio import ValidatedTwilioSerializer
 from roma.providers.telephony.twilio.auth import external_url, valid_twilio_signature
@@ -112,6 +110,7 @@ from roma.realtime.opening import (
 )
 from roma.realtime.phrasecache import PhraseCache, saved_inr
 from roma.realtime.pretts import PreTTSFilterProcessor
+from roma.realtime.provider_llm import CallLLMProvider, ProviderLLMService
 from roma.realtime.recorder import (
     RECORDING_CHANNELS,
     RECORDING_SAMPLE_RATE,
@@ -150,7 +149,7 @@ STT_MODEL = "saaras:v3"
 STT_MODE = "codemix"
 STT_LANGUAGE = None
 
-LLM_MODEL = "gpt-4o"
+LLM_MODEL = "claude-haiku-5-5"
 TTS_MODEL = "bulbul:v3"
 TTS_VOICE = "ishita"
 TTS_PACE = 1.05
@@ -607,101 +606,18 @@ def build_stt(settings) -> SarvamSTTService:
     )
 
 
-# How long the FIRST attempt at a completion may take before we give up on it and fire a
-# second one. Normal TTFB on this path is 0.8-3.0s (measured live 2026-08-01), so 5s is well
-# clear of a merely slow turn and only trips on a request that has actually stalled.
-LLM_FIRST_ATTEMPT_TIMEOUT_SECS = 5.0
-
-
-def build_llm(settings) -> OpenAILLMService:
-    """OpenAI streaming LLM (`LLM_MODEL`, gpt-4o). `max_tokens` is the stage word cap ceiling
-    (docs/02). Secret read via `.get_secret_value()` here — the boundary (docs/07).
-
-    ## Why the retry is ON
-
-    Live call acf8e78f (2026-08-01) was SILENT. The lead answered, said "Hello", and heard
-    nothing at all before hanging up at thirty seconds:
-
-        OpenAILLMService#0 TTFB: 63.978s
-        openai._base_client  Retrying request to /chat/completions
-
-    One request stalled and nothing capped it. The OpenAI SDK's own retry eventually fired,
-    64 seconds in, which is 62 seconds after the call was lost. Note the asymmetry this fixes:
-    `build_slot_client` below has carried explicit connect/read timeouts all along, so the
-    THROWAWAY extraction call was protected and the one Roma actually speaks with was not.
-
-    Pipecat ships the mitigation and defaults it off (`retry_on_timeout=False`): cap the first
-    attempt, and on timeout re-issue once, uncapped. A retried turn is billed twice; a silent
-    call is lost entirely. This matters beyond this laptop — the same stall on the Vadodara
-    host would cost a real lead.
-    """
-    return OpenAILLMService(
-        api_key=settings.openai_api_key.get_secret_value(),
-        retry_on_timeout=True,
-        retry_timeout_secs=LLM_FIRST_ATTEMPT_TIMEOUT_SECS,
-        settings=OpenAILLMService.Settings(
-            model=LLM_MODEL, max_tokens=stage_max_tokens(OPENING_STAGE)
-        ),
+def build_llm(settings, *, provider=None) -> ProviderLLMService:
+    """Bounded provider bridge; stage caps and final deterministic safety stay in code."""
+    return ProviderLLMService(
+        provider if provider is not None else build_llm_provider(settings),
+        max_tokens=stage_max_tokens(OPENING_STAGE),
+        owns_provider=provider is None,
     )
 
 
-SLOT_CONNECT_TIMEOUT_SECS = 2.0
-SLOT_READ_TIMEOUT_SECS = 8.0
-SLOT_KEEPALIVE_SECS = 300.0
-
-
-def build_slot_client(settings) -> AsyncOpenAI:
-    """Raw AsyncOpenAI client for the controller's structured-output slot extraction
-    (docs/03) — separate from the pipeline LLM service. Secret read at this boundary
-    (docs/07). Construction is lazy; no network until the first extraction call.
-
-    Built ONCE per process and shared by every call — see `build_media_app`. It used to be
-    per websocket, which meant a fresh httpx pool per call and therefore a guaranteed cold
-    handshake on each call's first extraction (4058ms cold vs 1932ms warm), papered over by
-    a prewarm task that raced the lead's first answer.
-    """
-    return AsyncOpenAI(
-        api_key=settings.openai_api_key.get_secret_value(),
-        timeout=httpx.Timeout(
-            SLOT_READ_TIMEOUT_SECS,
-            connect=SLOT_CONNECT_TIMEOUT_SECS,
-        ),
-        max_retries=1,
-        http_client=httpx.AsyncClient(
-            limits=httpx.Limits(
-                max_connections=100,
-                max_keepalive_connections=20,
-                keepalive_expiry=SLOT_KEEPALIVE_SECS,
-            ),
-            timeout=httpx.Timeout(
-                SLOT_READ_TIMEOUT_SECS,
-                connect=SLOT_CONNECT_TIMEOUT_SECS,
-            ),
-        ),
-    )
-
-
-async def prewarm_slot_client(client) -> None:
-    """Open the HTTPS connection to OpenAI before the lead's first answer needs it.
-
-    "Lazy; no network until the first extraction" is correct and it is also the problem:
-    that first extraction then pays DNS + TCP + TLS on top of the request, on the critical
-    path of a live turn. Measured on this host, 2026-07-28:
-
-        cold (first call, handshake included)   4058 ms
-        warm (pooled connection)                1932 ms p50
-
-    Two full seconds, once per call, spent on a handshake that could have happened while the
-    line was still ringing. `httpx` keeps the connection pooled on the client, and the client
-    lives for the whole websocket, so one throwaway request buys it for every later turn.
-
-    Never raises and never blocks the call: a failed prewarm just means the old cold path,
-    which is what happened before this existed.
-    """
-    try:
-        await client.models.list()
-    except Exception:  # noqa: BLE001 — a warm-up that breaks the call is worse than a slow turn
-        _log.warning("slot client prewarm failed; the first extraction will pay the handshake")
+def build_slot_client(settings):
+    """Construct a lazy call-scoped provider; wording and extraction share its budget."""
+    return build_llm_provider(settings)
 
 
 def build_store(settings) -> RedisCallStateStore:
@@ -968,7 +884,7 @@ def _summarize_secs(samples: "list[float]") -> dict:
 
 
 class _UsageLogger(FrameProcessor):
-    """Log OpenAI token usage and per-stage TTFB per turn. Passes every frame through.
+    """Log provider token usage and per-stage TTFB per turn. Passes every frame through.
 
     Token usage is the ₹100 testing cap (docs/02/docs/10). TTFB is the Step 7 tuning data,
     and it is read from pipecat's OWN `MetricsFrame` rather than measured here.
@@ -1031,6 +947,7 @@ class _UsageLogger(FrameProcessor):
                         input_tokens=v.prompt_tokens or 0,
                         output_tokens=v.completion_tokens or 0,
                         cached_input_tokens=v.cache_read_input_tokens or 0,
+                        cache_creation_input_tokens=v.cache_creation_input_tokens or 0,
                     )
                     cost = 0.0
                     if self._ledger is not None:
@@ -1118,7 +1035,7 @@ def build_media_app(
     live.
     `build_llm_fn` / `build_tts_fn` build the Step-3 LLM and TTS per connection
     (injected so offline tests / verify_media pass stubs instead of opening live
-    OpenAI / Sarvam sockets).
+    Anthropic / Sarvam sockets).
     `booking_factory` is injected by production composition. It creates the call-scoped
     PostgreSQL calendar/confirmation gateway and restores committed truth before prompts.
     `build_calendar_fn` remains the explicit static/read-only baseline for offline tests.
@@ -1129,7 +1046,7 @@ def build_media_app(
     settings = get_settings()
     app.state.calls = {}
     app.state.calendar = build_calendar_fn(settings) if booking_factory is None else None
-    app.state.slot_client = build_slot_client_fn(settings)
+    app.state.slot_client_factory = build_slot_client_fn
 
     app.state.consent_line = canned.consent_line() if consent_signed_off() else None
     if app.state.consent_line is None:
@@ -1247,12 +1164,12 @@ def build_media_app(
         # Answer time is the one clean place to refuse: precall's docstring rules out an
         # in-call check because it "would have to hang up on a lead mid-sentence", and that
         # objection does not apply before the pipeline exists. Nothing has been spent yet.
-        if SpendLedger(spend_ledger_path(settings)).exhausted(settings.openai_budget_inr):
+        if SpendLedger(spend_ledger_path(settings)).exhausted(settings.anthropic_budget_inr):
             _log.error(
                 "refusing inbound call %s: the ₹%.2f testing budget is spent. Raise "
-                "OPENAI_BUDGET_INR *and* the OpenAI dashboard hard limit (docs/02).",
+                "ANTHROPIC_BUDGET_INR and the Anthropic account spend limit.",
                 call_sid,
-                settings.openai_budget_inr,
+                settings.anthropic_budget_inr,
             )
             await websocket.close(code=1013)  # try again later
             return
@@ -1374,11 +1291,10 @@ def build_media_app(
             context,
             user_params=build_user_params(settings.enable_barge_in, settings),
         )
-        slot_client = app.state.slot_client
-        prewarm_task = None
-        if not getattr(app.state, "slot_prewarmed", False):
-            app.state.slot_prewarmed = True
-            prewarm_task = asyncio.create_task(prewarm_slot_client(slot_client))
+        slot_client = CallLLMProvider(
+            app.state.slot_client_factory(settings),
+            ledger=SpendLedger(spend_ledger_path(settings)), call_sid=call_sid,
+        )
         safety = SafetyService(safety_store)
         stage_ctrl = StageControllerProcessor(
             state,
@@ -1429,9 +1345,13 @@ def build_media_app(
             opening_audio_fn=(lambda: opener_pcm) if opener_pcm else None,
             connected_at=connected_at,
         )
-        llm = build_llm_fn(settings)
+        llm = (
+            build_llm_fn(settings, provider=slot_client)
+            if build_llm_fn is build_llm else build_llm_fn(settings)
+        )
+        slot_client.prefix_fn = lambda: stage_ctrl.prefix_hash
         usage = _UsageLogger(
-            ledger=SpendLedger(spend_ledger_path(settings)),
+            ledger=None if build_llm_fn is build_llm else SpendLedger(spend_ledger_path(settings)),
             call_sid=call_sid or stream_sid,
             prefix_fn=lambda: stage_ctrl.prefix_hash,
         )
@@ -1551,10 +1471,9 @@ def build_media_app(
             finally:
                 if booking_session is not None:
                     await booking_session.aclose()
-                if prewarm_task is not None:
-                    prewarm_task.cancel()
-                    with contextlib.suppress(asyncio.CancelledError):
-                        await prewarm_task
+                with contextlib.suppress(Exception):
+                    async with asyncio.timeout(1):
+                        await slot_client.aclose()
                 # Before `_registered_call`'s own finally: pops this call out of
                 # `app.state.calls` and it stops existing anywhere in the process (docs/13).
                 await _mark_call_ended(app, lead_token, "won" if stage_ctrl.won else "")
@@ -1622,9 +1541,9 @@ def build_media_app(
                     _summarize_secs(stage_ctrl.advance_secs),
                     flight.summary(),
                     flight.heard_summary(),
-                    usage.call_inr,
+                    usage.call_inr + slot_client.spent_inr,
                     SpendLedger(spend_ledger_path(settings)).spent_inr,
-                    settings.openai_budget_inr,
+                    settings.anthropic_budget_inr,
                 )
                 if vad is not None and counter.vad_stops == 0 and counter.frame_count > 0:
                     _log.warning(

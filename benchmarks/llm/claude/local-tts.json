@@ -1,0 +1,13 @@
+{
+  "schema": "claude-haiku-local-tts-v1",
+  "synthetic_only": true,
+  "text_from_actual_claude_response": true,
+  "audit_ok": true,
+  "tts_ms": 10514.038459048606,
+  "audio_ms": 2822,
+  "audio_sha256": "8eacd12ee88cefafd0955533ff582df8606dd7f96bec53a29043aba1b8ac6767",
+  "no_new_weights": true,
+  "microphone_used": false,
+  "native_review_passed": false,
+  "openai_requests": 0
+}

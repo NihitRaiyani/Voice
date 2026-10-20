@@ -1,6 +1,6 @@
-# Level 2 — Text conversation and OpenAI LLM
+# Level 2 — Text conversation and Claude LLM
 
-**Roadmap sections:** 10–12. **Status:** Section 10 state machine/checkpoint adapter implemented; section 11 OpenAI SDK/text integration implemented with offline evidence; section 12 deterministic safety/audit/input guards and query endpoints implemented with offline evidence; the whole Level 2 gate remains pending native/paid quality approval.
+**Roadmap sections:** 10–12. **Status:** Section 10 state machine/checkpoint adapter implemented; section 11 Claude SDK/text integration implemented with offline evidence; section 12 deterministic safety/audit/input guards and query endpoints implemented with offline evidence; the whole Level 2 gate remains pending native/paid quality approval.
 
 ## Entry gate
 
@@ -10,26 +10,31 @@ Level 1 foundation and provider contracts.
 
 Run the deterministic seven-stage conversation as a text-only application. Persist and restore phase/slots/milestones with schema/session identity. Keep extraction, relative time resolution and confirmation authority in code.
 
-Implement the thin OpenAI LLM provider/text console described in [the OpenAI contract](../25-openai-llm.md), with streaming, timeout/retry/fallback, per-call token/spend limits and actual usage metrics. Keep local ASR/TTS/embeddings for their later levels. Add durable structured safety events and injection tests.
+Implement the thin Claude LLM provider/text console described in [the Claude contract](../25-claude-llm.md), with streaming, timeout/retry/fallback, per-call token/spend limits and actual usage metrics. Keep local ASR/TTS/embeddings for their later levels. Add durable structured safety events and injection tests.
 
 Evaluate 30–50 prompts with native review across Gujarati/Hindi/English/code-mix in a separately configured lab. Live Roma remains Hindi-base Hinglish.
 
 ## Existing reuse in Voice_Agent
 
-Canonical `ConversationStage`, domain state-machine facade, `route_intent()`, time resolver, prompt assembly, Indic normalization and final speech safety; Redis checkpoint restore remains the live hot path. Level 2 section 10 adds PostgreSQL latest-checkpoint save/restore through `PostgresConversationStateStore`, backed by `conversation_states` revision/schema/policy fields. Section 11 adds the thin OpenAI SDK provider, mock text console and separate 40-case lab. Section 12 adds structured safety audit, bounded caller/slot inputs and query endpoints; the existing pre-TTS processor shares the same audit service.
+Canonical `ConversationStage`, domain state-machine facade, `route_intent()`, time resolver, prompt assembly, Indic normalization and final speech safety; Redis checkpoint restore remains the live hot path. Level 2 section 10 adds PostgreSQL latest-checkpoint save/restore through `PostgresConversationStateStore`, backed by `conversation_states` revision/schema/policy fields. Section 11 adds the thin Claude SDK provider, mock text console and separate 40-case lab. Section 12 adds structured safety audit, bounded caller/slot inputs and query endpoints; the existing pre-TTS processor shares the same audit service.
 
 ## Acceptance gate
 
 - [x] Section 10 state-machine facade and latest checkpoint save/restore preserve stage/slots without inventing a booking.
 - [x] Section 11 text controller/provider/safety/checkpoint wiring and mock console.
 - [x] SDK streaming/usage, transient/quota errors, timeout/cancellation and per-call budgets pass fake-transport tests.
-- [ ] Real paid TTFT/cost and native language-quality approval; quota unavailable.
+- [x] Explicit synthetic Haiku generation, usage/TTFT, structured extraction and cache-write/read accounting verified.
+- [ ] Native language-quality and complete voice approval; reviewers remain required.
 - [x] Section 12 blocked topics, prior quotes and injection canaries use safe substitution with PII-minimized structured audit and protected queries.
 - [ ] Native language-quality review and model/hardware limitations are recorded separately from live policy.
 
 ## Boundaries and advanced work
 
 Section 12 connects audit to the existing pre-TTS processor without changing carriers or integrating the section 11 text orchestrator into live audio. Local speech models, full voice approval and production telemetry stay at their later gates. No local LLM download or model-owned FSM/safety decisions.
+
+## Claude source alignment — 2026-10-20
+
+The current source requires `ClaudeLLM` with the official async Anthropic SDK, Haiku 5.5 at low effort, ephemeral stable-prefix caching, distinct cache-creation/read usage, exact model pricing, bounded retries and token/spend admission. Claude is now the main wording/extraction LLM; no OpenAI requests or fallback. The console selects `claude|mock`; the separate lab is `scripts/claude_language_lab.py`. Automated verification remains offline/mock; synthetic paid Claude verification is explicitly authorized. Fresh implementation checks belong to this increment and are not inferred from the older counts below. Native Gujarati/Hindi approval and complete voice gates remain pending. See [the Claude contract](../25-claude-llm.md).
 
 ## Evidence
 
@@ -38,6 +43,8 @@ Section 10 implementation is in source with these fresh checks: state-machine AP
 This historical section 10 evidence proves the finite-state-machine facade, route classification seam and compatible latest-checkpoint save/restore. It did not prove section 11; the new offline section 11 evidence is separate below. At that section 10 checkpoint, safety audit was still pending; section 12 now implements it. Native review, full live integration, redial/session identity and L7 recovery drills remain pending. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
 
 ## Section 11 implementation and evidence
+
+**Historical OpenAI checkpoint, 2026-10-12.** The following records the former adapter/model and checks; it is not current provider policy or Claude evidence.
 
 On 2026-10-12 the owner selected the OpenAI source. [Sections 1–10 were audited first](../roadmaps/sections-01-10-review.md); only then was the new section 11 text seam implemented. The main voice path remains GPT-4o with GPT-4o-mini extraction. No Qwen runtime, model weights, migration or working-data changes were introduced.
 
@@ -51,7 +58,7 @@ Markdown links/anchors were checked across **65 non-archive files and 293 local 
 
 The unchanged new Word source is recorded by SHA-256 in the source mapping. The dependency lock is unchanged and resolves **108 packages**; local Qwen cache count remains zero. Current `roma` is at `20261004_0003 (head)` with 25 application tables, 0 application rows and metadata-matching keys/constraints/indexes, confirmed read-only before section 11.
 
-The separate 40-case lab retains the owner-agreed means ≥4/5 per language, every score ≥3/5 and zero unsafe final replies. Native scoring and complete voice approval are deferred; quota is unavailable, so no real OpenAI TTFT/cost/quality claim is made. Section 12 durable safety events, broader injection/semantic-quality evidence, durable global spend reservations and later live audio integration remain open. Per-call budgets are process-local and do not replace existing production spend/dashboard controls. See [the provider contract and commands](../25-openai-llm.md).
+The separate 40-case lab retains the owner-agreed means ≥4/5 per language, every score ≥3/5 and zero unsafe final replies. Native scoring and complete voice approval are deferred; quota is unavailable, so no real OpenAI TTFT/cost/quality claim is made. Section 12 durable safety events, broader injection/semantic-quality evidence, durable global spend reservations and later live audio integration remain open. Per-call budgets are process-local and do not replace existing production spend/dashboard controls. See [the active Claude contract and commands](../25-claude-llm.md).
 
 Return to the [documentation index](../README.md).
 
@@ -69,3 +76,10 @@ Final local evidence: **1,790 tests passed, 23 existing dependency warnings, no 
 The configured database was checked read-only at **20261004_0003 (head)**. No working-database migration/seed/data change, provider call or model download was performed. The selected Word source and dependency lock are unchanged. Markdown local links/anchors and whitespace checks passed. Hosted CI includes the new safety slice; its run result is reported separately after publication.
 
 Section 12 implementation is complete with offline evidence. **The overall Level 2 gate is still pending native Gujarati/Hindi quality review and real paid timing/voice approval**, as previously deferred by the owner. Production speech remains Hindi-base Hinglish, with multilingual output in its separate lab.
+
+
+## Claude migration evidence — 2026-10-20
+
+The owner-authorized replacement reuses the state machine, safety and booking rules. Claude Haiku 5.5 is the active factory/CLI/local-voice model; old OpenAI settings/adapters remain only for historical compatibility/offline regressions and active factory selection rejects OpenAI. The active Anthropic key was verified without recording its value. The [Claude contract](../25-claude-llm.md#migration-verification--2026-10-20) records the real synthetic generation, schema-transform correction, short-deadline extraction/cache evidence and local TTS rendering. Dated OpenAI counts/measurements above remain historical; they do not claim verification of the new provider. The unchanged selected Word source has SHA-256 `67a79ba87fbec07051d460fd4ec9d5520f7047c0e242da72a65bfdd09ede5f48`.
+
+The final [Haiku report](../../benchmarks/llm/claude/language-review.json) records 40/40 nonempty replies with known usage at low effort/thinking disabled; median TTFT 1.239 s and estimated lab cost ₹0.61. The [earlier adaptive run](../../benchmarks/llm/claude/initial-adaptive-review.json) preserves two empty output-limit cases. Cache creation/read and actual local TTS are separate checks. These synthetic measurements do not supply native scores or pass the full voice gate.

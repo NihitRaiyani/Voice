@@ -28,29 +28,9 @@ def test_every_model_we_send_tokens_to_has_a_price():
         )
 
 
-def test_generation_runs_on_gpt_4o():
-    """The conversation model, moved up from gpt-4o-mini (2026-07-27).
-
-    mini kept losing the prompt's hard rules under pressure — most visibly hard rule 10
-    (close: "do not sign off until SLOT STATUS says the visit is locked"), where it
-    signed off with "milte hain... confirmation WhatsApp par bhej rahi hoon" on a call
-    whose slot was merely `accepted`, never locked. That is the exact failure the whole
-    seven-stage machine exists to prevent, and no further prompt wording moved it.
-    """
-    assert LLM_MODEL == "gpt-4o"
+def test_generation_uses_the_approved_claude_model():
+    assert LLM_MODEL == "claude-haiku-5-5"
 
 
-def test_slot_extraction_stays_on_the_cheap_model():
-    """Deliberately NOT moved to gpt-4o, and the reason is worth keeping.
-
-    The extractor is a small structured-output call that runs on the turn's critical path
-    (`turn.py` awaits it before the reply can start), so its latency is added to every
-    single response — against a five-minute call budget where OpenAI TTFB was already
-    measured at 0.919s p50.
-
-    Its one known weakness — under-confidence on a plainly-spoken time, `confidence=0.50`
-    on "4 બજે" — is already corrected structurally by `_corroborate()` in `turn.py`, which
-    floors confidence when the transcript independently carries time evidence. Paying 16.7x
-    and adding latency to fix a problem that is already fixed is not a trade worth making.
-    """
-    assert SLOT_MODEL == "gpt-4o-mini"
+def test_slot_extraction_uses_the_same_approved_provider_model():
+    assert SLOT_MODEL == LLM_MODEL

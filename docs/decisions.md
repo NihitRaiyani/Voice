@@ -1,22 +1,24 @@
 # Engineering decisions and owner questions
 
-These decisions adapt the OpenAI roadmap to the actual `Voice_Agent` repository. They preserve implemented foundations and distinguish source presence from verified level completion.
+These decisions adapt the Claude roadmap to the actual `Voice_Agent` repository. They preserve implemented foundations and distinguish source presence from verified level completion.
 
 ## Accepted decisions
 
+Current provider policy was replaced explicitly on 2026-10-20. The active rows below apply Claude; dated entries later in this document preserve earlier OpenAI decisions as historical evidence and are superseded for provider selection.
+
 | ID | Decision | Engineering consequence |
 |---|---|---|
-| A01 | `Voice_Agent` is the working project; the OpenAI Word roadmap supersedes v4 | Verify repository root; no work in Weltec for this task |
-| A02 | Implement one explicitly requested level or section at a time | Current scope implements sections 18–19 ASR scoring/evidence and isolated local TTS/cache; required TTS downloads explicitly approved on 2026-10-19; preserve earlier foundations and keep native/production approvals separate |
+| A01 | `Voice_Agent` is the working project; the Claude Word roadmap supersedes the historical OpenAI/v4 sources | Verify repository root; no work in Weltec for this task |
+| A02 | Implement one explicitly requested level or section at a time | Current scope aligns existing implementation through section 20; preserve earlier foundations, source/history and native/production approval boundaries |
 | A03 | Retain layered `roma/` modular monolith and backend-only surface | Keep the existing package and backend-only scope |
-| A04 | Retain Twilio/Pipecat cloud comparison path | Keep the existing Twilio adapter and OpenAI LLM; local speech changes require later gates |
+| A04 | Retain Twilio/Pipecat cloud comparison path | Keep the existing Twilio adapter and Claude LLM; local speech changes require later gates |
 | A05 | PostgreSQL durable authority, Redis transient state/cache/delivery | Reuse existing migrations/repositories/jobs; complete missing live integration |
 | A06 | Code owns stages, dates, booking, safety, consent and hang-up | Models supply wording/extraction; never business authority |
 | A07 | Live Hindi-base Hinglish; understand three languages/code-mix | User confirmed separate multilingual-output lab |
-| A08 | Provider contracts first, OpenAI LLM and direct local speech inference | OpenAI quality/latency/budget and Indic speech/embedding quality/hardware/licenses require evidence |
+| A08 | Provider contracts first, Claude LLM and direct local speech inference | Claude quality/latency/budget and Indic speech/embedding quality/hardware/licenses require evidence |
 | A09 | Conditional governed RAG at L9, local embeddings and pgvector exact first | Booking/control/safety bypass retrieval; no separate vector DB by default |
 | A10 | Full Docker packaging at L13; L14 optional | Existing Compose is compatibility tooling, not foundation requirement or gate pass |
-| A11 | OpenAI is the only permitted external GenAI API in the target | Keep OpenAI for the LLM; replace cloud speech only after measured local ASR/TTS gates |
+| A11 | Claude is the only permitted external GenAI API in the target | Keep Claude for the LLM; replace cloud speech only after measured local ASR/TTS gates |
 | A12 | Short booking commit permitted in live turn; external sync/recording conversion asynchronous | No transaction spans inference/audio or network waits |
 | A13 | Reuse atomic answer receipt/call/event and durable job ledger | Complete remaining security/governance controls rather than rebuilding these paths |
 | A14 | One recording consumer; separate row-claimed Dramatiq concurrency | Startup inflight recovery is not multi-consumer safe |
@@ -32,7 +34,7 @@ These decisions adapt the OpenAI roadmap to the actual `Voice_Agent` repository.
 | A24 | Provider contracts precede model/runtime integration | STT/LLM/TTS/embedding/telephony callers depend on protocols and mocks first; local/cloud adapters must pass their later level gates before use |
 | A25 | Versioned REST resources coexist with legacy dial commands | `/api/v1` exposes durable business resources with envelopes; `/api/call` remains the explicit carrier-side-effect path until a later client migration |
 
-| A26 | The OpenAI source supersedes the local-LLM plan | No Qwen runtime; local speech/embeddings remain later work; OpenAI is the only permitted target cloud GenAI provider |
+| A26 | The Claude source supersedes the local-LLM plan | No Qwen runtime; local speech/embeddings remain later work; Claude is the only permitted target cloud GenAI provider |
 | A27 | Quota-safe section 11 validation | Use injected SDK transports/mocks; native scoring, paid latency, full voice approval and live integration remain separate gates |
 | A28 | Reuse the deterministic filter and existing safety schema for section 12 | Versioned rule activations, no raw transcript in audit; short bounded writes before forwarding speech; audit failures use a safe fallback and explicit failure signal; native review stays pending |
 | A29 | Hosted HF ASR is an explicit lab exception to the local-speech target | `hf_public_lab` uses only declared public benchmark audio, never private caller audio; anonymous defaults remain, with the later user-authorized official Whisper edge authentication exception; Gujarati/Hindi use the selected Indic Space and English the official Whisper Space. The authenticated router is separately selected, with no fallback/retry on 402 or automatic credit purchase/deployment. Three successful public clips prove access, not native quality or a Level 4 pass. |
@@ -54,7 +56,7 @@ Post-call storage/handoff precedes exact-payload ack. PostgreSQL owns job busine
 | D1 | Approved course/certificate facts — Weltec academic/business owner | Safety/L9; Weltec certificate only until approval |
 | D2 | Disclosure wording/audio, contact consent, retention/deletion/backup policy — institute privacy owner | L8/L10/production; pending marker means no retained audio |
 | D4 | Branch visiting hours, slot duration/capacity/cancellation and counsellor policy — counselling owner | L3; current active uniqueness supports one appointment per slot |
-| D5 | Local speech/embedding GPU budget/licenses, OpenAI model/budget and approved evaluation corpus — engineering/institute owner | L2/L4/L5/L10; candidates unselected until benchmark/license review |
+| D5 | Local speech/embedding GPU budget/licenses, Claude Haiku 5.5 low-effort model/budget and approved evaluation corpus — engineering/institute owner | L2/L4/L5/L10; candidates unselected until benchmark/license review |
 | D6 | Production TLS origin/host, secrets, RTO/RPO and backup ownership — operations owner | L13; no host or recovery objective implied |
 | D7 | Roles/session/revocation, provider replay and token URL exposure policy — security/institute owner | L8; signature/idempotency do not complete user auth or replay policy |
 | D8 | Measured quality/latency/capacity SLOs — product/engineering owner | L12; roadmap numbers remain provisional |
@@ -64,7 +66,7 @@ D3 in older source comments refers to Gujarati-script recognition observations. 
 
 ## Remaining engineering gaps
 
-Section 13 connects transactional booking and same-SID appointment reconciliation. Provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; the new OpenAI provider/text seam is section 11; section 12 provides structured safety audit in the text and existing pre-TTS paths, with protected query endpoints. Full local-stack voice approval and native quality remain pending. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
+Section 13 connects transactional booking and same-SID appointment reconciliation. Provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; the new Claude provider/text seam is section 11; section 12 provides structured safety audit in the text and existing pre-TTS paths, with protected query endpoints. Full local-stack voice approval and native quality remain pending. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
 
 ## Section 13 booking decisions
 
@@ -110,3 +112,13 @@ The owner lifted the no-download restriction only for multilingual Whisper base.
 Owner steering during the local-base follow-up: **do not use OpenAI now; quota is exhausted**. Further microphone checks use explicit `--llm-provider mock` with real local ASR/TTS; no OpenAI settings/client construction or paid opt-in. OpenAI stays the main production LLM for later authorized testing. A mock-LLM hardware result cannot pass the real OpenAI conversation gate.
 
 The repaired physical English microphone/local-TTS turn completed and was heard clearly by the owner with OpenAI disabled. Missing booking reference data still selects the existing approved re-offer; no seed or business-rule changes were used to force a pass. This hardware result does not pass multilingual/booking/OpenAI/native gates.
+
+
+## 2026-10-20 — Claude source and LLM replacement through section 20
+
+Adopt the unchanged Claude roadmap hash `67a79ba87fbec07051d460fd4ec9d5520f7047c0e242da72a65bfdd09ede5f48`, preserving both former source files. Claude Haiku 5.5 (`claude-haiku-5-5`) with low effort is the main wording/extraction LLM. Use the private existing `ANTHROPIC_API_KEY`, the official async Anthropic SDK, streaming, ephemeral stable-prefix caching, distinct cache-write/read metrics and exact per-model pricing. No temperature/top_p/top_k overrides, OpenAI calls or automatic fallback. Synthetic paid Claude verification is explicitly authorized; ordinary tests and synthetic prototype stay mock/offline. Paid CLI runs require the existing explicit opt-in.
+
+This replaces all earlier “OpenAI remains main” and “OpenAI-only target” policy; it does not rewrite dated reports or claim historical OpenAI tests verify Claude. Preserve code-owned safety/state/booking, Hindi-base Hinglish, the carrier and ASR/TTS/migrations/schema. Native language scores and the full Level 6 conversation remain pending. The pinned Whisper base benchmark executed all 15 cases but failed Gujarati/Hindi/stitched quality; one clear English physical mock-LLM/local-TTS turn is hardware evidence only. [The source audit](roadmaps/sections-01-10-review.md#claude-source-review-through-section-20--2026-10-20) records section-level gaps.
+
+
+Haiku runtime decision from measured evidence: keep low effort and explicitly disable optional thinking for narrow dialogue/extraction. The initial 40-case run had two empty output-limit completions; do not increase prompt size, silently increase output limits, count empty replies as success or switch models. Empty output uses the approved fallback with actual usage accounting. Numeric schema constraints are transformed by the official Anthropic SDK on the wire and enforced fully by Pydantic in the application. Warm/cached extraction fits the existing 4-second attempt budget; a separate controlled readiness probe is not a new runtime retry policy.

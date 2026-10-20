@@ -1,6 +1,6 @@
-"""Slot extraction via OpenAI structured output (docs/03).
+"""Slot extraction via the bounded LLM provider and validated JSON (docs/03).
 
-docs/03: "Use OpenAI structured output, NOT regex/dateparser" for the idiomatic code-mix
+Use model extraction rather than regex/dateparser for the idiomatic code-mix
 values (`dhai baje`=2:30, `saanjhe`=evening, `kal`=tomorrow). This is the ONLY place a
 second model call happens, and it runs ONLY in the slot-bearing stages (discover discovery,
 pivot pivot, close close) — `turn.py` gates it, honoring "one turn = one LLM call unless a stage
@@ -12,20 +12,23 @@ Two hard rules from docs/03 live here:
   Asia/Kolkata datetime IN CODE.
 - `confidence < threshold` → the caller re-asks; a confidently-wrong slot burns the lead.
 
-The `client` is passed in (duck-typed AsyncOpenAI) so tests inject a fake and no live API
+The `client` is passed in (the transport-neutral provider protocol) so tests inject a fake and no live API
 is touched. Extraction never raises — on any error it returns a zero-confidence value so
 the caller simply re-asks.
 """
 
+import json
 import logging
+from contextlib import aclosing
 
 from pydantic import BaseModel, Field
 
+from roma.core.ai_contracts import LLMMessage, LLMRequest
 from roma.domain.safety.inputs import DISCOVERY_FIELDS, caller_text, discovery_value
 
 _log = logging.getLogger("roma.domain.conversation")
 
-SLOT_MODEL = "gpt-4o-mini"
+SLOT_MODEL = "claude-haiku-5-5"
 
 
 class DiscoveryValue(BaseModel):
@@ -145,76 +148,72 @@ _DISCOVERY_JSON_HINT = '\nReturn ONLY JSON: {"value": string or null, "confidenc
 _DISCOVERY_MAX_TOKENS = 40
 
 
+async def _extract_json(client, system, text, model, max_tokens):
+    request = LLMRequest(
+        messages=(LLMMessage("system", system), LLMMessage("user", text)),
+        max_tokens=min(max_tokens, getattr(client, "max_output_tokens", max_tokens)),
+        metadata={"purpose": "extraction"},
+    )
+    parts = []
+    finished = False
+    size = 0
+    async with aclosing(client.generate(request)) as stream:
+        async for chunk in stream:
+            if chunk.metrics is not None and chunk.metrics.error_code is not None:
+                raise ValueError("extraction provider failed")
+            size += len(chunk.text.encode("utf-8"))
+            if size > 8192:
+                raise ValueError("extraction output exceeds byte budget")
+            parts.append(chunk.text)
+            if chunk.finish_reason is not None:
+                if chunk.finish_reason not in {"stop", "end_turn"}:
+                    raise ValueError("incomplete extraction")
+                finished = True
+    if not finished:
+        raise ValueError("extraction ended without completion")
+    return model.model_validate_json("".join(parts))
+
+
 async def extract_discovery_slot(client, text: str, slot_name: str) -> DiscoveryValue:
-    """Extract the value of `slot_name` (education/passing_year/current_status/city/
-    timing_constraint) from the lead's reply. Never raises.
-
-    ## Why this is `json_object` and not `beta...parse`
-
-    This call is ON THE CRITICAL PATH: `turn.py` awaits it before the reply prompt is
-    assembled, so every millisecond here is dead air the lead hears (docs/05). Measured
-    2026-08-01, same model, same prompt, four representative replies:
-
-        beta.parse           median 1.61s   spread 0.85-2.46s
-        json_object + cap    median 0.87s   spread 0.83-0.97s
-
-    Half the latency, and — the part that matters more for how a call FEELS — the 2.46s
-    tail disappears. Erratic turn timing reads as a broken line; consistent timing reads as
-    a person thinking.
-
-    `DiscoveryValue` is two scalars, so strict schema enforcement buys little: a malformed
-    reply fails `model_validate_json` and returns the same zero-confidence value the
-    exception path already returns, which `turn.py` treats as "re-ask". `extract_time_slot`
-    deliberately KEEPS `beta.parse` — its schema is six coupled fields on the booking path,
-    where a silently mis-parsed field is a wrong visit, not a re-ask.
-    """
+    """Extract one bounded profile field; malformed/incomplete output means re-ask."""
     try:
         text = caller_text(text)
         if slot_name not in DISCOVERY_FIELDS:
             return DiscoveryValue()
-        completion = await client.chat.completions.create(
-            model=SLOT_MODEL,
-            messages=[
-                {"role": "system", "content": _DISCOVERY_SYS + _DISCOVERY_JSON_HINT},
-                {"role": "user", "content": f"Field: {slot_name}\nReply: {text}"},
-            ],
-            response_format={"type": "json_object"},
-            max_tokens=_DISCOVERY_MAX_TOKENS,
+        parsed = await _extract_json(
+            client,
+            _DISCOVERY_SYS + _DISCOVERY_JSON_HINT,
+            f"Field: {slot_name}\nReply: {text}",
+            DiscoveryValue,
+            _DISCOVERY_MAX_TOKENS,
         )
-        content = completion.choices[0].message.content
-        parsed = DiscoveryValue.model_validate_json(content) if content else DiscoveryValue()
         valid = discovery_value(slot_name, parsed.value)
         if parsed.value is not None and valid is None:
             return DiscoveryValue()
         parsed.value = valid
         return parsed
-    except Exception:  # noqa: BLE001  # pragma: no cover - must not crash the turn
+    except Exception:  # noqa: BLE001 -- must not crash the turn or expose caller text.
         _log.warning("discovery slot extraction failed for %s; re-asking", slot_name)
         return DiscoveryValue()
 
 
 async def extract_time_slot(client, text: str, *, offered=None) -> TimeSlot:
-    """Extract a visit time (+ accepted / readback_confirmed) from the lead's reply. The
-    absolute date is resolved later in code (timeresolve). Never raises.
+    """Validate every extracted booking field; date arithmetic remains in code.
 
-    `offered` is the spoken form of the slots Roma proposed, so the model can resolve a
-    reply that only makes sense relative to them — "Tuesday", "pehla wala", "wahi". Without
-    it those are unparseable by construction, which is exactly how a live acceptance was
-    lost. Keyword-only with a default, so every existing caller is unaffected.
+    The schema is supplied in the fixed system message and validated locally. Only
+    completed JSON is accepted; truncation, provider failures or invalid fields re-ask.
     """
     try:
         text = caller_text(text)
-        completion = await client.beta.chat.completions.parse(
-            model=SLOT_MODEL,
-            messages=[
-                {"role": "system", "content": _TIME_SYS},
-                {"role": "user", "content": _offer_block(offered) + text},
-            ],
-            response_format=TimeSlot,
+        return await _extract_json(
+            client,
+            _TIME_SYS + "\nReturn ONLY JSON matching this schema: "
+            + json.dumps(TimeSlot.model_json_schema(), ensure_ascii=False),
+            _offer_block(offered) + text,
+            TimeSlot,
+            256,
         )
-        parsed = completion.choices[0].message.parsed
-        return parsed if parsed is not None else TimeSlot()
-    except Exception:  # noqa: BLE001  # pragma: no cover - must not crash the turn
+    except Exception:  # noqa: BLE001 -- must not crash the turn or expose caller text.
         _log.warning("time slot extraction failed; re-asking")
         return TimeSlot()
 

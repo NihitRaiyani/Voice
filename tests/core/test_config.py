@@ -25,7 +25,7 @@ def _set_full_env(monkeypatch):
         monkeypatch.setenv(key, f"test-{key.lower()}")
 
 
-@pytest.mark.parametrize("missing", REQUIRED)
+@pytest.mark.parametrize("missing", [key for key in REQUIRED if key != "OPENAI_API_KEY"])
 def test_missing_required_key_fails_fast(monkeypatch, missing):
     _set_full_env(monkeypatch)
     monkeypatch.delenv(missing, raising=False)
@@ -141,7 +141,7 @@ def test_env_example_matches_settings_fields():
     assert keys_in_example == expected
 
 
-@pytest.mark.parametrize("blank", REQUIRED)
+@pytest.mark.parametrize("blank", [key for key in REQUIRED if key != "OPENAI_API_KEY"])
 def test_blank_required_key_fails_fast(monkeypatch, blank):
     _set_full_env(monkeypatch)
     monkeypatch.setenv(blank, "")
@@ -171,7 +171,9 @@ def test_dialing_without_twilio_credentials_fails_with_a_useful_message(monkeypa
     # This test passed for weeks only because `.env` happened to have them blank; the day real
     # credentials landed it started asserting nothing and failed. A test about missing
     # credentials must not depend on the developer's own machine not having any.
-    monkeypatch.setattr("roma.core.config.Settings", lambda **kw: Settings(_env_file=None, **kw))
+    monkeypatch.setattr(
+        "roma.core.config.Settings", lambda **kw: Settings(_env_file=None, **kw)
+    )
     get_settings.cache_clear()
     try:
         with pytest.raises(
@@ -191,7 +193,9 @@ def test_twilio_client_uses_the_bounded_dial_timeout(monkeypatch):
     monkeypatch.setenv("TWILIO_ACCOUNT_SID", "test-twilio-account-sid")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "0123456789abcdef0123456789abcdef")
     monkeypatch.setenv("TWILIO_FROM_NUMBER", "+919876543210")
-    monkeypatch.setattr("roma.core.config.Settings", lambda **kw: Settings(_env_file=None, **kw))
+    monkeypatch.setattr(
+        "roma.core.config.Settings", lambda **kw: Settings(_env_file=None, **kw)
+    )
     get_settings.cache_clear()
     try:
         client = build_twilio_client()
@@ -230,3 +234,16 @@ def test_a_real_public_host_is_accepted(monkeypatch):
         require_reachable_base_url()
     finally:
         get_settings.cache_clear()
+
+
+def test_claude_main_settings_do_not_require_an_openai_key(monkeypatch):
+    for key in REQUIRED:
+        monkeypatch.setenv(key, "test-" + key.lower())
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    settings = Settings(
+        _env_file=None, llm_provider="claude", anthropic_api_key="test-anthropic"
+    )
+    assert settings.openai_api_key.get_secret_value() == ""
+    assert settings.anthropic_model == "claude-haiku-5-5"
+    assert settings.anthropic_max_prompt_bytes == 32768
+    assert settings.anthropic_call_token_budget == 64000

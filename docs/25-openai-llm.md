@@ -1,3 +1,7 @@
+# Historical OpenAI LLM contract
+
+The owner replaced this provider on 2026-10-20. Use [the active Claude contract](25-claude-llm.md). OpenAI calls and fallback are forbidden under the current request. The former contract below is retained only to interpret dated evidence.
+
 # OpenAI LLM provider and text conversation
 
 **Level 2 section 11.** The selected [OpenAI roadmap](roadmaps/README.md) requires a thin `OpenAILLM` behind `LLMProvider`, with a text-only console. The design reuses the installed OpenAI SDK and current seven-stage controller. It preserves the existing GPT-4o/GPT-4o-mini voice baseline and does not reinstall local LLMs or change speech providers.

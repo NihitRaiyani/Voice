@@ -333,7 +333,7 @@ def test_explicit_starting_language_reaches_asr_before_transcript_router(languag
     assert state.call_sid.startswith("voice-lab-")
 
 
-def test_local_mock_preflight_does_not_read_openai_settings_or_require_paid_opt_in(monkeypatch):
+def test_local_mock_preflight_does_not_read_claude_settings_or_require_paid_opt_in(monkeypatch):
     from types import SimpleNamespace
 
     spec = importlib.util.spec_from_file_location(
@@ -346,7 +346,7 @@ def test_local_mock_preflight_does_not_read_openai_settings_or_require_paid_opt_
     )
     monkeypatch.setattr(module.importlib.util, "find_spec", lambda name: object())
     monkeypatch.setattr(
-        module, "OpenAILLMSettings", lambda **kw: pytest.fail("OpenAI configured")
+        module, "ClaudeLLMSettings", lambda **kw: pytest.fail("Claude configured")
     )
     args = module.parser().parse_args(
         [
@@ -360,7 +360,7 @@ def test_local_mock_preflight_does_not_read_openai_settings_or_require_paid_opt_
     )
     cfg, llm, tts = module.local_preflight(args)
     assert cfg.stt_provider == "whisper" and llm is None and tts.tts_provider == "indic_tts"
-    args.llm_provider = "openai"
+    args.llm_provider = "claude"
     with pytest.raises(ValueError, match="paid API opt-in"):
         module.local_preflight(args)
 

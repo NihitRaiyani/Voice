@@ -337,6 +337,7 @@ class TextConversationService:
                         max_tokens=256,
                         temperature=0,
                         metadata={"purpose": "extraction"},
+                        response_schema=schema.model_json_schema(),
                     )
                 )
                 value = schema.model_validate_json(raw)

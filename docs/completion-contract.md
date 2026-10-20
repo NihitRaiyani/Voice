@@ -1,6 +1,6 @@
 # Cross-level completion contract
 
-This maps OpenAI roadmap sections 56–68 to project evidence. These requirements complement the individual level gates; they do not start implementation or authorize production traffic.
+This maps Claude roadmap sections 56–68 to project evidence. These requirements complement the individual level gates; they do not start implementation or authorize production traffic.
 
 ## Nine mandatory areas
 
@@ -13,7 +13,7 @@ This maps OpenAI roadmap sections 56–68 to project evidence. These requirement
 | Observability/automated testing | L1 CI skeleton; L11 metrics/traces; L12 regression/chaos/load |
 | Deterministic control | Conversation/safety contracts and regressions in every level |
 | Measured local ASR/TTS | L4/L5 language/noise WER/CER/RTF and first-audio |
-| OpenAI LLM integration | L2 streaming, timeout/retry/fallback, token/spend budgets, TTFT and token cost; minimize caller data |
+| Claude LLM integration | L2 streaming, timeout/retry/fallback, token/spend budgets, TTFT and token cost; minimize caller data |
 | Governed RAG | L9 approved scoped evidence, grounding/deferral and golden evaluation |
 
 ## Final demonstration
@@ -24,7 +24,7 @@ The student must explain deterministic versus generated decisions across the who
 
 ## Deliverables
 
-Maintain the current/target architecture and failure flow, ER/schema/migrations/constraints/seeds, local ASR/TTS and OpenAI LLM benchmark report, RAG golden/benchmark report, automated testing evidence, real observability dashboards and a tested operating/recovery/rollback guide. Create implementation artifacts only when their level is requested.
+Maintain the current/target architecture and failure flow, ER/schema/migrations/constraints/seeds, local ASR/TTS and Claude LLM benchmark report, RAG golden/benchmark report, automated testing evidence, real observability dashboards and a tested operating/recovery/rollback guide. Create implementation artifacts only when their level is requested.
 
 Suggested ownership is backend/API, database/state, local models, RAG/search, real-time integration and QA/observability. Owners may divide work, but each student must explain the full request flow and interfaces. Team allocation is a suggestion, not automatic delegation or hiring.
 
@@ -32,6 +32,6 @@ Suggested ownership is backend/API, database/state, local models, RAG/search, re
 
 Final numerical SLOs come from Level 12 measurements. Track user-stop-to-first-audio, event-loop stall, model/retrieval/queue delay, booking conflicts, exhausted jobs, safety escapes, no-evidence fallback and recording-access audit coverage. Treat roadmap latency/packet-loss examples as provisional and transport-specific. Repeated misses trigger reliability work before feature expansion.
 
-The review should cover transactions versus LLM authority, PostgreSQL versus Redis, provider dependency inversion, OpenAI API streaming/budget/failure handling, WER/CER/RTF, TTFT/first audio, conditional retrieval, metadata/grounding/fallback, cancellation scope and measured concurrency. Optional rerankers/vector databases/quantization require a demonstrated bottleneck.
+The review should cover transactions versus LLM authority, PostgreSQL versus Redis, provider dependency inversion, Claude API streaming/budget/failure handling, WER/CER/RTF, TTFT/first audio, conditional retrieval, metadata/grounding/fallback, cancellation scope and measured concurrency. Optional rerankers/vector databases/quantization require a demonstrated bottleneck.
 
 See [verification](12-verification.md), [operating guide](runbook.md) and [decision register](decisions.md).

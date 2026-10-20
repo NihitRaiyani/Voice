@@ -1,14 +1,14 @@
 # Placement and viva study guide
 
-Use the OpenAI roadmap's level sequence as a learning progression. Trace behavior, identify the invariant, reproduce a failure, show evidence and defend a trade-off. Do not memorize technology names or claim unmeasured scale.
+Use the Claude roadmap's level sequence as a learning progression. Trace behavior, identify the invariant, reproduce a failure, show evidence and defend a trade-off. Do not memorize technology names or claim unmeasured scale.
 
 | Levels | Concepts to explain | Evidence |
 |---|---|---|
 | 0–1 | Async HTTP/WS/audio, modular monolith, contracts/mocks, ER/migrations/pools, versioned APIs | Call trace, clean setup, ER/contract and CI checks |
-| 2–3 | Deterministic stages, OpenAI streaming/budgets, TTFT, structured extraction, booking transactions/locks/uniqueness | OpenAI/mock text demo, restore/safety tests, race/cancel/conflict report |
+| 2–3 | Deterministic stages, Claude streaming/budgets, TTFT, structured extraction, booking transactions/locks/uniqueness | Claude/mock text demo, restore/safety tests, race/cancel/conflict report |
 | 4–6 | PCM/μ-law/resampling, VAD versus endpointing, language tracking, WER/CER/RTF and first audio | Representative speech benchmarks and local voice demo |
 | 7–8 | Backpressure, CPU offload, cancellation, recovery, idempotency, leases/retries, auth/RBAC/privacy | Failure trace, queue tests, duplicate/crash tests and permission/data-flow map |
-| 9–10 | Embeddings, scoped retrieval, grounding/deferral, serving/GPU admission and carrier integration | Golden RAG report and authorized local speech/OpenAI live evidence |
+| 9–10 | Embeddings, scoped retrieval, grounding/deferral, serving/GPU admission and carrier integration | Golden RAG report and authorized local speech/Claude live evidence |
 | 11–13 | Traces/metrics, SQL analytics/cost units, capacity/chaos/SLOs and deployment recovery | Real dashboard, capacity report, clean-host startup/rollback and recovery drill |
 | 14 | Quantization/fine-tuning/reranking/hybrid search trade-offs | Measured bottleneck and reproducible improvement |
 
@@ -20,7 +20,7 @@ Use the OpenAI roadmap's level sequence as a learning progression. Trace behavio
 4. Why can a callback handler run repeatedly but commit one business effect?
 5. What happens after a commit succeeds but an HTTP/broker acknowledgement is lost?
 6. Why do recording and Dramatiq consumers have different scaling constraints?
-7. Why keep OpenAI behind a provider interface, with bounded retries and a spend cap?
+7. Why keep Claude behind a provider interface, with bounded retries and a spend cap?
 8. How do Gujarati/code-mix WER/CER and TTS intelligibility differ from a few successful demos?
 9. Which queues can drop data and which cannot?
 10. What must be cancelled/cleared during barge-in?
@@ -30,7 +30,7 @@ Use the OpenAI roadmap's level sequence as a learning progression. Trace behavio
 14. Why is Docker last and what makes a rollback safe for schema/jobs/model state?
 15. What measured problem would justify optional infrastructure or model optimization?
 
-Answer with context → invariant → design → failure → evidence → trade-off. Explain from actual code/tests, including gaps. For example, active-slot uniqueness exists today, but the controller still needs database integration; do not describe the full gate as complete.
+Answer with context → invariant → design → failure → evidence → trade-off. Explain from actual code/tests, including gaps. For example, active-slot uniqueness and short controller commits exist today, while approved reference slots and the teacher/live demo remain pending; do not describe the full gate as complete.
 
 Each student should explain the full request flow even when ownership is divided across backend, database, models, retrieval, real-time and QA. Use [completion criteria](completion-contract.md) for final demonstrations/deliverables and [level briefs](README.md) for the current scope.
 
@@ -76,13 +76,13 @@ versioned public API schemas were completed in sections 7 and 8.
 
 Show how `STTProvider`, `LLMProvider`, `TTSProvider`, `EmbeddingProvider` and
 `TelephonyProvider` hide SDK/runtime details behind small request/result types.
-Explain why mocks are the default AI providers for tests, why future Indic speech/embedding
+Explain why tests and synthetic CLI runs select mock AI providers, why future Indic speech/embedding
 classes fail fast until their model levels are complete, and why switching a
 provider should mean one adapter plus one config value rather than rewriting
 callers.
 
 Defend the current limit: the Pipecat media pipeline still uses the existing
-OpenAI/Sarvam comparison path. Replacing Sarvam speech belongs with local ASR/TTS inference,
+Claude/Sarvam comparison path. Replacing Sarvam speech belongs with local ASR/TTS inference,
 speech quality, latency and cancellation evidence, not with the Level 1
 contract foundation.
 
@@ -131,15 +131,15 @@ Show the seven-stage machine as business state, not prompt wording: `OPEN -> DIS
 
 Trace checkpoint persistence through `save_state()`/`restore_state()`: Redis remains the hot same-call cache, while `PostgresConversationStateStore` writes the latest compatible `CallState` to `conversation_states` through short unit-of-work sessions. The row carries schema version, policy version, revision, canonical stage, JSON state and expiry. Restore refuses missing calls, expired rows and schema/policy mismatches rather than replaying unsafe state.
 
-Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: native/paid OpenAI quality/latency, redial/session identity and L7 recovery drills.
+Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: native/paid Claude quality/latency, redial/session identity and L7 recovery drills.
 
 ## Level 2 section 11 explanation
 
-Trace one text turn through locally parsed name or validated JSON extraction, `advance_turn()`, the selected state/task prompt, `OpenAILLM.generate()`, safety and checkpoint. The model never chooses the stage or commits a booking. A schema-valid answer can still be semantically wrong; show the conflicting-day/nonexistent-offer/out-of-stage readback checks and the deterministic date resolver.
+Trace one text turn through locally parsed name or validated JSON extraction, `advance_turn()`, the selected state/task prompt, `ClaudeLLM.generate()`, safety and checkpoint. The model never chooses the stage or commits a booking. A schema-valid answer can still be semantically wrong; show the conflicting-day/nonexistent-offer/out-of-stage readback checks and the deterministic date resolver.
 
-Explain why OpenAI is an adapter, not business logic. The SDK streams text and a final usage-only event; TTFT ends at first text rather than a role-only chunk. Disable SDK retries, retry only transient failures before text within the total deadline, and never retry quota/billing/auth errors or replay partial speech. On uncertainty retain the per-attempt budget reservation instead of claiming zero cost. Distinguish exact reported usage from conservative byte-based admission and estimated INR.
+Explain why Claude is an adapter, not business logic. The SDK streams content blocks and message usage events; TTFT ends at first text rather than a role-only chunk. Disable SDK retries, retry only transient failures before text within the total deadline, and never retry quota/billing/auth errors or replay partial speech. On uncertainty retain the per-attempt budget reservation instead of claiming zero cost. Distinguish exact reported usage from conservative byte-based admission and estimated INR.
 
-Names stay local; prompts omit full call records and redact recognized identifiers. Raw console text is synthetic diagnostic data, not speech or ordinary logs. Mocks/HTTP transports prove mechanics without credit; they do not prove OpenAI quality, provider latency or a complete voice experience. Native scoring and voice approval remain deferred. Read [the OpenAI contract](25-openai-llm.md) and [the prerequisite audit](roadmaps/sections-01-10-review.md).
+Names stay local; prompts omit full call records and redact recognized identifiers. Raw console text is synthetic diagnostic data, not speech or ordinary logs. Mocks/HTTP transports prove mechanics without credit; they do not prove Claude quality, provider latency or a complete voice experience. Native scoring and voice approval remain deferred. Read [the Claude contract](25-claude-llm.md) and [the prerequisite audit](roadmaps/sections-01-10-review.md).
 
 
 ## Level 2 section 12 explanation
@@ -209,6 +209,6 @@ Defend bounded caller/slot validation, Unicode combining marks, code-owned enums
 
 ## Level 6 section 20 explanation
 
-The prototype is half duplex: close the microphone before controller/OpenAI/TTS/playback, so the speaker cannot become the next caller turn. Silero and endpointing finalize bounded audio; the saved language state selects an explicit local ASR route, then the existing state machine/booking and final safety remain authoritative. `VoicePrototype` saves a receipt and ready turn in short database operations, then plays validated PCM and records completion/timings. No transaction stays open during inference or audio.
+The prototype is half duplex: close the microphone before controller/Claude/TTS/playback, so the speaker cannot become the next caller turn. Silero and endpointing finalize bounded audio; the saved language state selects an explicit local ASR route, then the existing state machine/booking and final safety remain authoritative. `VoicePrototype` saves a receipt and ready turn in short database operations, then plays validated PCM and records completion/timings. No transaction stays open during inference or audio.
 
-An HF token solves identity, not unlimited inference capacity. Hosted ASR is a useful separate lab, but it would add a second cloud call and cannot prove the all-local Level 6 gate. Four synthetic language paths and five actual local question renders prove integration mechanics only; hardware, local ASR and native review remain required. Discovery/booking pronunciation uses exact current controller wording and validated slots, never a general translation that could invent a booking.
+An HF token solves identity, not unlimited inference capacity. Hosted ASR is a useful separate lab, but it would add a second cloud call and cannot prove the all-local Level 6 gate. Four synthetic language paths and five actual local question renders prove integration mechanics. The later physical English/mock-LLM turn was heard clearly, and the approved local Whisper base run completed all 15 cases but failed multilingual quality. Claude, representative multilingual ASR and native/full booking review remain required. Discovery/booking pronunciation uses exact current controller wording and validated slots, never a general translation that could invent a booking.

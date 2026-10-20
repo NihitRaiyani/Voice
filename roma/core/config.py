@@ -11,13 +11,14 @@ from typing import Literal
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import SettingsConfigDict
 
+from roma.core.claude_llm_settings import ClaudeLLMSettings
 from roma.core.openai_llm_settings import OpenAILLMSettings
 from roma.core.speech_settings import SpeechSettings
 from roma.core.tts_settings import TTSSettings
 
 
 # BaseSettings automatically reads values from environment variables.
-class Settings(OpenAILLMSettings, SpeechSettings, TTSSettings):
+class Settings(ClaudeLLMSettings, OpenAILLMSettings, SpeechSettings, TTSSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -33,7 +34,11 @@ class Settings(OpenAILLMSettings, SpeechSettings, TTSSettings):
     twilio_from_number: SecretStr = SecretStr("")
 
     sarvam_api_key: SecretStr
-    openai_api_key: SecretStr
+    openai_api_key: SecretStr = SecretStr("")
+    anthropic_budget_inr: float = Field(default=200, gt=0, allow_inf_nan=False)
+    # Retained legacy carrier prompt reaches18KB before history; narrow labs use16KB/20k.
+    anthropic_max_prompt_bytes: int = Field(default=32768, ge=256, le=65536)
+    anthropic_call_token_budget: int = Field(default=64000, ge=1)
     redis_url: SecretStr
     database_url: SecretStr = SecretStr("")
     pii_hash_key: SecretStr = SecretStr("")
@@ -75,7 +80,7 @@ class Settings(OpenAILLMSettings, SpeechSettings, TTSSettings):
     @classmethod
     def validate_database_url(cls, value: SecretStr) -> SecretStr:
         """Allow offline configuration, but require asyncpg for configured Postgres."""
-        database_url = value.get_secret_value() # reveals the actual, plain-text string
+        database_url = value.get_secret_value()  # reveals the actual, plain-text string
         if database_url and not database_url.startswith("postgresql+asyncpg://"):
             raise ValueError("DATABASE_URL must begin with postgresql+asyncpg://")
         return value
@@ -101,7 +106,7 @@ class Settings(OpenAILLMSettings, SpeechSettings, TTSSettings):
     # EMPTY BLOCKS NOTHING, and that is the honest state: no TRAI/DLT feed is wired
     # (docs/07 §consent), so we have no real suppression data. What bounds this endpoint is
     # `api_token`, `max_calls_per_hour`, the spend cap and the calling window — not this.
-    dnd_numbers: str = "" #represents numbers Roma should not call.
+    dnd_numbers: str = ""  # represents numbers Roma should not call.
 
     # Bearer token for /api/call. UNSET MEANS THE ENDPOINT IS DEAD (503), not open: an
     # unconfigured lock must never read as "no lock needed". The dial path rings real phones
@@ -157,6 +162,7 @@ class Settings(OpenAILLMSettings, SpeechSettings, TTSSettings):
 
     vad_confidence: float = 0.8
     vad_min_volume: float = 0.7
+
 
 # It checks whether your server URL is still local.
 def require_reachable_base_url(settings: "Settings | None" = None) -> None:

@@ -167,3 +167,82 @@ def test_the_ledger_never_writes_transcript_text(tmp_path):
     assert "gpt-4o" in written
     for field in ("transcript", "text", "utterance", "phone"):
         assert field not in written
+
+
+def test_claude_cache_creation_and_read_are_disjoint_input_subsets():
+    usage = Usage(
+        input_tokens=3_000_000,
+        output_tokens=1_000_000,
+        cached_input_tokens=1_000_000,
+        cache_creation_input_tokens=1_000_000,
+    )
+    assert usage.billable_input == 1_000_000
+    # Fresh $.10, read $.01, write $.125, output $.50 per million; INR ceiling100/USD.
+    assert inr_for(usage, "claude-haiku-5-5") == pytest.approx(73.50)
+    assert Usage(input_tokens=100, cached_input_tokens=20).cache_creation_input_tokens == 0
+    assert Usage(input_tokens=100, cached_input_tokens=20).billable_input == 80
+
+
+def test_claude_cache_write_is_more_expensive_than_fresh_and_read_is_cheaper():
+    fresh = Usage(input_tokens=1_000_000)
+    write = Usage(input_tokens=1_000_000, cache_creation_input_tokens=1_000_000)
+    read = Usage(input_tokens=1_000_000, cached_input_tokens=1_000_000)
+    assert inr_for(write, "claude-haiku-5-5") == 12.50
+    assert inr_for(fresh, "claude-haiku-5-5") == 10.00
+    assert inr_for(read, "claude-haiku-5-5") == 1.00
+
+
+def test_reserved_charge_persists_exact_paisa_and_survives_restart(tmp_path):
+    import json
+
+    path = tmp_path / "private" / "spend.jsonl"
+    ledger = SpendLedger(path)
+    assert ledger.record_charge(0.01 + 0.02, "claude-haiku-5-5") == 0.03
+    assert ledger.record_charge(0.0101, "claude-haiku-5-5") == 0.02
+    reopened = SpendLedger(path)
+    assert reopened.spent_inr == pytest.approx(0.05)
+    assert reopened.exhausted(budget_inr=0.05)
+    assert reopened.remaining_inr(budget_inr=0.05) == 0
+    rows = [json.loads(row) for row in path.read_text().splitlines()]
+    assert all(row["source"] == "provider-reservation" for row in rows)
+    assert path.stat().st_mode & 0o077 == 0
+    assert path.parent.stat().st_mode & 0o077 == 0
+
+
+@pytest.mark.parametrize(
+    "amount,model",
+    [
+        (-0.01, "claude-haiku-5-5"),
+        (float("inf"), "claude-haiku-5-5"),
+        (float("nan"), "claude-haiku-5-5"),
+        (0.01, ""),
+    ],
+)
+def test_reserved_charge_rejects_invalid_values_without_creating_ledger(
+    tmp_path, amount, model
+):
+    path = tmp_path / "spend.jsonl"
+    with pytest.raises(ValueError):
+        SpendLedger(path).record_charge(amount, model)
+    assert not path.exists()
+
+
+def test_reserved_charge_refuses_a_corrupt_ledger_without_appending(tmp_path):
+    path = tmp_path / "spend.jsonl"
+    original = "{unreadable\n"
+    path.write_text(original)
+    with pytest.raises(ValueError):
+        SpendLedger(path).record_charge(0.01, "claude-haiku-5-5")
+    assert path.read_text() == original
+    assert SpendLedger(path).exhausted(budget_inr=2)
+
+
+def test_reserved_charge_write_failure_propagates_to_stop_call(tmp_path, monkeypatch):
+    from roma.domain.costs import spend
+
+    def unavailable(*args, **kwargs):
+        raise OSError("synthetic disk unavailable")
+
+    monkeypatch.setattr(spend, "open_private", unavailable)
+    with pytest.raises(OSError, match="synthetic disk unavailable"):
+        SpendLedger(tmp_path / "spend.jsonl").record_charge(0.01, "claude-haiku-5-5")

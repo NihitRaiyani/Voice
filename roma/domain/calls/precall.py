@@ -64,7 +64,7 @@ def precall_check(
         if spend is not None and budget_inr is not None and spend.exhausted(budget_inr):
             _log.error(
                 "pre-dial gate: OpenAI testing budget of ₹%.2f is spent. Raise "
-                "OPENAI_BUDGET_INR (and the OpenAI dashboard limit, which is the real "
+                "ANTHROPIC_BUDGET_INR (and the Anthropic dashboard limit, which is the real "
                 "ceiling) or stop testing.",
                 budget_inr,
             )

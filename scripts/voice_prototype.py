@@ -15,8 +15,8 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from roma.core.claude_llm_settings import ClaudeLLMSettings  # noqa: E402
 from roma.core.migration_settings import MigrationSettings  # noqa: E402
-from roma.core.openai_llm_settings import OpenAILLMSettings  # noqa: E402
 from roma.core.speech_settings import SpeechSettings  # noqa: E402
 from roma.core.tts_settings import TTSSettings  # noqa: E402
 from roma.domain.conversation.language import Language  # noqa: E402
@@ -117,8 +117,8 @@ async def mock_lab():
 def local_preflight(args):
     if not (args.allow_microphone and args.allow_database_write):
         raise ValueError("Local mode requires explicit microphone and database opt-ins")
-    if args.llm_provider == "openai" and not args.allow_paid_api:
-        raise ValueError("OpenAI mode requires the explicit paid API opt-in")
+    if args.llm_provider == "claude" and not args.allow_paid_api:
+        raise ValueError("Claude mode requires the explicit paid API opt-in")
     cfg = SpeechSettings()
     if cfg.stt_provider not in {"indic_conformer", "whisper"}:
         raise ValueError(
@@ -139,9 +139,9 @@ def local_preflight(args):
         raise ValueError("Indic ASR requires offline startup and reviewed pinned custom code")
     if args.llm_provider == "mock":
         return cfg, None, TTSSettings(tts_provider="indic_tts")
-    llm_cfg = OpenAILLMSettings(llm_provider="openai")
-    if not llm_cfg.openai_api_key.get_secret_value() or not llm_cfg.openai_model:
-        raise ValueError("OpenAI key/model prerequisite is missing")
+    llm_cfg = ClaudeLLMSettings(llm_provider="claude")
+    if not llm_cfg.anthropic_api_key.get_secret_value() or not llm_cfg.anthropic_model:
+        raise ValueError("Claude key/model prerequisite is missing")
     return cfg, llm_cfg, TTSSettings(tts_provider="indic_tts")
 
 
@@ -244,7 +244,7 @@ async def local_run(args):
             safety=safety,
             store=PostgresConversationStateStore(factory),
             booking_session=booking,
-            temperature=llm_cfg.openai_temperature if llm_cfg else 0.7,
+            temperature=0.7,
             dialogue_language="voice_hi",
         )
         synthesis = SpeechSynthesisService(
@@ -269,7 +269,7 @@ async def local_run(args):
             + (
                 "mock LLM, no cloud inference."
                 if args.llm_provider == "mock"
-                else "only OpenAI inference is remote."
+                else "only Claude inference is remote."
             )
             + " Ctrl+C stops. No audio recording."
         )
@@ -299,7 +299,7 @@ async def local_run(args):
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--mode", choices=("mock", "local"), default="mock")
-    p.add_argument("--llm-provider", choices=("openai", "mock"), default="openai")
+    p.add_argument("--llm-provider", choices=("claude", "mock"), default="claude")
     p.add_argument("--allow-microphone", action="store_true")
     p.add_argument("--allow-paid-api", action="store_true")
     p.add_argument("--allow-database-write", action="store_true")
@@ -323,7 +323,7 @@ def main():
         return 130
     except Exception:  # noqa: BLE001 -- no .env, provider payload or participant text in ordinary errors.
         print(
-            "Voice prototype unavailable: verify local ASR runtime/cached weights, local TTS, PostgreSQL/Redis, opt-ins and OpenAI quota. No downloads or hosted-ASR fallback attempted.",
+            "Voice prototype unavailable: verify local ASR runtime/cached weights, local TTS, PostgreSQL/Redis, opt-ins and Claude availability. No downloads or hosted-ASR fallback attempted.",
             file=sys.stderr,
         )
         return 1

@@ -1,5 +1,8 @@
 # Verification and acceptance evidence
 
+Current source/provider policy changed on 2026-10-20: [Claude roadmap](roadmaps/README.md) and Claude Haiku 5.5 replace OpenAI. Dated checks, model names, counts and former source hashes below remain historical evidence; they do not prove Claude quality/cost/latency. No OpenAI requests or fallback are permitted. Native/representative and complete voice gates remain pending.
+
+
 Latest complete-suite verification after the [Level 2 section 10 increment](levels/level-02.md): **1,674 tests passed, 23 warnings, no failures or skips**. The new `make ci` skeleton starts native local services, runs Ruff, runs mypy on the Level 1 contract surface, applies Alembic to the local database, passes **38 provider/config tests** and passes **11 mocked API/architecture/migration-settings tests**. Pre-commit hooks pass across all files.
 
 The earlier [Level 0 baseline report](roadmaps/level-00-baseline.md) remains historical evidence of 1,571 passing tests and five lint findings before this increment. Its test/identity record is not rewritten as current implementation evidence. L1 records capacity/pressure/timeout/cancellation, relational constraint/migration/legacy-compatibility, separate-seed workflow results and the section 9 workflow skeleton. Level 2 section 10 records the software-owned state-machine facade and durable latest-checkpoint adapter. Hosted GitHub Actions passed on 2026-10-05 for commit `ac99270`; Level 0 clean-machine evidence remains separate.
@@ -57,12 +60,12 @@ Each level records revision, environment/data/model/prompt/document identity, re
 | Gate | Required evidence |
 |---|---|
 | L1 | Empty DB migrations, native startup, provider contracts/mocks, versioned API, reviewed pool budget and green CI |
-| L2/L3 | Durable text restore, OpenAI streaming/text evidence and safety audit, committed live booking, 100-attempt race and cancellation/idempotency |
+| L2/L3 | Durable text restore, Claude streaming/cache-accounting evidence and safety audit, committed live booking, 100-attempt race and cancellation/idempotency |
 | L4–6 | Approved language/noise WER/CER/RTF, TTS intelligibility/first audio and complete local voice lab |
 | L7 | Barge-in/double cancellation, late results/disconnect, Redis/provider loss, bounded pressure and event-loop lag |
 | L8 | Roles/token lifecycle, forged/stale/duplicate callback policy, job crash/replay/retention and PII/access approvals |
 | L9 | Eligible scoped/versioned evidence, local embeddings, golden Recall@K/MRR, grounding/deferral and final safety |
-| L10 | Authorized local-model carrier call, serving/readiness/GPU admission, retrieval cancellation and OpenAI-only external GenAI traffic |
+| L10 | Authorized local-model carrier call, serving/readiness/GPU admission, retrieval cancellation and Claude-only external GenAI traffic |
 | L11/L12 | Real telemetry/reconciled analytics, mock versus GPU capacity, chaos/security/golden regressions and measured SLOs |
 | L13 | Clean-host startup/migrations/readiness, backup/restore and compatible rollback |
 
@@ -135,3 +138,18 @@ The owner explicitly approved only the pinned multilingual Whisper base download
 The owner then deferred all OpenAI requests because quota is exhausted. Explicit local `--llm-provider mock` bypasses OpenAI settings/client construction and paid opt-in while keeping real microphone, ASR, TTS and short durable lab writes. The first physical capture exposed a finite-pronunciation gap; the two existing approved re-offer variants now render with normal safety checks. Actual local synthesis passed both variants. [Level 6](levels/level-06.md#local-base-microphone-follow-up--2026-10-19) records the failed attempt, silent attempt and repaired successful physical turn. The owner confirmed clear playback. SQL readback confirms completed/played status with transcript retention disabled; no microphone recording/HF upload or OpenAI generation occurred. Real OpenAI conversation, multilingual ASR quality, booking/reference-data setup and native gates remain pending.
 
 Fresh verification for this follow-up: **2,686 offline tests passed** (22 dependency deprecation warnings, 87.35 seconds), Ruff and **70-file mypy** pass. The locked optional runtime resolves successfully; new artifact/routing tests are included in the bounded CI target. **1,114 CI-selected tests** passed (four dependency warnings, 23.97 seconds); all pre-commit hooks passed. Markdown validation checked **67 non-archive files / 416 local links and anchors**, with zero issues.
+
+## Claude alignment verification — 2026-10-20
+
+The unchanged selected Word hash is now `67a79ba87fbec07051d460fd4ec9d5520f7047c0e242da72a65bfdd09ede5f48`; former hashes above identify historical checkpoints. Fresh adapter/config/stream/cache/retry/budget/privacy and CLI checks must use mocks by default. Separately authorized synthetic Claude checks measure provider access/usage/TTFT only; retain native scores as pending. Existing ASR/TTS reports, physical mock-LLM evidence, migrations and schema are not rewritten by the provider change. [The sections 1–20 audit](roadmaps/sections-01-10-review.md#claude-source-review-through-section-20--2026-10-20) owns compliance qualifications; final executed check counts are recorded only after actual runs.
+
+
+## Claude migration through section 20 — 2026-10-20
+
+The unchanged selected source has SHA-256 `67a79ba87fbec07051d460fd4ec9d5520f7047c0e242da72a65bfdd09ede5f48`. The [sections 1–20 audit](roadmaps/sections-01-10-review.md#claude-source-review-through-section-20--2026-10-20) distinguishes existing foundations, this provider replacement and pending human/ASR/reference-data gates. There are no schema migrations, working-DB seeds, new speech weights, real telephone calls or OpenAI requests in this increment.
+
+Fresh full verification: **2,752 offline tests passed**, 22 existing dependency warnings, 89.71 seconds. Ruff and **74-file mypy** pass; the lock resolves 124 packages, including Anthropic 0.125.0. All paid checks are separate synthetic runs. [Recorded evidence](../benchmarks/llm/claude/README.md) covers model access, final 40/40 nonempty text replies/known usage, median TTFT 1.239 s, schema transformation, actual 807-token cache creation/read, failed adaptive empty-output cases and safe local TTS rendering. Native scores and full multilingual microphone/booking approval remain pending.
+
+The current bounded CI target passed **1,147 tests** (four dependency warnings, 26.22 seconds), including the new provider bridge and replay checks.
+
+All pre-commit hooks passed after the final evidence update. Markdown validation checked **69 non-archive files / 452 local links and anchors**, with zero issues. The final default-configuration structured extraction also succeeded in one attempt (1.654 s) with thinking disabled and an actual 806-token cache creation; the separate readiness artifact preserves the cache-read demonstration.

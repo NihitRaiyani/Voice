@@ -88,3 +88,77 @@ def test_live_is_opt_in(flag):
     args = mod._parse_args([])
     assert args.live is False
     assert mod._parse_args([flag]).live is True
+
+
+def test_live_provider_meters_extraction_and_wording_with_fake_only():
+    import asyncio
+
+    from roma.core.ai_contracts import LLMMessage, LLMRequest
+    from roma.eval.cost import Meter
+    from tests.realtime.test_provider_llm import FakeProvider
+
+    async def run():
+        cli = _cli()
+        meter = Meter(1)
+        provider = cli._EvalProvider(FakeProvider(), meter)
+        for purpose in ("extraction", "wording"):
+            async for _ in provider.generate(LLMRequest(
+                (LLMMessage("user", "fixture"),), metadata={"purpose": purpose}
+            )):
+                pass
+        assert meter.calls == 2
+        assert meter.spent_inr == pytest.approx(0.02)
+        await provider.aclose()
+        assert provider.provider.client_closed
+    asyncio.run(run())
+
+
+def test_live_provider_stops_after_quota_failure_without_more_calls():
+    import asyncio
+    from dataclasses import replace
+
+    from roma.core.ai_contracts import LLMChunk, LLMMessage, LLMRequest
+    from roma.eval.cost import Meter
+    from tests.realtime.test_provider_llm import METRICS, FakeProvider
+
+    class Unavailable(FakeProvider):
+        async def generate(self, request):
+            self.requests.append(request)
+            yield LLMChunk("safe fallback", "provider_unavailable", replace(
+                METRICS, error_code="provider_unavailable"
+            ))
+
+    async def run():
+        provider = _cli()._EvalProvider(Unavailable(), Meter(1))
+        request = LLMRequest((LLMMessage("user", "fixture"),))
+        async for _ in provider.generate(request):
+            pass
+        with pytest.raises(RuntimeError):
+            async for _ in provider.generate(request):
+                pass
+        assert len(provider.provider.requests) == 1
+    asyncio.run(run())
+
+
+def test_live_generator_uses_actual_provider_output_and_history():
+    import asyncio
+
+    from roma.domain.conversation.state import CallState
+    from roma.eval.cost import Meter
+    from tests.realtime.test_provider_llm import FakeProvider
+
+    async def run():
+        cli = _cli()
+        script = next(s for s in cli.script_mod.load_dir(cli.DEFAULT_SCRIPT_DIR) if s.name == "clean_lock")
+        meter = Meter(1)
+        provider = cli._EvalProvider(FakeProvider(), meter)
+        generate = cli._live_generator(script, provider)
+        state = CallState(call_sid="eval-synthetic")
+        assert await generate(state, meter) == "Namaste. Kaise hain?"
+        assert await generate(state, meter) == "Namaste. Kaise hain?"
+        requests = provider.provider.requests
+        assert requests[0].messages[-1].content == script.turns[0].lead
+        assert requests[1].messages[-2].role == "assistant"
+        assert requests[1].messages[-1].content == script.turns[1].lead
+        assert requests[1].max_tokens <= provider.provider.max_output_tokens
+    asyncio.run(run())

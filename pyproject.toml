@@ -23,6 +23,7 @@ dev = [
     "testcontainers[postgres]>=4.12,<5",
 ]
 telephony = [
+    "anthropic>=0.76,<1",
     "fastapi>=0.139.2",
     "pipecat-ai[sarvam,silero,openai]>=1.6.0",
     "redis>=5.0",
@@ -54,6 +55,8 @@ python_version = "3.11"
 files = [
     "roma/providers/ai",
     "roma/core/openai_llm_settings.py",
+    "roma/core/claude_llm_settings.py",
+    "roma/core/ai_contracts.py",
     "roma/core/speech_settings.py",
     "benchmarks/asr/hf_endpoint/handler.py",
     "roma/domain/conversation/language.py",
@@ -86,6 +89,7 @@ files = [
     "roma/repositories/postgres/safety.py",
     "roma/eval/openai_language.py",
     "roma/providers/telephony",
+    "roma/realtime/provider_llm.py",
     "roma/api/v1/responses.py",
     "roma/schemas/rest_api.py",
 ]

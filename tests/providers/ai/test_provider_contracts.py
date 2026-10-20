@@ -30,6 +30,7 @@ from roma.providers.ai import (
 def _settings(**overrides) -> Settings:
     values = {
         "sarvam_api_key": "sarvam-test",
+        "llm_provider": "mock",
         "openai_api_key": "openai-test",
         "redis_url": "redis://localhost:6379/0",
     }
@@ -124,3 +125,13 @@ def test_local_stt_construction_is_lazy_and_invalid_audio_fails_before_loading()
             )
 
     asyncio.run(run())
+
+
+def test_openai_cannot_be_selected_on_current_runtime_factory():
+    from types import SimpleNamespace
+
+    from roma.providers.ai.contracts import ProviderUnavailable
+    from roma.providers.ai.registry import build_llm_provider
+
+    with pytest.raises(ProviderUnavailable, match="disabled"):
+        build_llm_provider(SimpleNamespace(llm_provider="openai"))

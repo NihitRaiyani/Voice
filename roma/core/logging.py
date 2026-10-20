@@ -107,6 +107,9 @@ def _secret_values(settings: Settings):
         settings.twilio_from_number.get_secret_value(),
         settings.sarvam_api_key.get_secret_value(),
         settings.openai_api_key.get_secret_value(),
+        settings.anthropic_api_key.get_secret_value()
+        if hasattr(settings, "anthropic_api_key")
+        else "",
         settings.redis_url.get_secret_value(),
     ]
 

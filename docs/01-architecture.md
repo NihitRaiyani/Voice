@@ -1,6 +1,6 @@
 # Architecture and module ownership
 
-**Present:** layered Python modular monolith with Twilio/Pipecat cloud media, Redis, PostgreSQL/Alembic, atomic answer acceptance, durable Dramatiq job processing and an enforced domain dependency rule. **Target:** OpenAI LLM with validated local speech/embeddings, governed retrieval and production access/telemetry/deployment controls.
+**Present:** layered Python modular monolith with Twilio/Pipecat cloud media, Redis, PostgreSQL/Alembic, atomic answer acceptance, durable Dramatiq job processing and an enforced domain dependency rule. **Target:** Claude LLM with validated local speech/embeddings, governed retrieval and production access/telemetry/deployment controls.
 
 ```mermaid
 flowchart LR
@@ -36,7 +36,7 @@ The production controller uses a call-scoped booking service/calendar: PostgreSQ
 | Services | Call, webhook, post-call and dispatcher use cases |
 | Domain | Conversation, appointment time resolution, safety, cost and persistence contracts |
 | Repositories | PostgreSQL units of work/records and Redis transient adapters |
-| Providers | Twilio, calendar and Dramatiq SDK boundaries; provider contracts exist since L1 section 7; the OpenAI LLM adapter belongs to L2 and local speech adapters to L4–5 |
+| Providers | Twilio, calendar and Dramatiq SDK boundaries; provider contracts exist since L1 section 7; the Claude LLM adapter belongs to L2 and local speech adapters to L4–5 |
 | Realtime | Pipecat processors, endpointing, streaming/cancellation, recorder and safe speech |
 | Workers | Recording finalization and database-authoritative background effects |
 
@@ -54,11 +54,11 @@ A short booking transaction can run in the turn; inference, audio, external sync
 
 The [schema catalog](20-relational-schema.md) owns the physical table/key/constraint/index and retention rationale. L1 section 4 adds checkpoint and model/benchmark evidence models; these tables are not yet live pipeline consumers. The additive migration preserves old keys/semantics and adds optional turn-language metadata. L1 section 5 adds the [migration workflow](21-database-migrations.md) and separate opt-in demo seeds; migration/seeding tools depend only on database settings and never initialize voice providers.
 
-L1 section 6 moves shared private-file primitives into `roma.core.private_files` and keeps concrete Redis checkpoint adapters out of the domain package export. A focused architecture test now prevents `roma/domain/**` from importing API, provider, repository, realtime, worker or SDK modules. L1 section 7 adds provider contracts for STT, LLM, TTS, embeddings and telephony; the current OpenAI voice path remains, while Sarvam speech adapters are retained until measured local ASR/TTS replacements are ready.
+L1 section 6 moves shared private-file primitives into `roma.core.private_files` and keeps concrete Redis checkpoint adapters out of the domain package export. A focused architecture test now prevents `roma/domain/**` from importing API, provider, repository, realtime, worker or SDK modules. L1 section 7 adds provider contracts for STT, LLM, TTS, embeddings and telephony; Claude replaces the historical OpenAI LLM seam, while Sarvam speech adapters are retained until measured local ASR/TTS replacements are ready.
 
 ## Deployment and target
 
-Keep Twilio and the existing Pipecat comparison profile. Direct local ASR/TTS inference precedes speech model serving; embeddings/pgvector arrive with conditional RAG at L9. OpenAI remains the LLM behind its provider interface. The target permits OpenAI as its only external GenAI API, alongside carrier/internal services.
+Keep Twilio and the existing Pipecat comparison profile. Direct local ASR/TTS inference precedes speech model serving; embeddings/pgvector arrive with conditional RAG at L9. Claude Haiku 5.5 is the main wording/extraction LLM behind its provider interface. No OpenAI calls or fallback are allowed. The target permits Claude as its only external GenAI API, alongside carrier/internal services.
 
 Existing Compose is pre-v4 infrastructure tooling, not proof of Level 13. No production host/GPU/SLO is established by these docs. Replica growth requires measured capacity, shared coordination and route/auth checks; recording startup recovery currently supports one recording consumer. See [state](06-state-and-cache.md), [concurrency](08-concurrency.md) and [decisions](decisions.md).
 

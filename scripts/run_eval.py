@@ -5,14 +5,9 @@
     uv run python scripts/run_eval.py -v                   # per-turn detail
     uv run python scripts/run_eval.py --live               # real model, METERED, costs money
 
-Offline is the default and makes ZERO network calls — it validates the controller and the
-filter, and is what belongs in CI. `--live` replays the same scripts through real
-gpt-4o-mini to check the model's own output shape, metered against
-`Settings.openai_budget_inr` (₹100).
-
-Before any `--live` run, lower the OpenAI dashboard hard spend limit to ₹100. docs/02 is
-explicit that the cap is enforced by OpenAI, not by discipline; the meter in `roma.eval.cost`
-is a second belt that reports and halts, not the thing standing between you and the bill.
+Offline is the default and makes ZERO network calls. Explicit `--live` selects the
+configured Claude provider, generates real replies, and meters extraction plus wording.
+The local meter supplements the Anthropic account spend limit.
 
 Exit code is 0 only when every check passed and nothing halted — this is meant to be run by
 CI, so "halted early on budget" must never look like success.
@@ -28,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from roma.eval import script as script_mod
 from roma.eval.checks import check_canaries
-from roma.eval.cost import Meter
+from roma.eval.cost import BudgetExceeded, Meter
 from roma.eval.runner import run_script
 
 _log = logging.getLogger("roma.eval")
@@ -53,7 +48,7 @@ def _parse_args(argv=None):
     p.add_argument(
         "--live",
         action="store_true",
-        help="replay through the REAL model. Costs money. Metered against OPENAI_BUDGET_INR",
+        help="replay through Claude. Costs money. Metered against ANTHROPIC_BUDGET_INR",
     )
     p.add_argument("-v", "--verbose", action="store_true", help="per-turn detail")
     return p.parse_args(argv)
@@ -72,6 +67,90 @@ def _print_result(result, verbose: bool) -> None:
         print(f"   HALTED: {result.halted}")
     for f in result.findings:
         print(f"   {f}")
+
+
+class _EvalProvider:
+    """Count every extraction/wording attempt, including unknown-usage reservations."""
+
+    def __init__(self, provider, meter):
+        self.provider = provider
+        self.meter = meter
+        self.failed = False
+
+    @property
+    def max_output_tokens(self):
+        return self.provider.max_output_tokens
+
+    async def generate(self, request):
+        from contextlib import aclosing
+
+        self.meter.check_before_call()
+        if self.failed:
+            raise RuntimeError("Claude evaluation provider is unavailable")
+        before = getattr(self.provider, "spent_cents", 0)
+        final = None
+        try:
+            async with aclosing(self.provider.generate(request)) as stream:
+                async for chunk in stream:
+                    if chunk.metrics is not None:
+                        final = chunk.metrics
+                        self.failed |= final.error_code is not None
+                    yield chunk
+        except Exception:
+            self.failed = True
+            raise
+        finally:
+            charged = (getattr(self.provider, "spent_cents", before) - before) / 100
+            if final is not None:
+                charged = final.charged_inr
+                self.meter.calls += final.attempts
+                self.meter.input_tokens += final.input_tokens or 0
+                self.meter.output_tokens += final.output_tokens or 0
+            elif charged:
+                self.meter.calls += 1
+                self.failed = True
+            self.meter.spent_inr += charged
+
+    async def aclose(self):
+        await self.provider.aclose()
+
+
+def _live_generator(script, client):
+    from contextlib import aclosing
+
+    from roma.domain.conversation.prompts import assemble_system_prompt, stage_max_tokens
+    from roma.providers.ai.contracts import LLMMessage, LLMRequest
+
+    history = []
+    index = 0
+
+    async def generate(state, meter):
+        nonlocal index
+        history.append(LLMMessage("user", script.turns[index].lead))
+        index += 1
+        request = LLMRequest(
+            messages=(
+                LLMMessage(
+                    "system", assemble_system_prompt(state.as_prompt_vars(), state.stage)
+                ),
+                *history,
+            ),
+            max_tokens=min(
+                stage_max_tokens(state.stage),
+                getattr(client.provider, "max_output_tokens", 256),
+            ),
+        )
+        parts = []
+        async with aclosing(client.generate(request)) as stream:
+            async for chunk in stream:
+                parts.append(chunk.text)
+        if meter.remaining_inr <= 0:
+            raise BudgetExceeded(meter)
+        text = "".join(parts)
+        history.append(LLMMessage("assistant", text))
+        return text
+
+    return generate
 
 
 async def _main(argv=None) -> int:
@@ -95,17 +174,18 @@ async def _main(argv=None) -> int:
             return 2
 
     meter = None
-    client = None
+    settings = None
     if args.live:
-        from openai import AsyncOpenAI
         from roma.core.config import get_settings
 
         settings = get_settings()
-        meter = Meter(budget_inr=settings.openai_budget_inr)
-        client = AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
+        if settings.llm_provider != "claude":
+            print("error: --live requires LLM_PROVIDER=claude", file=sys.stderr)
+            return 2
+        meter = Meter(budget_inr=settings.anthropic_budget_inr)
         print(
-            f"LIVE run — budget ₹{meter.budget_inr:.2f}. This spends real money.\n"
-            "Confirm the OpenAI dashboard hard limit is set before trusting this meter."
+            f"LIVE Claude run — budget ₹{meter.budget_inr:.2f}. This spends real money.\n"
+            "Use an Anthropic account spend limit in addition to this local meter."
         )
 
     canary_findings = check_canaries()
@@ -114,9 +194,44 @@ async def _main(argv=None) -> int:
         print(f"   {f}")
 
     results = []
+    provider_failed = False
     for s in scripts:
-        results.append(await run_script(s, live=args.live, client=client, meter=meter))
+        client = None
+        generate = None
+        if args.live:
+            from roma.providers.ai.registry import build_llm_provider
+
+            if meter.remaining_inr <= 0:
+                provider_failed = True
+                print("HALTED: Claude run budget exhausted")
+                break
+            call_settings = settings.model_copy(
+                update={
+                    "anthropic_call_spend_cap_inr": min(
+                        settings.anthropic_call_spend_cap_inr, meter.remaining_inr
+                    )
+                }
+            )
+            client = _EvalProvider(build_llm_provider(call_settings), meter)
+            generate = _live_generator(s, client)
+        try:
+            results.append(
+                await run_script(
+                    s, live=args.live, client=client, meter=meter, generate=generate
+                )
+            )
+        except Exception:  # noqa: BLE001 -- report incomplete without exposing SDK payloads.
+            print("HALTED: Claude generation/extraction failed; run incomplete")
+            return 1
+        finally:
+            if client is not None:
+                await client.aclose()
+        if client is not None and client.failed:
+            provider_failed = True
+            results[-1].halted = "Claude generation/extraction failed; run incomplete"
         _print_result(results[-1], args.verbose)
+        if results[-1].halted:
+            break
 
     failed = [r for r in results if not r.ok]
     total_findings = sum(len(r.findings) for r in results) + len(canary_findings)
@@ -127,15 +242,9 @@ async def _main(argv=None) -> int:
     if meter is not None:
         print(
             f"spent ₹{meter.spent_inr:.2f} of ₹{meter.budget_inr:.2f} over {meter.calls} "
-            f"OpenAI call(s) — verify against the dashboard"
+            f"Claude attempt(s) — verify against the Anthropic account"
         )
-        if meter.calls == 0:
-            print(
-                "   WARNING: 0 calls metered. --live does not meter generation yet "
-                "(no `generate` is passed to run_script), so the ₹0.00 above measures "
-                "nothing. The OpenAI dashboard is the only number to trust here."
-            )
-    return 0 if not failed and not canary_findings else 1
+    return 0 if not failed and not canary_findings and not provider_failed else 1
 
 
 def main(argv=None) -> int:

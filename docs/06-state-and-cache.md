@@ -11,7 +11,7 @@ PostgreSQL is already the durable record/job foundation: relationships, constrai
 | Model and benchmark evidence | PostgreSQL registry/runs/results; sections 18–19 completed-report persistence with immutable run keys, model provenance and finite aggregate metrics |
 | Lead token lookup, call status, rate counters, opener cache | Redis with explicit lifetime |
 | Turns, safety events, provider usage/costs, audit | PostgreSQL models/repositories tested; complete live collection pending later levels |
-| OpenAI testing spend ceiling | Protected append-only disk ledger today; preserve until durable metering integration |
+| Claude testing spend ceiling | Protected append-only disk ledger today; preserve until durable metering integration |
 | Recording capture/finalization | Protected local filesystem; PostgreSQL metadata integration scope reviewed separately |
 | Governed knowledge/embeddings | PostgreSQL + pgvector at L9 |
 

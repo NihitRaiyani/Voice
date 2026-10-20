@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from roma.providers.ai.claude_llm import ClaudeLLM
 from roma.providers.ai.contracts import (
     EmbeddingProvider,
     LLMProvider,
+    ProviderUnavailable,
     STTProvider,
     TTSProvider,
 )
@@ -19,7 +21,6 @@ from roma.providers.ai.mocks import (
     MockSTTProvider,
     MockTTSProvider,
 )
-from roma.providers.ai.openai_llm import OpenAILLM
 from roma.providers.ai.stt import HuggingFaceSTT, IndicConformerSTT, WhisperSTT
 
 
@@ -81,8 +82,12 @@ def build_llm_provider(settings) -> LLMProvider:
     match settings.llm_provider:
         case "mock":
             return MockLLMProvider()
+        case "claude":
+            return ClaudeLLM(settings)
         case "openai":
-            return OpenAILLM(settings)
+            raise ProviderUnavailable(
+                "OpenAI runtime selection is disabled; select claude or mock"
+            )
     raise ValueError(f"unknown LLM provider {settings.llm_provider!r}")
 
 
