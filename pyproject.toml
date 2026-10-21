@@ -69,6 +69,8 @@ files = [
     "roma/eval/hosted_asr.py",
     "roma/eval/asr_benchmark.py",
     "roma/eval/local_whisper.py",
+    "roma/eval/local_indic.py",
+    "roma/eval/asr_comparison.py",
     "roma/eval/benchmark_evidence.py",
     "roma/eval/tts.py",
     "roma/core/tts_settings.py",

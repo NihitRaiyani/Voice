@@ -1,6 +1,6 @@
 # Level 4 — Audio and local ASR
 
-**Roadmap sections:** 14–18. **Status:** Sections 14–17 audio, deterministic endpointing, ASR adapters and persisted language routing are implemented and hardened. Real hosted IndicConformer Gujarati/Hindi and Whisper English inference succeeded on three public benchmark clips. Section 18 now adds a reproducible public-corpus benchmark, failure export/replay and PostgreSQL evidence storage. Its small-corpus hosted results do not pass representative/native quality or the complete Level 4 gate.
+**Roadmap sections:** 14–18. **Status:** Audio/input/router and section 18 benchmark/failure/SQL tooling are implemented. The same 15-case local comparison is complete: IndicConformer transcribed 12 supported cases and explicitly rejected three English cases; Whisper base transcribed all 15. Indic improves Gujarati/Hindi WER/CER, but stitched English loss, representative/native quality and the full Level 4 gate remain pending.
 
 Current LLM policy changed to Claude Haiku 5.5 on 2026-10-20. OpenAI names in the dated speech checks below identify the former baseline; official OpenAI Whisper Space names remain ASR endpoint identities. No OpenAI LLM calls/fallback are allowed. Historical reports and counts are unchanged.
 
@@ -71,7 +71,7 @@ Use `make test` / `make test-ci` to reproduce after the runbook prerequisites. N
 
 - [x] Sections 15–17 code: bounded endpointing, lazy/cache-only ASR adapters, explicit hosted lab seam and persisted five-state language router.
 - [x] Execute real hosted IndicConformer Gujarati/Hindi and Whisper English inference on explicitly public benchmark audio; see the hosted smoke below.
-- [ ] Complete section 18 representative multilingual/noisy/code-mix WER/CER, RTF, endpoint failure cases, hardware/license/access review and native review. A three-clip hosted smoke does not pass this gate.
+- [ ] Complete representative multilingual/noisy/code-mix WER/CER, RTF, endpoint failure cases and native review. The completed local 15-case comparison uses only three source recordings and does not pass this gate.
 - [ ] Pass the complete Level 4 gate before beginning adaptive jitter or PLC.
 - [ ] Advanced track: real UDP/RTP parsing and sequence rollover, bounded adaptive delay, selected PLC policy and measured VAD/ASR under realistic impairment/network emulation.
 
@@ -208,7 +208,7 @@ Failure export/read was exercised: six Indic high-WER cases and 12 Whisper servi
 
 ### Chosen development configuration and persistence
 
-Retain **IndicConformer 600M CTC for Gujarati/Hindi and Whisper large-v3 for English as the development lab routing**, with strict 16 kHz mono PCM16, 30-second audio bound and 90-second hosted deadline. This preserves section 17's router and existing production speech. Indic English-span deletion makes an all-language Indic choice unjustified. The failed Whisper comparison prevents choosing it for Gujarati/Hindi from this evidence. Broader data, native code-mix and matched-model success are required before a production choice.
+At the 2026-10-19 hosted checkpoint, retain **IndicConformer 600M CTC for Gujarati/Hindi and Whisper large-v3 for English as the hosted development lab routing**, with strict 16 kHz mono PCM16, 30-second audio bound and 90-second hosted deadline. This preserves section 17's router and existing production speech. Indic English-span deletion makes an all-language Indic choice unjustified. The failed Whisper comparison prevents choosing it for Gujarati/Hindi from this evidence. Broader data, native code-mix and matched-model success are required before a production choice.
 
 `PostgresBenchmarkStore` validates detached non-PII evidence before opening a session, then writes registry/run/results atomically. Identical immutable run keys return the existing ID; changed evidence or model provenance rolls back. The save CLI accepts completed reports only and rechecks aggregates. Store audio/ref/hypothesis in the public failure artifacts, not SQL; SQL holds finite aggregate metrics, manifest/config/environment and report location/hash.
 
@@ -218,7 +218,7 @@ Configured `roma` was read-only confirmed at `20261004_0003 (head)` before expli
 
 - [x] Scoring, reproducible variants, saved/readable failures and immutable SQL evidence are implemented and exercised.
 - [x] Existing out-of-order sequence tests remain part of offline CI; no sequence-check bypass is introduced.
-- [ ] Both models successfully compared across the complete language/code-mix matrix: public Whisper inference failures prevent this.
+- [x] Same-corpus local comparison completed on 2026-10-21: 12 shared supported successes plus three explicitly unsupported Indic English cases. Earlier hosted service failures remain historical evidence.
 - [ ] Representative native code-mix/noise corpus, native review and final model approval: three read recordings plus stitched variants are insufficient.
 - [ ] Complete Level 4 and adaptive/PLC gates.
 
@@ -271,4 +271,48 @@ The owner authorized local AI4Bharat IndicConformer after the Whisper base multi
 
 The adapter now resolves the immutable cache with `local_files_only=True`, loads configuration from that exact snapshot and constructs the custom model without calling the upstream unpinned `from_pretrained` path. `HF_HUB_OFFLINE=1`, a 40-character revision and explicit `INDIC_TRUST_REMOTE_CODE=true` are mandatory. A missing or mismatched snapshot fails before inference and never falls back to network or Whisper.
 
-Cache-only public-sample smokes completed for Gujarati and Hindi with zero provider errors. Gujarati exercised one cold and one warm segment; Hindi exercised one cold segment. These runs prove installation and adapter compatibility only. Run the same 15-case corpus through IndicConformer and compare WER/CER/RTF plus native review before choosing it over the existing routes. English remains on Whisper because this model's project contract supports Indic languages. Production Twilio/Sarvam routing is unchanged.
+Cache-only public-sample smokes completed for Gujarati and Hindi with zero provider errors. Gujarati exercised one cold and one warm segment; Hindi exercised one cold segment. Those smoke runs proved installation and adapter compatibility only; the following complete local comparison supersedes the unmeasured-corpus status, while native/representative review remains required. English remains on Whisper because this model's project contract supports Indic languages. Production Twilio/Sarvam routing is unchanged.
+
+## Local IndicConformer versus Whisper base — 2026-10-21
+
+The [Indic local report](../../benchmarks/asr/section18/indic-conformer-local-report.json), [fresh base report](../../benchmarks/asr/section18/whisper-base-local-20261021-report.json) and [checked comparison](../../benchmarks/asr/section18/indic-vs-whisper-base-local.json) use the exact same 15-case manifest, audio hashes, references and normalization as the historical base report. All 15 cases are accounted for: **12 supported Indic inferences succeeded; three English cases are explicitly unsupported**, with null accuracy and no model/fallback call. Base completed 15/15. The benchmark exits nonzero and SQL records Indic as failed because its requested English scope is unsupported; that status does not mean the 12 supported inferences failed.
+
+The following WER/CER values pool edit counts across clean, synthetic-noise and telephone variants. Each language has only one source recording with three variants, so these are small-corpus results.
+
+| Language | Indic WER | Base WER | Indic CER | Base CER |
+|---|---:|---:|---:|---:|
+| Gujarati | 12.50% | 100.00% | 3.13% | 101.30% |
+| Hindi | 17.78% | 100.00% | 4.93% | 99.71% |
+| Gujarati–English, stitched | 46.15% | 100.00% | 35.42% | 92.53% |
+| Hindi–English, stitched | 43.70% | 100.00% | 38.73% | 96.65% |
+| English | Unsupported | 11.11% | Unsupported | 6.77% |
+| **Shared 12 supported cases** | **33.33%** | **100.00%** | **23.94%** | **96.91%** |
+
+CER above 100% is valid when insertions exceed reference length. Fresh base hypotheses match its historical run exactly; timings are newly measured and the old report is preserved. Indic's per-case Gujarati WER is 12.5% for all variants; Hindi is 20% / 13.33% / 20%. The strongest remaining failure is deletion of the appended English speech: all three Gujarati stitched variants omit 15 words; Hindi stitched variants omit 15–16 words. This follows the language-specific decoder vocabulary/mask and cannot be repaired by script normalization or selecting a monolingual hint. No reference-driven correction, transliteration, language hint override or fabricated transcript was applied.
+
+### Latency and runtime interpretation
+
+The comparison excludes each process's first successful inference from **both** providers when forming the shared warm cohort. Indic's first success is Gujarati clean (16.618 s); base's is English clean (1.579 s). These include process-local loading, features, decoding and worker overhead; the operating-system file cache was not cleared. Indic uses CPU float32/CTC with runtime thread defaults; base uses CPU INT8/two threads/beam one. Different compute/thread settings and the small sample prevent an equal-resource or p95 claim.
+
+| Shared warm language | Paired cases | Indic median | Base median |
+|---|---:|---:|---:|
+| Gujarati | 2 | 0.849 s | 0.930 s |
+| Hindi | 3 | 0.798 s | 0.911 s |
+| Gujarati–English, stitched | 3 | 1.091 s | 1.276 s |
+| Hindi–English, stitched | 3 | 1.249 s | 0.961 s |
+| **All shared warm** | **11** | **1.020 s** | **0.961 s** |
+
+Shared-warm wall RTF is **0.065 Indic / 0.119 base**. Base's noisy Hindi–English case took 9.570 s and raises its duration-weighted RTF despite a lower median. The numbers measure ASR requests only; microphone endpointing, Claude and speaker latency are excluded.
+
+### Fixes, retained failures and SQL evidence
+
+The CLI now supports explicit offline `indic_local`, pinned cache provenance and a reproducible `compare` command. Comparison rejects mismatched manifests/audio/references/normalization, edited scores, duplicate cases and invalid timings; it records unsupported cases separately and uses the same warm case IDs for both models. Local SQL metric metadata now correctly marks the model revision as known; historical immutable rows remain untouched.
+
+Nine verified public failure WAV/review pairs were exported and read under ignored `var/roma/asr-benchmark/failures-indic-conformer-local`: six stitched high-WER cases and three unsupported English cases. The SQL importer stores aggregates and report identity, with no reference/hypothesis text. New immutable run keys are:
+
+- `section18-indic-conformer-local-20261021-v1`: run `fdcc645b-8713-4cd5-8bca-9c404d548161`, 15 attempted samples, 75 metric rows, one pinned model identity, status `failed` due solely to unsupported English scope.
+- `section18-whisper-base-local-20261021-v1`: run `0bddaf5e-a879-422a-9a56-9b2fe5251e19`, 15 samples, 90 metric rows, one pinned model identity, execution status `succeeded`.
+
+Retain **local IndicConformer CTC as the stronger Gujarati/Hindi development candidate and base as the explicit English/comparison baseline**. Native conversational code-mix data and quality review are still needed; this benchmark cannot approve the full Level 4 or microphone gate. Production carrier/speech configuration, Claude/TTS/booking behavior, schema and existing reports are unchanged. No downloads, hosted inference, paid LLM or microphone requests ran. Commands belong in the [runbook](../runbook.md#local-indicconformer-comparison).
+
+Verification for this local comparison: **138 focused tests / 2,768 full offline tests passed**; Ruff, **76-file mypy**, pre-commit and the 155-package dependency lock pass. Markdown validation checks **69 files / 474 local links and anchors**, with zero issues. Failure WAV hashes and report recomputation were checked separately; see [verification](../12-verification.md#local-indicconformer-matched-comparison--2026-10-21).

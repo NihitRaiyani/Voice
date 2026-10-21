@@ -344,7 +344,49 @@ def test_local_whisper_sql_identity_stays_separate_from_hosted_reports():
     assert item.models[0].provider == "faster-whisper"
     assert item.models[0].checksum_sha256 == "d" * 64
     assert item.config["model_revision_known"] is True
+    assert all(metric.metadata["model_revision_known"] for metric in item.metrics)
     assert "public reference excluded" not in json.dumps(item.config)
     report["network_calls"] = True
     with pytest.raises(ValueError, match="provenance"):
+        convert(report)
+
+
+def test_local_indic_sql_identity_and_known_revision_metadata():
+    report = asr_report()
+    report.update(provider="indic_local", network_calls=False)
+    report["provider_details"] = {
+        "model_name": "ai4bharat/indic-conformer-600m-multilingual",
+        "model_revision": "2a77d305038dfc502fd9464e7d028b90381976cb",
+        "model_sha256": "d" * 64,
+        "checksum_scope": "full snapshot file-map digest",
+        "artifact_manifest_sha256": "e" * 64,
+        "artifact_source": "https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual/tree/"
+        "2a77d305038dfc502fd9464e7d028b90381976cb",
+        "device": "cpu",
+        "compute_type": "float32",
+        "decoder": "ctc",
+        "cpu_threads": "runtime-default",
+        "num_workers": 1,
+        "timeout_secs": 60,
+        "runtime_versions": {"onnxruntime": "test"},
+        "machine": "arm64",
+        "network_calls": False,
+        "supported_languages": ["gu", "hi", "gu-en", "hi-en"],
+        "setup": "provisioned separately",
+    }
+    english = report["cases"][1]
+    english.update(status="error", error_code="asr-language-unsupported", metrics=None, hypothesis=None)
+    report["summaries"] = summaries(report["cases"])
+    item = convert(report)
+    _prepare(item)
+    assert item.status == "failed"
+    assert item.models[0].provider == "indic-conformer"
+    assert item.models[0].version == report["provider_details"]["model_revision"]
+    assert item.config["model_revision_known"] is True
+    assert all(metric.metadata["model_revision_known"] for metric in item.metrics)
+    assert all(metric.metric.startswith("error_rate") for metric in item.metrics if metric.language == "en")
+    assert "public reference excluded" not in json.dumps(item.config)
+    english.update(status="ok", metrics=asr_report()["cases"][1]["metrics"])
+    report["summaries"] = summaries(report["cases"])
+    with pytest.raises(ValueError, match="English"):
         convert(report)

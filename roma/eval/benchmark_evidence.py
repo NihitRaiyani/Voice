@@ -88,7 +88,7 @@ def _asr(
     if report.get("complete") is not True or report.get("public_samples_only") is not True:
         raise ValueError("Only completed public ASR benchmark reports can be saved")
     provider = report["provider"]
-    if provider not in {"hf_indic", "hf_whisper_space", "hf_public_lab", "whisper_local"}:
+    if provider not in {"hf_indic", "hf_whisper_space", "hf_public_lab", "whisper_local", "indic_local"}:
         raise ValueError("Unsupported ASR benchmark provider")
     cases = report["cases"]
     if (
@@ -153,6 +153,35 @@ def _asr(
             license_name="MIT",
         )
         _checksum(details["artifact_manifest_sha256"])
+    elif provider == "indic_local":
+        if (
+            report.get("network_calls") is not False
+            or details.get("network_calls") is not False
+            or details.get("model_name") != "ai4bharat/indic-conformer-600m-multilingual"
+            or not re.fullmatch(r"[0-9a-f]{40}", details.get("model_revision", ""))
+            or details.get("device") != "cpu"
+            or details.get("compute_type") != "float32"
+            or details.get("decoder") not in {"ctc", "rnnt"}
+        ):
+            raise ValueError("Invalid local Indic benchmark provenance")
+        if any(
+            case["language"] == "en" and (
+                case["status"] != "error"
+                or case.get("error_code") != "asr-language-unsupported"
+                or case["metrics"] is not None
+            )
+            for case in cases
+        ):
+            raise ValueError("Local Indic benchmark cannot claim English inference")
+        local_model = ModelEvidence(
+            "indic-conformer",
+            details["model_name"],
+            details["model_revision"],
+            artifact_uri=_endpoint(details["artifact_source"]),
+            checksum_sha256=_checksum(details["model_sha256"]),
+            license_name="MIT",
+        )
+        _checksum(details["artifact_manifest_sha256"])
     model_by_language = {}
     models = {}
     for language in {case["language"] for case in cases}:
@@ -202,7 +231,7 @@ def _asr(
                 "char_edits",
             )
         }
-        metadata["model_revision_known"] = False
+        metadata["model_revision_known"] = local_model is not None
         model_key = model_by_language[group["language"]].key
         for name, value, unit, count in (
             ("error_rate", group["failed"] / group["attempted"], "ratio", group["attempted"]),
@@ -249,7 +278,14 @@ def _asr(
                     "network_calls",
                     "setup",
                 )
-                if local_model is not None
+                if provider == "whisper_local"
+                else (
+                    "model_name", "model_revision", "model_sha256", "checksum_scope",
+                    "artifact_manifest_sha256", "artifact_source", "device", "compute_type",
+                    "decoder", "cpu_threads", "num_workers", "timeout_secs",
+                    "runtime_versions", "machine", "network_calls", "supported_languages", "setup",
+                )
+                if provider == "indic_local"
                 else ("indic_endpoint", "whisper_endpoint", "decoder", "timeout_secs")
             )
         },

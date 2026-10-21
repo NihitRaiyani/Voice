@@ -428,7 +428,7 @@ async def run_benchmark(
         "expected_cases": len(selected),
         "complete": False,
     }
-    if provider_name == "whisper_local":
+    if provider_name in {"whisper_local", "indic_local"}:
         report["network_calls"] = False
         report["limits"] = (
             "Small public read-speech lab; stitched code-mix is synthetic. Local CPU wall RTF "
@@ -505,18 +505,21 @@ async def run_benchmark(
         started = timer()
         elapsed = None
         try:
-            result = await provider.transcribe(
-                STTRequest(
-                    pcm,
-                    AudioFormat(16000),
-                    case["language"].split("-")[0],
-                    {"data_classification": "public_benchmark", "benchmark_case": case_id},
+            if provider_name == "indic_local" and case["language"] == "en":
+                row["error_code"] = "asr-language-unsupported"
+            else:
+                result = await provider.transcribe(
+                    STTRequest(
+                        pcm,
+                        AudioFormat(16000),
+                        case["language"].split("-")[0],
+                        {"data_classification": "public_benchmark", "benchmark_case": case_id},
+                    )
                 )
-            )
+                row.update(
+                    status="ok", hypothesis=result.text, metrics=score(reference, result.text)
+                )
             elapsed = max(0.0, timer() - started)
-            row.update(
-                status="ok", hypothesis=result.text, metrics=score(reference, result.text)
-            )
         except asyncio.CancelledError:
             raise
         except HFASRQuotaExceeded:

@@ -93,6 +93,7 @@ test-ci: test-provider-contracts
 		tests/eval/test_hosted_asr.py \
 		tests/eval/test_asr_benchmark.py \
 		tests/eval/test_local_whisper.py \
+		tests/eval/test_local_indic.py \
 		tests/eval/test_benchmark_evidence.py \
 		tests/eval/test_tts_setup.py \
 		tests/eval/test_tts_lab.py \

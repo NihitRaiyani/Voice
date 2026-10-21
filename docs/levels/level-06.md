@@ -4,7 +4,7 @@
 
 ## Entry gate
 
-Levels 2, 3, 4 and 5 core gates remain prerequisites for a passed microphone demonstration. Existing controller/booking/safety and local TTS evidence is reusable, but native speech review and representative ASR evidence remain pending. Pinned multilingual Whisper base remains the English/comparison baseline; the owner additionally approved and installed pinned AI4Bharat IndicConformer for cache-only Gujarati/Hindi inference on 2026-10-21. Smoke readiness does not choose a production model. Authenticated HF Whisper is a separate cloud benchmark, so it cannot satisfy the requirement that Claude be the only cloud inference call. No hosted microphone workaround or private-audio upload is added.
+Levels 2, 3, 4 and 5 core gates remain prerequisites for a passed microphone demonstration. Existing controller/booking/safety and local TTS evidence is reusable, but native speech review and representative ASR evidence remain pending. Pinned multilingual Whisper base remains the English/comparison baseline; the owner additionally approved and installed pinned AI4Bharat IndicConformer for cache-only Gujarati/Hindi inference on 2026-10-21. The same 15-case comparison now records 12 supported Indic successes and three unsupported English cases; stitched English deletion and native review prevent claiming final speech acceptance. Authenticated HF Whisper is a separate cloud benchmark, so it cannot satisfy the requirement that Claude be the only cloud inference call. No hosted microphone workaround or private-audio upload is added.
 
 ## Section 20 implementation
 
@@ -39,7 +39,7 @@ The [runbook](../runbook.md#section-20-microphone-to-speaker-prototype) owns com
 - [x] Complete booking controller/SQL flow passes separately with disposable demo data and offline scripted extraction; this is Level 3 integration evidence, not a microphone booking pass.
 - [ ] Levels 2–5 native/representative prerequisite gates approved.
 - [x] Local Whisper base runtime and pinned model cache available on this machine; local readiness verified with installed TTS and bundled Silero.
-- [x] Pinned IndicConformer runtime/cache available; cache-only Gujarati and Hindi smoke inference passes. Matched benchmark/native approval remains pending.
+- [x] Pinned IndicConformer runtime/cache and same-corpus local comparison available (12 supported successes / 3 unsupported English cases). Native/code-mix quality remains pending.
 - [ ] Real microphone/headphone conversation with Claude in Gujarati, Hindi, English and code-mix, including booking and native review.
 
 The current LLM selection is Claude Haiku 5.5 behind `--llm-provider claude`; `--allow-paid-api` remains required. Explicit `--llm-provider mock` uses real local audio/ASR/TTS without constructing any paid client, and still requires microphone/DB opt-ins. Synthetic mode remains mocked. A mock-LLM hardware result cannot establish Claude quality. No OpenAI calls or fallback.

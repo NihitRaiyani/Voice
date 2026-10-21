@@ -1,6 +1,6 @@
 """Public FLEURS benchmark: prepare, run/resume, inspect/export failures and replay.
 
-Hosted network is opt-in. Local Whisper base uses a separately provisioned, hash-verified snapshot.
+Hosted network is opt-in. Local models use separately provisioned, pinned snapshots.
 """
 
 import argparse
@@ -25,13 +25,15 @@ from roma.eval.asr_benchmark import (  # noqa: E402
     run_benchmark,
     write_json,
 )
+from roma.eval.asr_comparison import compare_local_reports  # noqa: E402
+from roma.eval.local_indic import local_indic_details  # noqa: E402
 from roma.eval.local_whisper import local_base_details  # noqa: E402
 from roma.providers.ai.hf_asr import (  # noqa: E402
     GradioIndicSTT,
     GradioWhisperSTT,
     HFHostedSTT,
 )
-from roma.providers.ai.stt import WhisperSTT  # noqa: E402
+from roma.providers.ai.stt import IndicConformerSTT, WhisperSTT  # noqa: E402
 
 
 async def fetch_public_samples(audio_dir: Path, count: int) -> None:
@@ -118,7 +120,7 @@ def parser() -> argparse.ArgumentParser:
         run.add_argument("--report", type=Path, required=True)
         run.add_argument(
             "--provider",
-            choices=("hf_public_lab", "hf_indic", "hf_whisper_space", "whisper_local"),
+            choices=("hf_public_lab", "hf_indic", "hf_whisper_space", "whisper_local", "indic_local"),
             default="hf_public_lab",
         )
         run.add_argument("--languages", nargs="+", choices=(*LANGUAGES, "gu-en", "hi-en"))
@@ -133,10 +135,21 @@ def parser() -> argparse.ArgumentParser:
     failures.add_argument("--manifest", type=Path)
     failures.add_argument("--audio-dir", type=Path, default=ROOT / "var/roma/asr-public")
     failures.add_argument("--export-dir", type=Path)
+    compare = sub.add_parser("compare", help="Compare matching offline Indic and Whisper reports")
+    compare.add_argument("--indic-report", type=Path, required=True)
+    compare.add_argument("--whisper-report", type=Path, required=True)
+    compare.add_argument("--report", type=Path, required=True)
     return result
 
 
 async def run(args) -> int:
+    if args.command == "compare":
+        comparison = compare_local_reports(
+            read_json(args.indic_report), read_json(args.whisper_report)
+        )
+        write_json(args.report, comparison)
+        print(json.dumps(comparison, ensure_ascii=False, indent=2))
+        return 0
     if args.command == "prepare":
         if args.fetch_public_samples:
             if not args.allow_network:
@@ -179,8 +192,11 @@ async def run(args) -> int:
             )
         )
         return 0
-    if args.provider != "whisper_local" and not args.allow_network:
+    local = args.provider in {"whisper_local", "indic_local"}
+    if not local and not args.allow_network:
         raise ValueError("Hosted benchmark requests require --allow-network")
+    if local and args.allow_network:
+        raise ValueError("Local benchmark forbids --allow-network")
     if args.provider == "whisper_local" and (args.allow_network or not args.local_model_dir):
         raise ValueError(
             "Local benchmark requires --local-model-dir and forbids --allow-network"
@@ -197,13 +213,27 @@ async def run(args) -> int:
     if args.provider == "hf_indic" and "en" in languages:
         raise ValueError("Indic does not support English; select --languages gu hi gu-en hi-en")
     config = SpeechSettings(stt_provider="hf_public_lab")
-    options = {
-        "timeout_secs": config.hf_public_timeout_secs,
-        "max_audio_secs": config.stt_max_audio_secs,
-    }
+    options = (
+        {} if local else {
+            "timeout_secs": config.hf_public_timeout_secs,
+            "max_audio_secs": config.stt_max_audio_secs,
+        }
+    )
     if args.provider == "whisper_local":
         details = local_base_details(args.local_model_dir)
         provider = WhisperSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60)
+    elif args.provider == "indic_local":
+        if args.local_model_dir:
+            raise ValueError("Local Indic uses its pinned Hub cache, not --local-model-dir")
+        details = local_indic_details(config)
+        provider = IndicConformerSTT(
+            model_id=config.indic_model_id,
+            revision=config.indic_model_revision,
+            trust_remote_code=config.indic_trust_remote_code,
+            decoder=config.indic_decoder,
+            max_audio_secs=config.stt_max_audio_secs,
+            timeout_secs=60,
+        )
     elif args.provider == "hf_indic":
         provider = GradioIndicSTT(
             endpoint_url=config.hf_indic_space_url, decoder=config.indic_decoder, **options
@@ -242,7 +272,7 @@ async def run(args) -> int:
                 )
             )
             return 0
-    if args.provider != "whisper_local":
+    if not local:
         details = {
             "indic_endpoint": config.hf_indic_space_url,
             "whisper_endpoint": config.hf_whisper_space_url,

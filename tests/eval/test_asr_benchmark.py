@@ -524,3 +524,123 @@ def test_local_cli_requires_offline_artifacts_and_never_constructs_hosted_adapte
             )
         )
     capsys.readouterr()
+
+
+def test_local_indic_cli_runs_all_cases_offline_and_marks_english_unsupported(
+    public_cache, tmp_path, monkeypatch, capsys
+):
+    import importlib.util
+
+    script = Path(__file__).resolve().parents[2] / "scripts/asr_benchmark.py"
+    spec = importlib.util.spec_from_file_location("indic_benchmark_cli", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    provider = FakeSTT()
+    constructed = []
+    monkeypatch.setattr(
+        module, "local_indic_details",
+        lambda config: {"model_revision": "a" * 40, "network_calls": False},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        module, "IndicConformerSTT",
+        lambda **kw: constructed.append(kw) or provider, raising=False,
+    )
+    for name in ("HFHostedSTT", "GradioWhisperSTT", "GradioIndicSTT", "WhisperSTT"):
+        monkeypatch.setattr(module, name, lambda **kw: pytest.fail("another model attempted"))
+    monkeypatch.setattr(
+        module, "SpeechSettings",
+        lambda **kw: type("Settings", (), {
+            "indic_model_id": "ai4bharat/indic-conformer-600m-multilingual",
+            "indic_model_revision": "a" * 40,
+            "indic_trust_remote_code": True,
+            "indic_decoder": "ctc",
+            "stt_max_audio_secs": 30,
+        })(),
+    )
+    manifest = build_manifest(
+        public_cache, include_stitched_code_mix=True,
+        variants=("clean", "noise", "telephone"),
+    )
+    manifest_path, report_path = tmp_path / "manifest.json", tmp_path / "indic.json"
+    manifest_path.write_text(json.dumps(manifest))
+    args = [
+        "run", "--provider", "indic_local", "--manifest", str(manifest_path),
+        "--audio-dir", str(public_cache), "--report", str(report_path),
+    ]
+    with pytest.raises(ValueError, match="forbids"):
+        asyncio.run(module.run(module.parser().parse_args([*args, "--allow-network"])))
+    assert not constructed
+    assert asyncio.run(module.run(module.parser().parse_args(args))) == 1
+    report = read_json(report_path)
+    assert report["complete"] and len(report["cases"]) == 15
+    assert report["network_calls"] is False
+    assert len(provider.requests) == 12
+    assert all(r.language_hint != "en" for r in provider.requests)
+    english = [r for r in report["cases"] if r["language"] == "en"]
+    assert len(english) == 3
+    assert all(r["error_code"] == "asr-language-unsupported" and r["metrics"] is None for r in english)
+    assert all(r["status"] == "ok" for r in report["cases"] if r["language"] != "en")
+    assert constructed[0]["revision"] == "a" * 40
+    assert constructed[0]["timeout_secs"] == 60
+    assert constructed[0]["trust_remote_code"] is True
+    capsys.readouterr()
+
+
+def test_local_comparison_pairs_audio_and_keeps_cold_and_unsupported_separate(
+    public_cache, tmp_path
+):
+    from roma.eval.asr_comparison import compare_local_reports
+
+    manifest = build_manifest(public_cache, variants=("clean", "noise"))
+    base = asyncio.run(run_benchmark(
+        manifest, public_cache, FakeSTT(), provider_name="whisper_local",
+        report_path=tmp_path / "base.json",
+    ))
+    indic = asyncio.run(run_benchmark(
+        manifest, public_cache, FakeSTT(), provider_name="indic_local",
+        report_path=tmp_path / "indic.json",
+    ))
+    result = compare_local_reports(indic, base)
+    assert result["expected_cases"] == 6
+    assert result["shared_success_cases"] == 4
+    assert result["shared_warm_cases"] == 3
+    assert result["cold_case_ids"] == {
+        "indic": "gu-0000:clean", "whisper": "en-0000:clean"
+    }
+    english = next(r for r in result["by_language"] if r["language"] == "en")
+    assert english["indic"]["wer"] is None
+    assert english["whisper"]["wer"] == 0
+    assert english["shared_success_cases"] == 0
+    assert result["shared_success"]["indic"]["wer"] == 0
+    base["cases"][0]["audio_sha256"] = "f" * 64
+    with pytest.raises(ValueError, match="identity"):
+        compare_local_reports(indic, base)
+
+
+def test_local_comparison_rejects_mismatched_or_tampered_reports(public_cache, tmp_path):
+    from copy import deepcopy
+
+    from roma.eval.asr_comparison import compare_local_reports
+
+    manifest = build_manifest(public_cache, variants=("clean",))
+    base = asyncio.run(run_benchmark(
+        manifest, public_cache, FakeSTT(), provider_name="whisper_local",
+        report_path=tmp_path / "base.json",
+    ))
+    indic = asyncio.run(run_benchmark(
+        manifest, public_cache, FakeSTT(), provider_name="indic_local",
+        report_path=tmp_path / "indic.json",
+    ))
+    for change in (
+        lambda r: r.update(manifest_sha256="f" * 64),
+        lambda r: r.update(network_calls=True),
+        lambda r: r.update(complete=False),
+        lambda r: r["cases"].append(r["cases"][0]),
+        lambda r: r["cases"][0].update(request_ms=float("nan")),
+        lambda r: r["cases"][0]["metrics"].update(wer=123),
+    ):
+        bad = deepcopy(base)
+        change(bad)
+        with pytest.raises(ValueError):
+            compare_local_reports(indic, bad)

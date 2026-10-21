@@ -127,3 +127,9 @@ Haiku runtime decision from measured evidence: keep low effort and explicitly di
 ## 2026-10-21 — Local IndicConformer authorization
 
 The owner explicitly authorized the required AI4Bharat IndicConformer runtime and weights after the Whisper base multilingual quality failure. Install only `ai4bharat/indic-conformer-600m-multilingual` revision `2a77d305038dfc502fd9464e7d028b90381976cb`; the snapshot contains 404 files and 2,556,502,929 bytes. The adapter resolves that exact cache with `local_files_only=True`, loads its config from the snapshot and bypasses the upstream custom loader's unpinned Hub lookup. Runtime inference requires `HF_HUB_OFFLINE=1` and explicit reviewed-code opt-in. Gujarati/Hindi cache-only smokes passed; English stays on Whisper. Preserve production routing until the same-corpus WER/CER/RTF and native review justify a change.
+
+## 2026-10-21 — Matched local ASR comparison
+
+Run the same existing 15-case public manifest with pinned local IndicConformer CTC and fresh local Whisper base, preserving historical reports. Treat the three English cases as explicitly unsupported by Indic; do not replace them with another model or invent WER/CER. Compare shared supported cases using weighted edit totals and identical warm case IDs after excluding each process's first success. Persist separate immutable run/model identities and keep high-WER/unsupported public failures.
+
+Measured evidence favors Indic as the Gujarati/Hindi development candidate (shared 33.33% WER / 23.94% CER versus base 100% / 96.91%), with base retained for explicit English/comparison. Stitched English-span deletion prevents a final multilingual quality choice. A language router chooses a hint; it cannot recover English words removed by a language-specific decoder. No production switch, speech-policy change, paid Claude or microphone test is authorized by this comparison.

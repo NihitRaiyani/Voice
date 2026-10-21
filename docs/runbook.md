@@ -392,3 +392,37 @@ Claude schema readiness is distinct from a caller turn. The official SDK transfo
 The [2026-10-20 physical English follow-up](levels/level-06.md#real-claude-english-microphone-follow-up--2026-10-20) passed real Claude extraction and prepared-state wording through installed local speech, with clear playback confirmed by the owner. The working DB has no branch/slot setup: expect approved unavailable speech rather than normal discovery. Explicit owner-approved active demo references were exercised only in a disposable database, distinct from the existing inactive `seed_demo` profile. Do not silently activate demo offerings in the working DB or treat test slots as real appointments. No appointment was committed in the microphone demo.
 
 For local speech, the voice-specific prompt spells every loanword/acronym in Devanagari; unsupported generated script and token-truncated replies use the approved fallback before TTS. The provider's configured output limit and existing stage/spend/time limits still apply. The documented CLI remains unchanged apart from using that configured output ceiling. The temporary test harness used an audible capture cue; normal CLI interaction should wait until startup is ready and until playback ends. A silent attempt or session-ceiling stop is a failed attempt, not a model pass. The owner deferred further live/paid testing due to limits; native/multilingual and complete booking gates remain pending.
+
+## Local IndicConformer comparison
+
+Use the already provisioned optional runtime and pinned Hub cache. These commands use existing public audio only, with no network, new weights, paid provider or microphone. A full Indic report exits **1** after recording all 15 cases because English is unsupported; inspect the report rather than treating the exit as a cache/runtime failure. Selecting `--languages gu hi gu-en hi-en` instead runs only 12 cases and is a different report scope.
+
+```bash
+HF_HUB_OFFLINE=1 INDIC_TRUST_REMOTE_CODE=true \
+INDIC_MODEL_REVISION=2a77d305038dfc502fd9464e7d028b90381976cb \
+uv run --no-sync python scripts/asr_benchmark.py run --provider indic_local \
+  --manifest benchmarks/asr/section18/manifest.json \
+  --report var/roma/asr-benchmark/indic-conformer-local-new.json
+
+# Fresh base measurement, in a separate process with the same manifest.
+HF_HUB_OFFLINE=1 uv run --no-sync python scripts/asr_benchmark.py run \
+  --provider whisper_local --local-model-dir var/roma/models/whisper-base \
+  --manifest benchmarks/asr/section18/manifest.json \
+  --report var/roma/asr-benchmark/whisper-base-local-new.json
+
+uv run --no-sync python scripts/asr_benchmark.py compare \
+  --indic-report var/roma/asr-benchmark/indic-conformer-local-new.json \
+  --whisper-report var/roma/asr-benchmark/whisper-base-local-new.json \
+  --report var/roma/asr-benchmark/local-comparison-new.json
+
+uv run --no-sync python scripts/asr_benchmark.py failures \
+  --manifest benchmarks/asr/section18/manifest.json \
+  --report var/roma/asr-benchmark/indic-conformer-local-new.json \
+  --export-dir var/roma/asr-benchmark/failures-indic-conformer-local-new
+
+uv run --no-sync python scripts/save_benchmark.py \
+  --report var/roma/asr-benchmark/indic-conformer-local-new.json \
+  --run-key section18-indic-conformer-local-new --allow-database-write
+```
+
+Choose new report/run identities for a fresh measurement. Local Indic preflight requires the approved model/revision, offline Hub state and explicit reviewed-code opt-in, records full-snapshot observed hashes and rejects missing/extra/size-drifted artifacts. The snapshot digest identifies the measured local files; it is not independent publisher attestation. Resume also requires identical provenance, so an observed same-size file change cannot silently reuse a prior checkpoint. The comparison checks manifest, normalized scoring and per-case audio/reference identity; unsupported timings are not presented as inference latency. Warm timing excludes the first successful case from each process on both sides; it is not a representative p95 or live voice metric. See the [Level 4 result](levels/level-04.md#local-indicconformer-versus-whisper-base--2026-10-21).

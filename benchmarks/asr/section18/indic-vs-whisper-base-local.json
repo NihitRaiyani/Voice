@@ -1,0 +1,598 @@
+{
+  "schema": "roma-local-asr-comparison-v1",
+  "manifest_sha256": "0d47af5679c81b904fb64803767107ef44d9d31affa81180e690647b6b99816b",
+  "normalization": "nfc-casefold-unicode-lmn-decimal-words-char-no-spaces-v1",
+  "report_identities": {
+    "indic": "87d768bf5d8bb2a081e32c74afb81ba7cbd1bb9a52744e1a4a681bb235cd37af",
+    "whisper": "1ed88e9ed140a5a712f857be3515a90a51298df12a154816d8b4921d1a09b52d"
+  },
+  "models": {
+    "indic": {
+      "model_name": "ai4bharat/indic-conformer-600m-multilingual",
+      "model_revision": "2a77d305038dfc502fd9464e7d028b90381976cb",
+      "model_sha256": "1aad7251dd78324ab4e98b720b00a55c43ac8acce9c3977c57627b6bd9affc64",
+      "checksum_scope": "sha256 of sorted relative-path, byte-size and sha256 map for all snapshot files",
+      "artifact_manifest_sha256": "2f485570f256f81d8c2f503ed6e09263579a4bc0db9daf151c2a82a5ebab0804",
+      "artifact_source": "https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual/tree/2a77d305038dfc502fd9464e7d028b90381976cb",
+      "device": "cpu",
+      "compute_type": "float32",
+      "decoder": "ctc",
+      "cpu_threads": "runtime-default",
+      "num_workers": 1,
+      "timeout_secs": 60,
+      "runtime_versions": {
+        "torch": "2.14.1",
+        "transformers": "5.20.2",
+        "onnxruntime": "1.24.4",
+        "huggingface-hub": "2.2.0",
+        "numpy": "2.4.6"
+      },
+      "machine": "arm64",
+      "network_calls": false,
+      "supported_languages": [
+        "gu",
+        "hi",
+        "gu-en",
+        "hi-en"
+      ],
+      "setup": "Approved pinned IndicConformer snapshot provisioned separately; cache-only inference"
+    },
+    "whisper": {
+      "model_name": "Systran/faster-whisper-base",
+      "model_revision": "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+      "model_sha256": "d01c3014881c9c6f3133c182f3d2887eb6ca1c789a7538c5c007196857a0a6a9",
+      "artifact_manifest_sha256": "984b25b9516088c8ccdccbbd877d7834c7b47fd221f0e4f8ab096628a6add38a",
+      "artifact_source": "https://huggingface.co/Systran/faster-whisper-base/tree/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+      "device": "cpu",
+      "compute_type": "int8",
+      "cpu_threads": 2,
+      "num_workers": 1,
+      "beam_size": 1,
+      "condition_on_previous_text": false,
+      "vad_filter": false,
+      "timeout_secs": 60,
+      "runtime_versions": {
+        "faster-whisper": "1.2.1",
+        "ctranslate2": "4.8.3",
+        "av": "19.0.1"
+      },
+      "machine": "arm64",
+      "network_calls": false,
+      "setup": "Only approved multilingual Whisper base weights provisioned separately; inference is cache-only"
+    }
+  },
+  "expected_cases": 15,
+  "shared_success_cases": 12,
+  "shared_success": {
+    "indic": {
+      "attempted": 12,
+      "succeeded": 12,
+      "wer": 0.3333333333333333,
+      "cer": 0.23941368078175895,
+      "median_request_ms": 1035.9215,
+      "request_rtf": 0.15043104173406663
+    },
+    "whisper": {
+      "attempted": 12,
+      "succeeded": 12,
+      "wer": 1.0,
+      "cer": 0.9690553745928339,
+      "median_request_ms": 985.777,
+      "request_rtf": 0.11768167259786474
+    }
+  },
+  "cold_case_ids": {
+    "indic": "gu-0000:clean",
+    "whisper": "en-0000:clean"
+  },
+  "cold_request_ms": {
+    "indic": 16618.171,
+    "whisper": 1579.127
+  },
+  "shared_warm_cases": 11,
+  "shared_warm": {
+    "indic": {
+      "attempted": 11,
+      "succeeded": 11,
+      "wer": 0.34615384615384615,
+      "cer": 0.25495915985997664,
+      "median_request_ms": 1020.324,
+      "request_rtf": 0.06498888120751238
+    },
+    "whisper": {
+      "attempted": 11,
+      "succeeded": 11,
+      "wer": 1.0,
+      "cer": 0.9649941656942824,
+      "median_request_ms": 960.608,
+      "request_rtf": 0.11909011982947343
+    }
+  },
+  "by_language": [
+    {
+      "language": "en",
+      "indic": {
+        "attempted": 3,
+        "succeeded": 0,
+        "wer": null,
+        "cer": null,
+        "median_request_ms": null,
+        "request_rtf": null
+      },
+      "whisper": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 0.1111111111111111,
+        "cer": 0.06770833333333333,
+        "median_request_ms": 1055.361,
+        "request_rtf": 0.18622828746177367
+      },
+      "shared_success_cases": 0,
+      "shared_warm_cases": 0,
+      "shared_warm": {
+        "indic": {
+          "attempted": 0,
+          "succeeded": 0,
+          "wer": null,
+          "cer": null,
+          "median_request_ms": null,
+          "request_rtf": null
+        },
+        "whisper": {
+          "attempted": 0,
+          "succeeded": 0,
+          "wer": null,
+          "cer": null,
+          "median_request_ms": null,
+          "request_rtf": null
+        }
+      }
+    },
+    {
+      "language": "gu",
+      "indic": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 0.125,
+        "cer": 0.03125,
+        "median_request_ms": 1020.324,
+        "request_rtf": 0.5139177048260382
+      },
+      "whisper": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 1.0,
+        "cer": 1.0130208333333333,
+        "median_request_ms": 1010.946,
+        "request_rtf": 0.08454708193041527
+      },
+      "shared_success_cases": 3,
+      "shared_warm_cases": 2,
+      "shared_warm": {
+        "indic": {
+          "attempted": 2,
+          "succeeded": 2,
+          "wer": 0.125,
+          "cer": 0.03125,
+          "median_request_ms": 848.928,
+          "request_rtf": 0.07145858585858586
+        },
+        "whisper": {
+          "attempted": 2,
+          "succeeded": 2,
+          "wer": 1.0,
+          "cer": 1.0078125,
+          "median_request_ms": 929.8389999999999,
+          "request_rtf": 0.07826927609427609
+        }
+      }
+    },
+    {
+      "language": "gu-en",
+      "indic": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 0.46153846153846156,
+        "cer": 0.3541666666666667,
+        "median_request_ms": 1090.813,
+        "request_rtf": 0.05911865738261025
+      },
+      "whisper": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 1.0,
+        "cer": 0.9253472222222222,
+        "median_request_ms": 1275.994,
+        "request_rtf": 0.0700384395643635
+      },
+      "shared_success_cases": 3,
+      "shared_warm_cases": 3,
+      "shared_warm": {
+        "indic": {
+          "attempted": 3,
+          "succeeded": 3,
+          "wer": 0.46153846153846156,
+          "cer": 0.3541666666666667,
+          "median_request_ms": 1090.813,
+          "request_rtf": 0.05911865738261025
+        },
+        "whisper": {
+          "attempted": 3,
+          "succeeded": 3,
+          "wer": 1.0,
+          "cer": 0.9253472222222222,
+          "median_request_ms": 1275.994,
+          "request_rtf": 0.0700384395643635
+        }
+      }
+    },
+    {
+      "language": "hi",
+      "indic": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 0.17777777777777778,
+        "cer": 0.04927536231884058,
+        "median_request_ms": 797.791,
+        "request_rtf": 0.06709188453159041
+      },
+      "whisper": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 1.0,
+        "cer": 0.9971014492753624,
+        "median_request_ms": 911.302,
+        "request_rtf": 0.09314773965141612
+      },
+      "shared_success_cases": 3,
+      "shared_warm_cases": 3,
+      "shared_warm": {
+        "indic": {
+          "attempted": 3,
+          "succeeded": 3,
+          "wer": 0.17777777777777778,
+          "cer": 0.04927536231884058,
+          "median_request_ms": 797.791,
+          "request_rtf": 0.06709188453159041
+        },
+        "whisper": {
+          "attempted": 3,
+          "succeeded": 3,
+          "wer": 1.0,
+          "cer": 0.9971014492753624,
+          "median_request_ms": 911.302,
+          "request_rtf": 0.09314773965141612
+        }
+      }
+    },
+    {
+      "language": "hi-en",
+      "indic": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 0.43703703703703706,
+        "cer": 0.38733705772811916,
+        "median_request_ms": 1248.548,
+        "request_rtf": 0.06670282010860046
+      },
+      "whisper": {
+        "attempted": 3,
+        "succeeded": 3,
+        "wer": 1.0,
+        "cer": 0.9664804469273743,
+        "median_request_ms": 960.608,
+        "request_rtf": 0.20088889472762303
+      },
+      "shared_success_cases": 3,
+      "shared_warm_cases": 3,
+      "shared_warm": {
+        "indic": {
+          "attempted": 3,
+          "succeeded": 3,
+          "wer": 0.43703703703703706,
+          "cer": 0.38733705772811916,
+          "median_request_ms": 1248.548,
+          "request_rtf": 0.06670282010860046
+        },
+        "whisper": {
+          "attempted": 3,
+          "succeeded": 3,
+          "wer": 1.0,
+          "cer": 0.9664804469273743,
+          "median_request_ms": 960.608,
+          "request_rtf": 0.20088889472762303
+        }
+      }
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "en-0000:clean",
+      "language": "en",
+      "variant": "clean",
+      "indic": {
+        "status": "error",
+        "error_code": "asr-language-unsupported",
+        "wer": null,
+        "cer": null,
+        "request_ms": null
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.0,
+        "cer": 0.0,
+        "request_ms": 1579.127
+      }
+    },
+    {
+      "case_id": "en-0000:noise",
+      "language": "en",
+      "variant": "noise",
+      "indic": {
+        "status": "error",
+        "error_code": "asr-language-unsupported",
+        "wer": null,
+        "cer": null,
+        "request_ms": null
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.3333333333333333,
+        "cer": 0.203125,
+        "request_ms": 1055.361
+      }
+    },
+    {
+      "case_id": "en-0000:telephone",
+      "language": "en",
+      "variant": "telephone",
+      "indic": {
+        "status": "error",
+        "error_code": "asr-language-unsupported",
+        "wer": null,
+        "cer": null,
+        "request_ms": null
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.0,
+        "cer": 0.0,
+        "request_ms": 1019.311
+      }
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "language": "gu",
+      "variant": "clean",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.125,
+        "cer": 0.03125,
+        "request_ms": 16618.171
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 1.0234375,
+        "request_ms": 1153.58
+      }
+    },
+    {
+      "case_id": "gu-0000:noise",
+      "language": "gu",
+      "variant": "noise",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.125,
+        "cer": 0.03125,
+        "request_ms": 677.532
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 1.0,
+        "request_ms": 1010.946
+      }
+    },
+    {
+      "case_id": "gu-0000:telephone",
+      "language": "gu",
+      "variant": "telephone",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.125,
+        "cer": 0.03125,
+        "request_ms": 1020.324
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 1.015625,
+        "request_ms": 848.732
+      }
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "language": "hi",
+      "variant": "clean",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.2,
+        "cer": 0.05217391304347826,
+        "request_ms": 756.272
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 1.0,
+        "request_ms": 904.93
+      }
+    },
+    {
+      "case_id": "hi-0000:noise",
+      "language": "hi",
+      "variant": "noise",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.13333333333333333,
+        "cer": 0.043478260869565216,
+        "request_ms": 909.551
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 0.991304347826087,
+        "request_ms": 911.302
+      }
+    },
+    {
+      "case_id": "hi-0000:telephone",
+      "language": "hi",
+      "variant": "telephone",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.2,
+        "cer": 0.05217391304347826,
+        "request_ms": 797.791
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 1.0,
+        "request_ms": 1604.153
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "language": "gu-en",
+      "variant": "clean",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.46153846153846156,
+        "cer": 0.3541666666666667,
+        "request_ms": 1168.904
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 0.9270833333333334,
+        "request_ms": 1275.994
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:noise",
+      "language": "gu-en",
+      "variant": "noise",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.46153846153846156,
+        "cer": 0.3541666666666667,
+        "request_ms": 1051.519
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 0.921875,
+        "request_ms": 1718.44
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:telephone",
+      "language": "gu-en",
+      "variant": "telephone",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.46153846153846156,
+        "cer": 0.3541666666666667,
+        "request_ms": 1090.813
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 0.9270833333333334,
+        "request_ms": 928.419
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "language": "hi-en",
+      "variant": "clean",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.4666666666666667,
+        "cer": 0.39106145251396646,
+        "request_ms": 1015.575
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 0.994413407821229,
+        "request_ms": 960.608
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:noise",
+      "language": "hi-en",
+      "variant": "noise",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.4222222222222222,
+        "cer": 0.3854748603351955,
+        "request_ms": 1248.548
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 0.9106145251396648,
+        "request_ms": 9569.857
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:telephone",
+      "language": "hi-en",
+      "variant": "telephone",
+      "indic": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 0.4222222222222222,
+        "cer": 0.3854748603351955,
+        "request_ms": 1543.941
+      },
+      "whisper": {
+        "status": "ok",
+        "error_code": null,
+        "wer": 1.0,
+        "cer": 0.994413407821229,
+        "request_ms": 938.282
+      }
+    }
+  ],
+  "limits": "Same public read-speech sources with synthetic noise/telephone/stitched variants. Weighted WER/CER on shared successes; warm latency excludes each process's first successful inference from both providers. Process-cold is not machine-cold. Different native runtimes/thread defaults; these samples do not establish p95, native code-mix quality, live voice latency or production approval.",
+  "native_review_passed": false,
+  "production_voice_approved": false
+}

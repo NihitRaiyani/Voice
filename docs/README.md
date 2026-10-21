@@ -12,7 +12,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 1 | [Backend foundation](levels/level-01.md) | Sections 3–9 foundations implemented; hosted CI green, full review evidence still separate |
 | 2 | [Text/Claude LLM](levels/level-02.md) | Sections 10–12 state/checkpoints, Claude/mock text seam and deterministic safety audit present; native/live quality pending |
 | 3 | [Transactional booking](levels/level-03.md) | Complete offline controller/commit/restore/conflict flow verified; live demo deferred |
-| 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–18 implemented; Whisper base 15/15 integration run failed multilingual quality; pinned IndicConformer Gujarati/Hindi smoke readiness passed; matched/native approval pending |
+| 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–18 implemented; Whisper base 15/15 integration run failed multilingual quality; same-corpus Indic/base local comparison completed; Indic 12 supported successes / 3 unsupported English cases; code-mix/native approval pending |
 | 5 | [Local TTS](levels/level-05.md) | Section 19 local Indic-TTS: 18 general and 24 approved-line cases passed; native approval pending |
 | 6 | [Local voice prototype](levels/level-06.md) | Offline booking complete and English Claude/local-TTS hardware checks passed separately; full multilingual/native/microphone-booking gates deferred |
 | 7 | [Real-time reliability](levels/level-07.md) | Cloud seams; local-stack gate pending |
