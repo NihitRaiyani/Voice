@@ -1,5 +1,7 @@
 # Local code-mix ASR routing design
 
+Historical design: superseded by the owner-selected single-pass policy in [Level 4](../../levels/level-04.md#single-pass-local-routing--2026-10-21). The cascade is no longer implemented; retain this document only to interpret historical reports.
+
 ## Goal
 
 Recover English suffixes in Gujarati-English and Hindi-English turns with the already-pinned local IndicConformer and Whisper base models. Paid Claude, microphone input, production telephony, model weights and database state remain outside this increment.

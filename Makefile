@@ -89,6 +89,7 @@ test-ci: test-provider-contracts
 		tests/domain/audio \
 		tests/domain/conversation/test_language.py \
 		tests/providers/ai/test_stt.py \
+		tests/providers/ai/test_local_routing.py \
 		tests/providers/ai/test_hf_asr.py \
 		tests/eval/test_hosted_asr.py \
 		tests/eval/test_asr_benchmark.py \

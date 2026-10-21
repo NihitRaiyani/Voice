@@ -35,7 +35,7 @@ from roma.providers.ai.hf_asr import (  # noqa: E402
     GradioWhisperSTT,
     HFHostedSTT,
 )
-from roma.providers.ai.local_routing import LocalLanguageSTT  # noqa: E402
+from roma.providers.ai.local_routing import ROUTER_VERSION, LocalLanguageSTT  # noqa: E402
 from roma.providers.ai.stt import IndicConformerSTT, WhisperSTT  # noqa: E402
 
 
@@ -129,7 +129,7 @@ def parser() -> argparse.ArgumentParser:
                 "hf_whisper_space",
                 "whisper_local",
                 "indic_local",
-                "adaptive_local",
+                "single_pass_local",
             ),
             default="hf_public_lab",
         )
@@ -202,12 +202,12 @@ async def run(args) -> int:
             )
         )
         return 0
-    local = args.provider in {"whisper_local", "indic_local", "adaptive_local"}
+    local = args.provider in {"whisper_local", "indic_local", "single_pass_local"}
     if not local and not args.allow_network:
         raise ValueError("Hosted benchmark requests require --allow-network")
     if local and args.allow_network:
         raise ValueError("Local benchmark forbids --allow-network")
-    if args.provider in {"whisper_local", "adaptive_local"} and not args.local_model_dir:
+    if args.provider in {"whisper_local", "single_pass_local"} and not args.local_model_dir:
         raise ValueError(
             "Local benchmark requires --local-model-dir and forbids --allow-network"
         )
@@ -246,9 +246,9 @@ async def run(args) -> int:
             max_audio_secs=config.stt_max_audio_secs,
             timeout_secs=60,
         )
-    elif args.provider == "adaptive_local":
+    elif args.provider == "single_pass_local":
         details = {
-            "router_version": "phrase-span-v5",
+            "router_version": ROUTER_VERSION,
             "timeout_secs": 60,
             "network_calls": False,
             "indic": local_indic_details(config),

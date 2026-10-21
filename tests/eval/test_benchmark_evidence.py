@@ -392,11 +392,15 @@ def test_local_indic_sql_identity_and_known_revision_metadata():
         convert(report)
 
 
-def test_adaptive_local_sql_uses_composite_identity_and_both_pinned_models():
+@pytest.mark.parametrize("provider,version", [
+    ("adaptive_local", "phrase-span-v5"),
+    ("single_pass_local", "single-pass-loanwords-v1"),
+])
+def test_local_composite_sql_uses_distinct_router_and_both_pinned_models(provider, version):
     report = asr_report()
-    report.update(provider="adaptive_local", network_calls=False)
+    report.update(provider=provider, network_calls=False)
     report["provider_details"] = {
-        "router_version": "phrase-span-v5",
+        "router_version": version,
         "timeout_secs": 60,
         "network_calls": False,
         "indic": {
@@ -431,5 +435,5 @@ def test_adaptive_local_sql_uses_composite_identity_and_both_pinned_models():
     assert {metric.model_key[0] for metric in item.metrics} == {"roma-local-router"}
     assert item.config["model_revision_known"] is True
     report["provider_details"]["whisper"]["model_revision"] = "unpinned"
-    with pytest.raises(ValueError, match="adaptive"):
+    with pytest.raises(ValueError, match="local composite"):
         convert(report)

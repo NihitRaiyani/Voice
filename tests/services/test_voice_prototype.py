@@ -162,6 +162,8 @@ def test_cli_mock_has_four_paths_and_never_claims_hardware_gate():
     result = asyncio.run(module.mock_lab())
     assert len(result["cases"]) == 4 and all(c["status"] == "played" for c in result["cases"])
     assert all(c["restored_state"] for c in result["cases"])
+    assert result["local_router_version"] == "single-pass-loanwords-v1"
+    assert [(c["indic_calls"], c["whisper_calls"]) for c in result["cases"]] == [(1, 0), (1, 0), (0, 1), (1, 0)]
     assert not result["gate_passed"] and not result["microphone_used"]
     args = module.parser().parse_args(["--mode", "local"])
     with pytest.raises(ValueError, match="opt-ins"):
@@ -416,3 +418,40 @@ def test_verified_conflict_reoffer_has_finite_local_pronunciation():
     rendered = render_voice_line(final, state)
     assert "पी एम" in rendered
     assert not any(c.isascii() and c.isalpha() for c in rendered)
+
+
+@pytest.mark.parametrize("route,raw,expected,indic_calls,whisper_calls", [
+    ("GUJARATI", "વિઝિટ ટાઈમ કાલે", "visit time કાલે", 1, 0),
+    ("HINDI", "विजिट टाइम कल", "visit time कल", 1, 0),
+    ("GUJARATI_ENGLISH", "અપોઈન્ટમેન્ટ કન્ફર્મ કરી દેજો", "appointment confirm કરી દેજો", 1, 0),
+    ("HINDI_ENGLISH", "अपॉइंटमेंट कन्फर्म कर दो", "appointment confirm कर दो", 1, 0),
+    ("ENGLISH", "Please confirm my appointment", "Please confirm my appointment", 0, 1),
+])
+def test_single_pass_speech_reaches_controller_safety_and_speaker(
+    route, raw, expected, indic_calls, whisper_calls
+):
+    from roma.domain.conversation.language import Language
+    from roma.eval.speech import ScriptedProbability, ScriptedSTT
+    from roma.providers.ai.local_routing import LocalLanguageSTT
+    from roma.services.speech_input import SpeechInputService
+
+    async def run():
+        voice = setup()
+        voice.state.language_router.current = getattr(Language, route)
+        indic, whisper = ScriptedSTT((raw,)), ScriptedSTT((raw,))
+        speech = SpeechInputService(
+            LocalLanguageSTT(indic, whisper), ScriptedProbability(), voice.state
+        )
+        final = []
+        for speaking in [1] * 4 + [0] * 20:
+            final.extend(await speech.feed(bytes([speaking, 0]) * 512))
+        assert len(final) == 1 and final[0].text == expected
+        assert (indic.calls, whisper.calls) == (indic_calls, whisper_calls)
+        outcome = await voice.respond(final[0])
+        assert outcome.status == "played" and outcome.error_code is None
+        assert voice.store.records[-1][1]["caller"] == expected
+        assert len(voice.speaker.played) == 1
+        assert CallState.from_dict(voice.state.to_dict()).to_dict() == voice.state.to_dict()
+        assert {"asr_ms", "llm_ms", "routing_controller_ms", "safety_normalization_ms", "playback_ms"} <= outcome.timings.keys()
+
+    asyncio.run(run())

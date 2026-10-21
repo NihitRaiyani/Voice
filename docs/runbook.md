@@ -427,9 +427,9 @@ uv run --no-sync python scripts/save_benchmark.py \
 
 Choose new report/run identities for a fresh measurement. Local Indic preflight requires the approved model/revision, offline Hub state and explicit reviewed-code opt-in, records full-snapshot observed hashes and rejects missing/extra/size-drifted artifacts. The snapshot digest identifies the measured local files; it is not independent publisher attestation. Resume also requires identical provenance, so an observed same-size file change cannot silently reuse a prior checkpoint. The comparison checks manifest, normalized scoring and per-case audio/reference identity; unsupported timings are not presented as inference latency. Warm timing excludes the first successful case from each process on both sides; it is not a representative p95 or live voice metric. See the [Level 4 result](levels/level-04.md#local-indicconformer-versus-whisper-base--2026-10-21).
 
-## Local adaptive code-mix benchmark
+## Local single-pass code-mix benchmark
 
-This lab uses only the pinned local IndicConformer and Whisper base caches. It preserves mixed hints, detects one strong phrase boundary and records actual failures; it does not authorize microphone/Claude calls or a production switch.
+Use only the existing pinned caches. Explicit English goes to Whisper base; Gujarati/Hindi/mixed turns go once to IndicConformer and receive exact phonetic loanword normalization. There is no phrase split or second-model fallback. Historical `adaptive_local` reports remain readable/importable, but that executable CLI option has been removed.
 
 ```bash
 HF_HUB_OFFLINE=1 \
@@ -437,11 +437,23 @@ INDIC_MODEL_REVISION=2a77d305038dfc502fd9464e7d028b90381976cb \
 INDIC_TRUST_REMOTE_CODE=true \
 INDIC_DECODER=ctc \
 uv run --no-sync python scripts/asr_benchmark.py run \
-  --provider adaptive_local \
+  --provider single_pass_local \
   --local-model-dir var/roma/models/whisper-base \
   --manifest benchmarks/asr/section18/manifest.json \
   --audio-dir var/roma/asr-public \
-  --report benchmarks/asr/section18/adaptive-local-report.json
+  --report var/roma/asr-benchmark/single-pass-new.json
+
+uv run --no-sync python scripts/asr_benchmark.py failures \
+  --report var/roma/asr-benchmark/single-pass-new.json \
+  --manifest benchmarks/asr/section18/manifest.json \
+  --audio-dir var/roma/asr-public \
+  --export-dir var/roma/asr-benchmark/failures-single-pass-new
+
+uv run --no-sync python scripts/save_benchmark.py \
+  --report var/roma/asr-benchmark/single-pass-new.json \
+  --run-key section18-single-pass-local-new --allow-database-write
 ```
 
-The command refuses `--allow-network`. `phrase-span-v5` requires an explicit `gu-en` or `hi-en` case and at most one qualifying internal phrase gap. Whisper inspects candidate English spans without a forced language; only a span identified as credible English is accepted, otherwise IndicConformer handles it or an unusable candidate remains empty. Review clean, telephone and noise buckets separately; a complete report does not pass native quality or latency. Persist only a reviewed complete report with `scripts/save_benchmark.py` and a new immutable run key.
+Choose fresh report/run keys; never overwrite committed evidence. The command forbids `--allow-network`. WER/CER references remain unchanged; no transliteration of references or dictionary-injected missing words improves the scores. Review monolingual, loanword and full-sentence-switch evidence separately: the public corpus does not prove booking keyword recall. Native dates such as `કાલે`/`कल` stay with context-aware date extraction. No fresh paid Claude or microphone request is authorized by these commands.
+
+The normal section 20 offline check is `make voice-prototype`; its scripted ASR now runs through the same local routing/normalizer. Real local mode still needs the documented explicit opt-ins, cached models, local TTS and PostgreSQL/Redis. Keep live tests deferred until the owner resumes them. [Level 6](levels/level-06.md) distinguishes code/offline completion from the unfinished physical/native gate.

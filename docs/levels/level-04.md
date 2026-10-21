@@ -1,6 +1,6 @@
 # Level 4 — Audio and local ASR
 
-**Roadmap sections:** 14–18. **Status:** Audio/input/router and section 18 benchmark/failure/SQL tooling are implemented. The same 15-case local comparison is complete: IndicConformer transcribed 12 supported cases and explicitly rejected three English cases; Whisper base transcribed all 15. Indic improves Gujarati/Hindi WER/CER, but stitched English loss, representative/native quality and the full Level 4 gate remain pending.
+**Roadmap sections:** 14–18. **Status:** Audio/input/router and section 18 benchmark/failure/SQL tooling are implemented. Current local routing uses one IndicConformer pass plus exact phonetic loanwords for Gujarati/Hindi/mixed turns and Whisper base for explicit English. The 15-case run completes with 1.148 s mixed median, but full English suffix deletion, representative/native recognition and the complete Level 4 gate remain pending. Historical model/cascade comparisons below retain their own dates and identities.
 
 Current LLM policy changed to Claude Haiku 5.5 on 2026-10-20. OpenAI names in the dated speech checks below identify the former baseline; official OpenAI Whisper Space names remain ASR endpoint identities. No OpenAI LLM calls/fallback are allowed. Historical reports and counts are unchanged.
 
@@ -333,6 +333,8 @@ As a diagnostic using the benchmark's known source boundaries, joining the alrea
 
 ## Adaptive local code-mix routing — 2026-10-21
 
+Historical experiment, superseded by the owner-selected single-pass policy below. Its report and immutable SQL evidence are preserved; the phrase-splitting implementation and executable CLI selection have been removed.
+
 The follow-up implements that experiment as the cache-only `phrase-span-v5` provider. `SpeechInputService` now preserves explicit `gu-en` and `hi-en` state instead of collapsing it before the composite provider. The router examines 20 ms RMS frames and can select one longest internal low-energy run of at least 600 ms, with at least 800 ms of audio on both sides. This finds a phrase boundary before ASR; energy does not classify language.
 
 For a qualifying mixed turn, the base-language head goes to pinned IndicConformer CTC. Whisper base inspects candidate English spans without a forced language; its result is accepted only when it identifies English and emits at least two English words, one reviewed domain token or one reviewed short acknowledgement. Otherwise the tail goes to IndicConformer and an unusable head stays empty. With no qualifying gap, the whole turn remains on Indic unless Indic abstains and the same Whisper language/evidence gate succeeds. An exact-token map canonicalizes reviewed phonetic spellings of `appointment`, `booking`, `confirm`, `confirmation`, `cancel` and `tomorrow`, including tokens next to Indic punctuation. It does not fuzzy-match names, compound words or arbitrary transcripts. Concrete provider failures propagate and never select the other model.
@@ -353,3 +355,28 @@ Clean/telephone suffix deletion is resolved on these samples. Noisy tails remain
 The final report was saved as immutable run `section18-adaptive-local-20261021-v3`, ID `41b648df-8ab4-44b3-8977-aa824fc5e5e4`: 15 samples, 90 aggregate rows and three identities (both pinned models plus the versioned composite), report SHA-256 `83a5bccda28cf35e9be93e0c47af8779c10d840cdb37e2f5f5170fdd8f91fd31`. Earlier v1/v2 runs remain immutable intermediate measurements and are not the cited final result. SQL contains no reference or hypothesis text. No schema, migration, business record, model weight, network inference, paid Claude or microphone operation changed.
 
 The exact loanword layer has deterministic text tests, not acoustic native-speaker evidence. The corpus has a long inter-sentential join and cannot validate rapid intra-sentential switches, arbitrary switch order, domain entity recall or natural callers. Keep noisy-code-mix, latency and native review gates open. Production Twilio/Sarvam and the Hindi-base Hinglish reply policy remain unchanged.
+
+## Single-pass local routing — 2026-10-21
+
+The owner selected `single-pass-loanwords-v1` to simplify the local prototype. `LocalLanguageSTT` sends each complete bounded Gujarati/Hindi/mixed waveform once to IndicConformer with `gu`/`hi`, normalizes exact emitted phonetic loanwords and returns the original route label/confidence. Explicit English alone goes to Whisper base. Audio, format and request metadata are preserved. There is no silence-gap splitting, secondary decode, language-ID arbitration or fallback on short/empty results/errors. The existing endpointing maximum-size segmentation remains a separate bounded-input requirement, not language slicing.
+
+The Unicode token normalizer maps reviewed variants of appointment, booking, confirm/confirmation, cancel, tomorrow, visit, time and date. It preserves combining marks and punctuation, skips compounds/names and existing Latin terms, and keeps digits/time expressions and native `કાલે`/`कल` untouched for contextual date extraction. It runs at the local STT boundary before the controller, not in prompts or the booking commit. Canonicalization never establishes consent, slot validity or successful booking.
+
+The [new report](../../benchmarks/asr/section18/single-pass-local-report.json) uses the same manifest, audio hashes and references as the historical cascade. All 15 cases complete offline with zero provider errors and no new weights. No reference rewriting/transliteration or excluded failed case lowers the scores.
+
+| Bucket | Cases | Pooled WER | Pooled CER | Median wall time |
+|---|---:|---:|---:|---:|
+| Gujarati/Hindi only | 6 | 15.43% | 3.98% | 0.962 s |
+| Explicit English | 3 | 11.11% | 6.77% | 0.603 s |
+| Stitched mixed, clean + telephone | 4 | 45.24% | 37.06% | 1.206 s |
+| Stitched mixed, noise | 2 | 44.05% | 36.93% | 1.148 s |
+| All stitched mixed | 6 | 44.84% | 37.02% | 1.148 s |
+| All 15 | 15 | 31.15% | 22.32% | 1.060 s |
+
+The historical cascade mixed median was 2.031 s; the selected single-pass run is 1.148 s. This is a measured CPU lab trade-off, not a guaranteed service latency. First-use English is 1.438 s and Indic is 16.207 s; warm-up remains necessary. Full English suffixes still disappear: this is deletion, not phonetic spelling that a dictionary can repair. Synthetic noise still fails code-mix quality. Three source recordings with derived variants cannot prove native booking-term recall, 100% slot extraction, p95, microphone quality or zero-cost normalization. Text-level loanword tests and five section 20 route integrations prove software behavior only.
+
+Six high-WER public failure WAV/review pairs were exported and inspected under ignored `var/roma/asr-benchmark/failures-single-pass-local`. Final SQL run `section18-single-pass-local-20261021-v1`, ID `a4c85c02-adbd-4c09-8dda-606521b5c5ff`, stores 15 samples / 90 aggregate rows with both pinned models and a distinct router identity. Report SHA-256: `aa9f4aa48c07736c3dd43441a326d6ecb182b1eff9c787501cd5bf83a7c68593`. Historical reports and rows remain immutable. SQL stores no reference/hypothesis text; no schema, migration, business data, model artifact, `.env`, production speech or LLM behavior changed.
+
+The separate [four-phrase local audio probe](../../benchmarks/asr/section18/loanword-synthetic-report.json) uses installed Indic-TTS to generate fixed Gujarati/Hindi user phrases, then the actual single-pass router captures raw Indic text and normalized output. All four complete with exactly one Indic call each and zero Whisper calls; all **7 expected keyword occurrences** are recovered after mapping. Native `કાલે`/`कल` remains unchanged. Hindi has one non-keyword recognition error (`बताइए` → `बताई`). Warm ASR calls take 1.192–1.475 s; the first includes a 13.389 s cold load. This is a small synthetic model-to-model smoke test, not native speakers, 100% real slot recall, a guaranteed latency or permission to change scoring references. No probe audio was retained.
+
+The owner-selected policy is implemented; mixed/native recognition quality and full Level 4/6 gates remain open. Paid Claude and microphone checks remain deferred. Use the [single-pass runbook](../runbook.md#local-single-pass-code-mix-benchmark); the retired cascade is available only as historical evidence.

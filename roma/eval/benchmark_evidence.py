@@ -95,6 +95,7 @@ def _asr(
         "whisper_local",
         "indic_local",
         "adaptive_local",
+        "single_pass_local",
     }:
         raise ValueError("Unsupported ASR benchmark provider")
     cases = report["cases"]
@@ -190,12 +191,14 @@ def _asr(
             license_name="MIT",
         )
         _checksum(details["artifact_manifest_sha256"])
-    elif provider == "adaptive_local":
+    elif provider in {"adaptive_local", "single_pass_local"}:
         indic, whisper = details.get("indic", {}), details.get("whisper", {})
         if (
             report.get("network_calls") is not False
             or details.get("network_calls") is not False
-            or details.get("router_version") != "phrase-span-v5"
+            or details.get("router_version") != (
+                "phrase-span-v5" if provider == "adaptive_local" else "single-pass-loanwords-v1"
+            )
             or indic.get("network_calls") is not False
             or indic.get("model_name")
             != "ai4bharat/indic-conformer-600m-multilingual"
@@ -209,7 +212,7 @@ def _asr(
             or whisper.get("device") != "cpu"
             or whisper.get("compute_type") != "int8"
         ):
-            raise ValueError("Invalid adaptive local benchmark provenance")
+            raise ValueError("Invalid local composite benchmark provenance")
         for item in (indic, whisper):
             _checksum(item["model_sha256"])
             _checksum(item["artifact_manifest_sha256"])
@@ -347,7 +350,7 @@ def _asr(
                 )
             },
         }
-        if provider == "adaptive_local"
+        if provider in {"adaptive_local", "single_pass_local"}
         else {
             key: details[key]
             for key in (

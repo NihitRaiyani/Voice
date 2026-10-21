@@ -200,9 +200,9 @@ Defend bounded caller/slot validation, Unicode combining marks, code-owned enums
 
 **Why did the first Indic code-mix route delete English?** The benchmark collapsed `gu-en`/`hi-en` to one Indic hint before ASR. The selected language vocabulary cannot emit Latin English, and the transcript router runs too late to restore deleted speech.
 
-**Why not use a CTC blank-tail confidence trigger?** The reviewed adapter does not expose calibrated blank confidence or trustworthy token timestamps. The lab instead finds one bounded phrase gap before ASR and routes the explicit base-language head and English tail to their pinned models.
+**Why remove the two-model cascade?** The owner selected a simpler local runtime: one full Indic decode for Gujarati/Hindi/mixed speech and Whisper for explicit English. This avoids heuristic audio cuts and secondary decoding. It trades English-sentence recall for latency; the archived cascade remains comparison evidence.
 
-**Did the adaptive route pass?** It fixes suffix deletion on clean/telephone stitched samples, but noisy code-mix is 40.48% WER and mixed median latency is 2.031 s. Exact loanword mapping is text-tested only. Noisy/native/intra-sentential quality and live latency remain open.
+**What can the loanword dictionary fix?** Exact emitted spellings such as `અપોઈન્ટમેન્ટ` and `अपॉइंटमेंट` become `appointment` before the controller. It preserves compounds, numbers, native dates and names, and never confirms a booking by itself. It cannot recover omitted speech. Four generated local-audio probes recover all 7 expected keyword occurrences, but that is synthetic evidence. In the current 15-case run mixed median is 1.148 s, but mixed WER is 44.84%, so recognition/native and physical section 20 gates remain open.
 
 ## Level 5 section 19 explanation
 

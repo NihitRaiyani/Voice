@@ -57,3 +57,20 @@ Reviewed the selected source paragraphs against existing modules/level briefs, w
 | 20 Microphone prototype | Synthetic four-language paths, real local device seam, local-only ASR/TTS, short durable turns/timings; English physical Claude extraction and prepared-state wording/local-TTS turns heard clearly; checkpoint restore defect repaired | Levels 2–5 prerequisite/native gates unfinished; no full Claude Gujarati/Hindi/English/code-mix microphone/booking approval; section 21 outside scope |
 
 No schema/migration/TTS change was required by the Claude replacement. A later explicit 2026-10-21 decision authorized the pinned IndicConformer snapshot/runtime in addition to Whisper base; it does not authorize paid HF capacity, hosted/private microphone ASR or a production switch. Existing historical reports/source files remain intact. Synthetic paid Claude verification and mock/offline tests cannot complete all gates through section 20.
+
+## Single-pass review through section 20 — 2026-10-21
+
+Reviewed the selected Claude roadmap and owner-selected simpler speech policy against current code. Earlier dated counts/model experiments remain historical. This review does not start section 21 or waive the owner's deferred paid Claude, microphone and native checks.
+
+| Sections | Current code/offline evidence | Remaining acceptance |
+|---|---|---|
+| 1–2 | Prerequisites, baseline and architecture/student explanations documented | Teacher/clean-host/current timing review |
+| 3–9 | PostgreSQL/Redis UoW/pools, relational design, migration rollback, layers, provider contracts, v1 APIs, lint/type/tests/CI; router regression added to CI | Clean-host/reviewer/hosted CI evidence remains separate |
+| 10–12 | Deterministic FSM/checkpoint/slots, Claude timeout/budget/fallback contracts with mocked calls, deterministic safety/audits and input bounds | Native Claude quality and physical voice acceptance deferred |
+| 13 | Demo-data SQL booking/readback/affirm/commit/restore/conflict and 100-request race proof | Actual approved availability and complete microphone booking acceptance |
+| 14–17 | Codec/frames/jitter, bundled Silero/endpointing, pinned local ASR, persisted smoothed language state; one full Indic decode plus exact emitted-loanwords for Indic/mixed, Whisper only explicit English | Natural intra-sentential/loanword acoustic corpus and native quality; full English switches still omitted |
+| 18 | Matched 15-case single-pass execution, WER/CER/wall RTF, exported/read failures and transcript-free immutable SQL evidence | Execution does not pass recognition; mixed WER 44.84%, CER 37.02% |
+| 19 | Existing pinned local TTS/cache/safety bindings; cache identity, cancellation and error regressions retained | Native pronunciation/naturalness approval |
+| 20 | Current four-path mock report and five route-specific full offline speech integrations; SQL turn/timing and booking paths tested separately | Actual Claude microphone conversation in all three languages plus code-mix, native scores and complete voice booking remain deferred |
+
+The code change removes the cascade rather than hiding its failures. The new dictionary only canonicalizes emitted phonetic terms, preserves names/compounds/dates and does not fabricate the missing English suffix. All current evidence is in [Level 4](../levels/level-04.md#single-pass-local-routing--2026-10-21), [Level 6](../levels/level-06.md#single-pass-integration-follow-up--2026-10-21) and [verification](../12-verification.md#single-pass-routing-and-section-20-review--2026-10-21).

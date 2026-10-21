@@ -136,6 +136,14 @@ Measured evidence favors Indic as the Gujarati/Hindi development candidate (shar
 
 ## 2026-10-21 — Adaptive local code-mix routing
 
+Historical experiment, superseded by the owner-selected single-pass policy below. Its report and immutable SQL evidence are preserved; the phrase-splitting implementation and executable CLI selection have been removed.
+
 Do not build a CTC blank-tail trigger without reviewed token timestamps and calibrated confidence, and do not add an unmeasured frame-level language classifier. For explicit `gu-en`/`hi-en` lab turns, detect at most one strong phrase boundary from bounded PCM, route the base-language head to pinned IndicConformer and let Whisper identify the suffix language. Accept the suffix as English only when detection and credible English text agree; otherwise retain IndicConformer for it. No-gap speech remains Indic-first with an exact booking-loanword map. Provider errors propagate.
 
 The 15-case offline report fixes clean/telephone suffix deletion but fails noisy code-mix and the proposed 1.2-second mixed-turn latency target. Keep this as a development lab path; do not switch production speech or claim native intra-sentential code-mix approval. KenLM, quantization/CoreML, new models and broad audio gain changes require separate measured decisions.
+
+## 2026-10-21 — Single-pass Indic loanwords and explicit English
+
+The owner replaces the phrase-span cascade with one IndicConformer decode for Gujarati/Hindi/mixed turns, followed by exact phonetic booking-word canonicalization at the local STT text boundary. Explicit English uses Whisper base. Remove audio slicing, English-tail arbitration and empty-output fallbacks. Keep Unicode punctuation handling and compound/name protection; do not map native ambiguous date words to English. This policy is shared by the local prototype and offline benchmark; production speech is unchanged.
+
+The same 15 cases complete offline. Mixed median falls from the historical cascade's 2.031 s to 1.148 s, but mixed WER/CER is 44.84% / 37.02%. A transliterated loanword and a deleted English sentence are different failure modes. Adopt the requested simpler development route without claiming a multilingual recognition or microphone gate pass. Preserve historical evidence, keep schema/weights/`.env` unchanged and keep paid Claude/microphone/native checks deferred.

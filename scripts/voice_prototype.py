@@ -25,7 +25,7 @@ from roma.domain.safety.audit import SafetyContext  # noqa: E402
 from roma.eval.speech import ScriptedProbability, ScriptedSTT  # noqa: E402
 from roma.eval.tts import SyntheticPCMProvider  # noqa: E402
 from roma.providers.ai.contracts import AudioFormat, STTRequest, TTSRequest  # noqa: E402
-from roma.providers.ai.local_routing import LocalLanguageSTT  # noqa: E402
+from roma.providers.ai.local_routing import ROUTER_VERSION, LocalLanguageSTT  # noqa: E402
 from roma.providers.ai.mocks import MockLLMProvider  # noqa: E402
 from roma.providers.ai.registry import (  # noqa: E402
     build_llm_provider,
@@ -68,12 +68,16 @@ class SyntheticSpeaker:
 async def mock_lab():
     cases = []
     for language, text in (
-        ("gu", "ફી 50000"),
-        ("hi", "फीस 50000"),
+        ("gu", "અપોઈન્ટમેન્ટ ફી 50000"),
+        ("hi", "अपॉइंटमेंट फीस 50000"),
         ("en", "fees 50000"),
         ("code_mix", "fees kitni hai 50000"),
     ):
         state = CallState(call_sid="voice-lab-" + uuid4().hex)
+        state.language_router.current = {
+            "gu": Language.GUJARATI, "hi": Language.HINDI,
+            "en": Language.ENGLISH, "code_mix": Language.HINDI_ENGLISH,
+        }[language]
         speaker, store = SyntheticSpeaker(), InMemoryVoiceTurnStore()
         safety = SafetyService()
         text_service = TextConversationService(
@@ -85,7 +89,10 @@ async def mock_lab():
             SyntheticPCMProvider(), safety, model_version="synthetic-pcm-v1"
         )
         voice = VoicePrototype(state, text_service, synth, speaker, store)
-        speech = SpeechInputService(ScriptedSTT((text,)), ScriptedProbability(), state)
+        indic, whisper = ScriptedSTT((text,)), ScriptedSTT((text,))
+        speech = SpeechInputService(
+            LocalLanguageSTT(indic, whisper), ScriptedProbability(), state
+        )
         results = []
         for speaking in [1] * 4 + [0] * 20:
             results.extend(await speech.feed(bytes([speaking, 0]) * 512))
@@ -95,6 +102,8 @@ async def mock_lab():
         cases.append(
             {
                 "input_language": language,
+                "indic_calls": indic.calls,
+                "whisper_calls": whisper.calls,
                 **asdict(outcome),
                 "speaker_outputs": speaker.played,
                 "durable_database": False,
@@ -105,6 +114,7 @@ async def mock_lab():
         )
     return {
         "schema": "section20-voice-prototype-v1",
+        "local_router_version": ROUTER_VERSION,
         "synthetic_only": True,
         "microphone_used": False,
         "network_calls": False,

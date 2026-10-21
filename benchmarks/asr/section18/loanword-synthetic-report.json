@@ -1,0 +1,102 @@
+{
+  "schema": "roma-synthetic-loanword-probe-v1",
+  "recorded_at": "2026-10-21T12:45:30.494732+00:00",
+  "completed_at": "2026-10-21T12:46:31.119817+00:00",
+  "router_version": "single-pass-loanwords-v1",
+  "indic_model": "ai4bharat/indic-conformer-600m-multilingual",
+  "indic_revision": "2a77d305038dfc502fd9464e7d028b90381976cb",
+  "decoder": "ctc",
+  "sample_rate_hz": 16000,
+  "synthetic_audio_only": true,
+  "audio_source": "Installed manifest-pinned Indic-TTS, female voice, direct 16 kHz mono PCM16; prechecked fixed synthetic user phrases",
+  "method": "One complete LocalLanguageSTT request per phrase; capture raw Indic result then compare canonical keyword presence after exact token normalization; Whisper forbidden",
+  "tts_manifest_sha256": "c1c20ce28ecd5db4d09c24890fea35635b5288185be20eb0826a06a5fd542fb4",
+  "whisper_calls": 0,
+  "network_calls": false,
+  "microphone_used": false,
+  "paid_llm_calls": false,
+  "new_model_weights_downloaded": false,
+  "native_review_passed": false,
+  "production_voice_approved": false,
+  "limits": "Four TTS-generated phrases are a model-to-model smoke test; not natural speakers, entity/slot accuracy, task success or native quality. First request includes cold ASR loading. No audio retained.",
+  "cases": [
+    {
+      "language": "gu",
+      "source_text": "અપોઈન્ટમેન્ટ કન્ફર્મ કરી દેજો",
+      "expected_keywords": [
+        "appointment",
+        "confirm"
+      ],
+      "status": "ok",
+      "raw_transcript": "અપોઈન્ટમેન્ટ કન્ફર્મ કરી દેજો",
+      "normalized_transcript": "appointment confirm કરી દેજો",
+      "matched_keywords": [
+        "appointment",
+        "confirm"
+      ],
+      "asr_ms": 13388.893,
+      "audio_seconds": 3.4605,
+      "audio_sha256": "d01f6da46c2d3574a5ae17a76c5a8c84e7db3700f98d2e2013ba35c25aa5bd2c",
+      "tts_identity": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad",
+      "indic_calls": 1
+    },
+    {
+      "language": "gu",
+      "source_text": "મારે કાલે વિઝિટ કરવી છે",
+      "expected_keywords": [
+        "visit"
+      ],
+      "status": "ok",
+      "raw_transcript": "મારે કાલે વિઝિટ કરવી છે",
+      "normalized_transcript": "મારે કાલે visit કરવી છે",
+      "matched_keywords": [
+        "visit"
+      ],
+      "asr_ms": 1278.266,
+      "audio_seconds": 3.495375,
+      "audio_sha256": "17dbc5ff48dd15c84c36aacc0df6e85b8f1c86cd2759cf7a5935af8ec655ed16",
+      "tts_identity": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad",
+      "indic_calls": 1
+    },
+    {
+      "language": "hi",
+      "source_text": "अपॉइंटमेंट कन्फर्म कर दो",
+      "expected_keywords": [
+        "appointment",
+        "confirm"
+      ],
+      "status": "ok",
+      "raw_transcript": "अपॉइंटमेंट कन्फर्म कर दो",
+      "normalized_transcript": "appointment confirm कर दो",
+      "matched_keywords": [
+        "appointment",
+        "confirm"
+      ],
+      "asr_ms": 1191.672,
+      "audio_seconds": 2.137,
+      "audio_sha256": "eeb2e5bfaea6e7a75a14c8e599af1172a115941376e45e5e76941ddfd104ee62",
+      "tts_identity": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad",
+      "indic_calls": 1
+    },
+    {
+      "language": "hi",
+      "source_text": "कल विजिट का टाइम बताइए",
+      "expected_keywords": [
+        "visit",
+        "time"
+      ],
+      "status": "ok",
+      "raw_transcript": "कल विजिट का टाइम बताई",
+      "normalized_transcript": "कल visit का time बताई",
+      "matched_keywords": [
+        "visit",
+        "time"
+      ],
+      "asr_ms": 1475.162,
+      "audio_seconds": 1.9860625,
+      "audio_sha256": "014d031309d8e07022ee669e3e6edf34e50c6ac722da62384a790c9948d634e0",
+      "tts_identity": "indic-tts:0970a1623572c216042307874b859fe01c23e1bddb50439e4ee38865434070ad",
+      "indic_calls": 1
+    }
+  ]
+}

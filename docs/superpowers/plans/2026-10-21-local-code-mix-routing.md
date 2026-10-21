@@ -1,5 +1,7 @@
 # Local Code-Mix Routing Implementation Plan
 
+Historical design: superseded by the owner-selected single-pass policy in [Level 4](../../levels/level-04.md#single-pass-local-routing--2026-10-21). The cascade is no longer implemented; retain this document only to interpret historical reports.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Route explicit local Gujarati/Hindi-English turns across IndicConformer and Whisper base without paid calls, new weights or microphone use.

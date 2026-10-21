@@ -587,13 +587,13 @@ def test_local_indic_cli_runs_all_cases_offline_and_marks_english_unsupported(
     capsys.readouterr()
 
 
-def test_adaptive_local_cli_composes_pinned_models_and_preserves_mixed_hint(
+def test_single_pass_local_cli_composes_pinned_models_and_preserves_mixed_hint(
     public_cache, tmp_path, monkeypatch, capsys
 ):
     import importlib.util
 
     script = Path(__file__).resolve().parents[2] / "scripts/asr_benchmark.py"
-    spec = importlib.util.spec_from_file_location("adaptive_benchmark_cli", script)
+    spec = importlib.util.spec_from_file_location("single_pass_benchmark_cli", script)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     provider = FakeSTT()
@@ -640,10 +640,10 @@ def test_adaptive_local_cli_composes_pinned_models_and_preserves_mixed_hint(
     manifest = build_manifest(
         public_cache, include_stitched_code_mix=True, variants=("clean",)
     )
-    manifest_path, report_path = tmp_path / "manifest.json", tmp_path / "adaptive.json"
+    manifest_path, report_path = tmp_path / "manifest.json", tmp_path / "single-pass.json"
     manifest_path.write_text(json.dumps(manifest))
     args = [
-        "run", "--provider", "adaptive_local", "--manifest", str(manifest_path),
+        "run", "--provider", "single_pass_local", "--manifest", str(manifest_path),
         "--audio-dir", str(public_cache), "--report", str(report_path),
     ]
     with pytest.raises(ValueError, match="local-model-dir"):
@@ -653,11 +653,11 @@ def test_adaptive_local_cli_composes_pinned_models_and_preserves_mixed_hint(
         asyncio.run(module.run(module.parser().parse_args([*args, "--allow-network"])))
     assert asyncio.run(module.run(module.parser().parse_args(args))) == 0
     report = read_json(report_path)
-    assert report["provider"] == "adaptive_local" and report["network_calls"] is False
+    assert report["provider"] == "single_pass_local" and report["network_calls"] is False
     assert {request.language_hint for request in provider.requests} == {
         "gu", "hi", "en", "gu-en", "hi-en"
     }
-    assert report["provider_details"]["router_version"] == "phrase-span-v5"
+    assert report["provider_details"]["router_version"] == "single-pass-loanwords-v1"
     assert [kind for kind, _ in constructed] == ["indic", "whisper"]
     capsys.readouterr()
 
