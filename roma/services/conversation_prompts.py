@@ -16,7 +16,7 @@ from roma.providers.ai.contracts import LLMMessage, LLMRequest
 
 PROMPT_VERSION = "claude-text-v1"
 LANGUAGE_INSTRUCTIONS = {
-    "voice_hi": "Reply in Hindi-base Hinglish using Devanagari phonetic spelling, including common English words. Dialogue only; preserve the current task and approved facts.",
+    "voice_hi": "Reply in Hindi-base Hinglish. Write EVERY word in Devanagari, including English loanwords and acronyms: SEO as एस ई ओ, AI tools as ए आई टूल्स, live projects as लाइव प्रोजेक्ट्स. Never use Latin letters. Use at most twenty words in one or two short sentences. Dialogue only; preserve the current task and approved facts.",
     "gu": "Reply only in natural Gujarati script.",
     "hi": "Reply only in natural Hindi script.",
     "en": "Reply only in natural English.",
@@ -152,10 +152,14 @@ def dialogue_request(
     stage_task = STAGE_TASKS[state.stage]
     if state.booking_required and state.appointment_id:
         stage_task = "The database committed this appointment. Confirm the controller time and sign off; no delivery promises."
+    facts = selected_facts(state, task, caller)
+    if language == "voice_hi":
+        cap = min(cap, 20)
+        facts = facts[:1]
     instruction = (
         f"Stage: {state.stage.value}. {stage_task}\n"
         f"CURRENT CONTROLLER TASK: {task} Reply in <={cap} words.\n"
-        "Approved facts: " + " ".join(selected_facts(state, task, caller))
+        "Approved facts: " + " ".join(facts)
     )
     # JSON escaping preserves boundaries when caller-supplied values contain newlines.
     content = (
@@ -169,7 +173,7 @@ def dialogue_request(
         max_tokens=max_tokens,
         temperature=temperature,
         metadata={
-            "prompt_version": PROMPT_VERSION,
+            "prompt_version": PROMPT_VERSION + ("-voice-hi-v2" if language == "voice_hi" else ""),
             "purpose": "dialogue",
         },
     )

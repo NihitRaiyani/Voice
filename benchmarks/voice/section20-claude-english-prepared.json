@@ -1,0 +1,325 @@
+{
+  "schema": "section20-claude-microphone-v1",
+  "llm_provider": "claude",
+  "model": "claude-haiku-5-5",
+  "asr": "Systran/faster-whisper-base",
+  "initial_language": "en",
+  "microphone_used": true,
+  "audio_recorded": false,
+  "transcripts_retained": false,
+  "new_downloads": false,
+  "openai_requests": 0,
+  "turns": [
+    {
+      "attempt": 1,
+      "input_timings": {
+        "capture_ms": 10547.281917068176,
+        "vad_endpoint_ms": 324.0289508830756
+      },
+      "asr_finalized": true,
+      "asr_error": null,
+      "recognized_characters": 35,
+      "endpoint_reason": "silence",
+      "controller": {
+        "stage_before": "value",
+        "stage_after": "value",
+        "extractions": [],
+        "generated_text_characters": 102,
+        "final_response_characters": 102,
+        "provider_error": null,
+        "safety_checks": [
+          {
+            "allowed": true,
+            "reason": "allow:clean",
+            "category": null
+          },
+          {
+            "allowed": true,
+            "reason": "allow:clean",
+            "category": null
+          }
+        ],
+        "booking_committed": false,
+        "next_discovery_slot": null,
+        "offer_count": 0
+      },
+      "playback_attempted": true,
+      "playback_completed": true,
+      "outcome": {
+        "attempt": 1,
+        "status": "played",
+        "stage": "value",
+        "language": "ENGLISH",
+        "timings": {
+          "capture_ms": 10547.281917068176,
+          "vad_endpoint_ms": 324.0289508830756,
+          "asr_ms": 595.047332928516,
+          "llm_ms": 2231.120957992971,
+          "routing_controller_ms": 24.391458951868117,
+          "safety_tts_cache_ms": 9092.962834052742,
+          "tts_inference_ms": 9062.556333024986,
+          "audio_ms": 6514,
+          "safety_normalization_ms": 1.1994160013273358,
+          "tts_cache_frames_ms": 9091.62466705311,
+          "playback_ms": 6849.5902919676155,
+          "response_total_ms": 18236.991874990053
+        },
+        "error_code": null
+      }
+    },
+    {
+      "attempt": 2,
+      "input_timings": {
+        "capture_ms": 10092.586624901742,
+        "vad_endpoint_ms": 331.5627499250695
+      },
+      "asr_finalized": true,
+      "asr_error": null,
+      "recognized_characters": 35,
+      "endpoint_reason": "silence",
+      "controller": {
+        "stage_before": "value",
+        "stage_after": "value",
+        "extractions": [],
+        "generated_text_characters": 143,
+        "final_response_characters": 143,
+        "provider_error": null,
+        "safety_checks": [
+          {
+            "allowed": true,
+            "reason": "allow:clean",
+            "category": null
+          },
+          {
+            "allowed": true,
+            "reason": "allow:clean",
+            "category": null
+          }
+        ],
+        "booking_committed": false,
+        "next_discovery_slot": null,
+        "offer_count": 0
+      },
+      "playback_attempted": true,
+      "playback_completed": true,
+      "outcome": {
+        "attempt": 2,
+        "status": "played",
+        "stage": "value",
+        "language": "ENGLISH",
+        "timings": {
+          "capture_ms": 10092.586624901742,
+          "vad_endpoint_ms": 331.5627499250695,
+          "asr_ms": 594.3472080398351,
+          "llm_ms": 1417.7237499970943,
+          "routing_controller_ms": 16.88312494661659,
+          "safety_tts_cache_ms": 10133.376999991015,
+          "tts_inference_ms": 10088.550459011458,
+          "audio_ms": 9858,
+          "safety_normalization_ms": 1.239374978467822,
+          "tts_cache_frames_ms": 10131.960875005461,
+          "playback_ms": 10201.392750022933,
+          "response_total_ms": 21795.726208016276
+        },
+        "error_code": null
+      }
+    },
+    {
+      "attempt": 3,
+      "input_timings": {
+        "capture_ms": 5598.265167092904,
+        "vad_endpoint_ms": 204.873041016981
+      },
+      "asr_finalized": true,
+      "asr_error": null,
+      "recognized_characters": 48,
+      "endpoint_reason": "silence",
+      "controller": {
+        "stage_before": "value",
+        "stage_after": "pivot",
+        "extractions": [],
+        "generated_text_characters": 0,
+        "final_response_characters": 67,
+        "provider_error": null,
+        "safety_checks": [
+          {
+            "allowed": true,
+            "reason": "allow:clean",
+            "category": null
+          }
+        ],
+        "booking_committed": false,
+        "next_discovery_slot": null,
+        "offer_count": 1
+      },
+      "playback_attempted": true,
+      "playback_completed": true,
+      "outcome": {
+        "attempt": 3,
+        "status": "played",
+        "stage": "pivot",
+        "language": "ENGLISH",
+        "timings": {
+          "capture_ms": 5598.265167092904,
+          "vad_endpoint_ms": 204.873041016981,
+          "asr_ms": 599.4237079285085,
+          "llm_ms": 0.0,
+          "routing_controller_ms": 24.153125006705523,
+          "safety_tts_cache_ms": 8597.019374952652,
+          "tts_inference_ms": 8569.900374975987,
+          "audio_ms": 5980,
+          "safety_normalization_ms": 0.3162079956382513,
+          "tts_cache_frames_ms": 8596.551000024192,
+          "playback_ms": 6318.679124931805,
+          "response_total_ms": 14969.14000005927
+        },
+        "error_code": null
+      }
+    },
+    {
+      "attempt": 4,
+      "input_timings": {
+        "capture_ms": 17654.440707992762,
+        "vad_endpoint_ms": 589.1688857227564
+      },
+      "asr_finalized": true,
+      "asr_error": null,
+      "recognized_characters": 50,
+      "endpoint_reason": "silence",
+      "controller": {
+        "stage_before": "pivot",
+        "stage_after": "pivot",
+        "extractions": [
+          {
+            "source": "claude",
+            "valid": true
+          }
+        ],
+        "generated_text_characters": 0,
+        "final_response_characters": 67,
+        "provider_error": null,
+        "safety_checks": [
+          {
+            "allowed": true,
+            "reason": "allow:clean",
+            "category": null
+          }
+        ],
+        "booking_committed": false,
+        "next_discovery_slot": null,
+        "offer_count": 1
+      },
+      "playback_attempted": true,
+      "playback_completed": true,
+      "outcome": {
+        "attempt": 4,
+        "status": "played",
+        "stage": "pivot",
+        "language": "ENGLISH",
+        "timings": {
+          "capture_ms": 17654.440707992762,
+          "vad_endpoint_ms": 589.1688857227564,
+          "asr_ms": 619.5584170054644,
+          "llm_ms": 2209.2096670530736,
+          "routing_controller_ms": 24.907290935516357,
+          "safety_tts_cache_ms": 26.971917017363012,
+          "tts_inference_ms": 0.0,
+          "audio_ms": 5980,
+          "safety_normalization_ms": 0.2734999870881438,
+          "tts_cache_frames_ms": 26.65270899888128,
+          "playback_ms": 6250.161625095643,
+          "response_total_ms": 8517.106208018959
+        },
+        "error_code": null
+      }
+    }
+  ],
+  "claude_metrics": [
+    {
+      "model": "claude-haiku-5-5",
+      "ttft_ms": 1899.8740409733728,
+      "generation_secs": 2.230694790952839,
+      "attempts": 1,
+      "input_tokens": 681,
+      "output_tokens": 81,
+      "cached_input_tokens": 0,
+      "cost_inr": 0.02,
+      "charged_inr": 0.02,
+      "usage_known": true,
+      "call_tokens_used": 762,
+      "call_spent_inr": 0.02,
+      "error_code": null,
+      "cache_creation_input_tokens": 0,
+      "provider": "claude"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "ttft_ms": 983.9510000310838,
+      "generation_secs": 1.4171102080726996,
+      "attempts": 1,
+      "input_tokens": 689,
+      "output_tokens": 110,
+      "cached_input_tokens": 0,
+      "cost_inr": 0.02,
+      "charged_inr": 0.02,
+      "usage_known": true,
+      "call_tokens_used": 1561,
+      "call_spent_inr": 0.04,
+      "error_code": null,
+      "cache_creation_input_tokens": 0,
+      "provider": "claude"
+    },
+    {
+      "model": "claude-haiku-5-5",
+      "ttft_ms": 1925.525665981695,
+      "generation_secs": 2.2081102080410346,
+      "attempts": 1,
+      "input_tokens": 2884,
+      "output_tokens": 95,
+      "cached_input_tokens": 0,
+      "cost_inr": 0.05,
+      "charged_inr": 0.05,
+      "usage_known": true,
+      "call_tokens_used": 4540,
+      "call_spent_inr": 0.09,
+      "error_code": null,
+      "cache_creation_input_tokens": 2809,
+      "provider": "claude"
+    }
+  ],
+  "native_review_passed": false,
+  "full_section20_gate_passed": false,
+  "demo_only": true,
+  "database_scope": "disposable_loopback_postgresql",
+  "prepared_synthetic_start_stage": "value",
+  "full_fresh_conversation_test": false,
+  "demo_slot_date": "2026-10-21",
+  "demo_slot_times": [
+    "17:00",
+    "18:00"
+  ],
+  "call_sid": "voice-lab-e927f0c3f95e49bba1208ee6fff2e426",
+  "database_readback": {
+    "call_status": "completed",
+    "played_events": 4,
+    "all_played_without_error": true,
+    "confirmed_demo_appointments": 0
+  },
+  "checkpoint_restore": {
+    "restored": true,
+    "stage": "pivot",
+    "language": "ENGLISH",
+    "next_discovery_slot": null,
+    "appointment_id_present": false
+  },
+  "disposable_database_removed": true,
+  "process_completed": true,
+  "elapsed_seconds": 161.514,
+  "user_playback_confirmation": "Yes, clear and understandable",
+  "user_confirmation_scope": "Four prepared-state English-input/Hindi-base Hinglish-response turns; clarity only, not formal native scores",
+  "english_prepared_voice_integration_passed": true,
+  "remaining_live_checks_deferred_by_owner": true,
+  "defer_reason": "Owner requested later testing due to limit issue",
+  "tone_used_for_capture_coordination": true,
+  "tone_scope": "Temporary operator harness only; standard CLI unchanged"
+}

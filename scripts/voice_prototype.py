@@ -244,6 +244,7 @@ async def local_run(args):
             safety=safety,
             store=PostgresConversationStateStore(factory),
             booking_session=booking,
+            max_tokens=llm_cfg.anthropic_max_output_tokens if llm_cfg is not None else 128,
             temperature=0.7,
             dialogue_language="voice_hi",
         )

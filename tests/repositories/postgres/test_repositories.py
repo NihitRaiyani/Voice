@@ -882,6 +882,7 @@ def test_conversation_state_repository_saves_latest_checkpoint(session_factory):
 def test_postgres_conversation_state_store_restores_compatible_checkpoint(session_factory):
     from datetime import timedelta
 
+    from roma.domain.conversation.language import Language, LanguageRouterState
     from roma.domain.conversation.state import CallState
     from roma.repositories.postgres.conversation_state import PostgresConversationStateStore
 
@@ -901,6 +902,13 @@ def test_postgres_conversation_state_store_restores_compatible_checkpoint(sessio
                 stage="structure",
                 lead_name="Amit",
                 city="Vadodara",
+                language_router=LanguageRouterState(
+                    current=Language.ENGLISH, recent=[Language.ENGLISH]
+                ),
+                slot_attempts={"education": 1},
+                objection_counts={"cost": 1},
+                slots_offered=["2026-10-21T18:00:00+05:30"],
+                facts_said=["course_skills"],
             )
         )
         restored = await store.load(call.provider_call_id)
@@ -908,5 +916,19 @@ def test_postgres_conversation_state_store_restores_compatible_checkpoint(sessio
         assert restored.stage == "structure"
         assert restored.lead_name == "Amit"
         assert restored.city == "Vadodara"
+        assert restored.language_router.current == Language.ENGLISH
+        assert restored.language_router.recent == [Language.ENGLISH]
+        # Resume must yield detached mutable controller data, not frozen records.
+        restored.record_slot_attempt("education")
+        restored.objection_counts["cost"] += 1
+        restored.slots_offered.append("2026-10-22T18:00:00+05:30")
+        restored.record_facts(["placement_support"])
+        unchanged = await store.load(call.provider_call_id)
+        assert unchanged is not None and unchanged.slot_attempts == {"education": 1}
+        assert len(unchanged.slots_offered) == 1
+        await store.save(restored)
+        resumed = await store.load(call.provider_call_id)
+        assert resumed is not None
+        assert resumed.to_dict() == restored.to_dict()
 
     asyncio.run(run())

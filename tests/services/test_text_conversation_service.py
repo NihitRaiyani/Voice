@@ -155,3 +155,32 @@ def test_prompt_whitelist_and_language_lab_do_not_leak_known_name_or_identifiers
     )
     assert "Gujarati script" in request.messages[0].content
     assert "Hindi-base Hinglish" not in request.messages[0].content
+
+
+@pytest.mark.parametrize("raw", ["Live projects से आपका portfolio बनता है।", "આ કોર્સ ઉપયોગી છે."])
+def test_local_voice_rejects_unsupported_generated_script_with_audited_fallback(raw):
+    async def run():
+        trace = await TextConversationService(
+            MockLLMProvider(response=raw), dialogue_language="voice_hi"
+        ).turn(CallState(stage="value"), "What skills will I learn?", now=NOW)
+        assert trace.raw_model_output == raw
+        assert trace.final_response == HARD_FAIL_LINE
+        assert any(v["reason"] == "unsupported-local-speech-script" for v in trace.safety_result)
+        assert any(e["rule_id"] == "speech.unsupported_script.v1" for e in trace.safety_events)
+
+    asyncio.run(run())
+
+
+def test_local_voice_discards_output_cut_off_at_token_limit():
+    class CutOff:
+        async def generate(self, request):
+            yield LLMChunk("लाइव प्रोजेक्ट्स से आपका पोर्टफो", "length")
+
+    async def run():
+        trace = await TextConversationService(CutOff(), dialogue_language="voice_hi").turn(
+            CallState(stage="value"), "What skills will I learn?", now=NOW
+        )
+        assert trace.final_response == HARD_FAIL_LINE
+        assert trace.provider_error == "generation-unavailable-or-invalid"
+
+    asyncio.run(run())

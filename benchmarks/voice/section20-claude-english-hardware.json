@@ -1,0 +1,129 @@
+{
+  "schema": "section20-claude-english-hardware-v1",
+  "evidence_sources": [
+    "durable lab event readback",
+    "observed synthetic Claude runtime metrics",
+    "owner playback confirmation"
+  ],
+  "call_sid": "voice-lab-76784f4551ff4160b1355d762d0ed236",
+  "llm_provider": "claude",
+  "model": "claude-haiku-5-5",
+  "asr": "Systran/faster-whisper-base",
+  "initial_language": "en",
+  "microphone_used": true,
+  "audio_recorded": false,
+  "transcripts_retained": false,
+  "new_downloads": false,
+  "openai_requests": 0,
+  "process_completed": true,
+  "turns": [
+    {
+      "attempt": 1,
+      "stage": "discover",
+      "status": "played",
+      "error_code": null,
+      "timings": {
+        "asr_ms": 585.2607499109581,
+        "llm_ms": 0.0,
+        "audio_ms": 4796,
+        "capture_ms": 9414.242875180207,
+        "playback_ms": 5446.2001249194145,
+        "vad_endpoint_ms": 269.0059308661148,
+        "tts_inference_ms": 10059.09687501844,
+        "response_total_ms": 15747.933209058829,
+        "safety_tts_cache_ms": 10087.868292001076,
+        "tts_cache_frames_ms": 10086.794417002238,
+        "routing_controller_ms": 33.37804100010544,
+        "safety_normalization_ms": 0.959874945692718
+      }
+    },
+    {
+      "attempt": 2,
+      "stage": "discover",
+      "status": "played",
+      "error_code": null,
+      "timings": {
+        "asr_ms": 578.5814999835566,
+        "llm_ms": 0.0,
+        "audio_ms": 4796,
+        "capture_ms": 9784.482083050534,
+        "playback_ms": 5065.238083945587,
+        "vad_endpoint_ms": 316.65091786999255,
+        "tts_inference_ms": 0.0,
+        "response_total_ms": 5116.146291955374,
+        "safety_tts_cache_ms": 25.07224993314594,
+        "tts_cache_frames_ms": 24.65941698756069,
+        "routing_controller_ms": 17.326250090263784,
+        "safety_normalization_ms": 0.3696660278365016
+      }
+    },
+    {
+      "attempt": 3,
+      "stage": "discover",
+      "status": "played",
+      "error_code": null,
+      "timings": {
+        "asr_ms": 554.6702499268577,
+        "llm_ms": 3022.551625035703,
+        "audio_ms": 4796,
+        "capture_ms": 2374.9225840438157,
+        "playback_ms": 5062.223625020124,
+        "vad_endpoint_ms": 69.45774762425572,
+        "tts_inference_ms": 0.0,
+        "response_total_ms": 8140.243834001012,
+        "safety_tts_cache_ms": 28.603707905858755,
+        "tts_cache_frames_ms": 28.090041014365852,
+        "routing_controller_ms": 17.71483290940523,
+        "safety_normalization_ms": 0.4635419463738799
+      }
+    }
+  ],
+  "database_readback": {
+    "database": "roma",
+    "revision": "20261004_0003",
+    "call_status": "completed",
+    "played_events": 3,
+    "logical_turn_rows": 3,
+    "all_played_without_error": true,
+    "transcripts_retained": false,
+    "branch_count": 0,
+    "appointment_slot_count": 0
+  },
+  "claude_metrics": [
+    {
+      "provider": "claude",
+      "model": "claude-haiku-5-5",
+      "purpose": "extraction",
+      "ttft_ms": 2401.487542083487,
+      "generation_secs": 2.5862173750065267,
+      "attempts": 1,
+      "input_tokens": 830,
+      "output_tokens": 29,
+      "cached_input_tokens": 0,
+      "cache_creation_input_tokens": 806,
+      "charged_inr": 0.02,
+      "usage_known": true,
+      "error_code": null
+    }
+  ],
+  "claude_dialogue_generation_exercised": false,
+  "checkpoint_before_fix": {
+    "language": "HINDI_ENGLISH",
+    "expected_language": "ENGLISH",
+    "passed": false
+  },
+  "checkpoint_after_fix": {
+    "restored": true,
+    "language": "ENGLISH",
+    "stage": "discover",
+    "name_slot_filled": true,
+    "current_status_slot_filled": true,
+    "next_discovery_slot": "education",
+    "booking_error": "BOOKING_UNAVAILABLE"
+  },
+  "user_playback_confirmation": "Yes, all three were clear",
+  "user_confirmation_scope": "Playback of three English-input/Hindi-base Hinglish-response turns only",
+  "english_hardware_integration_passed": true,
+  "native_review_passed": false,
+  "full_section20_gate_passed": false
+}

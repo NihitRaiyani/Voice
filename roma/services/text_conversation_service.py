@@ -99,10 +99,22 @@ class TextTurnTrace:
 
 
 def _filter_response(
-    raw: str, state: CallState
+    raw: str, state: CallState, *, require_devanagari: bool = False
 ) -> tuple[str, tuple[dict[str, Any], ...], tuple[SafetyActivation, ...]]:
     """Complete text buffer is diagnostic only; every final sentence passes safety."""
     started = perf_counter()
+    if require_devanagari and any(
+        c.isalpha() and not "\u0900" <= c <= "\u097f" for c in raw
+    ):
+        event = activation(
+            "speech.unsupported_script.v1", "INVALID_OUTPUT", HARD_FAIL_LINE,
+            (perf_counter() - started) * 1000,
+        )
+        return (
+            HARD_FAIL_LINE,
+            ({"allowed": False, "reason": "unsupported-local-speech-script"},),
+            (event,),
+        )
     if (
         not raw.strip()
         or "\ufffd" in raw
@@ -307,7 +319,9 @@ class TextConversationService:
                     collection_output = "".join(text)
                     if chunk.metrics:
                         metrics.append(asdict(chunk.metrics))
-                    if chunk.finish_reason not in {None, "stop", "length"}:
+                    if chunk.finish_reason not in {None, "stop", "length"} or (
+                        self.dialogue_language == "voice_hi" and chunk.finish_reason == "length"
+                    ):
                         raise ProviderUnavailable("Provider returned a fallback/error")
             finally:
                 close = getattr(stream, "aclose", None)
@@ -452,7 +466,10 @@ class TextConversationService:
                 candidate = HARD_FAIL_LINE
         else:
             candidate = fixed
-        final, verdicts, events = _filter_response(candidate, state)
+        final, verdicts, events = _filter_response(
+            candidate, state,
+            require_devanagari=self.dialogue_language == "voice_hi" and fixed is None and not errors,
+        )
         category = guarded_category(set(tokens(user_text)))
         if fixed is not None and category is not None and fixed == SUBSTITUTIONS[category]:
             events = (

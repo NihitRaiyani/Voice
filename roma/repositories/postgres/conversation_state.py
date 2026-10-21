@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from roma.domain.conversation.state import CallState
 from roma.domain.persistence import ConversationStateRecord, RecordNotFound
+from roma.repositories.postgres.repositories import _json
 from roma.repositories.postgres.unit_of_work import PostgresUnitOfWork
 
 SessionFactory = Callable[[], AsyncSession]
@@ -49,7 +50,8 @@ class PostgresConversationStateStore:
             return None
         if record.retention_until <= now:
             return None
-        return CallState.from_dict(dict(record.state))
+        # Durable records freeze nested JSON; the controller needs a detached mutable copy.
+        return CallState.from_dict(_json(record.state))
 
     async def save(self, state: CallState) -> None:
         if not state.call_sid:

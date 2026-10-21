@@ -1,0 +1,124 @@
+{
+  "schema": "section20-claude-failure-observations-v1",
+  "audio_retained": false,
+  "transcripts_exported": false,
+  "observations": [
+    {
+      "call_sid": "voice-lab-6486df537d8c4229bbbb3cd07370a70d",
+      "reason": "Silent captures/operator coordination consumed the unchanged five-minute session limit; no booking acceptance.",
+      "process_completed": false,
+      "error_type": "TimeoutError",
+      "played_turns": 3,
+      "attempts": [
+        {
+          "attempt": 1,
+          "asr_finalized": false,
+          "recognized_characters": 0,
+          "status": "failed",
+          "error_code": "listen-timeout"
+        },
+        {
+          "attempt": 2,
+          "asr_finalized": true,
+          "recognized_characters": 47,
+          "status": "played",
+          "error_code": null
+        },
+        {
+          "attempt": 3,
+          "asr_finalized": true,
+          "recognized_characters": 16,
+          "status": "played",
+          "error_code": null
+        },
+        {
+          "attempt": 4,
+          "asr_finalized": false,
+          "recognized_characters": 0,
+          "status": "failed",
+          "error_code": "listen-timeout"
+        },
+        {
+          "attempt": 5,
+          "asr_finalized": true,
+          "recognized_characters": 20,
+          "status": "played",
+          "error_code": null
+        },
+        {
+          "attempt": 6,
+          "asr_finalized": true,
+          "recognized_characters": 23,
+          "status": null,
+          "error_code": null
+        }
+      ],
+      "claude_metrics": [
+        {
+          "model": "claude-haiku-5-5",
+          "ttft_ms": 2185.867707943544,
+          "generation_secs": 2.2215819580014795,
+          "attempts": 1,
+          "input_tokens": 828,
+          "output_tokens": 27,
+          "cached_input_tokens": 0,
+          "cost_inr": 0.02,
+          "charged_inr": 0.02,
+          "usage_known": true,
+          "call_tokens_used": 855,
+          "call_spent_inr": 0.02,
+          "error_code": null,
+          "cache_creation_input_tokens": 806,
+          "provider": "claude"
+        }
+      ]
+    },
+    {
+      "call_sid": "voice-lab-6545d11a6d3841c0ae460593e1ce4673",
+      "reason": "Real Claude wording passed content safety but local TTS rejected unsupported lexical script; no playback.",
+      "process_completed": false,
+      "error_type": "RuntimeError",
+      "played_turns": 0,
+      "attempts": [
+        {
+          "attempt": 1,
+          "asr_finalized": true,
+          "recognized_characters": 22,
+          "status": null,
+          "error_code": null
+        }
+      ],
+      "claude_metrics": [
+        {
+          "model": "claude-haiku-5-5",
+          "ttft_ms": 2812.435125000775,
+          "generation_secs": 3.4487403749953955,
+          "attempts": 1,
+          "input_tokens": 626,
+          "output_tokens": 123,
+          "cached_input_tokens": 0,
+          "cost_inr": 0.02,
+          "charged_inr": 0.02,
+          "usage_known": true,
+          "call_tokens_used": 749,
+          "call_spent_inr": 0.02,
+          "error_code": null,
+          "cache_creation_input_tokens": 0,
+          "provider": "claude"
+        }
+      ]
+    }
+  ],
+  "synthetic_reproduction": {
+    "cloud_llm": "claude-haiku-5-5",
+    "local_tts_worker_error": "Model vocabulary does not support the requested text",
+    "cause": "Latin-script lexical words in generated Hindi-base Hinglish",
+    "repair": "Devanagari-only voice instruction, one approved fact, audited unsupported-script fallback, token-truncation rejection, configured bounded output ceiling"
+  },
+  "working_db_checkpoint_before_fix": {
+    "language": "HINDI_ENGLISH",
+    "expected_language": "ENGLISH",
+    "passed": false
+  },
+  "full_section20_gate_passed": false
+}

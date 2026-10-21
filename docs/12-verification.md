@@ -153,3 +153,14 @@ Fresh full verification: **2,752 offline tests passed**, 22 existing dependency 
 The current bounded CI target passed **1,147 tests** (four dependency warnings, 26.22 seconds), including the new provider bridge and replay checks.
 
 All pre-commit hooks passed after the final evidence update. Markdown validation checked **69 non-archive files / 452 local links and anchors**, with zero issues. The final default-configuration structured extraction also succeeded in one attempt (1.654 s) with thinking disabled and an actual 806-token cache creation; the separate readiness artifact preserves the cache-read demonstration.
+
+
+## Real English microphone and scoped repairs — 2026-10-20
+
+[Level 6 evidence](levels/level-06.md#real-claude-english-microphone-follow-up--2026-10-20) records a real three-turn `roma` hardware/Claude-extraction check and a repaired four-turn prepared-state demo with actual Claude wording, local Whisper base, installed TTS/cache and headphones. Both received explicit clear-playback confirmation. Demo references existed only in a disposable PostgreSQL instance; it was removed after readback. No microphone demo appointment was committed. Full transcripts/audio were not exported, and no new models, OpenAI requests or working-DB migrations/reference seeds occurred.
+
+The native checkpoint regression failed before the nested mutable-copy fix and passed afterward, including language/history and continued slot/objection/offer/fact mutation with a second save/restore. The actual working call restores English/DISCOVER with expected filled slots. Mock regressions first reproduced unsupported-script and truncated-word failures, then passed with voice-only audited fallback and token-limit rejection. A bounded synthetic Claude/local-TTS check verified complete native-script speech before the repaired physical demo. Historical failed/limited attempts are retained separately rather than counted as gate passes.
+
+Final full offline verification: **2,755 passed**, **22 existing dependency warnings**, **88.06 seconds**. Ruff, **74-file mypy** and all pre-commit hooks pass. Documentation links/anchors check **69 non-archive Markdown files / 460 local links**, zero issues. An earlier full run during concurrent physical-lab work had two disposable-PostgreSQL setup errors (2,750 passed); both affected tests passed separately, and the final sequential full run passed all tests. No application workaround or migration was added for that setup failure.
+
+The owner deferred further live testing due to limits after confirming repaired speech was clear and understandable. Hindi/Gujarati/code-mix hardware paths, formal native scores, representative ASR quality and complete booking acceptance remain pending. No further paid/microphone calls ran after the deferral. Complete acceptance through section 20 is not claimed.
