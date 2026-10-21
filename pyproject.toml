@@ -39,6 +39,9 @@ indic-asr = [
     "torch>=2.5,<3",
     "transformers>=4.46,<6",
 ]
+mlx-asr = [
+    "mlx-whisper>=0.4.3,<0.5 ; platform_machine == 'arm64' and sys_platform == 'darwin'",
+]
 
 [build-system]
 requires = ["hatchling"]

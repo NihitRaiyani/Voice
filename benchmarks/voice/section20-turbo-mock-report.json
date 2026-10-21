@@ -1,0 +1,111 @@
+{
+  "schema": "section20-voice-prototype-v1",
+  "local_router_version": "whisper-turbo-single-pass-v1",
+  "synthetic_only": true,
+  "microphone_used": false,
+  "network_calls": false,
+  "model_downloads": false,
+  "gate_passed": false,
+  "cases": [
+    {
+      "input_language": "gu",
+      "decoder_calls": 1,
+      "attempt": 1,
+      "status": "played",
+      "stage": "objection",
+      "language": "GUJARATI",
+      "timings": {
+        "asr_ms": 0.0362080754712224,
+        "llm_ms": 0.018208986148238182,
+        "routing_controller_ms": 0.6578740430995822,
+        "safety_tts_cache_ms": 1.1395839974284172,
+        "tts_inference_ms": 0.21166703663766384,
+        "audio_ms": 100,
+        "safety_normalization_ms": 0.32520899549126625,
+        "tts_cache_frames_ms": 0.7751249941065907,
+        "playback_ms": 0.000625033862888813,
+        "response_total_ms": 1.848165993578732
+      },
+      "error_code": null,
+      "speaker_outputs": 1,
+      "durable_database": false,
+      "saved_phases": 3,
+      "restored_state": true
+    },
+    {
+      "input_language": "hi",
+      "decoder_calls": 1,
+      "attempt": 1,
+      "status": "played",
+      "stage": "objection",
+      "language": "HINDI",
+      "timings": {
+        "asr_ms": 0.020541949197649956,
+        "llm_ms": 0.0036249402910470963,
+        "routing_controller_ms": 0.23183401208370924,
+        "safety_tts_cache_ms": 0.8108749752864242,
+        "tts_inference_ms": 0.20283297635614872,
+        "audio_ms": 100,
+        "safety_normalization_ms": 0.07441593334078789,
+        "tts_cache_frames_ms": 0.714458990842104,
+        "playback_ms": 0.0004169996827840805,
+        "response_total_ms": 1.0720420395955443
+      },
+      "error_code": null,
+      "speaker_outputs": 1,
+      "durable_database": false,
+      "saved_phases": 3,
+      "restored_state": true
+    },
+    {
+      "input_language": "en",
+      "decoder_calls": 1,
+      "attempt": 1,
+      "status": "played",
+      "stage": "objection",
+      "language": "ENGLISH",
+      "timings": {
+        "asr_ms": 0.01366704236716032,
+        "llm_ms": 0.0027919886633753777,
+        "routing_controller_ms": 0.1670829951763153,
+        "safety_tts_cache_ms": 0.7821249309927225,
+        "tts_inference_ms": 0.19216700457036495,
+        "audio_ms": 100,
+        "safety_normalization_ms": 0.06975000724196434,
+        "tts_cache_frames_ms": 0.693625072017312,
+        "playback_ms": 0.00029208604246377945,
+        "response_total_ms": 0.975416973233223
+      },
+      "error_code": null,
+      "speaker_outputs": 1,
+      "durable_database": false,
+      "saved_phases": 3,
+      "restored_state": true
+    },
+    {
+      "input_language": "code_mix",
+      "decoder_calls": 1,
+      "attempt": 1,
+      "status": "played",
+      "stage": "objection",
+      "language": "HINDI",
+      "timings": {
+        "asr_ms": 0.015708967112004757,
+        "llm_ms": 0.0,
+        "routing_controller_ms": 0.3927499055862427,
+        "safety_tts_cache_ms": 5.981959053315222,
+        "tts_inference_ms": 1.784082967787981,
+        "audio_ms": 900,
+        "safety_normalization_ms": 0.2907079178839922,
+        "tts_cache_frames_ms": 5.6683330330997705,
+        "playback_ms": 0.00045890919864177704,
+        "response_total_ms": 6.400375044904649
+      },
+      "error_code": null,
+      "speaker_outputs": 1,
+      "durable_database": false,
+      "saved_phases": 3,
+      "restored_state": true
+    }
+  ]
+}

@@ -587,7 +587,7 @@ def test_local_indic_cli_runs_all_cases_offline_and_marks_english_unsupported(
     capsys.readouterr()
 
 
-def test_single_pass_local_cli_composes_pinned_models_and_preserves_mixed_hint(
+def test_turbo_local_cli_uses_one_pinned_model_and_preserves_mixed_hint(
     public_cache, tmp_path, monkeypatch, capsys
 ):
     import importlib.util
@@ -600,8 +600,8 @@ def test_single_pass_local_cli_composes_pinned_models_and_preserves_mixed_hint(
     constructed = []
     monkeypatch.setattr(
         module,
-        "local_indic_details",
-        lambda config: {"model_revision": "a" * 40, "network_calls": False},
+        "local_mlx_details",
+        lambda config: {"model_revision": "a" * 40, "network_calls": False, "router_version": "whisper-turbo-single-pass-v1"},
     )
     monkeypatch.setattr(
         module,
@@ -611,17 +611,17 @@ def test_single_pass_local_cli_composes_pinned_models_and_preserves_mixed_hint(
     monkeypatch.setattr(
         module,
         "IndicConformerSTT",
-        lambda **kwargs: constructed.append(("indic", kwargs)) or object(),
+        lambda **kwargs: pytest.fail("Indic model constructed"),
     )
     monkeypatch.setattr(
         module,
-        "WhisperSTT",
+        "WhisperMLXSTT",
         lambda **kwargs: constructed.append(("whisper", kwargs)) or object(),
     )
     monkeypatch.setattr(
         module,
         "LocalLanguageSTT",
-        lambda indic, whisper: provider,
+        lambda decoder: provider,
         raising=False,
     )
     for name in ("HFHostedSTT", "GradioWhisperSTT", "GradioIndicSTT"):
@@ -643,7 +643,7 @@ def test_single_pass_local_cli_composes_pinned_models_and_preserves_mixed_hint(
     manifest_path, report_path = tmp_path / "manifest.json", tmp_path / "single-pass.json"
     manifest_path.write_text(json.dumps(manifest))
     args = [
-        "run", "--provider", "single_pass_local", "--manifest", str(manifest_path),
+        "run", "--provider", "whisper_turbo_local", "--manifest", str(manifest_path),
         "--audio-dir", str(public_cache), "--report", str(report_path),
     ]
     with pytest.raises(ValueError, match="local-model-dir"):
@@ -653,12 +653,12 @@ def test_single_pass_local_cli_composes_pinned_models_and_preserves_mixed_hint(
         asyncio.run(module.run(module.parser().parse_args([*args, "--allow-network"])))
     assert asyncio.run(module.run(module.parser().parse_args(args))) == 0
     report = read_json(report_path)
-    assert report["provider"] == "single_pass_local" and report["network_calls"] is False
+    assert report["provider"] == "whisper_turbo_local" and report["network_calls"] is False
     assert {request.language_hint for request in provider.requests} == {
         "gu", "hi", "en", "gu-en", "hi-en"
     }
-    assert report["provider_details"]["router_version"] == "single-pass-loanwords-v1"
-    assert [kind for kind, _ in constructed] == ["indic", "whisper"]
+    assert report["provider_details"]["router_version"] == "whisper-turbo-single-pass-v1"
+    assert [kind for kind, _ in constructed] == ["whisper"]
     capsys.readouterr()
 
 

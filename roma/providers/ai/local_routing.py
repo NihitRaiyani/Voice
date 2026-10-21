@@ -1,7 +1,7 @@
-"""One local ASR pass: explicit English uses Whisper; Indic/mixed uses Indic.
+"""One local multilingual ASR decode for Gujarati, Hindi, English and code-mix.
 
-Only exact phonetic loanwords are canonicalized before the controller. No audio
-slicing, inferred English span, second decode or provider-error fallback occurs.
+The complete audio goes to the selected Whisper model once. Exact phonetic
+loanwords are canonicalized before the controller; no split or cascade occurs.
 """
 
 import re
@@ -10,7 +10,7 @@ import unicodedata
 from roma.providers.ai.contracts import STTProvider, STTRequest, STTResult
 from roma.providers.ai.stt import normalize_transcript
 
-ROUTER_VERSION = "single-pass-loanwords-v1"
+ROUTER_VERSION = "whisper-turbo-single-pass-v1"
 _LOANWORDS = {
     "gu": {
         "અપોઇન્ટમેન્ટ": "appointment",
@@ -30,6 +30,7 @@ _LOANWORDS = {
     "hi": {
         "अपॉइंटमेंट": "appointment",
         "अपोइंटमेंट": "appointment",
+        "अपाइंटमेंट": "appointment",
         "अपॉइंटमेण्ट": "appointment",
         "बुकिंग": "booking",
         "कन्फर्म": "confirm",
@@ -78,15 +79,20 @@ def normalize_domain_loanwords(text: str, language: str) -> str:
 
 
 class LocalLanguageSTT:
-    def __init__(self, indic: STTProvider, whisper: STTProvider):
-        self.indic, self.whisper = indic, whisper
+    """One multilingual decoder and an exact text-boundary normalizer."""
+
+    def __init__(self, provider: STTProvider):
+        self.provider = provider
 
     async def transcribe(self, request: STTRequest) -> STTResult:
+        if request.language_hint is not None and not isinstance(request.language_hint, str):
+            raise ValueError("Unsupported local ASR language route")
         hint = request.language_hint.replace("_", "-").lower() if request.language_hint else None
-        if hint in {"en", "en-in", "en-us"}:
-            return await self.whisper.transcribe(request)
-        base = {"gu-en": "gu", "hi-en": "hi", "gu-in": "gu", "hi-in": "hi"}.get(hint or "", hint)
-        result = await self.indic.transcribe(
+        aliases = {"gu-en": "gu", "hi-en": "hi", "gu-in": "gu", "hi-in": "hi", "en-in": "en", "en-us": "en"}
+        base = aliases.get(hint or "", hint)
+        if base not in {None, "gu", "hi", "en"}:
+            raise ValueError("Unsupported local ASR language route")
+        result = await self.provider.transcribe(
             STTRequest(request.audio, request.format, base, request.metadata)
         )
         return STTResult(

@@ -55,3 +55,22 @@ def local_base_details(model_dir: Path) -> dict:
         "network_calls": False,
         "setup": "Only approved multilingual Whisper base weights provisioned separately; inference is cache-only",
     }
+
+
+def local_mlx_details(model_dir: Path) -> dict:
+    from roma.providers.ai.whisper_mlx import verify_mlx_artifacts
+
+    spec = verify_mlx_artifacts(model_dir)
+    return {
+        "model_name": spec["repository"], "model_revision": spec["revision"],
+        "model_sha256": spec["files"]["weights.safetensors"]["sha256"],
+        "artifact_manifest_sha256": digest(spec),
+        "artifact_source": "https://huggingface.co/" + spec["repository"] + "/tree/" + spec["revision"],
+        "device": "metal", "compute_type": "int4", "temperature": 0,
+        "sample_len": 440, "without_timestamps": True,
+        "condition_on_previous_text": False, "cache_limit_bytes": 268435456,
+        "router_version": "whisper-turbo-single-pass-v1", "timeout_secs": 60,
+        "runtime_versions": {name: version(name) for name in ("mlx", "mlx-metal", "mlx-whisper")},
+        "machine": platform.machine(), "network_calls": False,
+        "setup": "Approved Turbo 4-bit snapshot; cache-only single-model whole-turn decoding; no reference prompt or cascade",
+    }

@@ -4,7 +4,6 @@ import argparse
 import asyncio
 import importlib.util
 import json
-import os
 import sys
 from contextlib import AsyncExitStack
 from dataclasses import asdict
@@ -33,7 +32,6 @@ from roma.providers.ai.registry import (  # noqa: E402
     build_tts_provider,
 )
 from roma.providers.ai.silero import SileroFrameProbability  # noqa: E402
-from roma.providers.ai.stt import WhisperSTT  # noqa: E402
 from roma.providers.audio.local_device import LocalAudioDevice  # noqa: E402
 from roma.repositories.postgres.booking import PostgresBookingStore  # noqa: E402
 from roma.repositories.postgres.conversation_state import (  # noqa: E402
@@ -89,9 +87,9 @@ async def mock_lab():
             SyntheticPCMProvider(), safety, model_version="synthetic-pcm-v1"
         )
         voice = VoicePrototype(state, text_service, synth, speaker, store)
-        indic, whisper = ScriptedSTT((text,)), ScriptedSTT((text,))
+        decoder = ScriptedSTT((text,))
         speech = SpeechInputService(
-            LocalLanguageSTT(indic, whisper), ScriptedProbability(), state
+            LocalLanguageSTT(decoder), ScriptedProbability(), state
         )
         results = []
         for speaking in [1] * 4 + [0] * 20:
@@ -102,8 +100,7 @@ async def mock_lab():
         cases.append(
             {
                 "input_language": language,
-                "indic_calls": indic.calls,
-                "whisper_calls": whisper.calls,
+                "decoder_calls": decoder.calls,
                 **asdict(outcome),
                 "speaker_outputs": speaker.played,
                 "durable_database": False,
@@ -130,23 +127,16 @@ def local_preflight(args):
     if args.llm_provider == "claude" and not args.allow_paid_api:
         raise ValueError("Claude mode requires the explicit paid API opt-in")
     cfg = SpeechSettings()
-    if cfg.stt_provider not in {"indic_conformer", "whisper"}:
+    if cfg.stt_provider not in {"whisper_mlx", "whisper"}:
         raise ValueError(
-            "Local-only mode requires STT_PROVIDER=indic_conformer or whisper; hosted ASR is not permitted"
+            "Local-only mode requires STT_PROVIDER=whisper_mlx or whisper; hosted ASR is not permitted"
         )
-    packages = ["faster_whisper", "sounddevice"]
-    if cfg.stt_provider == "indic_conformer":
-        packages.append("transformers")
+    packages = ["mlx_whisper" if cfg.stt_provider == "whisper_mlx" else "faster_whisper", "sounddevice"]
     if any(importlib.util.find_spec(package) is None for package in packages):
-        raise ValueError(
-            "Local ASR runtime/model prerequisite is missing; no download attempted"
-        )
-    if cfg.stt_provider == "indic_conformer" and (
-        os.environ.get("HF_HUB_OFFLINE") != "1"
-        or not cfg.indic_trust_remote_code
-        or not cfg.indic_model_revision
-    ):
-        raise ValueError("Indic ASR requires offline startup and reviewed pinned custom code")
+        raise ValueError("Local ASR runtime/model prerequisite is missing; no download attempted")
+    if cfg.stt_provider == "whisper_mlx":
+        from roma.providers.ai.whisper_mlx import verify_mlx_artifacts
+        verify_mlx_artifacts(Path(cfg.whisper_mlx_model_dir))
     if args.llm_provider == "mock":
         return cfg, None, TTSSettings(tts_provider="indic_tts")
     llm_cfg = ClaudeLLMSettings(llm_provider="claude")
@@ -217,15 +207,7 @@ async def local_run(args):
                 raise ValueError("Schema head prerequisite is missing; no migration attempted")
         await redis.ping()
         stt, tts = build_stt_provider(cfg), build_tts_provider(tts_cfg)
-        if cfg.stt_provider == "indic_conformer":
-            stt = LocalLanguageSTT(
-                stt,
-                WhisperSTT(
-                    model_id=cfg.whisper_model_id,
-                    timeout_secs=cfg.stt_timeout_secs,
-                    max_audio_secs=cfg.stt_max_audio_secs,
-                ),
-            )
+        stt = LocalLanguageSTT(stt)
         # Read/verify provisioned TTS artifacts before opening the microphone.
         await tts.cache_identity(TTSRequest("नमस्ते", language="hi"))
         scorer = SileroFrameProbability()

@@ -437,3 +437,25 @@ def test_local_composite_sql_uses_distinct_router_and_both_pinned_models(provide
     report["provider_details"]["whisper"]["model_revision"] = "unpinned"
     with pytest.raises(ValueError, match="local composite"):
         convert(report)
+
+
+def test_turbo_evidence_is_separate_from_base_and_keeps_single_decode_settings():
+    report = asr_report()
+    report.update(provider="whisper_turbo_local", network_calls=False)
+    report["provider_details"] = {
+        "model_name": "mlx-community/whisper-large-v3-turbo-4bit",
+        "model_revision": "0f058d38170d183f9fdee07908f5b515d91793a8",
+        "model_sha256": "d" * 64, "artifact_manifest_sha256": "e" * 64,
+        "artifact_source": "https://huggingface.co/mlx-community/whisper-large-v3-turbo-4bit/tree/0f058d38170d183f9fdee07908f5b515d91793a8",
+        "device": "metal", "compute_type": "int4", "temperature": 0, "sample_len": 440,
+        "without_timestamps": True, "condition_on_previous_text": False,
+        "cache_limit_bytes": 268435456, "router_version": "whisper-turbo-single-pass-v1",
+        "timeout_secs": 60, "runtime_versions": {"mlx-whisper": "0.4.3"},
+        "machine": "arm64", "network_calls": False, "setup": "test",
+    }
+    run, models, _ = _prepare(convert(report))
+    assert len(models) == 1 and models[0]["provider"] == "mlx-whisper"
+    assert "public reference" not in json.dumps(run, default=str)
+    report["provider_details"]["sample_len"] = 224
+    with pytest.raises(ValueError, match="provenance"):
+        convert(report)

@@ -18,6 +18,7 @@ class SpeechSettings(BaseSettings):
         "mock",
         "indic_conformer",
         "whisper",
+        "whisper_mlx",
         "hf_indic_conformer",
         "hf_public_lab",
         "hf_whisper",
@@ -32,6 +33,7 @@ class SpeechSettings(BaseSettings):
     indic_trust_remote_code: bool = False
     indic_decoder: Literal["ctc", "rnnt"] = "ctc"
     whisper_model_id: str = Field(default="small", min_length=1, max_length=256)
+    whisper_mlx_model_dir: str = Field(default="var/roma/models/whisper-large-v3-turbo-mlx-4bit", min_length=1, max_length=1024)
     hf_public_timeout_secs: float = Field(default=90, gt=0, le=120, allow_inf_nan=False)
     hf_asr_endpoint_url: str = Field(default="", max_length=2048)
     hf_indic_space_url: str = Field(

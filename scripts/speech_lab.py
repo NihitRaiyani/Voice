@@ -16,6 +16,7 @@ from roma.domain.audio.endpointing import EndpointConfig, EndpointDetector  # no
 from roma.domain.conversation.language import Language, route_language  # noqa: E402
 from roma.domain.conversation.state import CallState  # noqa: E402
 from roma.eval.speech import report  # noqa: E402
+from roma.providers.ai.local_routing import LocalLanguageSTT  # noqa: E402
 from roma.providers.ai.registry import build_stt_provider  # noqa: E402
 from roma.providers.ai.silero import SileroFrameProbability  # noqa: E402
 from roma.services.speech_input import SpeechInputService  # noqa: E402
@@ -44,8 +45,11 @@ async def run(args) -> dict:
         state.language_router.current = Language.GUJARATI
     elif cfg.stt_language == "en":
         state.language_router.current = Language.ENGLISH
+    provider = build_stt_provider(cfg)
+    if args.provider == "whisper_mlx":
+        provider = LocalLanguageSTT(provider)
     service = SpeechInputService(
-        build_stt_provider(cfg),
+        provider,
         SileroFrameProbability(),
         state,
         stt_metadata={"data_classification": "public_benchmark"}
@@ -96,6 +100,7 @@ def main() -> int:
             "mock",
             "indic_conformer",
             "whisper",
+            "whisper_mlx",
             "hf_indic_conformer",
             "hf_public_lab",
             "hf_whisper",

@@ -28,15 +28,16 @@ from roma.eval.asr_benchmark import (  # noqa: E402
 )
 from roma.eval.asr_comparison import compare_local_reports  # noqa: E402
 from roma.eval.local_indic import local_indic_details  # noqa: E402
-from roma.eval.local_whisper import local_base_details  # noqa: E402
+from roma.eval.local_whisper import local_base_details, local_mlx_details  # noqa: E402
 from roma.providers.ai.contracts import STTProvider  # noqa: E402
 from roma.providers.ai.hf_asr import (  # noqa: E402
     GradioIndicSTT,
     GradioWhisperSTT,
     HFHostedSTT,
 )
-from roma.providers.ai.local_routing import ROUTER_VERSION, LocalLanguageSTT  # noqa: E402
+from roma.providers.ai.local_routing import LocalLanguageSTT  # noqa: E402
 from roma.providers.ai.stt import IndicConformerSTT, WhisperSTT  # noqa: E402
+from roma.providers.ai.whisper_mlx import WhisperMLXSTT  # noqa: E402
 
 
 async def fetch_public_samples(audio_dir: Path, count: int) -> None:
@@ -129,7 +130,7 @@ def parser() -> argparse.ArgumentParser:
                 "hf_whisper_space",
                 "whisper_local",
                 "indic_local",
-                "single_pass_local",
+                "whisper_turbo_local",
             ),
             default="hf_public_lab",
         )
@@ -202,12 +203,12 @@ async def run(args) -> int:
             )
         )
         return 0
-    local = args.provider in {"whisper_local", "indic_local", "single_pass_local"}
+    local = args.provider in {"whisper_local", "indic_local", "whisper_turbo_local"}
     if not local and not args.allow_network:
         raise ValueError("Hosted benchmark requests require --allow-network")
     if local and args.allow_network:
         raise ValueError("Local benchmark forbids --allow-network")
-    if args.provider in {"whisper_local", "single_pass_local"} and not args.local_model_dir:
+    if args.provider in {"whisper_local", "whisper_turbo_local"} and not args.local_model_dir:
         raise ValueError(
             "Local benchmark requires --local-model-dir and forbids --allow-network"
         )
@@ -246,25 +247,9 @@ async def run(args) -> int:
             max_audio_secs=config.stt_max_audio_secs,
             timeout_secs=60,
         )
-    elif args.provider == "single_pass_local":
-        details = {
-            "router_version": ROUTER_VERSION,
-            "timeout_secs": 60,
-            "network_calls": False,
-            "indic": local_indic_details(config),
-            "whisper": local_base_details(args.local_model_dir),
-        }
-        provider = LocalLanguageSTT(
-            IndicConformerSTT(
-                model_id=config.indic_model_id,
-                revision=config.indic_model_revision,
-                trust_remote_code=config.indic_trust_remote_code,
-                decoder=config.indic_decoder,
-                max_audio_secs=config.stt_max_audio_secs,
-                timeout_secs=60,
-            ),
-            WhisperSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60),
-        )
+    elif args.provider == "whisper_turbo_local":
+        details = local_mlx_details(args.local_model_dir)
+        provider = LocalLanguageSTT(WhisperMLXSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60))
     elif args.provider == "hf_indic":
         provider = GradioIndicSTT(
             endpoint_url=config.hf_indic_space_url, decoder=config.indic_decoder, **options

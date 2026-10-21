@@ -22,6 +22,7 @@ from roma.providers.ai.mocks import (
     MockTTSProvider,
 )
 from roma.providers.ai.stt import HuggingFaceSTT, IndicConformerSTT, WhisperSTT
+from roma.providers.ai.whisper_mlx import WhisperMLXSTT
 
 
 def build_stt_provider(settings) -> STTProvider:
@@ -44,6 +45,8 @@ def build_stt_provider(settings) -> STTProvider:
                 timeout_secs=settings.stt_timeout_secs,
                 max_audio_secs=settings.stt_max_audio_secs,
             )
+        case "whisper_mlx":
+            return WhisperMLXSTT(model_id=settings.whisper_mlx_model_dir, timeout_secs=settings.stt_timeout_secs, max_audio_secs=settings.stt_max_audio_secs)
         case "hf_public_lab":
             return HFHostedSTT(
                 endpoint_url=settings.hf_indic_space_url,

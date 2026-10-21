@@ -93,6 +93,7 @@ def _asr(
         "hf_whisper_space",
         "hf_public_lab",
         "whisper_local",
+        "whisper_turbo_local",
         "indic_local",
         "adaptive_local",
         "single_pass_local",
@@ -160,6 +161,25 @@ def _asr(
             artifact_uri=_endpoint(details["artifact_source"]),
             checksum_sha256=_checksum(details["model_sha256"]),
             license_name="MIT",
+        )
+        _checksum(details["artifact_manifest_sha256"])
+    elif provider == "whisper_turbo_local":
+        if (
+            report.get("network_calls") is not False
+            or details.get("network_calls") is not False
+            or details.get("model_name") != "mlx-community/whisper-large-v3-turbo-4bit"
+            or details.get("model_revision") != "0f058d38170d183f9fdee07908f5b515d91793a8"
+            or details.get("device") != "metal" or details.get("compute_type") != "int4"
+            or details.get("router_version") != "whisper-turbo-single-pass-v1"
+            or details.get("temperature") != 0 or details.get("sample_len") != 440
+            or details.get("condition_on_previous_text") is not False
+            or details.get("without_timestamps") is not True
+        ):
+            raise ValueError("Invalid local Turbo benchmark provenance")
+        local_model = ModelEvidence(
+            "mlx-whisper", details["model_name"], details["model_revision"],
+            artifact_uri=_endpoint(details["artifact_source"]),
+            checksum_sha256=_checksum(details["model_sha256"]), license_name="MIT",
         )
         _checksum(details["artifact_manifest_sha256"])
     elif provider == "indic_local":
@@ -374,6 +394,13 @@ def _asr(
                     "setup",
                 )
                 if provider == "whisper_local"
+                else (
+                    "model_name", "model_revision", "model_sha256", "artifact_manifest_sha256",
+                    "artifact_source", "device", "compute_type", "temperature", "sample_len",
+                    "without_timestamps", "condition_on_previous_text", "cache_limit_bytes",
+                    "router_version", "timeout_secs", "runtime_versions", "machine", "network_calls", "setup",
+                )
+                if provider == "whisper_turbo_local"
                 else (
                     "model_name", "model_revision", "model_sha256", "checksum_scope",
                     "artifact_manifest_sha256", "artifact_source", "device", "compute_type",

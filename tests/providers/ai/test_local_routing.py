@@ -44,6 +44,7 @@ def request(audio: bytes = b"\0\0", language: str = "hi-en") -> STTRequest:
     [
         ("અપોઇન્ટમેન્ટ કન્ફર્મ કરો", "gu", "appointment confirm કરો"),
         ("अपॉइंटमेंट कैंसल करो", "hi", "appointment cancel करो"),
+        ("अपाइंटमेंट कन्फर्म कर दो", "hi", "appointment confirm कर दो"),
         ("બુકિંગ ટુમોરો રાખો", "gu", "booking tomorrow રાખો"),
         ("मेरा नाम कन्फर्मेशन नहीं है", "hi", "मेरा नाम confirmation नहीं है"),
         ("अपॉइंटमेंट। फिर कल", "hi", "appointment। फिर कल"),
@@ -57,14 +58,12 @@ def test_domain_loanwords_are_exact_tokens(text, language, expected):
 
 def test_monolingual_routes_remain_direct():
     async def run():
-        indic = StubSTT(STTResult("હા", "gu"), STTResult("हाँ", "hi"))
-        whisper = StubSTT(STTResult("yes", "en"))
-        provider = LocalLanguageSTT(indic, whisper)
+        decoder = StubSTT(STTResult("હા", "gu"), STTResult("हाँ", "hi"), STTResult("yes", "en"))
+        provider = LocalLanguageSTT(decoder)
         assert (await provider.transcribe(request(language="gu"))).text == "હા"
         assert (await provider.transcribe(request(language="hi"))).text == "हाँ"
         assert (await provider.transcribe(request(language="en"))).text == "yes"
-        assert [row.language_hint for row in indic.requests] == ["gu", "hi"]
-        assert [row.language_hint for row in whisper.requests] == ["en"]
+        assert [row.language_hint for row in decoder.requests] == ["gu", "hi", "en"]
 
     asyncio.run(run())
 
@@ -76,36 +75,35 @@ def test_monolingual_routes_remain_direct():
 ])
 def test_indic_and_mixed_turns_use_one_full_audio_pass(language, base, text, expected):
     async def run():
-        indic, whisper = StubSTT(STTResult(text, base, 0.7)), StubSTT()
+        decoder = StubSTT(STTResult(text, base, 0.7))
         audio = mixed_audio()
         original = request(audio, language)
-        result = await LocalLanguageSTT(indic, whisper).transcribe(original)
+        result = await LocalLanguageSTT(decoder).transcribe(original)
         assert result == STTResult(expected, language, 0.7)
-        assert len(indic.requests) == 1 and not whisper.requests
-        assert indic.requests[0].audio is audio
-        assert indic.requests[0].language_hint == base
-        assert indic.requests[0].format == original.format
-        assert indic.requests[0].metadata == original.metadata
+        assert len(decoder.requests) == 1
+        assert decoder.requests[0].audio is audio
+        assert decoder.requests[0].language_hint == base
+        assert decoder.requests[0].format == original.format
+        assert decoder.requests[0].metadata == original.metadata
     asyncio.run(run())
 
 
 @pytest.mark.parametrize("text", ["", "व", "हाँ"])
 def test_no_whisper_cascade_for_empty_short_or_acknowledgement(text):
     async def run():
-        indic, whisper = StubSTT(STTResult(text, "hi")), StubSTT()
-        result = await LocalLanguageSTT(indic, whisper).transcribe(request(mixed_audio()))
-        assert result.text == text and not whisper.requests
-        assert len(indic.requests) == 1
+        decoder = StubSTT(STTResult(text, "hi"))
+        result = await LocalLanguageSTT(decoder).transcribe(request(mixed_audio()))
+        assert result.text == text
+        assert len(decoder.requests) == 1
     asyncio.run(run())
 
 
 def test_provider_failure_never_triggers_the_other_model():
     async def run():
-        indic = StubSTT(ProviderUnavailable("unavailable"))
-        whisper = StubSTT()
+        decoder = StubSTT(ProviderUnavailable("unavailable"))
         with pytest.raises(ProviderUnavailable):
-            await LocalLanguageSTT(indic, whisper).transcribe(request(mixed_audio()))
-        assert not whisper.requests
+            await LocalLanguageSTT(decoder).transcribe(request(mixed_audio()))
+        assert len(decoder.requests) == 1
     asyncio.run(run())
 
 
@@ -116,3 +114,25 @@ def test_provider_failure_never_triggers_the_other_model():
 def test_native_dates_entities_compounds_and_existing_english_are_preserved(text):
     for language in ("gu", "hi"):
         assert normalize_domain_loanwords(text, language) == text
+
+
+def test_one_multilingual_decoder_handles_all_five_routes_without_second_provider():
+    async def run():
+        decoder = StubSTT(*(STTResult("appointment confirm", "en") for _ in range(5)))
+        provider = LocalLanguageSTT(decoder)
+        for hint, base in [("gu", "gu"), ("hi", "hi"), ("en", "en"), ("gu-en", "gu"), ("hi-en", "hi")]:
+            audio = mixed_audio()
+            result = await provider.transcribe(request(audio, hint))
+            assert result.text == "appointment confirm"
+            assert decoder.requests[-1].audio is audio
+            assert decoder.requests[-1].language_hint == base
+        assert len(decoder.requests) == 5
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("hint", ["fr", "hi-US", "hi-injected", 42])
+def test_invalid_route_never_reaches_decoder(hint):
+    decoder = StubSTT()
+    with pytest.raises(ValueError, match="Unsupported"):
+        asyncio.run(LocalLanguageSTT(decoder).transcribe(request(language=hint)))
+    assert not decoder.requests

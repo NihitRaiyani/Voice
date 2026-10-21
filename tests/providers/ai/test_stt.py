@@ -19,6 +19,7 @@ from roma.providers.ai.stt import (
     WhisperSTT,
     normalize_transcript,
 )
+from roma.providers.ai.whisper_mlx import WhisperMLXSTT
 
 
 def request(*, audio=b"\x00\x00" * 160, language=None, format=None):
@@ -131,7 +132,8 @@ def test_missing_indic_trust_pin_and_offline_configuration_is_actionable(monkeyp
 
 
 @pytest.mark.parametrize("cancel", [False, True])
-def test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes(cancel):
+@pytest.mark.parametrize("provider_type", [WhisperSTT, WhisperMLXSTT])
+def test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes(cancel, provider_type):
     started, release, finished = threading.Event(), threading.Event(), threading.Event()
     calls = []
 
@@ -145,7 +147,7 @@ def test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes(cancel):
 
         return infer
 
-    provider = WhisperSTT(loader=load, timeout_secs=0.04)
+    provider = provider_type(loader=load, timeout_secs=0.04)
 
     async def scenario():
         task = asyncio.create_task(provider.transcribe(request()))

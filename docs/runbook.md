@@ -360,13 +360,14 @@ Do not overwrite the saved run/report and reuse its immutable SQL run key for a 
 # Default integration exercise: no hardware, keys, network or DB writes.
 make voice-prototype
 
-# Install optional audio I/O and faster-whisper runtime; host PortAudio is required.
-uv sync --locked --extra dev --extra telephony --extra workers --extra voice-lab
+# Apple Silicon optional runtime; host PortAudio is required.
+uv sync --inexact --locked --extra dev --extra telephony --extra workers --extra voice-lab --extra mlx-asr
 
-# Explicit integration test using the approved base cache; full native/quality gates remain pending.
+# Later only: real integration testing remains deferred by the owner.
+# Turbo is a development baseline; quality/native gates are not passed.
 # Do not resolve a venv interpreter symlink to its base Python executable.
-HF_HUB_OFFLINE=1 STT_PROVIDER=whisper \
-WHISPER_MODEL_ID="$(pwd)/var/roma/models/whisper-base" \
+HF_HUB_OFFLINE=1 STT_PROVIDER=whisper_mlx \
+WHISPER_MLX_MODEL_DIR="$(pwd)/var/roma/models/whisper-large-v3-turbo-mlx-4bit" \
 STT_TIMEOUT_SECS=60 STT_LANGUAGE=en \
 INDIC_TTS_PYTHON="$(pwd)/var/roma/tts-runtime/bin/python" \
 INDIC_TTS_MANIFEST="$(pwd)/var/roma/indic-tts/manifest.json" \
@@ -377,7 +378,7 @@ uv run --no-sync python scripts/voice_prototype.py --mode local --llm-provider m
 
 The command above uses mock wording with real local microphone/ASR/TTS and no paid client. For the authorized Claude path set private `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL=claude-haiku-5-5`, change to `--llm-provider claude` and add `--allow-paid-api`. This does not pass native/representative prerequisites or change production speech. Synthetic mode remains mocked; OpenAI calls/fallback are forbidden.
 
-Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms cached ASR, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. Pinned Whisper base and pinned IndicConformer are provisioned; all local providers remain offline/cache-only. Claude timeout/fallback/spend caps apply; actual model quality and native approval are separate gates.
+Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms cached ASR, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. Pinned Turbo MLX 4-bit is provisioned; the base comparison cache remains, and IndicConformer weights have been removed. All local providers remain offline/cache-only. To explicitly compare base, use `STT_PROVIDER=whisper` and `WHISPER_MODEL_ID` pointing to the base directory. Claude timeout/fallback/spend caps apply; actual model quality and native approval are separate gates.
 
 Set `STT_LANGUAGE=gu`, `hi` or `en` for the caller’s starting test language; this initializes the saved ASR route before any transcript exists. Subsequent changes still use the existing smoothed language router. Optional `--input-device N --output-device N` select PortAudio indices; `--max-turns N` defaults to 30, capped at 60 and five minutes. The microphone closes before speaking; barge-in is later work. Every attempt/ready/result uses short PostgreSQL writes in an isolated `voice-lab-…` call. Redis holds and existing DB reference slots back actual booking; startup creates no slots, seed data or migration. Schema head must already be `20261004_0003`.
 
@@ -394,6 +395,8 @@ The [2026-10-20 physical English follow-up](levels/level-06.md#real-claude-engli
 For local speech, the voice-specific prompt spells every loanword/acronym in Devanagari; unsupported generated script and token-truncated replies use the approved fallback before TTS. The provider's configured output limit and existing stage/spend/time limits still apply. The documented CLI remains unchanged apart from using that configured output ceiling. The temporary test harness used an audible capture cue; normal CLI interaction should wait until startup is ready and until playback ends. A silent attempt or session-ceiling stop is a failed attempt, not a model pass. The owner deferred further live/paid testing due to limits; native/multilingual and complete booking gates remain pending.
 
 ## Local IndicConformer comparison
+
+Historical reproduction only: the owner later removed this Indic cache. Do not run/reinstall it as part of current setup. The [Turbo selection](#local-single-pass-code-mix-benchmark) supersedes this comparison profile; old evidence remains readable.
 
 Use the already provisioned optional runtime and pinned Hub cache. These commands use existing public audio only, with no network, new weights, paid provider or microphone. A full Indic report exits **1** after recording all 15 cases because English is unsupported; inspect the report rather than treating the exit as a cache/runtime failure. Selecting `--languages gu hi gu-en hi-en` instead runs only 12 cases and is a different report scope.
 
@@ -429,31 +432,46 @@ Choose new report/run identities for a fresh measurement. Local Indic preflight 
 
 ## Local single-pass code-mix benchmark
 
-Use only the existing pinned caches. Explicit English goes to Whisper base; Gujarati/Hindi/mixed turns go once to IndicConformer and receive exact phonetic loanword normalization. There is no phrase split or second-model fallback. Historical `adaptive_local` reports remain readable/importable, but that executable CLI option has been removed.
+Current owner-selected local development ASR is **Whisper large-v3-turbo, MLX 4-bit on Apple Silicon**. IndicConformer model weights are removed. All gu/hi/en/gu-en/hi-en turns use one full selected-model call and exact emitted-loanword normalization; no slicing or second-model cascade. The 15-case run fails multilingual/full-English-suffix quality, so this setup is for development and offline evidence only. Historical `single_pass_local` and `adaptive_local` CLI choices are retired; their reports remain readable/importable.
 
 ```bash
-HF_HUB_OFFLINE=1 \
-INDIC_MODEL_REVISION=2a77d305038dfc502fd9464e7d028b90381976cb \
-INDIC_TRUST_REMOTE_CODE=true \
-INDIC_DECODER=ctc \
-uv run --no-sync python scripts/asr_benchmark.py run \
-  --provider single_pass_local \
-  --local-model-dir var/roma/models/whisper-base \
+# Installed optional runtime on this Apple Silicon Mac; --inexact preserves other extras.
+uv sync --inexact --locked --extra dev --extra telephony --extra workers --extra voice-lab --extra mlx-asr
+
+# Offline, unchanged 15 public cases. Pick a fresh output file for a new run.
+HF_HUB_OFFLINE=1 uv run --no-sync python scripts/asr_benchmark.py run \
+  --provider whisper_turbo_local \
+  --local-model-dir var/roma/models/whisper-large-v3-turbo-mlx-4bit \
   --manifest benchmarks/asr/section18/manifest.json \
   --audio-dir var/roma/asr-public \
-  --report var/roma/asr-benchmark/single-pass-new.json
+  --report var/roma/asr-benchmark/turbo-new.json
 
 uv run --no-sync python scripts/asr_benchmark.py failures \
-  --report var/roma/asr-benchmark/single-pass-new.json \
+  --report var/roma/asr-benchmark/turbo-new.json \
   --manifest benchmarks/asr/section18/manifest.json \
   --audio-dir var/roma/asr-public \
-  --export-dir var/roma/asr-benchmark/failures-single-pass-new
+  --export-dir var/roma/asr-benchmark/failures-turbo-new
 
 uv run --no-sync python scripts/save_benchmark.py \
-  --report var/roma/asr-benchmark/single-pass-new.json \
-  --run-key section18-single-pass-local-new --allow-database-write
+  --report var/roma/asr-benchmark/turbo-new.json \
+  --run-key section18-whisper-turbo-local-new --allow-database-write
 ```
 
-Choose fresh report/run keys; never overwrite committed evidence. The command forbids `--allow-network`. WER/CER references remain unchanged; no transliteration of references or dictionary-injected missing words improves the scores. Review monolingual, loanword and full-sentence-switch evidence separately: the public corpus does not prove booking keyword recall. Native dates such as `કાલે`/`कल` stay with context-aware date extraction. No fresh paid Claude or microphone request is authorized by these commands.
+The local decoder requires `HF_HUB_OFFLINE=1` and verifies the exact [artifact manifest](../benchmarks/asr/whisper-turbo-mlx-artifacts.json) before loading. Its installed three-file directory is 464,280,053 bytes. `mlx-whisper` 0.4.3 expects `weights.safetensors`; the upstream `model.safetensors` was renamed without changing bytes. A new machine must provision that exact revision/layout before use; inference never downloads weights. Linux/Intel hosts retain mocks or explicit base comparison until a separately measured supported runtime is chosen; do not install MLX there.
 
-The normal section 20 offline check is `make voice-prototype`; its scripted ASR now runs through the same local routing/normalizer. Real local mode still needs the documented explicit opt-ins, cached models, local TTS and PostgreSQL/Redis. Keep live tests deferred until the owner resumes them. [Level 6](levels/level-06.md) distinguishes code/offline completion from the unfinished physical/native gate.
+For an explicitly approved fresh-machine provisioning only (not needed on this already-provisioned Mac):
+
+```bash
+hf download mlx-community/whisper-large-v3-turbo-4bit \
+  config.json model.safetensors multilingual.tiktoken \
+  --revision 0f058d38170d183f9fdee07908f5b515d91793a8 \
+  --local-dir var/roma/models/whisper-large-v3-turbo-mlx-4bit
+mv var/roma/models/whisper-large-v3-turbo-mlx-4bit/model.safetensors \
+  var/roma/models/whisper-large-v3-turbo-mlx-4bit/weights.safetensors
+```
+
+Do not rerun that download into the renamed installed directory; the extra source filename would intentionally fail exact-file-set verification. Restore into a fresh directory and validate it. Download authentication uses the HF CLI's private token environment/login; never put token values in commands, committed config or public-Space requests.
+
+Choose fresh report/run keys; never overwrite committed evidence. Local benchmarking forbids `--allow-network`. References and scoring remain unchanged; no injected missing words or transliterated reference creates a pass. Review monolingual, emitted-loanword and full-sentence switching separately. Native dates such as `કાલે`/`कल` remain for context-aware date extraction. The [current evidence](levels/level-04.md#whisper-turbo-replacement--2026-10-21) reports actual accuracy, memory limits and rejected decode settings.
+
+The default section 20 check stays `make voice-prototype`, with scripted ASR through this same one-provider wrapper and no network/hardware/DB writes. A later authorized microphone run must explicitly select `STT_PROVIDER=whisper_mlx`; optional `WHISPER_MLX_MODEL_DIR` changes only the verified local path. `.env` and production defaults remain unchanged. Paid Claude, microphone/native review and the full Level 6 gate remain deferred.

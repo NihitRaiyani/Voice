@@ -79,3 +79,7 @@ Sections 18–19 add isolated evaluation/synthesis paths: evaluation code measur
 
 
 Section 20's local lab is an isolated application composition: `VoicePrototype` joins existing speech input, text/booking, safety and TTS services; `LocalAudioDevice` owns optional PortAudio transport, and `PostgresVoiceLabStore` owns short turn/event transactions. The CLI refuses hosted ASR in local mode; mocks are default. Production telephony is unchanged. [Level 6](levels/level-06.md) separates implemented integration from the pending actual microphone/native gate.
+
+## Owner-selected local Turbo boundary
+
+The isolated local prototype/WAV benchmark now use one optional `WhisperMLXSTT` behind `STTProvider` and `LocalLanguageSTT`; the adapter imports MLX lazily after verifying a pinned local snapshot. All language states share that model and exact text-boundary normalization, with no cascade. Indic weights are removed; existing TTS and production telephony remain intact. This is a development selection, not a production rollout: [Level 4](levels/level-04.md#whisper-turbo-replacement--2026-10-21) records failed mixed/native recognition gates.
