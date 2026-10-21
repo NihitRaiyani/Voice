@@ -1,0 +1,540 @@
+{
+  "schema": "roma-code-mix-root-cause-v1",
+  "recorded_at": "2026-10-21",
+  "network_inference": false,
+  "public_metadata_read": true,
+  "new_model_weights_downloaded": false,
+  "paid_llm_calls": false,
+  "microphone_used": false,
+  "production_change": false,
+  "indic_diagnosis": {
+    "schema": "roma-english-deletion-diagnosis-v1",
+    "indic_revision": "2a77d305038dfc502fd9464e7d028b90381976cb",
+    "network_calls": false,
+    "new_weights_downloaded": false,
+    "vocabularies": {
+      "as": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "bn": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "brx": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "doi": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "kok": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "gu": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "hi": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "kn": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "ks": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "mai": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "ml": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "mr": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "mni": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "ne": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "or": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "pa": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "sa": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "sat": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "sd": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "ta": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "te": {
+        "tokens": 257,
+        "latin_letters": []
+      },
+      "ur": {
+        "tokens": 257,
+        "latin_letters": []
+      }
+    },
+    "cases": [
+      {
+        "case_id": "gu-0000+en-0000:clean",
+        "audio_sha256": "03cb388b6dc96d6997c7a471ff8f493a1804db8eb369b7a32a8c73ed9b3a093e",
+        "full_audio_seconds": 18.67,
+        "encoder_frames": 234,
+        "diagnostic_only_known_english_tail_start_frame": 153,
+        "tail_frames": 81,
+        "selected_head_blank_fraction": 1.0,
+        "selected_head_mean_blank_posterior": 0.999537,
+        "unmasked_global_blank_fraction": 1.0,
+        "global_vocabulary_columns": 5633,
+        "hypothesis": "તિબેટનો બૌદ્ધવાદ બૌદ્ધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે"
+      },
+      {
+        "case_id": "hi-0000+en-0000:clean",
+        "audio_sha256": "7562e820957b53a093f7b5c399f137f10aff2f8e3c8c3e758c4fcdbe9dbed6f3",
+        "full_audio_seconds": 19.03,
+        "encoder_frames": 238,
+        "diagnostic_only_known_english_tail_start_frame": 158,
+        "tail_frames": 80,
+        "selected_head_blank_fraction": 1.0,
+        "selected_head_mean_blank_posterior": 0.999447,
+        "unmasked_global_blank_fraction": 1.0,
+        "global_vocabulary_columns": 5633,
+        "hypothesis": "मेजर किनखाना भूमध्यसगर में सामान्य क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सुअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है"
+      }
+    ],
+    "limits": "Known source join and 80 ms frame stride used only for diagnosis; not an implemented audio language detector, calibrated confidence, or proposed production fallback."
+  },
+  "whisper_base_trials": {
+    "model": "pinned-whisper-base",
+    "offline": true,
+    "cases": [
+      {
+        "case_id": "gu-0000:clean",
+        "config": "prompt-beam1",
+        "language_hint": "gu",
+        "detected": "gu",
+        "prompt": "આ ગુજરાતી અને English માં વાતચીત છે. appointment, booking, confirm, visit, time.",
+        "audio_sha256": "e141de4cecf798bf8a8564a5317c2c6fb6435fb910e8945f941b8adbe7c1e804",
+        "hypothesis": " તેગેતેતીતીતીતીતીતીતીતીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીી",
+        "metrics": {
+          "reference_words": 24,
+          "word_edits": 24,
+          "substitutions": 1,
+          "deletions": 23,
+          "insertions": 0,
+          "wer": 1.0,
+          "reference_chars": 128,
+          "char_edits": 117,
+          "char_substitutions": 63,
+          "char_deletions": 54,
+          "char_insertions": 0,
+          "cer": 0.9140625
+        },
+        "wall_ms": 1681.886,
+        "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+        "beam_size": 1
+      },
+      {
+        "case_id": "gu-0000:clean",
+        "config": "prompt-beam5",
+        "language_hint": "gu",
+        "detected": "gu",
+        "prompt": "આ ગુજરાતી અને English માં વાતચીત છે. appointment, booking, confirm, visit, time.",
+        "audio_sha256": "e141de4cecf798bf8a8564a5317c2c6fb6435fb910e8945f941b8adbe7c1e804",
+        "hypothesis": " તેગેતીતીતીતીતીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીી",
+        "metrics": {
+          "reference_words": 24,
+          "word_edits": 24,
+          "substitutions": 1,
+          "deletions": 23,
+          "insertions": 0,
+          "wer": 1.0,
+          "reference_chars": 128,
+          "char_edits": 118,
+          "char_substitutions": 64,
+          "char_deletions": 54,
+          "char_insertions": 0,
+          "cer": 0.921875
+        },
+        "wall_ms": 2813.135,
+        "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+        "beam_size": 5
+      },
+      {
+        "case_id": "gu-0000:clean",
+        "config": "auto-prompt-beam1",
+        "language_hint": null,
+        "detected": "gu",
+        "prompt": "આ ગુજરાતી અને English માં વાતચીત છે. appointment, booking, confirm, visit, time.",
+        "audio_sha256": "e141de4cecf798bf8a8564a5317c2c6fb6435fb910e8945f941b8adbe7c1e804",
+        "hypothesis": " તેગેતેતીતીતીતીતીતીતીતીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીી",
+        "metrics": {
+          "reference_words": 24,
+          "word_edits": 24,
+          "substitutions": 1,
+          "deletions": 23,
+          "insertions": 0,
+          "wer": 1.0,
+          "reference_chars": 128,
+          "char_edits": 117,
+          "char_substitutions": 63,
+          "char_deletions": 54,
+          "char_insertions": 0,
+          "cer": 0.9140625
+        },
+        "wall_ms": 2118.085,
+        "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+        "beam_size": 1
+      },
+      {
+        "case_id": "hi-0000:clean",
+        "config": "prompt-beam1",
+        "language_hint": "hi",
+        "detected": "hi",
+        "prompt": "यह हिन्दी और English में बातचीत है। appointment, booking, confirm, visit, time.",
+        "audio_sha256": "936697d7996037eb63be93b38f515682f78d3604adddb7c6e162d12163a90cca",
+        "hypothesis": " मेंजर किन कھाना दूमदि साँदर में समान जेत्रों कित्रा ती सजी हों आर मास,  विशे अचर। सूर का मास पर नडारेत है।  जेत्न कि तेल कोट्योट करता है।",
+        "metrics": {
+          "reference_words": 30,
+          "word_edits": 23,
+          "substitutions": 19,
+          "deletions": 3,
+          "insertions": 1,
+          "wer": 0.7666666666666667,
+          "reference_chars": 115,
+          "char_edits": 44,
+          "char_substitutions": 27,
+          "char_deletions": 14,
+          "char_insertions": 3,
+          "cer": 0.3826086956521739
+        },
+        "wall_ms": 1164.981,
+        "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+        "beam_size": 1
+      },
+      {
+        "case_id": "hi-0000:clean",
+        "config": "prompt-beam5",
+        "language_hint": "hi",
+        "detected": "hi",
+        "prompt": "यह हिन्दी और English में बातचीत है। appointment, booking, confirm, visit, time.",
+        "audio_sha256": "936697d7996037eb63be93b38f515682f78d3604adddb7c6e162d12163a90cca",
+        "hypothesis": " में जर के अन्वाना दूं मदे सादर में समाशेत्रों की तरा रोटी, सजी हों और मास विशेशर। सोर का मास परादारेत है। जजे तूं के तेल को पयोट करता है।",
+        "metrics": {
+          "reference_words": 30,
+          "word_edits": 24,
+          "substitutions": 20,
+          "deletions": 2,
+          "insertions": 2,
+          "wer": 0.8,
+          "reference_chars": 115,
+          "char_edits": 38,
+          "char_substitutions": 21,
+          "char_deletions": 14,
+          "char_insertions": 3,
+          "cer": 0.33043478260869563
+        },
+        "wall_ms": 1910.098,
+        "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+        "beam_size": 5
+      },
+      {
+        "case_id": "hi-0000:clean",
+        "config": "auto-prompt-beam1",
+        "language_hint": null,
+        "detected": "hi",
+        "prompt": "यह हिन्दी और English में बातचीत है। appointment, booking, confirm, visit, time.",
+        "audio_sha256": "936697d7996037eb63be93b38f515682f78d3604adddb7c6e162d12163a90cca",
+        "hypothesis": " मेंजर किन कھाना दूमदि साँदर में समान जेत्रों कित्रा ती सजी हों आर मास,  विशे अचर। सूर का मास पर नडारेत है।  जेत्न कि तेल कोट्योट करता है।",
+        "metrics": {
+          "reference_words": 30,
+          "word_edits": 23,
+          "substitutions": 19,
+          "deletions": 3,
+          "insertions": 1,
+          "wer": 0.7666666666666667,
+          "reference_chars": 115,
+          "char_edits": 44,
+          "char_substitutions": 27,
+          "char_deletions": 14,
+          "char_insertions": 3,
+          "cer": 0.3826086956521739
+        },
+        "wall_ms": 1659.912,
+        "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+        "beam_size": 1
+      },
+      {
+        "case_id": "gu-0000+en-0000:clean",
+        "config": "prompt-beam1",
+        "language_hint": "gu",
+        "detected": "gu",
+        "prompt": "આ ગુજરાતી અને English માં વાતચીત છે. appointment, booking, confirm, visit, time.",
+        "audio_sha256": "03cb388b6dc96d6997c7a471ff8f493a1804db8eb369b7a32a8c73ed9b3a093e",
+        "hypothesis": " ગેતીતીતીતીતીતીીતીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીી",
+        "metrics": {
+          "reference_words": 39,
+          "word_edits": 39,
+          "substitutions": 1,
+          "deletions": 38,
+          "insertions": 0,
+          "wer": 1.0,
+          "reference_chars": 192,
+          "char_edits": 182,
+          "char_substitutions": 64,
+          "char_deletions": 118,
+          "char_insertions": 0,
+          "cer": 0.9479166666666666
+        },
+        "wall_ms": 1613.741,
+        "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+        "beam_size": 1
+      },
+      {
+        "case_id": "gu-0000+en-0000:clean",
+        "config": "prompt-beam5",
+        "language_hint": "gu",
+        "detected": "gu",
+        "prompt": "આ ગુજરાતી અને English માં વાતચીત છે. appointment, booking, confirm, visit, time.",
+        "audio_sha256": "03cb388b6dc96d6997c7a471ff8f493a1804db8eb369b7a32a8c73ed9b3a093e",
+        "hypothesis": " ગૂતીતીતીતીતીતીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીી",
+        "metrics": {
+          "reference_words": 39,
+          "word_edits": 39,
+          "substitutions": 1,
+          "deletions": 38,
+          "insertions": 0,
+          "wer": 1.0,
+          "reference_chars": 192,
+          "char_edits": 184,
+          "char_substitutions": 66,
+          "char_deletions": 118,
+          "char_insertions": 0,
+          "cer": 0.9583333333333334
+        },
+        "wall_ms": 2883.737,
+        "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+        "beam_size": 5
+      },
+      {
+        "case_id": "gu-0000+en-0000:clean",
+        "config": "auto-prompt-beam1",
+        "language_hint": null,
+        "detected": "gu",
+        "prompt": "આ ગુજરાતી અને English માં વાતચીત છે. appointment, booking, confirm, visit, time.",
+        "audio_sha256": "03cb388b6dc96d6997c7a471ff8f493a1804db8eb369b7a32a8c73ed9b3a093e",
+        "hypothesis": " ગેતીતીતીતીતીતીીતીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીીી",
+        "metrics": {
+          "reference_words": 39,
+          "word_edits": 39,
+          "substitutions": 1,
+          "deletions": 38,
+          "insertions": 0,
+          "wer": 1.0,
+          "reference_chars": 192,
+          "char_edits": 182,
+          "char_substitutions": 64,
+          "char_deletions": 118,
+          "char_insertions": 0,
+          "cer": 0.9479166666666666
+        },
+        "wall_ms": 2129.484,
+        "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+        "beam_size": 1
+      },
+      {
+        "case_id": "hi-0000+en-0000:clean",
+        "config": "prompt-beam1",
+        "language_hint": "hi",
+        "detected": "hi",
+        "prompt": "यह हिन्दी और English में बातचीत है। appointment, booking, confirm, visit, time.",
+        "audio_sha256": "7562e820957b53a093f7b5c399f137f10aff2f8e3c8c3e758c4fcdbe9dbed6f3",
+        "hypothesis": " मेंजर किन कھाना दूमदि साँगर में समान जेत्रों की तरा ती सजी हों आर मास विशे शर। सुर का मास पर नाडारेत है। and we are talking about the",
+        "metrics": {
+          "reference_words": 45,
+          "word_edits": 39,
+          "substitutions": 21,
+          "deletions": 17,
+          "insertions": 1,
+          "wer": 0.8666666666666667,
+          "reference_chars": 179,
+          "char_edits": 110,
+          "char_substitutions": 28,
+          "char_deletions": 79,
+          "char_insertions": 3,
+          "cer": 0.6145251396648045
+        },
+        "wall_ms": 1052.307,
+        "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+        "beam_size": 1
+      },
+      {
+        "case_id": "hi-0000+en-0000:clean",
+        "config": "prompt-beam5",
+        "language_hint": "hi",
+        "detected": "hi",
+        "prompt": "यह हिन्दी और English में बातचीत है। appointment, booking, confirm, visit, time.",
+        "audio_sha256": "7562e820957b53a093f7b5c399f137f10aff2f8e3c8c3e758c4fcdbe9dbed6f3",
+        "hypothesis": " में जर किन कھाना मुमदि साँदर में समान जेत्रों की तरा रोटी सजी हों आर मास विशेशर। सोर का मास पर नडारेत है। जे तून के तेल को पयोट करता है।",
+        "metrics": {
+          "reference_words": 45,
+          "word_edits": 36,
+          "substitutions": 18,
+          "deletions": 16,
+          "insertions": 2,
+          "wer": 0.8,
+          "reference_chars": 179,
+          "char_edits": 102,
+          "char_substitutions": 20,
+          "char_deletions": 79,
+          "char_insertions": 3,
+          "cer": 0.5698324022346368
+        },
+        "wall_ms": 1872.469,
+        "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+        "beam_size": 5
+      },
+      {
+        "case_id": "hi-0000+en-0000:clean",
+        "config": "auto-prompt-beam1",
+        "language_hint": null,
+        "detected": "hi",
+        "prompt": "यह हिन्दी और English में बातचीत है। appointment, booking, confirm, visit, time.",
+        "audio_sha256": "7562e820957b53a093f7b5c399f137f10aff2f8e3c8c3e758c4fcdbe9dbed6f3",
+        "hypothesis": " मेंजर किन कھाना दूमदि साँगर में समान जेत्रों की तरा ती सजी हों आर मास विशे शर। सुर का मास पर नाडारेत है। and we are talking about the",
+        "metrics": {
+          "reference_words": 45,
+          "word_edits": 39,
+          "substitutions": 21,
+          "deletions": 17,
+          "insertions": 1,
+          "wer": 0.8666666666666667,
+          "reference_chars": 179,
+          "char_edits": 110,
+          "char_substitutions": 28,
+          "char_deletions": 79,
+          "char_insertions": 3,
+          "cer": 0.6145251396648045
+        },
+        "wall_ms": 1528.127,
+        "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+        "beam_size": 1
+      }
+    ],
+    "provider_details": {
+      "model_name": "Systran/faster-whisper-base",
+      "model_revision": "ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+      "model_sha256": "d01c3014881c9c6f3133c182f3d2887eb6ca1c789a7538c5c007196857a0a6a9",
+      "artifact_manifest_sha256": "984b25b9516088c8ccdccbbd877d7834c7b47fd221f0e4f8ab096628a6add38a",
+      "artifact_source": "https://huggingface.co/Systran/faster-whisper-base/tree/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66",
+      "device": "cpu",
+      "compute_type": "int8",
+      "cpu_threads": 2,
+      "num_workers": 1,
+      "beam_size": 1,
+      "condition_on_previous_text": false,
+      "vad_filter": false,
+      "timeout_secs": 60,
+      "runtime_versions": {
+        "faster-whisper": "1.2.1",
+        "ctranslate2": "4.8.3",
+        "av": "19.0.1"
+      },
+      "machine": "arm64",
+      "network_calls": false,
+      "setup": "Only approved multilingual Whisper base weights provisioned separately; inference is cache-only"
+    },
+    "task": "transcribe",
+    "temperature": 0,
+    "condition_on_previous_text": false,
+    "vad_filter": false,
+    "prompts_are_reference_free": true
+  },
+  "mixed_trial_summaries": [
+    {
+      "config": "auto-prompt-beam1",
+      "mixed_cases": 2,
+      "wer": 0.9285714285714286,
+      "cer": 0.7870619946091644,
+      "median_ms": 1828.8055,
+      "adopted": false
+    },
+    {
+      "config": "prompt-beam1",
+      "mixed_cases": 2,
+      "wer": 0.9285714285714286,
+      "cer": 0.7870619946091644,
+      "median_ms": 1333.024,
+      "adopted": false
+    },
+    {
+      "config": "prompt-beam5",
+      "mixed_cases": 2,
+      "wer": 0.8928571428571429,
+      "cer": 0.77088948787062,
+      "median_ms": 2378.103,
+      "adopted": false
+    }
+  ],
+  "candidate_metadata": {
+    "repository": "dropbox-dash/faster-whisper-large-v3-turbo",
+    "revision": "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf",
+    "files": {
+      "config.json": {
+        "bytes": 2263,
+        "sha256": null
+      },
+      "model.bin": {
+        "bytes": 1617884929,
+        "sha256": "e76620f83d5f5b69efd3d87e3dc180c1bd21df9fbebacfd4335e5e1efcc018da"
+      },
+      "preprocessor_config.json": {
+        "bytes": 340,
+        "sha256": null
+      },
+      "tokenizer.json": {
+        "bytes": 2710337,
+        "sha256": null
+      },
+      "vocabulary.json": {
+        "bytes": 1068114,
+        "sha256": null
+      }
+    },
+    "total_bytes": 1621665983,
+    "metadata_only": true,
+    "downloaded_weights": false,
+    "runtime": "Already-installed faster-whisper CPU INT8; no new Python runtime required",
+    "selection": "Proposed offline evaluation only; not approved or selected"
+  },
+  "decision": "Do not change runtime with an unverified mask/blank penalty, reference-injected prompt, or failed Whisper-base settings. Proposed next evaluation: one multilingual Turbo decode per mixed turn, no cascade; additional weights need owner approval. Accuracy and latency remain unverified.",
+  "limits": "Two clean mixed source joins and four clean clips with 3 decoding settings. Known English-tail join used for offline diagnosis only; no runtime language-span detector or calibrated confidence added."
+}
