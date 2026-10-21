@@ -1,0 +1,344 @@
+{
+  "schema": "roma-indic-systematic-diagnosis-v1",
+  "model_revision": "2a77d305038dfc502fd9464e7d028b90381976cb",
+  "network_calls": false,
+  "new_weights_downloaded": false,
+  "load_ms": 10544.183999998495,
+  "config": {
+    "BLANK_ID": 256,
+    "SOS": 256,
+    "RNNT_MAX_SYMBOLS": 10
+  },
+  "vocab": {
+    "gu": {
+      "tokens": 257,
+      "english_letters": [],
+      "mask_length": 5633
+    },
+    "hi": {
+      "tokens": 257,
+      "english_letters": [],
+      "mask_length": 5633
+    }
+  },
+  "cases": [
+    {
+      "case_id": "gu-0000:clean",
+      "audio_seconds": 11.88,
+      "pcm_sha256": "e141de4cecf798bf8a8564a5317c2c6fb6435fb910e8945f941b8adbe7c1e804",
+      "input_peak": 0.158721923828125,
+      "encoded_frames": 149,
+      "encoder_ms": 1575.284666963853,
+      "ctc_decode_ms": 19.762874930165708,
+      "ctc": "તિબેટનો બૌદ્ધવાદ બૌદ્ધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "ctc_matches_adapter": true,
+      "ctc_metrics": {
+        "reference_words": 24,
+        "word_edits": 3,
+        "substitutions": 3,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.125,
+        "reference_chars": 128,
+        "char_edits": 4,
+        "char_substitutions": 2,
+        "char_deletions": 2,
+        "char_insertions": 0,
+        "cer": 0.03125
+      },
+      "rnnt": {
+        "256": {
+          "hypothesis": "તિબેટનો બૌદ્ધવાદ બૌદ્ધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+          "metrics": {
+            "reference_words": 24,
+            "word_edits": 3,
+            "substitutions": 3,
+            "deletions": 0,
+            "insertions": 0,
+            "wer": 0.125,
+            "reference_chars": 128,
+            "char_edits": 4,
+            "char_substitutions": 2,
+            "char_deletions": 2,
+            "char_insertions": 0,
+            "cer": 0.03125
+          },
+          "decode_ms": 190.87229203432798
+        },
+        "5632": {
+          "hypothesis": "તિબેટનો બૌદ્ધવાદ બૌદ્ધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+          "metrics": {
+            "reference_words": 24,
+            "word_edits": 3,
+            "substitutions": 3,
+            "deletions": 0,
+            "insertions": 0,
+            "wer": 0.125,
+            "reference_chars": 128,
+            "char_edits": 4,
+            "char_substitutions": 2,
+            "char_deletions": 2,
+            "char_insertions": 0,
+            "cer": 0.03125
+          },
+          "decode_ms": 189.79395797941834
+        }
+      }
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "audio_seconds": 12.24,
+      "pcm_sha256": "936697d7996037eb63be93b38f515682f78d3604adddb7c6e162d12163a90cca",
+      "input_peak": 0.109283447265625,
+      "encoded_frames": 154,
+      "encoder_ms": 624.5300830341876,
+      "ctc_decode_ms": 11.09908299986273,
+      "ctc": "मेजर किनखाना भूमध्यसगर में सामान्य क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सुअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है",
+      "ctc_matches_adapter": true,
+      "ctc_metrics": {
+        "reference_words": 30,
+        "word_edits": 6,
+        "substitutions": 5,
+        "deletions": 1,
+        "insertions": 0,
+        "wer": 0.2,
+        "reference_chars": 115,
+        "char_edits": 6,
+        "char_substitutions": 2,
+        "char_deletions": 1,
+        "char_insertions": 3,
+        "cer": 0.05217391304347826
+      },
+      "rnnt": {
+        "256": {
+          "hypothesis": "मेजर किनखाना भूमध्यसागर में सामान्य क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सुअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है",
+          "metrics": {
+            "reference_words": 30,
+            "word_edits": 6,
+            "substitutions": 5,
+            "deletions": 1,
+            "insertions": 0,
+            "wer": 0.2,
+            "reference_chars": 115,
+            "char_edits": 5,
+            "char_substitutions": 2,
+            "char_deletions": 0,
+            "char_insertions": 3,
+            "cer": 0.043478260869565216
+          },
+          "decode_ms": 180.87604094762355
+        },
+        "5632": {
+          "hypothesis": "मेजर किनखाना भूमध्यसागर में सामान्य क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सुअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है",
+          "metrics": {
+            "reference_words": 30,
+            "word_edits": 6,
+            "substitutions": 5,
+            "deletions": 1,
+            "insertions": 0,
+            "wer": 0.2,
+            "reference_chars": 115,
+            "char_edits": 5,
+            "char_substitutions": 2,
+            "char_deletions": 0,
+            "char_insertions": 3,
+            "cer": 0.043478260869565216
+          },
+          "decode_ms": 198.1047090375796
+        }
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "audio_seconds": 18.67,
+      "pcm_sha256": "03cb388b6dc96d6997c7a471ff8f493a1804db8eb369b7a32a8c73ed9b3a093e",
+      "input_peak": 0.158721923828125,
+      "encoded_frames": 234,
+      "encoder_ms": 919.7840410051867,
+      "ctc_decode_ms": 12.892416911199689,
+      "ctc": "તિબેટનો બૌદ્ધવાદ બૌદ્ધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "ctc_matches_adapter": true,
+      "ctc_metrics": {
+        "reference_words": 39,
+        "word_edits": 18,
+        "substitutions": 3,
+        "deletions": 15,
+        "insertions": 0,
+        "wer": 0.46153846153846156,
+        "reference_chars": 192,
+        "char_edits": 68,
+        "char_substitutions": 2,
+        "char_deletions": 66,
+        "char_insertions": 0,
+        "cer": 0.3541666666666667
+      },
+      "rnnt": {
+        "256": {
+          "hypothesis": "તિબેટનો બૌદ્ધવાદ બૌદ્ધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+          "metrics": {
+            "reference_words": 39,
+            "word_edits": 18,
+            "substitutions": 3,
+            "deletions": 15,
+            "insertions": 0,
+            "wer": 0.46153846153846156,
+            "reference_chars": 192,
+            "char_edits": 68,
+            "char_substitutions": 2,
+            "char_deletions": 66,
+            "char_insertions": 0,
+            "cer": 0.3541666666666667
+          },
+          "decode_ms": 309.4603749923408
+        },
+        "5632": {
+          "hypothesis": "તિબેટનો બૌદ્ધવાદ બૌદ્ધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+          "metrics": {
+            "reference_words": 39,
+            "word_edits": 18,
+            "substitutions": 3,
+            "deletions": 15,
+            "insertions": 0,
+            "wer": 0.46153846153846156,
+            "reference_chars": 192,
+            "char_edits": 68,
+            "char_substitutions": 2,
+            "char_deletions": 66,
+            "char_insertions": 0,
+            "cer": 0.3541666666666667
+          },
+          "decode_ms": 276.26091602724046
+        }
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "audio_seconds": 19.03,
+      "pcm_sha256": "7562e820957b53a093f7b5c399f137f10aff2f8e3c8c3e758c4fcdbe9dbed6f3",
+      "input_peak": 0.109283447265625,
+      "encoded_frames": 238,
+      "encoder_ms": 1373.9602499408647,
+      "ctc_decode_ms": 22.468750015832484,
+      "ctc": "मेजर किनखाना भूमध्यसगर में सामान्य क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सुअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है",
+      "ctc_matches_adapter": true,
+      "ctc_metrics": {
+        "reference_words": 45,
+        "word_edits": 21,
+        "substitutions": 5,
+        "deletions": 16,
+        "insertions": 0,
+        "wer": 0.4666666666666667,
+        "reference_chars": 179,
+        "char_edits": 70,
+        "char_substitutions": 2,
+        "char_deletions": 65,
+        "char_insertions": 3,
+        "cer": 0.39106145251396646
+      },
+      "rnnt": {
+        "256": {
+          "hypothesis": "मेजर किनखाना भूमध्यसागर में सामान्य क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सुअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है",
+          "metrics": {
+            "reference_words": 45,
+            "word_edits": 21,
+            "substitutions": 5,
+            "deletions": 16,
+            "insertions": 0,
+            "wer": 0.4666666666666667,
+            "reference_chars": 179,
+            "char_edits": 69,
+            "char_substitutions": 2,
+            "char_deletions": 64,
+            "char_insertions": 3,
+            "cer": 0.3854748603351955
+          },
+          "decode_ms": 331.19954203721136
+        },
+        "5632": {
+          "hypothesis": "मेजर किनखाना भूमध्यसागर में सामान्य क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सुअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है",
+          "metrics": {
+            "reference_words": 45,
+            "word_edits": 21,
+            "substitutions": 5,
+            "deletions": 16,
+            "insertions": 0,
+            "wer": 0.4666666666666667,
+            "reference_chars": 179,
+            "char_edits": 69,
+            "char_substitutions": 2,
+            "char_deletions": 64,
+            "char_insertions": 3,
+            "cer": 0.3854748603351955
+          },
+          "decode_ms": 331.20324998162687
+        }
+      }
+    }
+  ],
+  "recorded_on": "2026-10-21",
+  "microphone_used": false,
+  "paid_llm_used": false,
+  "production_settings_changed": false,
+  "same_manifest_hosted_local_exact_matches": 12,
+  "independent_edit_distance_verification_cases": 12,
+  "monolingual_summary": {
+    "cases": 6,
+    "reference_words": 162,
+    "word_edits": 25,
+    "reference_chars": 729,
+    "char_edits": 29,
+    "wer": 0.15432098765432098,
+    "cer": 0.039780521262002745
+  },
+  "known_source_boundary_diagnostic": [
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "method": "Join independently recognized source transcripts using benchmark source boundaries; not automatic audio-language routing",
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 3,
+        "substitutions": 3,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.07692307692307693,
+        "reference_chars": 192,
+        "char_edits": 4,
+        "char_substitutions": 2,
+        "char_deletions": 2,
+        "char_insertions": 0,
+        "cer": 0.020833333333333332
+      },
+      "reference_used_to_generate_transcript": false,
+      "oracle_source_boundaries": true,
+      "production_routing_implemented": false
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "method": "Join independently recognized source transcripts using benchmark source boundaries; not automatic audio-language routing",
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 6,
+        "substitutions": 5,
+        "deletions": 1,
+        "insertions": 0,
+        "wer": 0.13333333333333333,
+        "reference_chars": 179,
+        "char_edits": 6,
+        "char_substitutions": 2,
+        "char_deletions": 1,
+        "char_insertions": 3,
+        "cer": 0.0335195530726257
+      },
+      "reference_used_to_generate_transcript": false,
+      "oracle_source_boundaries": true,
+      "production_routing_implemented": false
+    }
+  ],
+  "limits": [
+    "Four clean clips for direct CTC/RNNT/config probes; not a new representative benchmark.",
+    "Twelve prior transcripts compared exactly across local and hosted Indic runs; remote weight revision is unverified.",
+    "RNNT SOS 256 versus upstream default 5632 was varied for diagnosis only; no deployment/config switch.",
+    "No English letters in the selected Gujarati/Hindi output vocabularies excludes Latin-script English generation, not every possible native-script transcription of English sounds.",
+    "Known-boundary source recombination demonstrates retained audio and specialized-route feasibility; it does not validate automatic language segmentation."
+  ]
+}
