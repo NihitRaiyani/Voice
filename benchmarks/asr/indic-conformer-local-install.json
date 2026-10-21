@@ -1,0 +1,46 @@
+{
+  "schema": "roma-indic-conformer-local-install-v1",
+  "recorded_at": "2026-10-21",
+  "repository": "ai4bharat/indic-conformer-600m-multilingual",
+  "revision": "2a77d305038dfc502fd9464e7d028b90381976cb",
+  "license": "MIT",
+  "snapshot": {
+    "files": 404,
+    "bytes": 2556502929,
+    "decimal_gb": 2.557,
+    "gib": 2.381,
+    "missing_files": 0,
+    "wrong_size_files": 0
+  },
+  "runtime": {
+    "python": "3.12.12",
+    "torch": "2.14.1",
+    "transformers": "5.20.2",
+    "onnxruntime": "1.24.4",
+    "huggingface_hub": "2.2.0",
+    "observed_package_disk_bytes": 645087232,
+    "observed_package_disk_decimal_mb": 645.087,
+    "observed_package_disk_mib": 615.203
+  },
+  "policy": {
+    "cache_only": true,
+    "immutable_revision": true,
+    "production_selected": false,
+    "english_provider": "whisper",
+    "matched_benchmark_pending": true,
+    "native_review_pending": true
+  },
+  "smoke": {
+    "gu": {
+      "segments": 2,
+      "errors": 0,
+      "cold_asr_ms": 13916.26,
+      "warm_asr_ms": 346.667
+    },
+    "hi": {
+      "segments": 1,
+      "errors": 0,
+      "asr_ms": 11795.912
+    }
+  }
+}

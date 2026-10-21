@@ -137,14 +137,14 @@ def render_voice_line(canonical, state):
         return f"{_slot(state.accepted_slot)} — ये सही रहेगा आपके लिए?"
     if state.booking_required and not state.accepted_slot and state.stage in {"pivot", "close"}:
         slots = [iso for iso in state.slots_offered if spoken_slot(iso)][:2]
-        prefix = "Woh visit abhi confirm nahi hua. " if state.booking_error else ""
+        prefix = SAFE_REOFFER_LINE_IN_OFFER + " " if state.booking_error else ""
         expected = (
             prefix
             + " ya ".join(spoken_slot(iso) for iso in slots)
             + " — aapke liye kaunsa time sahi rahega?"
         )
         if slots and canonical == expected:
-            spoken_prefix = "वो विजिट अभी कन्फर्म नहीं हुआ। " if state.booking_error else ""
+            spoken_prefix = "अभी वो टाइम फाइनल नहीं हुआ है। " if state.booking_error else ""
             return (
                 spoken_prefix
                 + " या ".join(_slot(iso) for iso in slots)

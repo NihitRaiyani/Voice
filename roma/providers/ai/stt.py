@@ -19,6 +19,7 @@ import unicodedata
 import wave
 from array import array
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -204,17 +205,33 @@ class IndicConformerSTT(_LocalSTT):
                     "Restart Python with HF_HUB_OFFLINE=1 before loading IndicConformer"
                 )
             import torch
-            from transformers import AutoModel
+            from huggingface_hub import snapshot_download
+            from transformers import AutoConfig, AutoModel
         except ImportError:
             raise _STTSetupError(
                 "Install the optional IndicConformer runtime separately and provision its gated model cache; no model is downloaded automatically"
             ) from None
         try:
-            model = AutoModel.from_pretrained(
-                self.model_id,
-                revision=self.revision,
+            snapshot = Path(
+                snapshot_download(
+                    self.model_id,
+                    revision=self.revision,
+                    local_files_only=True,
+                )
+            )
+            if not snapshot.is_dir() or snapshot.name.casefold() != self.revision.casefold():
+                raise ValueError("unverified IndicConformer snapshot")
+            config = AutoConfig.from_pretrained(
+                str(snapshot),
                 trust_remote_code=True,
                 local_files_only=True,
+            )
+            # The upstream custom from_pretrained performs its own unpinned snapshot lookup.
+            # Constructing from the reviewed config keeps every asset on this exact revision.
+            config.ts_folder = str(snapshot)
+            model = AutoModel.from_config(
+                config,
+                trust_remote_code=True,
             )
         except Exception:  # noqa: BLE001 -- strip SDK paths/tokens and gate responses.
             raise _STTSetupError(

@@ -54,6 +54,7 @@ from roma.domain.appointments.booking import (
 )
 from roma.domain.conversation.confirmguard import (
     SAFE_READBACK_HOLD_LINE,
+    SAFE_REOFFER_LINE_IN_OFFER,
     SAFE_SIGNOFF_LINE,
     lead_wants_out,
 )
@@ -151,7 +152,9 @@ def canned_reply(state, user_text: str) -> "str | None":
                     :2
                 ]
                 if offers:
-                    prefix = "Woh visit abhi confirm nahi hua. " if state.booking_error else ""
+                    prefix = (
+                        SAFE_REOFFER_LINE_IN_OFFER + " " if state.booking_error else ""
+                    )
                     return (
                         prefix + " ya ".join(offers) + " — aapke liye kaunsa time sahi rahega?"
                     )

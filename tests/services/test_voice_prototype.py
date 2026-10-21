@@ -396,3 +396,23 @@ def test_booking_unavailable_filter_output_uses_the_approved_reoffer_rendering()
     )  # Preserve existing deterministic business/safety behavior.
     assert render_voice_line(final, state).startswith("अभी वो टाइम फाइनल")
     assert render_voice_line(final + " extra", state) == final + " extra"
+
+
+def test_verified_conflict_reoffer_has_finite_local_pronunciation():
+    from roma.domain.conversation.shortcircuit import canned_reply
+    from roma.services.text_conversation_service import filter_response
+    from roma.services.voice_pronunciation import render_voice_line
+
+    state = CallState(
+        stage="pivot",
+        booking_required=True,
+        booking_error="APPOINTMENT_SLOT_UNAVAILABLE",
+        slot_status="unavailable",
+        slots_offered=["2026-10-18T17:00:00+05:30"],
+    )
+    canonical = canned_reply(state, "tomorrow at 11 AM")
+    final, _ = filter_response(canonical, state)
+    assert final == canonical and "5:00 PM" in final
+    rendered = render_voice_line(final, state)
+    assert "पी एम" in rendered
+    assert not any(c.isascii() and c.isalpha() for c in rendered)

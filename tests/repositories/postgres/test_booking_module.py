@@ -12,6 +12,7 @@ from roma.domain.appointments.booking import BookingError, HoldOwner, SlotKey
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.state import CallState
 from roma.domain.persistence import AppointmentRecord, AppointmentSlotRecord, CallRecord
+from roma.providers.ai.contracts import LLMChunk
 from roma.repositories.postgres.booking import PostgresBookingStore
 from roma.repositories.postgres.models import Appointment, AppointmentSlot, Call
 from roma.repositories.postgres.unit_of_work import PostgresUnitOfWork
@@ -20,6 +21,7 @@ from roma.schemas.rest_api import CreateAppointmentRequest, UpdateAppointmentReq
 from roma.services.booking_service import BookingService
 from roma.services.booking_session import BookingSession
 from roma.services.rest_api_service import RestApiService, RestApiServiceError
+from roma.services.text_conversation_service import TextConversationService
 from sqlalchemy import event, func, select
 from sqlalchemy.exc import IntegrityError
 from tests.repositories.postgres.test_safety_audit import session_factory
@@ -291,6 +293,98 @@ def test_real_holds_loss_expiry_and_restore_use_database_truth(session_factory, 
             await BookingSession(service, fake).restore()
             assert fake.appointment_id is None and fake.locked_slot is None
             await b.aclose()
+        finally:
+            await client.aclose()
+
+    _run(run(), session_factory)
+
+
+def test_offline_conversation_books_restores_and_protects_demo_slot(
+    session_factory, redis_url
+):
+    class ScriptedProvider:
+        def __init__(self, replies):
+            self.replies = iter(replies)
+
+        async def generate(self, request):
+            yield LLMChunk(next(self.replies), "stop")
+
+    async def run():
+        _, slots, calls = await seed(session_factory)
+        client = Redis.from_url(redis_url)
+        try:
+            service = BookingService(
+                PostgresBookingStore(session_factory),
+                RedisAppointmentHolds(client),
+                now=lambda: NOW,
+            )
+            state = CallState(call_sid=calls[0].provider_call_id, stage="pivot")
+            conversation = TextConversationService(
+                ScriptedProvider(
+                    [
+                        '{"day_offset":1,"hour":11,"accepted":true,"confidence":1}',
+                        '{"readback_confirmed":true,"confidence":1}',
+                    ]
+                ),
+                booking_session=BookingSession(service, state),
+            )
+
+            readback = await conversation.turn(
+                state, "tomorrow at 11 AM", now=NOW
+            )
+            assert state.stage == "close"
+            assert state.slot_status == "accepted"
+            assert state.accepted_slot == datetime.combine(
+                slots[0].appointment_date, slots[0].start_time, IST
+            ).isoformat()
+            assert not readback.booking_committed
+            assert readback.provider_error is None
+            assert "11:00 AM" in readback.final_response
+
+            confirmed = await conversation.turn(state, "yes", now=NOW)
+            assert confirmed.booking_committed
+            assert confirmed.provider_error is None
+            assert "confirm ho gayi" in confirmed.final_response
+            assert state.stage == "close"
+            assert state.slot_status == "locked"
+            assert state.appointment_id
+            assert state.locked_slot == state.accepted_slot
+
+            async with session_factory() as session:
+                assert await session.scalar(select(func.count()).select_from(Appointment)) == 1
+                assert (await session.get(AppointmentSlot, slots[0].id)).status == "booked"
+                assert (await session.get(Call, calls[0].id)).booking_status == "confirmed"
+
+            restored_state = CallState(call_sid=calls[0].provider_call_id)
+            await BookingSession(service, restored_state).restore()
+            assert restored_state.appointment_id == state.appointment_id
+            assert restored_state.locked_slot == state.locked_slot
+            assert restored_state.slot_status == "locked"
+            assert restored_state.stage == "close"
+
+            competing_state = CallState(
+                call_sid=calls[1].provider_call_id, stage="pivot"
+            )
+            competing = TextConversationService(
+                ScriptedProvider(
+                    ['{"day_offset":1,"hour":11,"accepted":true,"confidence":1}']
+                ),
+                booking_session=BookingSession(service, competing_state),
+            )
+            conflict = await competing.turn(
+                competing_state, "tomorrow at 11 AM", now=NOW
+            )
+            assert not conflict.booking_committed
+            assert competing_state.appointment_id is None
+            assert competing_state.booking_error == "APPOINTMENT_SLOT_UNAVAILABLE"
+            assert competing_state.slots_offered == [
+                datetime.combine(
+                    slots[1].appointment_date, slots[1].start_time, IST
+                ).isoformat()
+            ]
+            assert "5:00 PM" in conflict.final_response
+            async with session_factory() as session:
+                assert await session.scalar(select(func.count()).select_from(Appointment)) == 1
         finally:
             await client.aclose()
 

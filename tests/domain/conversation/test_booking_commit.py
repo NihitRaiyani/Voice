@@ -211,7 +211,7 @@ def test_failed_confirmation_proposes_only_new_verified_slots():
         from roma.domain.conversation.state import spoken_slot
 
         assert spoken_slot(replacement.isoformat()) in line
-        assert "confirm nahi hua" in line
+        assert line.startswith("Abhi wo time final nahi hua hai. ")
         assert current.appointment_id is None
 
     asyncio.run(run())

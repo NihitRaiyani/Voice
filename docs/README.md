@@ -11,10 +11,10 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 0 | [Baseline/prerequisites](levels/level-00.md) | Assessment recorded; gate pending |
 | 1 | [Backend foundation](levels/level-01.md) | Sections 3–9 foundations implemented; hosted CI green, full review evidence still separate |
 | 2 | [Text/Claude LLM](levels/level-02.md) | Sections 10–12 state/checkpoints, Claude/mock text seam and deterministic safety audit present; native/live quality pending |
-| 3 | [Transactional booking](levels/level-03.md) | Booking/holds/controller/API implemented; offline evidence in brief, live demo deferred |
-| 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–18 audio/input/benchmark tooling implemented; public ASR/failure evidence in brief; separate local base run completed 15/15; multilingual quality failed; native approval pending |
+| 3 | [Transactional booking](levels/level-03.md) | Complete offline controller/commit/restore/conflict flow verified; live demo deferred |
+| 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–18 implemented; Whisper base 15/15 integration run failed multilingual quality; pinned IndicConformer Gujarati/Hindi smoke readiness passed; matched/native approval pending |
 | 5 | [Local TTS](levels/level-05.md) | Section 19 local Indic-TTS: 18 general and 24 approved-line cases passed; native approval pending |
-| 6 | [Local voice prototype](levels/level-06.md) | Section 20 offline lab plus English Claude extraction/wording and local-TTS hardware checks passed; full multilingual/native/booking gates deferred |
+| 6 | [Local voice prototype](levels/level-06.md) | Offline booking complete and English Claude/local-TTS hardware checks passed separately; full multilingual/native/microphone-booking gates deferred |
 | 7 | [Real-time reliability](levels/level-07.md) | Cloud seams; local-stack gate pending |
 | 8 | [Secure jobs/access](levels/level-08.md) | Signed answer/durable jobs present; full gate pending |
 | 9 | [Governed retrieval](levels/level-09.md) | Planned |

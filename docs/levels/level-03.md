@@ -1,6 +1,6 @@
 # Level 3 — Transactional booking
 
-**Roadmap section:** 13. **Status:** PostgreSQL booking, cancellation/reuse, advisory Redis holds and production controller/API wiring implemented and verified offline. Paid/live voice approval remains deferred.
+**Roadmap section:** 13. **Status:** PostgreSQL booking, cancellation/reuse, advisory Redis holds and the complete offline controller-to-database flow are implemented and verified. Paid/live voice approval remains deferred.
 
 ## Entry gate
 
@@ -35,7 +35,7 @@ The existing `uq_appointments_active_slot` partial unique index protects `(branc
 | Protected HTTP contracts | `roma/schemas/rest_api.py`, `roma/api/v1/rest.py`; [API details](../24-rest-api-design.md#appointment-holds-and-confirmation) |
 | Production wiring | `roma/main.py`, `roma/realtime/pipeline.py`, `pretts.py` |
 | Confirmation truth | `roma/domain/conversation/turn.py`, `state.py`, `machine.py`, `shortcircuit.py`, `prompts.py`, `roma/prompts/booking_policy.md` |
-| Offline opt-in seam | `roma/services/text_conversation_service.py`; default lab still makes no durable booking |
+| Offline opt-in seam | `roma/services/text_conversation_service.py`; a disposable integration test makes and restores one durable demo booking without touching configured `roma` |
 
 ## Acceptance gate and evidence
 
@@ -44,10 +44,15 @@ The existing `uq_appointments_active_slot` partial unique index protects `(branc
 - [x] Cancellation/rebooking, stale cancellation, stable-ID retries, terminal rejection and actual commit failure/rollback are covered.
 - [x] Native disposable Redis: 100 hold contenders have one winner; expiry, unchanged retry TTL and stale ownership cleanup are covered. Two call calendars receive distinct held choices; a lost hold cannot override another owner or SQL truth.
 - [x] Controller tests cover commit-before-win, interrupted/failed confirmation, deterministic caller affirmation and database-authoritative restore. SQL connections are released before mocked Redis waits.
+- [x] Complete offline conversation path: a caller selects a disposable demo slot through `TextConversationService`, hears the exact readback, affirms it, commits one appointment, restores it from PostgreSQL and receives confirmed speech. A second caller cannot take the booked slot and is offered the remaining verified slot.
 - [x] Full regression, Ruff/mypy, commit hooks and documentation-link evidence recorded below.
 - [ ] Owner/teacher demonstration with approved real reference slots and later complete voice approval. No paid call, production seed or model download is authorized by these tests.
 
 Focused tests: `tests/repositories/postgres/test_booking_module.py`, `tests/repositories/redis/test_appointment_holds.py`, `tests/services/test_booking_service.py`, `tests/domain/conversation/test_booking_commit.py`, `tests/realtime/test_booking_commit.py`, `tests/api/v1/test_booking_resources.py`. These run in `make test-ci` and hosted CI, using native disposable services and mock providers. The full offline suite also retains `test_appointment_concurrency.py`.
+
+The 2026-10-21 conversation test uses two disposable calls, an active `Test` institute/`Vadodara` branch and 11:00/17:00 next-day slots inside a disposable PostgreSQL cluster plus local disposable Redis. It performs no Claude, microphone, ASR, TTS, network or configured-database operation. The transaction, uniqueness and restore path passed. The stronger spoken-result assertion exposed one controller edge: after a conflict the confirmation guard replaced the whole line and dropped the verified alternative slot. Reusing the approved re-offer prefix fixes that interaction, and the pronunciation regression proves the replacement remains finite for local TTS. This closes the offline booking-flow proof, not the later human/voice acceptance gate.
+
+Combined follow-up verification on 2026-10-21 passed **114 focused provider/voice/booking tests** and **2,757 full offline tests**. All pre-commit hooks passed; Markdown validation checked **69 files / 462 local links and anchors** with zero issues. No paid provider or microphone call ran.
 
 Verification on 2026-10-17, using the locked environment, synthetic fixed-clock inputs and disposable native databases/caches:
 
@@ -62,6 +67,6 @@ Verification on 2026-10-17, using the locked environment, synthetic fixed-clock 
 
 Reproduce the full suite with `make test` after the [runbook prerequisites](../runbook.md). HTTP test fixtures disable owner `.env` loading and supply dummy provider settings explicitly; no real API key is needed. The bounded CI slice includes the new booking tests and production composition test; [GitHub CI](https://github.com/NihitRaiyani/Voice/actions/workflows/ci.yml) runs it on each push. These are correctness checks, not paid end-to-end voice timing or production load measurements.
 
- A read-only check on 2026-10-17 confirmed configured database `roma`, revision `20261004_0003` at head, 25 application tables and 0 application rows (including branches, slots and appointments). Real reference data and slots therefore still need approved provisioning before live booking. Disposable tests do not mutate this database. See [operating guidance](../runbook.md#section-13-booking-operations), [data contract](../14-data-and-concurrency.md), [verification](../12-verification.md) and [decisions](../decisions.md).
+A read-only check on 2026-10-17 confirmed configured database `roma`, revision `20261004_0003` at head, 25 application tables and 0 application rows (including branches, slots and appointments). Real reference data and slots therefore still need approved provisioning before live booking. Disposable tests do not mutate this database. See [operating guidance](../runbook.md#section-13-booking-operations), [data contract](../14-data-and-concurrency.md), [verification](../12-verification.md) and [decisions](../decisions.md).
 
 Return to the [documentation index](../README.md).

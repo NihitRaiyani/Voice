@@ -38,6 +38,7 @@ Current provider policy was replaced explicitly on 2026-10-20. The active rows b
 | A27 | Quota-safe section 11 validation | Use injected SDK transports/mocks; native scoring, paid latency, full voice approval and live integration remain separate gates |
 | A28 | Reuse the deterministic filter and existing safety schema for section 12 | Versioned rule activations, no raw transcript in audit; short bounded writes before forwarding speech; audit failures use a safe fallback and explicit failure signal; native review stays pending |
 | A29 | Hosted HF ASR is an explicit lab exception to the local-speech target | `hf_public_lab` uses only declared public benchmark audio, never private caller audio; anonymous defaults remain, with the later user-authorized official Whisper edge authentication exception; Gujarati/Hindi use the selected Indic Space and English the official Whisper Space. The authenticated router is separately selected, with no fallback/retry on 402 or automatic credit purchase/deployment. Three successful public clips prove access, not native quality or a Level 4 pass. |
+| A30 | Install pinned AI4Bharat IndicConformer locally for Gujarati/Hindi comparison | Cache revision `2a77d305038dfc502fd9464e7d028b90381976cb`, keep inference offline, pin custom code/config to that snapshot and retain Whisper for English/comparison. Smoke readiness is not model selection; require matched WER/CER/RTF and native review before a production switch. |
 
 ## Preserved operational invariants
 
@@ -122,3 +123,7 @@ This replaces all earlier “OpenAI remains main” and “OpenAI-only target”
 
 
 Haiku runtime decision from measured evidence: keep low effort and explicitly disable optional thinking for narrow dialogue/extraction. The initial 40-case run had two empty output-limit completions; do not increase prompt size, silently increase output limits, count empty replies as success or switch models. Empty output uses the approved fallback with actual usage accounting. Numeric schema constraints are transformed by the official Anthropic SDK on the wire and enforced fully by Pydantic in the application. Warm/cached extraction fits the existing 4-second attempt budget; a separate controlled readiness probe is not a new runtime retry policy.
+
+## 2026-10-21 — Local IndicConformer authorization
+
+The owner explicitly authorized the required AI4Bharat IndicConformer runtime and weights after the Whisper base multilingual quality failure. Install only `ai4bharat/indic-conformer-600m-multilingual` revision `2a77d305038dfc502fd9464e7d028b90381976cb`; the snapshot contains 404 files and 2,556,502,929 bytes. The adapter resolves that exact cache with `local_files_only=True`, loads its config from the snapshot and bypasses the upstream custom loader's unpinned Hub lookup. Runtime inference requires `HF_HUB_OFFLINE=1` and explicit reviewed-code opt-in. Gujarati/Hindi cache-only smokes passed; English stays on Whisper. Preserve production routing until the same-corpus WER/CER/RTF and native review justify a change.

@@ -35,6 +35,10 @@ voice-lab = [
     "faster-whisper>=1.2,<2",
     "sounddevice>=0.5,<0.6",
 ]
+indic-asr = [
+    "torch>=2.5,<3",
+    "transformers>=4.46,<6",
+]
 
 [build-system]
 requires = ["hatchling"]

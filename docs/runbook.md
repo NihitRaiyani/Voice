@@ -155,6 +155,15 @@ A 409 means choose another verified slot; repeated 503 means check PostgreSQL/Re
 
 Run `make test-ci` for mocked provider/API/controller checks plus native disposable PostgreSQL/Redis booking races and failure tests. `make test` includes the complete existing suite. Native binaries and tokenizer preparation are covered above. Tests never need paid AI quota, real caller data or mutation of the configured `roma` database. See [Level 3 evidence](levels/level-03.md) and [API bodies](24-rest-api-design.md#appointment-holds-and-confirmation).
 
+To reproduce only the complete offline caller flow with disposable demo calls/branch/slots, run:
+
+```bash
+HF_HUB_OFFLINE=1 uv run --no-sync pytest -q -p no:cacheprovider \
+  tests/repositories/postgres/test_booking_module.py::test_offline_conversation_books_restores_and_protects_demo_slot
+```
+
+This test proves offer, readback, affirmation, one SQL commit, slot/call updates, restore and competing-caller protection. It does not seed configured `roma`, invoke Claude, open a microphone or synthesize audio.
+
 ## Section 14 audio lab and stream metrics
 
 `make audio-lab` prints deterministic JSON for clean/loss/reorder/duplicate/burst-delay/variable-jitter profiles. It loads no `.env`, credentials, model, database or network service and writes no artifact by default. To compare fixed targets, run `uv run --no-sync python scripts/audio_lab.py --jitter-ms 40` (also 50 or 60). Use `make test-ci` for the codec/filter/framing/buffering/live validation and clean energy-VAD checks; `make test` includes full regressions.
@@ -180,8 +189,10 @@ For an explicit real lab, supply an uncompressed mono 16 kHz PCM16 WAV (at most 
 ```bash
 # Cached local baseline only; never downloads a missing model.
 uv run --no-sync python scripts/speech_lab.py --provider whisper --wav /path/to/approved.wav
-# Cached, reviewed IndicConformer only. Set INDIC_MODEL_REVISION to the reviewed 40-character commit.
-HF_HUB_OFFLINE=1 INDIC_TRUST_REMOTE_CODE=true uv run --no-sync python scripts/speech_lab.py --provider indic_conformer --wav /path/to/approved.wav
+# Cached, reviewed IndicConformer only; override stale local .env values explicitly.
+HF_HUB_OFFLINE=1 INDIC_TRUST_REMOTE_CODE=true STT_LANGUAGE=gu \
+INDIC_MODEL_REVISION=2a77d305038dfc502fd9464e7d028b90381976cb \
+uv run --no-sync python scripts/speech_lab.py --provider indic_conformer --wav /path/to/approved.wav
 # Public benchmark audio only; never supply private caller audio to public Spaces.
 # Use STT_LANGUAGE=hi for Hindi or en for the separate public Whisper Space.
 STT_LANGUAGE=gu uv run --no-sync python scripts/speech_lab.py --provider hf_public_lab --allow-network --public-benchmark --wav /path/to/public-fleurs.wav
@@ -193,7 +204,7 @@ STT_LANGUAGE=en uv run --no-sync python scripts/speech_lab.py --provider hf_whis
 
 `roma/core/speech_settings.py` reads `STT_LANGUAGE=hi|gu|en`, `STT_TIMEOUT_SECS` (default 30, maximum 60), `STT_MAX_AUDIO_SECS` (default/maximum 30), Indic decoder/revision/code opt-in, Whisper model/cache path, `HF_ASR_ENDPOINT_URL` and redacted `HF_TOKEN`. Public-Space calls use `HF_PUBLIC_TIMEOUT_SECS` (default 90, maximum 120), including upload/queue/response, to accommodate the observed 61.589-second English smoke. `HF_INDIC_SPACE_URL` and `HF_WHISPER_SPACE_URL` default to the selected HTTPS Space roots; `HF_WHISPER_MODEL` configures the separate router route. Token aliases `HUGGING_FACE_HUB_TOKEN`, `HUGGINGFACE_API_KEY` and `HUGGING_FACE_API_KEY` are accepted; `HF_TOKEN` wins when several are present. Keep tokens in environment/ignored `.env`, never paste them into commands/logs. Do not point the URL at a Hub page or generic hosted handler; see [the custom endpoint template](../benchmarks/asr/hf_endpoint/README.md). No endpoint creation/inference or ASR runtime installation is part of automated checks. The real public smoke is separately recorded in [Level 4](levels/level-04.md#implemented-boundary-audit-and-hosted-smoke).
 
-The optional Indic runtime uses the official model card's PyTorch/torchaudio/Transformers plus ONNX dependencies; faster-whisper uses its own optional runtime/converted cache. Provision these in a separately reviewed compatible environment; they are deliberately absent from the default lock/install. Cache misses fail without a network fallback. The selected gated Indic model needs accepted access terms and reviewed pinned custom code; `HF_HUB_OFFLINE=1` must precede Python/Hub imports. It does not support English; select the comparison baseline for English rather than overriding the hint.
+The optional `indic-asr` extra provides PyTorch and Transformers; the application already supplies NumPy, Hugging Face Hub and ONNX Runtime. Install the locked optional runtime with `uv sync --locked --extra dev --extra telephony --extra workers --extra voice-lab --extra indic-asr`. The separately provisioned AI4Bharat snapshot is pinned to revision `2a77d305038dfc502fd9464e7d028b90381976cb`; 404 files total 2,556,502,929 bytes (2.557 GB / 2.381 GiB). The optional package directories occupy 645,087,232 bytes (645 MB / 615 MiB) on this Mac. Cache misses fail without a network fallback. The gated model needs accepted access terms and explicit reviewed-code opt-in; `HF_HUB_OFFLINE=1` must precede Python/Hub imports. It does not support English; select the Whisper baseline for English rather than overriding the hint. See [local readiness evidence](levels/level-04.md#local-indicconformer-readiness--2026-10-21).
 
 `hf_public_lab` uses the community IndicConformer 600M CTC Space for Gujarati/Hindi and the official Whisper large-v3 Space for English. It requires `--allow-network --public-benchmark`; the CLI marks each request `data_classification=public_benchmark`. Both clients are anonymous by default. Only the later explicit official Whisper authentication option uses the HF edge token; the Indic community client remains credential-free. Keep private audio on an approved private route. `hf_whisper` sends its token only to the fixed official HF inference router. The read-valid token returned 402 for unavailable inference credits on 2026-10-18; that is an operator prerequisite failure with no automatic retry, fallback, credit purchase or deployment.
 
@@ -366,7 +377,7 @@ uv run --no-sync python scripts/voice_prototype.py --mode local --llm-provider m
 
 The command above uses mock wording with real local microphone/ASR/TTS and no paid client. For the authorized Claude path set private `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL=claude-haiku-5-5`, change to `--llm-provider claude` and add `--allow-paid-api`. This does not pass native/representative prerequisites or change production speech. Synthetic mode remains mocked; OpenAI calls/fallback are forbidden.
 
-Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms cached ASR, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. Only the already approved pinned Whisper base cache is currently provisioned; IndicConformer would additionally require separately approved reviewed weights/custom code. All local providers remain offline/cache-only. Claude timeout/fallback/spend caps apply; actual model availability and native quality are separate gates.
+Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms cached ASR, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. Pinned Whisper base and pinned IndicConformer are provisioned; all local providers remain offline/cache-only. Claude timeout/fallback/spend caps apply; actual model quality and native approval are separate gates.
 
 Set `STT_LANGUAGE=gu`, `hi` or `en` for the caller’s starting test language; this initializes the saved ASR route before any transcript exists. Subsequent changes still use the existing smoothed language router. Optional `--input-device N --output-device N` select PortAudio indices; `--max-turns N` defaults to 30, capped at 60 and five minutes. The microphone closes before speaking; barge-in is later work. Every attempt/ready/result uses short PostgreSQL writes in an isolated `voice-lab-…` call. Redis holds and existing DB reference slots back actual booking; startup creates no slots, seed data or migration. Schema head must already be `20261004_0003`.
 

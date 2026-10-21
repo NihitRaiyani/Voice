@@ -4,7 +4,7 @@
 
 ## Entry gate
 
-Levels 2, 3, 4 and 5 core gates remain prerequisites for a passed microphone demonstration. Existing controller/booking/safety and local TTS evidence is reusable, but native speech review and representative ASR evidence remain pending. The owner subsequently approved only multilingual Whisper base; its optional runtime and pinned local weights are installed. The separate 15-case run completed, but Gujarati/Hindi/stitched quality failed, so the model is an integration baseline. Authenticated HF Whisper is a separate cloud benchmark, so it cannot satisfy the requirement that Claude be the only cloud inference call. No hosted microphone workaround or private-audio upload is added.
+Levels 2, 3, 4 and 5 core gates remain prerequisites for a passed microphone demonstration. Existing controller/booking/safety and local TTS evidence is reusable, but native speech review and representative ASR evidence remain pending. Pinned multilingual Whisper base remains the English/comparison baseline; the owner additionally approved and installed pinned AI4Bharat IndicConformer for cache-only Gujarati/Hindi inference on 2026-10-21. Smoke readiness does not choose a production model. Authenticated HF Whisper is a separate cloud benchmark, so it cannot satisfy the requirement that Claude be the only cloud inference call. No hosted microphone workaround or private-audio upload is added.
 
 ## Section 20 implementation
 
@@ -36,8 +36,10 @@ The [runbook](../runbook.md#section-20-microphone-to-speaker-prototype) owns com
 - [x] Native disposable PostgreSQL turn/event writes, retry identity, safety-anchor reuse and transcript opt-in tested.
 - [x] Local audio adapter overflow/underflow/cleanup/cancellation tested with an injected backend.
 - [x] Existing discovery question pronunciations synthesize with the installed Hindi model.
+- [x] Complete booking controller/SQL flow passes separately with disposable demo data and offline scripted extraction; this is Level 3 integration evidence, not a microphone booking pass.
 - [ ] Levels 2–5 native/representative prerequisite gates approved.
 - [x] Local Whisper base runtime and pinned model cache available on this machine; local readiness verified with installed TTS and bundled Silero.
+- [x] Pinned IndicConformer runtime/cache available; cache-only Gujarati and Hindi smoke inference passes. Matched benchmark/native approval remains pending.
 - [ ] Real microphone/headphone conversation with Claude in Gujarati, Hindi, English and code-mix, including booking and native review.
 
 The current LLM selection is Claude Haiku 5.5 behind `--llm-provider claude`; `--allow-paid-api` remains required. Explicit `--llm-provider mock` uses real local audio/ASR/TTS without constructing any paid client, and still requires microphone/DB opt-ins. Synthetic mode remains mocked. A mock-LLM hardware result cannot establish Claude quality. No OpenAI calls or fallback.
@@ -82,3 +84,5 @@ The [repaired prepared-state check](../../benchmarks/voice/section20-claude-engl
 The repaired run recorded three metered Claude requests (estimated rounded total ₹0.09) and no OpenAI, hosted ASR or new downloads. It ended with an offer and **zero confirmed appointments**; it does not pass slot acceptance/readback/commit. Model TTFT ranged 0.984–1.926 s; these few controlled samples are not p95 or end-of-speech-to-first-audible latency. TTS cold inference was roughly 8.6–10.1 s; the repeated offer used the audited cache. Full caller/agent transcripts and microphone recordings were not retained; ordinary checkpoint slots still contain necessary state.
 
 The owner deferred Hindi, Gujarati, code-mix and formal native scoring due to limits. No further paid or microphone requests are authorized by this follow-up after that deferral. Representative ASR quality, fresh complete-stage conversation, booking acceptance/commit, approved real availability and the remaining Levels 2–5 human gates stay open. The section 20 gate remains pending; section 21 is outside scope.
+
+On 2026-10-21 the same production booking path was completed offline with scripted extraction and disposable PostgreSQL/Redis demo data: offer, exact readback, explicit affirmation, durable commit, SQL restore and competing-caller re-offer all passed. The stronger output assertion found and repaired a deterministic conflict re-offer wording/pronunciation interaction; booking atomicity and schema required no change. This resolves the offline booking-code evidence gap only; the microphone booking demonstration, paid Claude run and native multilingual review remain deferred.

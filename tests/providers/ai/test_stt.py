@@ -313,8 +313,11 @@ def test_endpoint_total_deadline_and_cancellation():
     asyncio.run(scenario())
 
 
-def test_indic_real_sdk_mapping_is_offline_pinned_and_mono_tensor(monkeypatch):
+def test_indic_real_sdk_mapping_is_offline_pinned_and_mono_tensor(monkeypatch, tmp_path):
     calls = []
+    revision = "a" * 40
+    snapshot = tmp_path / "snapshots" / revision
+    snapshot.mkdir(parents=True)
 
     class Tensor:
         def __init__(self, samples):
@@ -339,15 +342,26 @@ def test_indic_real_sdk_mapping_is_offline_pinned_and_mono_tensor(monkeypatch):
         calls.append((waveform.samples, language, decoder))
         return "ગુજરાતી ૨૦૨૬"
 
-    def from_pretrained(model_id, **kwargs):
-        calls.append((model_id, kwargs))
+    def snapshot_download(repo_id, **kwargs):
+        calls.append(("snapshot", repo_id, kwargs))
+        return str(snapshot)
+
+    def config_from_pretrained(path, **kwargs):
+        calls.append(("config", path, kwargs))
+        return SimpleNamespace(ts_folder="untrusted-default")
+
+    def model_from_config(config, **kwargs):
+        calls.append(("model", config.ts_folder, kwargs))
         return model
 
     monkeypatch.setenv("HF_HUB_OFFLINE", "1")
     monkeypatch.setitem(
         sys.modules,
         "huggingface_hub",
-        SimpleNamespace(constants=SimpleNamespace(HF_HUB_OFFLINE=True)),
+        SimpleNamespace(
+            constants=SimpleNamespace(HF_HUB_OFFLINE=True),
+            snapshot_download=snapshot_download,
+        ),
     )
     monkeypatch.setitem(
         sys.modules,
@@ -361,17 +375,35 @@ def test_indic_real_sdk_mapping_is_offline_pinned_and_mono_tensor(monkeypatch):
     monkeypatch.setitem(
         sys.modules,
         "transformers",
-        SimpleNamespace(AutoModel=SimpleNamespace(from_pretrained=from_pretrained)),
+        SimpleNamespace(
+            AutoConfig=SimpleNamespace(from_pretrained=config_from_pretrained),
+            AutoModel=SimpleNamespace(from_config=model_from_config),
+        ),
     )
-    provider = IndicConformerSTT(revision="a" * 40, trust_remote_code=True, decoder="rnnt")
+    provider = IndicConformerSTT(revision=revision, trust_remote_code=True, decoder="rnnt")
     result = asyncio.run(provider.transcribe(request(audio=b"\x00\x80\xff\x7f", language="gu")))
     assert result == STTResult("ગુજરાતી 2026", "gu")
-    assert calls[0][1] == {
-        "revision": "a" * 40,
+    assert calls[0] == (
+        "snapshot",
+        "ai4bharat/indic-conformer-600m-multilingual",
+        {"revision": revision, "local_files_only": True},
+    )
+    assert calls[1] == (
+        "config",
+        str(snapshot),
+        {
+            "trust_remote_code": True,
+            "local_files_only": True,
+        },
+    )
+    assert calls[2] == (
+        "model",
+        str(snapshot),
+        {
         "trust_remote_code": True,
-        "local_files_only": True,
-    }
-    assert calls[1] == ([-1.0, 32767 / 32768], "gu", "rnnt")
+        },
+    )
+    assert calls[3] == ([-1.0, 32767 / 32768], "gu", "rnnt")
 
 
 def test_indic_refuses_sdk_already_imported_before_offline_setting(monkeypatch):
