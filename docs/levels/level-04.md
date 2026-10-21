@@ -330,3 +330,26 @@ The owner questioned whether the apparent remaining weakness came from integrati
 **Interpretation correction:** the headline 33.33% WER includes six deliberately stitched bilingual cases. The six Gujarati/Hindi-only variants have **25 word edits / 162 reference words = 15.43% WER**, and **29 character edits / 729 characters = 3.98% CER**. Some word errors are spelling/spacing differences, which standard WER penalizes; the references and scoring are preserved. Fifteen cases still derive from just three source recordings, not fifteen independent speakers/recordings.
 
 As a diagnostic using the benchmark's known source boundaries, joining the already-recognized Indic source with the already-recognized English source gives clean stitched Gujarati–English **7.69% WER** and Hindi–English **13.33% WER**. No reference words were injected, but the boundaries are known by construction. This is evidence for a separate future audio-language/span-routing experiment, not proof that the present router solves natural code-mix. A production change requires measured automatic span routing or an approved model that supports the required mixed-script output. Keep the existing production route and deferred native/microphone gates.
+
+## Adaptive local code-mix routing — 2026-10-21
+
+The follow-up implements that experiment as the cache-only `phrase-span-v5` provider. `SpeechInputService` now preserves explicit `gu-en` and `hi-en` state instead of collapsing it before the composite provider. The router examines 20 ms RMS frames and can select one longest internal low-energy run of at least 600 ms, with at least 800 ms of audio on both sides. This finds a phrase boundary before ASR; energy does not classify language.
+
+For a qualifying mixed turn, the base-language head goes to pinned IndicConformer CTC. Whisper base inspects candidate English spans without a forced language; its result is accepted only when it identifies English and emits at least two English words, one reviewed domain token or one reviewed short acknowledgement. Otherwise the tail goes to IndicConformer and an unusable head stays empty. With no qualifying gap, the whole turn remains on Indic unless Indic abstains and the same Whisper language/evidence gate succeeds. An exact-token map canonicalizes reviewed phonetic spellings of `appointment`, `booking`, `confirm`, `confirmation`, `cancel` and `tomorrow`, including tokens next to Indic punctuation. It does not fuzzy-match names, compound words or arbitrary transcripts. Concrete provider failures propagate and never select the other model.
+
+The [final report](../../benchmarks/asr/section18/adaptive-local-report.json) reruns the unchanged 15-case manifest offline. All cases completed without provider errors; execution success is not quality approval.
+
+| Bucket | Cases | Pooled WER | Pooled CER | Median wall time |
+|---|---:|---:|---:|---:|
+| Gujarati/Hindi only | 6 | 15.43% | 3.98% | 0.665 s |
+| English only | 3 | 11.11% | 6.77% | 0.587 s |
+| Stitched mixed, clean + telephone | 4 | 12.50% | 3.50% | 1.853 s |
+| Stitched mixed, synthetic noise | 2 | 40.48% | 22.64% | 3.571 s |
+| All stitched mixed | 6 | 21.83% | 9.88% | 2.031 s |
+| All 15 | 15 | 18.52% | 7.47% | 1.288 s |
+
+Clean/telephone suffix deletion is resolved on these samples. Noisy tails remain inaccurate, and the proposed mixed median under 1.2 seconds is not met. Process-first English is 1.288 s and process-first Indic is 14.097 s; excluding those two loads leaves a 13-case median of 0.845 s. These are wall measurements on three source recordings and include model/runtime work, not conversational p95 or end-of-speech-to-audio.
+
+The final report was saved as immutable run `section18-adaptive-local-20261021-v3`, ID `41b648df-8ab4-44b3-8977-aa824fc5e5e4`: 15 samples, 90 aggregate rows and three identities (both pinned models plus the versioned composite), report SHA-256 `83a5bccda28cf35e9be93e0c47af8779c10d840cdb37e2f5f5170fdd8f91fd31`. Earlier v1/v2 runs remain immutable intermediate measurements and are not the cited final result. SQL contains no reference or hypothesis text. No schema, migration, business record, model weight, network inference, paid Claude or microphone operation changed.
+
+The exact loanword layer has deterministic text tests, not acoustic native-speaker evidence. The corpus has a long inter-sentential join and cannot validate rapid intra-sentential switches, arbitrary switch order, domain entity recall or natural callers. Keep noisy-code-mix, latency and native review gates open. Production Twilio/Sarvam and the Hindi-base Hinglish reply policy remain unchanged.

@@ -390,3 +390,46 @@ def test_local_indic_sql_identity_and_known_revision_metadata():
     report["summaries"] = summaries(report["cases"])
     with pytest.raises(ValueError, match="English"):
         convert(report)
+
+
+def test_adaptive_local_sql_uses_composite_identity_and_both_pinned_models():
+    report = asr_report()
+    report.update(provider="adaptive_local", network_calls=False)
+    report["provider_details"] = {
+        "router_version": "phrase-span-v5",
+        "timeout_secs": 60,
+        "network_calls": False,
+        "indic": {
+            "model_name": "ai4bharat/indic-conformer-600m-multilingual",
+            "model_revision": "2a77d305038dfc502fd9464e7d028b90381976cb",
+            "model_sha256": "d" * 64,
+            "artifact_manifest_sha256": "e" * 64,
+            "artifact_source": "https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual/tree/"
+            "2a77d305038dfc502fd9464e7d028b90381976cb",
+            "device": "cpu",
+            "compute_type": "float32",
+            "decoder": "ctc",
+            "network_calls": False,
+        },
+        "whisper": {
+            "model_name": "Systran/faster-whisper-base",
+            "model_revision": "a" * 40,
+            "model_sha256": "f" * 64,
+            "artifact_manifest_sha256": "1" * 64,
+            "artifact_source": "https://huggingface.co/Systran/faster-whisper-base/tree/"
+            + "a" * 40,
+            "device": "cpu",
+            "compute_type": "int8",
+            "network_calls": False,
+        },
+    }
+    item = convert(report)
+    _prepare(item)
+    assert {model.provider for model in item.models} == {
+        "indic-conformer", "faster-whisper", "roma-local-router"
+    }
+    assert {metric.model_key[0] for metric in item.metrics} == {"roma-local-router"}
+    assert item.config["model_revision_known"] is True
+    report["provider_details"]["whisper"]["model_revision"] = "unpinned"
+    with pytest.raises(ValueError, match="adaptive"):
+        convert(report)

@@ -134,9 +134,9 @@ def test_overlap_rejected_and_cancellation_discards_endpoint_state():
     "route,hint",
     [
         (Language.GUJARATI, "gu"),
-        (Language.GUJARATI_ENGLISH, "gu"),
+        (Language.GUJARATI_ENGLISH, "gu-en"),
         (Language.HINDI, "hi"),
-        (Language.HINDI_ENGLISH, "hi"),
+        (Language.HINDI_ENGLISH, "hi-en"),
         (Language.ENGLISH, "en"),
     ],
 )

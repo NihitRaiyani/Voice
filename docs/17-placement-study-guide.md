@@ -198,6 +198,12 @@ Defend bounded caller/slot validation, Unicode combining marks, code-owned enums
 
 **Why save failures and provenance?** Averages hide missing English spans and language-specific errors. Read/replay saved public failures, group clean/noise/telephone separately and label stitched code-mix as synthetic. Only after inference finishes, save aggregate model/run/results in one short transaction; an immutable run key makes retries safe. See [Level 4](levels/level-04.md).
 
+**Why did the first Indic code-mix route delete English?** The benchmark collapsed `gu-en`/`hi-en` to one Indic hint before ASR. The selected language vocabulary cannot emit Latin English, and the transcript router runs too late to restore deleted speech.
+
+**Why not use a CTC blank-tail confidence trigger?** The reviewed adapter does not expose calibrated blank confidence or trustworthy token timestamps. The lab instead finds one bounded phrase gap before ASR and routes the explicit base-language head and English tail to their pinned models.
+
+**Did the adaptive route pass?** It fixes suffix deletion on clean/telephone stitched samples, but noisy code-mix is 40.48% WER and mixed median latency is 2.031 s. Exact loanword mapping is text-tested only. Noisy/native/intra-sentential quality and live latency remain open.
+
 ## Level 5 section 19 explanation
 
 **Why two TTS models?** FastPitch predicts acoustic features; HiFi-GAN generates waveform samples. Both checkpoints, their configs and speaker identity belong to the artifact manifest. Resample waveform before mu-law encoding; splitting compressed bytes is not resampling.

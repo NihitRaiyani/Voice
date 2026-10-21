@@ -428,7 +428,7 @@ async def run_benchmark(
         "expected_cases": len(selected),
         "complete": False,
     }
-    if provider_name in {"whisper_local", "indic_local"}:
+    if provider_name in {"whisper_local", "indic_local", "adaptive_local"}:
         report["network_calls"] = False
         report["limits"] = (
             "Small public read-speech lab; stitched code-mix is synthetic. Local CPU wall RTF "
@@ -512,7 +512,11 @@ async def run_benchmark(
                     STTRequest(
                         pcm,
                         AudioFormat(16000),
-                        case["language"].split("-")[0],
+                        (
+                            case["language"]
+                            if provider_name == "adaptive_local"
+                            else case["language"].split("-")[0]
+                        ),
                         {"data_classification": "public_benchmark", "benchmark_case": case_id},
                     )
                 )

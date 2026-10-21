@@ -587,6 +587,81 @@ def test_local_indic_cli_runs_all_cases_offline_and_marks_english_unsupported(
     capsys.readouterr()
 
 
+def test_adaptive_local_cli_composes_pinned_models_and_preserves_mixed_hint(
+    public_cache, tmp_path, monkeypatch, capsys
+):
+    import importlib.util
+
+    script = Path(__file__).resolve().parents[2] / "scripts/asr_benchmark.py"
+    spec = importlib.util.spec_from_file_location("adaptive_benchmark_cli", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    provider = FakeSTT()
+    constructed = []
+    monkeypatch.setattr(
+        module,
+        "local_indic_details",
+        lambda config: {"model_revision": "a" * 40, "network_calls": False},
+    )
+    monkeypatch.setattr(
+        module,
+        "local_base_details",
+        lambda folder: {"model_revision": "b" * 40, "network_calls": False},
+    )
+    monkeypatch.setattr(
+        module,
+        "IndicConformerSTT",
+        lambda **kwargs: constructed.append(("indic", kwargs)) or object(),
+    )
+    monkeypatch.setattr(
+        module,
+        "WhisperSTT",
+        lambda **kwargs: constructed.append(("whisper", kwargs)) or object(),
+    )
+    monkeypatch.setattr(
+        module,
+        "LocalLanguageSTT",
+        lambda indic, whisper: provider,
+        raising=False,
+    )
+    for name in ("HFHostedSTT", "GradioWhisperSTT", "GradioIndicSTT"):
+        monkeypatch.setattr(module, name, lambda **kw: pytest.fail("hosted inference attempted"))
+    monkeypatch.setattr(
+        module,
+        "SpeechSettings",
+        lambda **kw: type("Settings", (), {
+            "indic_model_id": "ai4bharat/indic-conformer-600m-multilingual",
+            "indic_model_revision": "a" * 40,
+            "indic_trust_remote_code": True,
+            "indic_decoder": "ctc",
+            "stt_max_audio_secs": 30,
+        })(),
+    )
+    manifest = build_manifest(
+        public_cache, include_stitched_code_mix=True, variants=("clean",)
+    )
+    manifest_path, report_path = tmp_path / "manifest.json", tmp_path / "adaptive.json"
+    manifest_path.write_text(json.dumps(manifest))
+    args = [
+        "run", "--provider", "adaptive_local", "--manifest", str(manifest_path),
+        "--audio-dir", str(public_cache), "--report", str(report_path),
+    ]
+    with pytest.raises(ValueError, match="local-model-dir"):
+        asyncio.run(module.run(module.parser().parse_args(args)))
+    args += ["--local-model-dir", str(tmp_path)]
+    with pytest.raises(ValueError, match="forbids"):
+        asyncio.run(module.run(module.parser().parse_args([*args, "--allow-network"])))
+    assert asyncio.run(module.run(module.parser().parse_args(args))) == 0
+    report = read_json(report_path)
+    assert report["provider"] == "adaptive_local" and report["network_calls"] is False
+    assert {request.language_hint for request in provider.requests} == {
+        "gu", "hi", "en", "gu-en", "hi-en"
+    }
+    assert report["provider_details"]["router_version"] == "phrase-span-v5"
+    assert [kind for kind, _ in constructed] == ["indic", "whisper"]
+    capsys.readouterr()
+
+
 def test_local_comparison_pairs_audio_and_keeps_cold_and_unsupported_separate(
     public_cache, tmp_path
 ):

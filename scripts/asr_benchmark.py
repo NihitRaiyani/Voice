@@ -9,6 +9,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,11 +29,13 @@ from roma.eval.asr_benchmark import (  # noqa: E402
 from roma.eval.asr_comparison import compare_local_reports  # noqa: E402
 from roma.eval.local_indic import local_indic_details  # noqa: E402
 from roma.eval.local_whisper import local_base_details  # noqa: E402
+from roma.providers.ai.contracts import STTProvider  # noqa: E402
 from roma.providers.ai.hf_asr import (  # noqa: E402
     GradioIndicSTT,
     GradioWhisperSTT,
     HFHostedSTT,
 )
+from roma.providers.ai.local_routing import LocalLanguageSTT  # noqa: E402
 from roma.providers.ai.stt import IndicConformerSTT, WhisperSTT  # noqa: E402
 
 
@@ -120,7 +123,14 @@ def parser() -> argparse.ArgumentParser:
         run.add_argument("--report", type=Path, required=True)
         run.add_argument(
             "--provider",
-            choices=("hf_public_lab", "hf_indic", "hf_whisper_space", "whisper_local", "indic_local"),
+            choices=(
+                "hf_public_lab",
+                "hf_indic",
+                "hf_whisper_space",
+                "whisper_local",
+                "indic_local",
+                "adaptive_local",
+            ),
             default="hf_public_lab",
         )
         run.add_argument("--languages", nargs="+", choices=(*LANGUAGES, "gu-en", "hi-en"))
@@ -192,12 +202,12 @@ async def run(args) -> int:
             )
         )
         return 0
-    local = args.provider in {"whisper_local", "indic_local"}
+    local = args.provider in {"whisper_local", "indic_local", "adaptive_local"}
     if not local and not args.allow_network:
         raise ValueError("Hosted benchmark requests require --allow-network")
     if local and args.allow_network:
         raise ValueError("Local benchmark forbids --allow-network")
-    if args.provider == "whisper_local" and (args.allow_network or not args.local_model_dir):
+    if args.provider in {"whisper_local", "adaptive_local"} and not args.local_model_dir:
         raise ValueError(
             "Local benchmark requires --local-model-dir and forbids --allow-network"
         )
@@ -213,12 +223,14 @@ async def run(args) -> int:
     if args.provider == "hf_indic" and "en" in languages:
         raise ValueError("Indic does not support English; select --languages gu hi gu-en hi-en")
     config = SpeechSettings(stt_provider="hf_public_lab")
-    options = (
+    options: dict[str, Any] = (
         {} if local else {
             "timeout_secs": config.hf_public_timeout_secs,
             "max_audio_secs": config.stt_max_audio_secs,
         }
     )
+    provider: STTProvider
+    details: dict[str, Any]
     if args.provider == "whisper_local":
         details = local_base_details(args.local_model_dir)
         provider = WhisperSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60)
@@ -233,6 +245,25 @@ async def run(args) -> int:
             decoder=config.indic_decoder,
             max_audio_secs=config.stt_max_audio_secs,
             timeout_secs=60,
+        )
+    elif args.provider == "adaptive_local":
+        details = {
+            "router_version": "phrase-span-v5",
+            "timeout_secs": 60,
+            "network_calls": False,
+            "indic": local_indic_details(config),
+            "whisper": local_base_details(args.local_model_dir),
+        }
+        provider = LocalLanguageSTT(
+            IndicConformerSTT(
+                model_id=config.indic_model_id,
+                revision=config.indic_model_revision,
+                trust_remote_code=config.indic_trust_remote_code,
+                decoder=config.indic_decoder,
+                max_audio_secs=config.stt_max_audio_secs,
+                timeout_secs=60,
+            ),
+            WhisperSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60),
         )
     elif args.provider == "hf_indic":
         provider = GradioIndicSTT(
@@ -264,6 +295,7 @@ async def run(args) -> int:
         )
     case_ids = None
     if args.command == "replay":
+        assert saved is not None
         case_ids = {row["case_id"] for row in failure_samples(saved, min_wer=args.min_wer)}
         if not case_ids:
             print(

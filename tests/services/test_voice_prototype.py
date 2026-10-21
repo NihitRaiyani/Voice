@@ -318,8 +318,8 @@ def test_llm_error_chunk_closes_inner_stream_before_next_turn():
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("language", ["gu", "hi", "en"])
-def test_explicit_starting_language_reaches_asr_before_transcript_router(language):
+@pytest.mark.parametrize("language,hint", [("gu", "gu"), ("hi", "hi-en"), ("en", "en")])
+def test_explicit_starting_language_reaches_asr_before_transcript_router(language, hint):
     from roma.services.speech_input import language_hint
 
     spec = importlib.util.spec_from_file_location(
@@ -329,7 +329,7 @@ def test_explicit_starting_language_reaches_asr_before_transcript_router(languag
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     state = module.initial_lab_state(language, "Vadodara")
-    assert language_hint(state) == language and state.booking_required
+    assert language_hint(state) == hint and state.booking_required
     assert state.call_sid.startswith("voice-lab-")
 
 

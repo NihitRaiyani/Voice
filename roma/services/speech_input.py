@@ -41,11 +41,13 @@ class SpeechTranscript:
 
 def language_hint(state: CallState) -> str:
     route = state.language_router.current
-    if route in (Language.GUJARATI, Language.GUJARATI_ENGLISH):
+    if route == Language.GUJARATI:
         return "gu"
+    if route == Language.GUJARATI_ENGLISH:
+        return "gu-en"
     if route == Language.ENGLISH:
         return "en"
-    return "hi"
+    return "hi-en" if route == Language.HINDI_ENGLISH else "hi"
 
 
 class SpeechInputService:

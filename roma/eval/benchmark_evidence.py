@@ -88,7 +88,14 @@ def _asr(
     if report.get("complete") is not True or report.get("public_samples_only") is not True:
         raise ValueError("Only completed public ASR benchmark reports can be saved")
     provider = report["provider"]
-    if provider not in {"hf_indic", "hf_whisper_space", "hf_public_lab", "whisper_local", "indic_local"}:
+    if provider not in {
+        "hf_indic",
+        "hf_whisper_space",
+        "hf_public_lab",
+        "whisper_local",
+        "indic_local",
+        "adaptive_local",
+    }:
         raise ValueError("Unsupported ASR benchmark provider")
     cases = report["cases"]
     if (
@@ -134,6 +141,7 @@ def _asr(
     if authenticated is not None and type(authenticated) is not bool:
         raise ValueError("Invalid Whisper authentication provenance")
     local_model = None
+    supporting_models: list[ModelEvidence] = []
     if provider == "whisper_local":
         if (
             report.get("network_calls") is not False
@@ -182,8 +190,60 @@ def _asr(
             license_name="MIT",
         )
         _checksum(details["artifact_manifest_sha256"])
+    elif provider == "adaptive_local":
+        indic, whisper = details.get("indic", {}), details.get("whisper", {})
+        if (
+            report.get("network_calls") is not False
+            or details.get("network_calls") is not False
+            or details.get("router_version") != "phrase-span-v5"
+            or indic.get("network_calls") is not False
+            or indic.get("model_name")
+            != "ai4bharat/indic-conformer-600m-multilingual"
+            or not re.fullmatch(r"[0-9a-f]{40}", indic.get("model_revision", ""))
+            or indic.get("device") != "cpu"
+            or indic.get("compute_type") != "float32"
+            or indic.get("decoder") not in {"ctc", "rnnt"}
+            or whisper.get("network_calls") is not False
+            or whisper.get("model_name") != "Systran/faster-whisper-base"
+            or not re.fullmatch(r"[0-9a-f]{40}", whisper.get("model_revision", ""))
+            or whisper.get("device") != "cpu"
+            or whisper.get("compute_type") != "int8"
+        ):
+            raise ValueError("Invalid adaptive local benchmark provenance")
+        for item in (indic, whisper):
+            _checksum(item["model_sha256"])
+            _checksum(item["artifact_manifest_sha256"])
+        indic_model = ModelEvidence(
+            "indic-conformer",
+            indic["model_name"],
+            indic["model_revision"],
+            artifact_uri=_endpoint(indic["artifact_source"]),
+            checksum_sha256=indic["model_sha256"],
+            license_name="MIT",
+        )
+        whisper_model = ModelEvidence(
+            "faster-whisper",
+            whisper["model_name"],
+            whisper["model_revision"],
+            artifact_uri=_endpoint(whisper["artifact_source"]),
+            checksum_sha256=whisper["model_sha256"],
+            license_name="MIT",
+        )
+        identity = ":".join(
+            (details["router_version"], indic["model_revision"], whisper["model_revision"])
+        )
+        checksum = ":".join(
+            (details["router_version"], indic["model_sha256"], whisper["model_sha256"])
+        )
+        local_model = ModelEvidence(
+            "roma-local-router",
+            "indic-conformer+faster-whisper-base",
+            hashlib.sha256(identity.encode()).hexdigest()[:40],
+            checksum_sha256=hashlib.sha256(checksum.encode()).hexdigest(),
+        )
+        supporting_models = [indic_model, whisper_model]
     model_by_language = {}
-    models = {}
+    models = {model.key: model for model in supporting_models}
     for language in {case["language"] for case in cases}:
         if local_model is not None:
             models[local_model.key] = local_model
@@ -254,9 +314,41 @@ def _asr(
                         metadata,
                     )
                 )
-    config = {
-        "provider": provider,
-        "provider_details": {
+    safe_details = (
+        {
+            "router_version": details["router_version"],
+            "timeout_secs": details["timeout_secs"],
+            "network_calls": False,
+            "indic": {
+                key: details["indic"][key]
+                for key in (
+                    "model_name",
+                    "model_revision",
+                    "model_sha256",
+                    "artifact_manifest_sha256",
+                    "artifact_source",
+                    "device",
+                    "compute_type",
+                    "decoder",
+                    "network_calls",
+                )
+            },
+            "whisper": {
+                key: details["whisper"][key]
+                for key in (
+                    "model_name",
+                    "model_revision",
+                    "model_sha256",
+                    "artifact_manifest_sha256",
+                    "artifact_source",
+                    "device",
+                    "compute_type",
+                    "network_calls",
+                )
+            },
+        }
+        if provider == "adaptive_local"
+        else {
             key: details[key]
             for key in (
                 (
@@ -288,7 +380,11 @@ def _asr(
                 if provider == "indic_local"
                 else ("indic_endpoint", "whisper_endpoint", "decoder", "timeout_secs")
             )
-        },
+        }
+    )
+    config = {
+        "provider": provider,
+        "provider_details": safe_details,
         "normalization": report["normalization"],
         "public_samples_only": True,
         "native_review_passed": False,
