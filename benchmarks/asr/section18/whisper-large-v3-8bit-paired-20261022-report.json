@@ -1,0 +1,1216 @@
+{
+  "schema": "roma-asr-benchmark-v1",
+  "manifest_schema": "roma-asr-manifest-v1",
+  "dataset": "google/fleurs",
+  "dataset_revision": null,
+  "derivation": {
+    "seed": 18,
+    "snr_db": 15,
+    "stitch_gap_ms": 250,
+    "telephone": "fir-16k-8k-g711-mulaw-8k-16k-v1",
+    "noise": "seeded-uniform-rms-snr-v1"
+  },
+  "source_count": 3,
+  "environment": {
+    "python_version": "3.12.12",
+    "audio_implementation": "python-reference-v1",
+    "machine": "arm64",
+    "system": "Darwin"
+  },
+  "manifest_sha256": "0d47af5679c81b904fb64803767107ef44d9d31affa81180e690647b6b99816b",
+  "recorded_at": "2026-10-22T09:36:40.693307+00:00",
+  "provider": "whisper_large_v3_8bit_local",
+  "normalization": "nfc-casefold-unicode-lmn-decimal-words-char-no-spaces-v1",
+  "cases": [
+    {
+      "case_id": "en-0000:clean",
+      "source_ids": [
+        "en-0000"
+      ],
+      "language": "en",
+      "corpus_kind": "public_read_speech",
+      "variant": "clean",
+      "reference": "when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "14afe6a72de367ae04eed13b992504a606265df728dbaed16ad9b3fdfa4dc72e",
+      "audio_seconds": 6.54,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "hypothesis": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "inference_rtf": null,
+      "request_ms": 4031.553,
+      "request_rtf": 0.6164454128440366,
+      "decode_observation": {
+        "language_hint": "en",
+        "decode_path": "single",
+        "chunk_bytes": [
+          209280
+        ],
+        "all_pcm_preserved": true,
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2384905370,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "en-0000:noise",
+      "source_ids": [
+        "en-0000"
+      ],
+      "language": "en",
+      "corpus_kind": "public_read_speech",
+      "variant": "noise",
+      "reference": "when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "c98da990c075c44068db752f03cae53e3e8f66ad4701086c94288b95ae6a1a24",
+      "audio_seconds": 6.54,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "hypothesis": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "inference_rtf": null,
+      "request_ms": 1743.754,
+      "request_rtf": 0.26662905198776754,
+      "decode_observation": {
+        "language_hint": "en",
+        "decode_path": "single",
+        "chunk_bytes": [
+          209280
+        ],
+        "all_pcm_preserved": true,
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2385314958,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "en-0000:telephone",
+      "source_ids": [
+        "en-0000"
+      ],
+      "language": "en",
+      "corpus_kind": "public_read_speech",
+      "variant": "telephone",
+      "reference": "when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "a661a3c287ee2c1fc9f13c3642b1230498053b35ac619dd63fd2edcca3c8074e",
+      "audio_seconds": 6.54,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "hypothesis": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "inference_rtf": null,
+      "request_ms": 1805.578,
+      "request_rtf": 0.2760822629969419,
+      "decode_observation": {
+        "language_hint": "en",
+        "decode_path": "single",
+        "chunk_bytes": [
+          209280
+        ],
+        "all_pcm_preserved": true,
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2385314958,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "source_ids": [
+        "gu-0000"
+      ],
+      "language": "gu",
+      "corpus_kind": "public_read_speech",
+      "variant": "clean",
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "audio_sha256": "e141de4cecf798bf8a8564a5317c2c6fb6435fb910e8945f941b8adbe7c1e804",
+      "audio_seconds": 11.88,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 7,
+        "substitutions": 7,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.2916666666666667,
+        "reference_chars": 128,
+        "char_edits": 17,
+        "char_substitutions": 10,
+        "char_deletions": 6,
+        "char_insertions": 1,
+        "cer": 0.1328125
+      },
+      "hypothesis": "તિબેટનો બોધવાદ બોધના ઉપદેશો પર આધારીત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને બાર્તે યોગની ઘણી બધી પ્રયુક્ત્યો દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "inference_rtf": null,
+      "request_ms": 10539.98,
+      "request_rtf": 0.8872037037037036,
+      "decode_observation": {
+        "language_hint": "gu",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          158720,
+          221440
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.42466649413108826,
+            "avg_logprob": -0.04204874391908999,
+            "compression_ratio": 1.4891304347826086,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.0188137236982584,
+            "avg_logprob": -0.04476041030883789,
+            "compression_ratio": 1.8676470588235294,
+            "accepted": true
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "gu-0000:noise",
+      "source_ids": [
+        "gu-0000"
+      ],
+      "language": "gu",
+      "corpus_kind": "public_read_speech",
+      "variant": "noise",
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "audio_sha256": "c9a816f9602d36d92903696996abb1077ee8be0fcb436f858d4ad5fa0bd78caf",
+      "audio_seconds": 11.88,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 6,
+        "substitutions": 6,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.25,
+        "reference_chars": 128,
+        "char_edits": 13,
+        "char_substitutions": 7,
+        "char_deletions": 6,
+        "char_insertions": 0,
+        "cer": 0.1015625
+      },
+      "hypothesis": "તિબેટનો બોધવાદ બોધના ઉપદેશો પર આધારીત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભાર્તે યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "inference_rtf": null,
+      "request_ms": 10349.671,
+      "request_rtf": 0.8711844276094276,
+      "decode_observation": {
+        "language_hint": "gu",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          158720,
+          221440
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.1655874103307724,
+            "avg_logprob": -0.045684899224175346,
+            "compression_ratio": 1.4891304347826086,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.01885659247636795,
+            "avg_logprob": -0.045234046966923395,
+            "compression_ratio": 1.8455882352941178,
+            "accepted": true
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "gu-0000:telephone",
+      "source_ids": [
+        "gu-0000"
+      ],
+      "language": "gu",
+      "corpus_kind": "public_read_speech",
+      "variant": "telephone",
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "audio_sha256": "930eaed134cdc7be6c167ecff76b390fa8a96400a8555d77dfbd230a7b870508",
+      "audio_seconds": 11.88,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 5,
+        "substitutions": 5,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.20833333333333334,
+        "reference_chars": 128,
+        "char_edits": 12,
+        "char_substitutions": 6,
+        "char_deletions": 6,
+        "char_insertions": 0,
+        "cer": 0.09375
+      },
+      "hypothesis": "તિબેટનો બોધવાદ બોધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભાર્તે યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "inference_rtf": null,
+      "request_ms": 10445.578,
+      "request_rtf": 0.8792574074074073,
+      "decode_observation": {
+        "language_hint": "gu",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          157696,
+          222464
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.41920414566993713,
+            "avg_logprob": -0.04199397475631149,
+            "compression_ratio": 1.4891304347826086,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.001417481224052608,
+            "avg_logprob": -0.0450032423382346,
+            "compression_ratio": 1.8455882352941178,
+            "accepted": true
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "source_ids": [
+        "hi-0000"
+      ],
+      "language": "hi",
+      "corpus_kind": "public_read_speech",
+      "variant": "clean",
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+      "audio_sha256": "936697d7996037eb63be93b38f515682f78d3604adddb7c6e162d12163a90cca",
+      "audio_seconds": 12.24,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 12,
+        "substitutions": 11,
+        "deletions": 0,
+        "insertions": 1,
+        "wer": 0.4,
+        "reference_chars": 115,
+        "char_edits": 14,
+        "char_substitutions": 5,
+        "char_deletions": 6,
+        "char_insertions": 3,
+        "cer": 0.12173913043478261
+      },
+      "hypothesis": "मेजर किन खाना भूम अध्यसागर में सामान शेतरों की तरह रोटी, सबजीयों और मास विशेश रूप से सूवर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "inference_rtf": null,
+      "request_ms": 4287.841,
+      "request_rtf": 0.35031380718954247,
+      "decode_observation": {
+        "language_hint": "hi",
+        "decode_path": "single",
+        "chunk_bytes": [
+          391680
+        ],
+        "all_pcm_preserved": true,
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "hi-0000:noise",
+      "source_ids": [
+        "hi-0000"
+      ],
+      "language": "hi",
+      "corpus_kind": "public_read_speech",
+      "variant": "noise",
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+      "audio_sha256": "79cc83a198e167c4cbc9734c5632cc26ec2f55e328fa3619b390611c12a97aad",
+      "audio_seconds": 12.24,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 13,
+        "substitutions": 11,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.43333333333333335,
+        "reference_chars": 115,
+        "char_edits": 19,
+        "char_substitutions": 9,
+        "char_deletions": 6,
+        "char_insertions": 4,
+        "cer": 0.16521739130434782
+      },
+      "hypothesis": "मेजर किन खाना भूम अद्दे सागर में सामान शेतरों की तरह रोटी, सबजीयों और मास विशेश रूप से सुवर का मास पर आधारित है और जैतून की तेल का उप्योग करता है",
+      "inference_rtf": null,
+      "request_ms": 4312.562,
+      "request_rtf": 0.35233349673202613,
+      "decode_observation": {
+        "language_hint": "hi",
+        "decode_path": "single",
+        "chunk_bytes": [
+          391680
+        ],
+        "all_pcm_preserved": true,
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "hi-0000:telephone",
+      "source_ids": [
+        "hi-0000"
+      ],
+      "language": "hi",
+      "corpus_kind": "public_read_speech",
+      "variant": "telephone",
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+      "audio_sha256": "55c90a925dcc520a7b85a7d3717dd86f32ee7f47fcd348ece4584d100951881b",
+      "audio_seconds": 12.24,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 12,
+        "substitutions": 11,
+        "deletions": 0,
+        "insertions": 1,
+        "wer": 0.4,
+        "reference_chars": 115,
+        "char_edits": 14,
+        "char_substitutions": 5,
+        "char_deletions": 6,
+        "char_insertions": 3,
+        "cer": 0.12173913043478261
+      },
+      "hypothesis": "मेजर किन खाना भूम अध्यसागर में सामान शेतरों की तरह रोटी, सबजीयों और मास विशेश रूप से सूवर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "inference_rtf": null,
+      "request_ms": 4360.928,
+      "request_rtf": 0.3562849673202614,
+      "decode_observation": {
+        "language_hint": "hi",
+        "decode_path": "single",
+        "chunk_bytes": [
+          391680
+        ],
+        "all_pcm_preserved": true,
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "source_ids": [
+        "gu-0000",
+        "en-0000"
+      ],
+      "language": "gu-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "clean",
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "03cb388b6dc96d6997c7a471ff8f493a1804db8eb369b7a32a8c73ed9b3a093e",
+      "audio_seconds": 18.67,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 8,
+        "substitutions": 8,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.20512820512820512,
+        "reference_chars": 192,
+        "char_edits": 15,
+        "char_substitutions": 7,
+        "char_deletions": 6,
+        "char_insertions": 2,
+        "cer": 0.078125
+      },
+      "hypothesis": "તિબેટનો બોધવાદ બોધના ઉપ્દેશો પર આધારીત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને બાર્તિય યોગની ગણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે When you call someone who is thousands of miles away, you are using a satellite.",
+      "inference_rtf": null,
+      "request_ms": 12842.81,
+      "request_rtf": 0.6878848419925013,
+      "decode_observation": {
+        "language_hint": "gu-en",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          401408,
+          196032
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.11629300564527512,
+            "avg_logprob": -0.04096881384702073,
+            "compression_ratio": 2.0899470899470898,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.07188320904970169,
+            "avg_logprob": -0.03874487347073025,
+            "compression_ratio": 1.0666666666666667,
+            "accepted": true
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:noise",
+      "source_ids": [
+        "gu-0000",
+        "en-0000"
+      ],
+      "language": "gu-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "noise",
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "23436c6743d48201cb45467d378344abaeaabc92a1e9edd31b7c036338dc8be2",
+      "audio_seconds": 18.67,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 22,
+        "substitutions": 7,
+        "deletions": 15,
+        "insertions": 0,
+        "wer": 0.5641025641025641,
+        "reference_chars": 192,
+        "char_edits": 77,
+        "char_substitutions": 5,
+        "char_deletions": 70,
+        "char_insertions": 2,
+        "cer": 0.4010416666666667
+      },
+      "hypothesis": "તિબેટનો બોધવાદ બોધના ઉપ્દેશો પર આધારીત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને બાર્તીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "inference_rtf": null,
+      "request_ms": 18454.318,
+      "request_rtf": 0.988447670058918,
+      "decode_observation": {
+        "language_hint": "gu-en",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          397824,
+          199616
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.01712830737233162,
+            "avg_logprob": -0.0415239530740325,
+            "compression_ratio": 2.0572916666666665,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.34227100014686584,
+            "avg_logprob": -0.11190157520527742,
+            "compression_ratio": 8.358490566037736,
+            "accepted": false
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:telephone",
+      "source_ids": [
+        "gu-0000",
+        "en-0000"
+      ],
+      "language": "gu-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "telephone",
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "0fc353395b7c555a8c0f7068d430f33aedd8ed6729fb885cb07802722bac8a63",
+      "audio_seconds": 18.67,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 6,
+        "substitutions": 6,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.15384615384615385,
+        "reference_chars": 192,
+        "char_edits": 12,
+        "char_substitutions": 4,
+        "char_deletions": 6,
+        "char_insertions": 2,
+        "cer": 0.0625
+      },
+      "hypothesis": "તિબેટનો બોધવાદ બોધના ઉપ્દેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભાર્તિય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે When you call someone who is thousands of miles away, you are using a satellite.",
+      "inference_rtf": null,
+      "request_ms": 12737.267,
+      "request_rtf": 0.682231762185324,
+      "decode_observation": {
+        "language_hint": "gu-en",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          409088,
+          188352
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.0610039122402668,
+            "avg_logprob": -0.03985000885638994,
+            "compression_ratio": 2.101063829787234,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.02554805390536785,
+            "avg_logprob": -0.03148857752482096,
+            "compression_ratio": 1.0666666666666667,
+            "accepted": true
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "source_ids": [
+        "hi-0000",
+        "en-0000"
+      ],
+      "language": "hi-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "clean",
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "7562e820957b53a093f7b5c399f137f10aff2f8e3c8c3e758c4fcdbe9dbed6f3",
+      "audio_seconds": 19.03,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 12,
+        "substitutions": 11,
+        "deletions": 0,
+        "insertions": 1,
+        "wer": 0.26666666666666666,
+        "reference_chars": 179,
+        "char_edits": 14,
+        "char_substitutions": 4,
+        "char_deletions": 7,
+        "char_insertions": 3,
+        "cer": 0.0782122905027933
+      },
+      "hypothesis": "मेजर किन खाना भूम अध्यसागर में सामान शेतरों की तरह रोटी, सबजीयों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "inference_rtf": null,
+      "request_ms": 6828.447,
+      "request_rtf": 0.3588253809774041,
+      "decode_observation": {
+        "language_hint": "hi-en",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          413696,
+          195264
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.0060644918121397495,
+            "avg_logprob": -0.04969181617101034,
+            "compression_ratio": 1.946524064171123,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.0738288089632988,
+            "avg_logprob": -0.04089567396375868,
+            "compression_ratio": 1.0666666666666667,
+            "accepted": true
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:noise",
+      "source_ids": [
+        "hi-0000",
+        "en-0000"
+      ],
+      "language": "hi-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "noise",
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "78b2d293ec313e5a45ec8ae75bbfe3417de4bd8a8767d7818cb39d9347edad1e",
+      "audio_seconds": 19.03,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 13,
+        "substitutions": 12,
+        "deletions": 0,
+        "insertions": 1,
+        "wer": 0.28888888888888886,
+        "reference_chars": 179,
+        "char_edits": 17,
+        "char_substitutions": 10,
+        "char_deletions": 5,
+        "char_insertions": 2,
+        "cer": 0.09497206703910614
+      },
+      "hypothesis": "मेजर किन खाना भूम अध्यसागर में सामाल शेतरों की तरह रोटी सबजीयों और मास विशेश रूप से सुवर का मास पर आधारित है और जैतून की तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "inference_rtf": null,
+      "request_ms": 6734.319,
+      "request_rtf": 0.35387908565423015,
+      "decode_observation": {
+        "language_hint": "hi-en",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          411136,
+          197824
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.020148402079939842,
+            "avg_logprob": -0.0646944703726933,
+            "compression_ratio": 1.9783783783783784,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.2522188723087311,
+            "avg_logprob": -0.21485662460327148,
+            "compression_ratio": 1.0666666666666667,
+            "accepted": true
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:telephone",
+      "source_ids": [
+        "hi-0000",
+        "en-0000"
+      ],
+      "language": "hi-en",
+      "corpus_kind": "stitched_public_code_mix",
+      "variant": "telephone",
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+      "audio_sha256": "8b4a823b74e6cf90f548a9c84a23937ad68fb5f2a05814cd064ea6fe62933799",
+      "audio_seconds": 19.03,
+      "status": "ok",
+      "error_code": null,
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 12,
+        "substitutions": 11,
+        "deletions": 0,
+        "insertions": 1,
+        "wer": 0.26666666666666666,
+        "reference_chars": 179,
+        "char_edits": 14,
+        "char_substitutions": 5,
+        "char_deletions": 6,
+        "char_insertions": 3,
+        "cer": 0.0782122905027933
+      },
+      "hypothesis": "मेजर किन खाना भूम अध्यसागर में सामान शेतरों की तरह रोटी, सबजीयों और मास विशेश रूप से सूवर का मास पर आधारित है और जैतून के तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "inference_rtf": null,
+      "request_ms": 6756.123,
+      "request_rtf": 0.35502485549132945,
+      "decode_observation": {
+        "language_hint": "hi-en",
+        "decode_path": "batch",
+        "chunk_bytes": [
+          410112,
+          198848
+        ],
+        "all_pcm_preserved": true,
+        "batch_rows": [
+          {
+            "no_speech_prob": 0.10786247253417969,
+            "avg_logprob": -0.06054764577787217,
+            "compression_ratio": 1.952127659574468,
+            "accepted": true
+          },
+          {
+            "no_speech_prob": 0.09411085397005081,
+            "avg_logprob": -0.04920244216918945,
+            "compression_ratio": 1.0666666666666667,
+            "accepted": true
+          }
+        ],
+        "result_error_code": null,
+        "cumulative_peak_metal_bytes": 2762933778,
+        "cumulative_process_peak_rss_bytes": 738508800
+      }
+    }
+  ],
+  "summaries": [
+    {
+      "language": "en",
+      "variant": "clean",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 15,
+      "word_edits": 0,
+      "substitutions": 0,
+      "deletions": 0,
+      "insertions": 0,
+      "reference_chars": 64,
+      "char_edits": 0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "audio_seconds": 6.54,
+      "request_ms": 4031.553,
+      "request_rtf": 0.6164454128440366,
+      "inference_rtf": null
+    },
+    {
+      "language": "en",
+      "variant": "noise",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 15,
+      "word_edits": 0,
+      "substitutions": 0,
+      "deletions": 0,
+      "insertions": 0,
+      "reference_chars": 64,
+      "char_edits": 0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "audio_seconds": 6.54,
+      "request_ms": 1743.754,
+      "request_rtf": 0.26662905198776754,
+      "inference_rtf": null
+    },
+    {
+      "language": "en",
+      "variant": "telephone",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 15,
+      "word_edits": 0,
+      "substitutions": 0,
+      "deletions": 0,
+      "insertions": 0,
+      "reference_chars": 64,
+      "char_edits": 0,
+      "wer": 0.0,
+      "cer": 0.0,
+      "audio_seconds": 6.54,
+      "request_ms": 1805.578,
+      "request_rtf": 0.2760822629969419,
+      "inference_rtf": null
+    },
+    {
+      "language": "gu",
+      "variant": "clean",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 24,
+      "word_edits": 7,
+      "substitutions": 7,
+      "deletions": 0,
+      "insertions": 0,
+      "reference_chars": 128,
+      "char_edits": 17,
+      "wer": 0.2916666666666667,
+      "cer": 0.1328125,
+      "audio_seconds": 11.88,
+      "request_ms": 10539.98,
+      "request_rtf": 0.8872037037037036,
+      "inference_rtf": null
+    },
+    {
+      "language": "gu",
+      "variant": "noise",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 24,
+      "word_edits": 6,
+      "substitutions": 6,
+      "deletions": 0,
+      "insertions": 0,
+      "reference_chars": 128,
+      "char_edits": 13,
+      "wer": 0.25,
+      "cer": 0.1015625,
+      "audio_seconds": 11.88,
+      "request_ms": 10349.671,
+      "request_rtf": 0.8711844276094276,
+      "inference_rtf": null
+    },
+    {
+      "language": "gu",
+      "variant": "telephone",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 24,
+      "word_edits": 5,
+      "substitutions": 5,
+      "deletions": 0,
+      "insertions": 0,
+      "reference_chars": 128,
+      "char_edits": 12,
+      "wer": 0.20833333333333334,
+      "cer": 0.09375,
+      "audio_seconds": 11.88,
+      "request_ms": 10445.578,
+      "request_rtf": 0.8792574074074073,
+      "inference_rtf": null
+    },
+    {
+      "language": "gu-en",
+      "variant": "clean",
+      "corpus_kind": "stitched_public_code_mix",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 39,
+      "word_edits": 8,
+      "substitutions": 8,
+      "deletions": 0,
+      "insertions": 0,
+      "reference_chars": 192,
+      "char_edits": 15,
+      "wer": 0.20512820512820512,
+      "cer": 0.078125,
+      "audio_seconds": 18.67,
+      "request_ms": 12842.81,
+      "request_rtf": 0.6878848419925013,
+      "inference_rtf": null
+    },
+    {
+      "language": "gu-en",
+      "variant": "noise",
+      "corpus_kind": "stitched_public_code_mix",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 39,
+      "word_edits": 22,
+      "substitutions": 7,
+      "deletions": 15,
+      "insertions": 0,
+      "reference_chars": 192,
+      "char_edits": 77,
+      "wer": 0.5641025641025641,
+      "cer": 0.4010416666666667,
+      "audio_seconds": 18.67,
+      "request_ms": 18454.318,
+      "request_rtf": 0.988447670058918,
+      "inference_rtf": null
+    },
+    {
+      "language": "gu-en",
+      "variant": "telephone",
+      "corpus_kind": "stitched_public_code_mix",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 39,
+      "word_edits": 6,
+      "substitutions": 6,
+      "deletions": 0,
+      "insertions": 0,
+      "reference_chars": 192,
+      "char_edits": 12,
+      "wer": 0.15384615384615385,
+      "cer": 0.0625,
+      "audio_seconds": 18.67,
+      "request_ms": 12737.267,
+      "request_rtf": 0.682231762185324,
+      "inference_rtf": null
+    },
+    {
+      "language": "hi",
+      "variant": "clean",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 30,
+      "word_edits": 12,
+      "substitutions": 11,
+      "deletions": 0,
+      "insertions": 1,
+      "reference_chars": 115,
+      "char_edits": 14,
+      "wer": 0.4,
+      "cer": 0.12173913043478261,
+      "audio_seconds": 12.24,
+      "request_ms": 4287.841,
+      "request_rtf": 0.35031380718954247,
+      "inference_rtf": null
+    },
+    {
+      "language": "hi",
+      "variant": "noise",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 30,
+      "word_edits": 13,
+      "substitutions": 11,
+      "deletions": 0,
+      "insertions": 2,
+      "reference_chars": 115,
+      "char_edits": 19,
+      "wer": 0.43333333333333335,
+      "cer": 0.16521739130434782,
+      "audio_seconds": 12.24,
+      "request_ms": 4312.562,
+      "request_rtf": 0.35233349673202613,
+      "inference_rtf": null
+    },
+    {
+      "language": "hi",
+      "variant": "telephone",
+      "corpus_kind": "public_read_speech",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 30,
+      "word_edits": 12,
+      "substitutions": 11,
+      "deletions": 0,
+      "insertions": 1,
+      "reference_chars": 115,
+      "char_edits": 14,
+      "wer": 0.4,
+      "cer": 0.12173913043478261,
+      "audio_seconds": 12.24,
+      "request_ms": 4360.928,
+      "request_rtf": 0.3562849673202614,
+      "inference_rtf": null
+    },
+    {
+      "language": "hi-en",
+      "variant": "clean",
+      "corpus_kind": "stitched_public_code_mix",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 45,
+      "word_edits": 12,
+      "substitutions": 11,
+      "deletions": 0,
+      "insertions": 1,
+      "reference_chars": 179,
+      "char_edits": 14,
+      "wer": 0.26666666666666666,
+      "cer": 0.0782122905027933,
+      "audio_seconds": 19.03,
+      "request_ms": 6828.447,
+      "request_rtf": 0.3588253809774041,
+      "inference_rtf": null
+    },
+    {
+      "language": "hi-en",
+      "variant": "noise",
+      "corpus_kind": "stitched_public_code_mix",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 45,
+      "word_edits": 13,
+      "substitutions": 12,
+      "deletions": 0,
+      "insertions": 1,
+      "reference_chars": 179,
+      "char_edits": 17,
+      "wer": 0.28888888888888886,
+      "cer": 0.09497206703910614,
+      "audio_seconds": 19.03,
+      "request_ms": 6734.319,
+      "request_rtf": 0.35387908565423015,
+      "inference_rtf": null
+    },
+    {
+      "language": "hi-en",
+      "variant": "telephone",
+      "corpus_kind": "stitched_public_code_mix",
+      "attempted": 1,
+      "succeeded": 1,
+      "failed": 0,
+      "reference_words": 45,
+      "word_edits": 12,
+      "substitutions": 11,
+      "deletions": 0,
+      "insertions": 1,
+      "reference_chars": 179,
+      "char_edits": 14,
+      "wer": 0.26666666666666666,
+      "cer": 0.0782122905027933,
+      "audio_seconds": 19.03,
+      "request_ms": 6756.123,
+      "request_rtf": 0.35502485549132945,
+      "inference_rtf": null
+    }
+  ],
+  "languages": [
+    "en",
+    "gu",
+    "gu-en",
+    "hi",
+    "hi-en"
+  ],
+  "provider_details": {
+    "model_name": "mlx-community/whisper-large-v3-mlx-8bit",
+    "model_revision": "04ca5b03c22d72ddf4f4b2d808a28bf9902fb71a",
+    "artifact_files": {
+      "config.json": {
+        "bytes": 342,
+        "sha256": "ac4c54c7011f31fe9d97cea8217b434799f997106c9638d0114f04ebbb65dc08"
+      },
+      "weights.npz": {
+        "bytes": 1707566240,
+        "sha256": "890ee7a120c2cc239b7a17fefed7726df9feaec5488f2e02a0eda909beac5749"
+      }
+    },
+    "device": "metal",
+    "compute_type": "int8",
+    "activation_dtype": "float16",
+    "decoder_layers": 32,
+    "runtime_versions": {
+      "mlx": "0.32.4",
+      "mlx-metal": "0.32.4",
+      "mlx-whisper": "0.4.3"
+    },
+    "router_version": "whisper-turbo-structural-v3",
+    "turn_policy": {
+      "endpoint_silence_ms": 512,
+      "continuation_grace_ms": 300,
+      "batch_gap_min_ms": 256,
+      "max_utterance_ms": 30000,
+      "batch_min_turn_ms": 2000
+    },
+    "batch_rejection": {
+      "no_speech": 0.6,
+      "avg_logprob": -1.0,
+      "compression_ratio": 2.4
+    },
+    "temperature": 0,
+    "sample_len": 440,
+    "condition_on_previous_text": false,
+    "without_timestamps": true,
+    "cache_limit_bytes": 268435456,
+    "timeout_secs": 180,
+    "source_commit": "2fa0a3fe39e7ec7c91f792cb1de4f940354b8dd2",
+    "network_calls": false,
+    "model_weights_provisioned_before_run": true,
+    "lab_loader": "Same generic inference closure for both models; existing structural chunking, row gating and normalization reused. Separate processes; no model cascade or app changes."
+  },
+  "public_samples_only": true,
+  "new_model_weights_downloaded": true,
+  "paid_router_used": false,
+  "native_review_passed": false,
+  "production_voice_approved": false,
+  "native_code_mix_included": false,
+  "limits": "15 cases from three public source recordings with synthetic noise/telephone/stitching, not representative native conversation. Request wall time includes first-request setup and observer overhead. Separate process per model, same order/options; no voice latency or gate pass. Models differ in size and weight precision. No paid API, mic, DB access or inference-time downloads.",
+  "expected_cases": 15,
+  "complete": true,
+  "completed_at": "2026-10-22T09:38:46.563161+00:00",
+  "memory": {
+    "device": {
+      "device_name": "Apple M2",
+      "max_recommended_working_set_size": 5726633984,
+      "memory_size": 8589934592,
+      "architecture": "applegpu_g14g",
+      "max_buffer_length": 4294967296,
+      "resource_limit": 499000
+    },
+    "process_peak_rss_bytes": 738508800,
+    "sampled_process_peak_rss_bytes": 730578944,
+    "metal_peak_allocated_bytes": 2762933778,
+    "metal_active_end_bytes": 1724383968,
+    "metal_cache_end_bytes": 6,
+    "system_swap_used_before_bytes": 8109228032,
+    "system_swap_used_after_bytes": 9094758400,
+    "system_swap_peak_bytes": 9158524928,
+    "sample_period_ms": 50,
+    "samples": 2276,
+    "notes": "Darwin ru_maxrss is bytes. RSS and Metal allocations can overlap on unified memory and must not be summed. Swap is system-wide and include other apps. No TTS, DB, microphone or LLM loaded. Includes model load and all inference; not full voice peak."
+  },
+  "network_attempts_blocked": 0,
+  "network_calls": false,
+  "download_scope": "Only the separately approved full large-v3 8-bit snapshot was provisioned before offline inference; Turbo was already installed."
+}

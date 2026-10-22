@@ -1,0 +1,671 @@
+{
+  "schema": "roma-asr-paired-model-comparison-v1",
+  "recorded_at": "2026-10-22",
+  "manifest_sha256": "0d47af5679c81b904fb64803767107ef44d9d31affa81180e690647b6b99816b",
+  "reports": {
+    "turbo4": {
+      "path": "whisper-turbo-4bit-paired-20261022-report.json",
+      "sha256": "6b11f9900dedfd05c63861aef3b4a54c877f671ff892f9ad4bd820e3576f7022",
+      "provider_details": {
+        "model_name": "mlx-community/whisper-large-v3-turbo-4bit",
+        "model_revision": "0f058d38170d183f9fdee07908f5b515d91793a8",
+        "artifact_files": {
+          "config.json": {
+            "bytes": 341,
+            "sha256": "538e24557b8f9bc504700add5e7bbe32087c2353001ff563e64772ad4398671a"
+          },
+          "weights.safetensors": {
+            "bytes": 463462982,
+            "sha256": "e2d6146b49644c13ed7467060d3c43c402bbdfca1f01f1c21f6fbeda23b6567e",
+            "source_filename": "model.safetensors"
+          },
+          "multilingual.tiktoken": {
+            "bytes": 816730,
+            "sha256": "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126"
+          }
+        },
+        "device": "metal",
+        "compute_type": "int4",
+        "activation_dtype": "float16",
+        "decoder_layers": 4,
+        "runtime_versions": {
+          "mlx": "0.32.4",
+          "mlx-metal": "0.32.4",
+          "mlx-whisper": "0.4.3"
+        },
+        "router_version": "whisper-turbo-structural-v3",
+        "turn_policy": {
+          "endpoint_silence_ms": 512,
+          "continuation_grace_ms": 300,
+          "batch_gap_min_ms": 256,
+          "max_utterance_ms": 30000,
+          "batch_min_turn_ms": 2000
+        },
+        "batch_rejection": {
+          "no_speech": 0.6,
+          "avg_logprob": -1.0,
+          "compression_ratio": 2.4
+        },
+        "temperature": 0,
+        "sample_len": 440,
+        "condition_on_previous_text": false,
+        "without_timestamps": true,
+        "cache_limit_bytes": 268435456,
+        "timeout_secs": 180,
+        "source_commit": "2fa0a3fe39e7ec7c91f792cb1de4f940354b8dd2",
+        "network_calls": false,
+        "model_weights_provisioned_before_run": true,
+        "lab_loader": "Same generic inference closure for both models; existing structural chunking, row gating and normalization reused. Separate processes; no model cascade or app changes."
+      }
+    },
+    "large8": {
+      "path": "whisper-large-v3-8bit-paired-20261022-report.json",
+      "sha256": "0ff78d2b0ba5d08df557d952ab8f8c70fe613cf7d111000c8411ecdac38d3783",
+      "provider_details": {
+        "model_name": "mlx-community/whisper-large-v3-mlx-8bit",
+        "model_revision": "04ca5b03c22d72ddf4f4b2d808a28bf9902fb71a",
+        "artifact_files": {
+          "config.json": {
+            "bytes": 342,
+            "sha256": "ac4c54c7011f31fe9d97cea8217b434799f997106c9638d0114f04ebbb65dc08"
+          },
+          "weights.npz": {
+            "bytes": 1707566240,
+            "sha256": "890ee7a120c2cc239b7a17fefed7726df9feaec5488f2e02a0eda909beac5749"
+          }
+        },
+        "device": "metal",
+        "compute_type": "int8",
+        "activation_dtype": "float16",
+        "decoder_layers": 32,
+        "runtime_versions": {
+          "mlx": "0.32.4",
+          "mlx-metal": "0.32.4",
+          "mlx-whisper": "0.4.3"
+        },
+        "router_version": "whisper-turbo-structural-v3",
+        "turn_policy": {
+          "endpoint_silence_ms": 512,
+          "continuation_grace_ms": 300,
+          "batch_gap_min_ms": 256,
+          "max_utterance_ms": 30000,
+          "batch_min_turn_ms": 2000
+        },
+        "batch_rejection": {
+          "no_speech": 0.6,
+          "avg_logprob": -1.0,
+          "compression_ratio": 2.4
+        },
+        "temperature": 0,
+        "sample_len": 440,
+        "condition_on_previous_text": false,
+        "without_timestamps": true,
+        "cache_limit_bytes": 268435456,
+        "timeout_secs": 180,
+        "source_commit": "2fa0a3fe39e7ec7c91f792cb1de4f940354b8dd2",
+        "network_calls": false,
+        "model_weights_provisioned_before_run": true,
+        "lab_loader": "Same generic inference closure for both models; existing structural chunking, row gating and normalization reused. Separate processes; no model cascade or app changes."
+      }
+    }
+  },
+  "independent_score_checks": 30,
+  "network_calls_during_inference": false,
+  "paid_api_calls": false,
+  "microphone_used": false,
+  "working_db_accessed": false,
+  "gate_passed": false,
+  "configuration_changed": false,
+  "limits": "15 derived cases from three recordings, not a representative corpus or native review. Both candidates use identical language hints, structural chunking, row rejection, text normalization and generation options in separate fresh processes. Quantization differs (Turbo 4-bit vs full 8-bit); this is not architecture-only isolation. ASR wall time includes cold setup and observer overhead; excludes LLM/TTS/microphone. System swap includes other apps. RSS and Metal overlap and must not be added. No adoption/default change. p95 nearest-rank on a small derived corpus is not an SLO.",
+  "by_language": [
+    {
+      "language": "en",
+      "turbo4": {
+        "cases": 3,
+        "word_edits": 0,
+        "reference_words": 45,
+        "char_edits": 0,
+        "reference_chars": 192,
+        "wer": 0.0,
+        "cer": 0.0,
+        "median_request_ms": 1327.202,
+        "nearest_rank_p95_request_ms": 1890.358,
+        "total_request_ms": 4525.684,
+        "request_rtf": 0.23066687054026502
+      },
+      "large8": {
+        "cases": 3,
+        "word_edits": 0,
+        "reference_words": 45,
+        "char_edits": 0,
+        "reference_chars": 192,
+        "wer": 0.0,
+        "cer": 0.0,
+        "median_request_ms": 1805.578,
+        "nearest_rank_p95_request_ms": 4031.553,
+        "total_request_ms": 7580.885,
+        "request_rtf": 0.3863855759429154
+      }
+    },
+    {
+      "language": "gu",
+      "turbo4": {
+        "cases": 3,
+        "word_edits": 50,
+        "reference_words": 72,
+        "char_edits": 150,
+        "reference_chars": 384,
+        "wer": 0.6944444444444444,
+        "cer": 0.390625,
+        "median_request_ms": 3670.263,
+        "nearest_rank_p95_request_ms": 3868.009,
+        "total_request_ms": 10809.771,
+        "request_rtf": 0.3033044612794613
+      },
+      "large8": {
+        "cases": 3,
+        "word_edits": 18,
+        "reference_words": 72,
+        "char_edits": 42,
+        "reference_chars": 384,
+        "wer": 0.25,
+        "cer": 0.109375,
+        "median_request_ms": 10445.578,
+        "nearest_rank_p95_request_ms": 10539.98,
+        "total_request_ms": 31335.229,
+        "request_rtf": 0.8792151795735128
+      }
+    },
+    {
+      "language": "hi",
+      "turbo4": {
+        "cases": 3,
+        "word_edits": 34,
+        "reference_words": 90,
+        "char_edits": 41,
+        "reference_chars": 345,
+        "wer": 0.37777777777777777,
+        "cer": 0.11884057971014493,
+        "median_request_ms": 1665.619,
+        "nearest_rank_p95_request_ms": 1683.523,
+        "total_request_ms": 4961.731,
+        "request_rtf": 0.13512339324618736
+      },
+      "large8": {
+        "cases": 3,
+        "word_edits": 37,
+        "reference_words": 90,
+        "char_edits": 47,
+        "reference_chars": 345,
+        "wer": 0.4111111111111111,
+        "cer": 0.13623188405797101,
+        "median_request_ms": 4312.562,
+        "nearest_rank_p95_request_ms": 4360.928,
+        "total_request_ms": 12961.331,
+        "request_rtf": 0.3529774237472767
+      }
+    },
+    {
+      "language": "gu-en",
+      "turbo4": {
+        "cases": 3,
+        "word_edits": 47,
+        "reference_words": 117,
+        "char_edits": 110,
+        "reference_chars": 576,
+        "wer": 0.4017094017094017,
+        "cer": 0.1909722222222222,
+        "median_request_ms": 3982.175,
+        "nearest_rank_p95_request_ms": 3989.928,
+        "total_request_ms": 11946.71,
+        "request_rtf": 0.2132960185681128
+      },
+      "large8": {
+        "cases": 3,
+        "word_edits": 36,
+        "reference_words": 117,
+        "char_edits": 104,
+        "reference_chars": 576,
+        "wer": 0.3076923076923077,
+        "cer": 0.18055555555555555,
+        "median_request_ms": 12842.81,
+        "nearest_rank_p95_request_ms": 18454.318,
+        "total_request_ms": 44034.395,
+        "request_rtf": 0.7861880914122477
+      }
+    },
+    {
+      "language": "hi-en",
+      "turbo4": {
+        "cases": 3,
+        "word_edits": 34,
+        "reference_words": 135,
+        "char_edits": 40,
+        "reference_chars": 537,
+        "wer": 0.2518518518518518,
+        "cer": 0.074487895716946,
+        "median_request_ms": 3184.601,
+        "nearest_rank_p95_request_ms": 3342.136,
+        "total_request_ms": 9665.119999999999,
+        "request_rtf": 0.1692961989840602
+      },
+      "large8": {
+        "cases": 3,
+        "word_edits": 37,
+        "reference_words": 135,
+        "char_edits": 45,
+        "reference_chars": 537,
+        "wer": 0.2740740740740741,
+        "cer": 0.08379888268156424,
+        "median_request_ms": 6756.123,
+        "nearest_rank_p95_request_ms": 6828.447,
+        "total_request_ms": 20318.889,
+        "request_rtf": 0.3559097740409879
+      }
+    }
+  ],
+  "overall": {
+    "turbo4": {
+      "cases": 15,
+      "word_edits": 165,
+      "reference_words": 459,
+      "char_edits": 341,
+      "reference_chars": 2034,
+      "wer": 0.35947712418300654,
+      "cer": 0.16764995083579154,
+      "median_request_ms": 3184.601,
+      "nearest_rank_p95_request_ms": 3989.928,
+      "total_request_ms": 41909.015999999996,
+      "request_rtf": 0.2043544763019309
+    },
+    "large8": {
+      "cases": 15,
+      "word_edits": 128,
+      "reference_words": 459,
+      "char_edits": 238,
+      "reference_chars": 2034,
+      "wer": 0.2788671023965142,
+      "cer": 0.11701081612586037,
+      "median_request_ms": 6756.123,
+      "nearest_rank_p95_request_ms": 18454.318,
+      "total_request_ms": 116230.72899999999,
+      "request_rtf": 0.5667579920031207
+    }
+  },
+  "memory": {
+    "turbo4": {
+      "device": {
+        "device_name": "Apple M2",
+        "max_recommended_working_set_size": 5726633984,
+        "memory_size": 8589934592,
+        "architecture": "applegpu_g14g",
+        "max_buffer_length": 4294967296,
+        "resource_limit": 499000
+      },
+      "process_peak_rss_bytes": 500121600,
+      "sampled_process_peak_rss_bytes": 441073664,
+      "metal_peak_allocated_bytes": 1512102434,
+      "metal_active_end_bytes": 473541280,
+      "metal_cache_end_bytes": 6,
+      "system_swap_used_before_bytes": 7114784768,
+      "system_swap_used_after_bytes": 8109228032,
+      "system_swap_peak_bytes": 8110669824,
+      "sample_period_ms": 50,
+      "samples": 918,
+      "notes": "Darwin ru_maxrss is bytes. RSS and Metal allocations can overlap on unified memory and must not be summed. Swap is system-wide and include other apps. No TTS, DB, microphone or LLM loaded. Includes model load and all inference; not full voice peak."
+    },
+    "large8": {
+      "device": {
+        "device_name": "Apple M2",
+        "max_recommended_working_set_size": 5726633984,
+        "memory_size": 8589934592,
+        "architecture": "applegpu_g14g",
+        "max_buffer_length": 4294967296,
+        "resource_limit": 499000
+      },
+      "process_peak_rss_bytes": 738508800,
+      "sampled_process_peak_rss_bytes": 730578944,
+      "metal_peak_allocated_bytes": 2762933778,
+      "metal_active_end_bytes": 1724383968,
+      "metal_cache_end_bytes": 6,
+      "system_swap_used_before_bytes": 8109228032,
+      "system_swap_used_after_bytes": 9094758400,
+      "system_swap_peak_bytes": 9158524928,
+      "sample_period_ms": 50,
+      "samples": 2276,
+      "notes": "Darwin ru_maxrss is bytes. RSS and Metal allocations can overlap on unified memory and must not be summed. Swap is system-wide and include other apps. No TTS, DB, microphone or LLM loaded. Includes model load and all inference; not full voice peak."
+    }
+  },
+  "case_deltas": [
+    {
+      "case_id": "en-0000:clean",
+      "language": "en",
+      "transcript_changed": false,
+      "turbo4": {
+        "wer": 0.0,
+        "cer": 0.0,
+        "request_ms": 1890.358,
+        "decode_path": "single"
+      },
+      "large8": {
+        "wer": 0.0,
+        "cer": 0.0,
+        "request_ms": 4031.553,
+        "decode_path": "single"
+      }
+    },
+    {
+      "case_id": "en-0000:noise",
+      "language": "en",
+      "transcript_changed": false,
+      "turbo4": {
+        "wer": 0.0,
+        "cer": 0.0,
+        "request_ms": 1327.202,
+        "decode_path": "single"
+      },
+      "large8": {
+        "wer": 0.0,
+        "cer": 0.0,
+        "request_ms": 1743.754,
+        "decode_path": "single"
+      }
+    },
+    {
+      "case_id": "en-0000:telephone",
+      "language": "en",
+      "transcript_changed": false,
+      "turbo4": {
+        "wer": 0.0,
+        "cer": 0.0,
+        "request_ms": 1308.124,
+        "decode_path": "single"
+      },
+      "large8": {
+        "wer": 0.0,
+        "cer": 0.0,
+        "request_ms": 1805.578,
+        "decode_path": "single"
+      }
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "language": "gu",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.5833333333333334,
+        "cer": 0.2265625,
+        "request_ms": 3868.009,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.2916666666666667,
+        "cer": 0.1328125,
+        "request_ms": 10539.98,
+        "decode_path": "batch"
+      }
+    },
+    {
+      "case_id": "gu-0000:noise",
+      "language": "gu",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.9583333333333334,
+        "cer": 0.7578125,
+        "request_ms": 3271.499,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.25,
+        "cer": 0.1015625,
+        "request_ms": 10349.671,
+        "decode_path": "batch"
+      }
+    },
+    {
+      "case_id": "gu-0000:telephone",
+      "language": "gu",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.5416666666666666,
+        "cer": 0.1875,
+        "request_ms": 3670.263,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.20833333333333334,
+        "cer": 0.09375,
+        "request_ms": 10445.578,
+        "decode_path": "batch"
+      }
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "language": "hi",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.36666666666666664,
+        "cer": 0.10434782608695652,
+        "request_ms": 1683.523,
+        "decode_path": "single"
+      },
+      "large8": {
+        "wer": 0.4,
+        "cer": 0.12173913043478261,
+        "request_ms": 4287.841,
+        "decode_path": "single"
+      }
+    },
+    {
+      "case_id": "hi-0000:noise",
+      "language": "hi",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.4,
+        "cer": 0.12173913043478261,
+        "request_ms": 1612.589,
+        "decode_path": "single"
+      },
+      "large8": {
+        "wer": 0.43333333333333335,
+        "cer": 0.16521739130434782,
+        "request_ms": 4312.562,
+        "decode_path": "single"
+      }
+    },
+    {
+      "case_id": "hi-0000:telephone",
+      "language": "hi",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.36666666666666664,
+        "cer": 0.13043478260869565,
+        "request_ms": 1665.619,
+        "decode_path": "single"
+      },
+      "large8": {
+        "wer": 0.4,
+        "cer": 0.12173913043478261,
+        "request_ms": 4360.928,
+        "decode_path": "single"
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "language": "gu-en",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.358974358974359,
+        "cer": 0.14583333333333334,
+        "request_ms": 3982.175,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.20512820512820512,
+        "cer": 0.078125,
+        "request_ms": 12842.81,
+        "decode_path": "batch"
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:noise",
+      "language": "gu-en",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.48717948717948717,
+        "cer": 0.2708333333333333,
+        "request_ms": 3989.928,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.5641025641025641,
+        "cer": 0.4010416666666667,
+        "request_ms": 18454.318,
+        "decode_path": "batch"
+      }
+    },
+    {
+      "case_id": "gu-0000+en-0000:telephone",
+      "language": "gu-en",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.358974358974359,
+        "cer": 0.15625,
+        "request_ms": 3974.607,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.15384615384615385,
+        "cer": 0.0625,
+        "request_ms": 12737.267,
+        "decode_path": "batch"
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "language": "hi-en",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.26666666666666666,
+        "cer": 0.07262569832402235,
+        "request_ms": 3184.601,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.26666666666666666,
+        "cer": 0.0782122905027933,
+        "request_ms": 6828.447,
+        "decode_path": "batch"
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:noise",
+      "language": "hi-en",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.24444444444444444,
+        "cer": 0.0670391061452514,
+        "request_ms": 3342.136,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.28888888888888886,
+        "cer": 0.09497206703910614,
+        "request_ms": 6734.319,
+        "decode_path": "batch"
+      }
+    },
+    {
+      "case_id": "hi-0000+en-0000:telephone",
+      "language": "hi-en",
+      "transcript_changed": true,
+      "turbo4": {
+        "wer": 0.24444444444444444,
+        "cer": 0.08379888268156424,
+        "request_ms": 3138.383,
+        "decode_path": "batch"
+      },
+      "large8": {
+        "wer": 0.26666666666666666,
+        "cer": 0.0782122905027933,
+        "request_ms": 6756.123,
+        "decode_path": "batch"
+      }
+    }
+  ],
+  "warm_matched_14_excluding_process_first_en_clean": {
+    "turbo4": {
+      "cases": 14,
+      "word_edits": 165,
+      "reference_words": 444,
+      "char_edits": 341,
+      "reference_chars": 1970,
+      "wer": 0.3716216216216216,
+      "cer": 0.1730964467005076,
+      "median_request_ms": 3228.05,
+      "nearest_rank_p95_request_ms": 3989.928,
+      "total_request_ms": 40018.657999999996,
+      "request_rtf": 0.2015647124005238
+    },
+    "large8": {
+      "cases": 14,
+      "word_edits": 128,
+      "reference_words": 444,
+      "char_edits": 238,
+      "reference_chars": 1970,
+      "wer": 0.2882882882882883,
+      "cer": 0.12081218274111676,
+      "median_request_ms": 6792.285,
+      "nearest_rank_p95_request_ms": 18454.318,
+      "total_request_ms": 112199.17599999999,
+      "request_rtf": 0.5651212652362243
+    }
+  },
+  "mixed": {
+    "turbo4": {
+      "cases": 6,
+      "word_edits": 81,
+      "reference_words": 252,
+      "char_edits": 150,
+      "reference_chars": 1113,
+      "wer": 0.32142857142857145,
+      "cer": 0.1347708894878706,
+      "median_request_ms": 3658.3715,
+      "nearest_rank_p95_request_ms": 3989.928,
+      "total_request_ms": 21611.83,
+      "request_rtf": 0.19108603006189212
+    },
+    "large8": {
+      "cases": 6,
+      "word_edits": 73,
+      "reference_words": 252,
+      "char_edits": 149,
+      "reference_chars": 1113,
+      "wer": 0.2896825396825397,
+      "cer": 0.13387241689128482,
+      "median_request_ms": 9782.857,
+      "nearest_rank_p95_request_ms": 18454.318,
+      "total_request_ms": 64353.284,
+      "request_rtf": 0.5689945534924845
+    }
+  },
+  "exact_normalized_english_suffix": {
+    "turbo4": 5,
+    "large8": 5
+  },
+  "turbo_hypotheses_identical_to_prior_structural_run": 15,
+  "observations": {
+    "turbo4": {
+      "batch_cases": 9,
+      "rows_rejected": 0,
+      "empty_transcripts": 0,
+      "network_attempts_blocked": 0
+    },
+    "large8": {
+      "batch_cases": 9,
+      "rows_rejected": 1,
+      "empty_transcripts": 0,
+      "network_attempts_blocked": 0
+    }
+  }
+}

@@ -2,6 +2,8 @@
 
 ## Current readiness
 
+The owner-approved full Whisper large-v3 **8-bit MLX** trial is installed separately and completed all 15 cases offline alongside a fresh Turbo baseline. Pooled WER improves **35.95% → 27.89%**, but median ASR request latency increases **3.185 → 6.756 s**; Hindi and Hindi–English regress. Turbo remains configured; full large-v3 remains an evaluation cache. [Paired accuracy, latency and memory evidence](#full-large-v3-8-bit-mlx-versus-turbo--2026-10-22) does not pass a gate or resolve representative/native quality. Paid Claude and microphone tests remain deferred.
+
 The 2026-10-22 fixed-corpus rerun completed 15/15 requests but regressed Gujarati-only accuracy and median latency with structural batching. Mixed transcripts were unchanged; no batch rows were rejected. This is an unsuccessful quality result, not a gate pass. See [the measured comparison](#structural-routing-and-rejection-rerun--2026-10-22).
 
 Phase 4 adds [manifest-v2 metadata](../../configs/asr-corpus-v2.schema.json), pure entity/per-speaker scoring and offline report annotation. Speaker/recording minimums remain unset in [configuration](../../configs/asr-corpus-v2.json). No representative corpus was collected and no new ASR result was measured. The unchanged section18 manifest has 15 derived cases from three recordings; it cannot support a model decision. Use the [recording protocol](../26-asr-recording-protocol.md) only after owner approval of the remaining data/review decisions.
@@ -509,3 +511,37 @@ uv run --no-sync python scripts/asr_benchmark.py run \
   --audio-dir var/roma/asr-public \
   --report var/roma/asr-benchmark/structural-v3-rerun.json
 ```
+
+## Full large-v3 8-bit MLX versus Turbo — 2026-10-22
+
+The owner explicitly approved downloading only full Whisper large-v3 8-bit MLX and comparing all 15 existing cases with Turbo. The [installed snapshot identity](../../benchmarks/asr/whisper-large-v3-mlx-8bit-artifacts.json) pins `mlx-community/whisper-large-v3-mlx-8bit` revision `04ca5b03c22d72ddf4f4b2d808a28bf9902fb71a`, config plus weights totaling **1,707,566,582 bytes (1.708 GB / 1.590 GiB)**. SHA-256 verification passed. Turbo's existing **464,280,053-byte** cache remains installed and configured; full large-v3 is not added to the production artifact allowlist or selected automatically. No runtime/package upgrade was needed.
+
+The [fresh Turbo report](../../benchmarks/asr/section18/whisper-turbo-4bit-paired-20261022-report.json), [full large-v3 report](../../benchmarks/asr/section18/whisper-large-v3-8bit-paired-20261022-report.json) and [paired comparison](../../benchmarks/asr/section18/whisper-large-v3-8bit-vs-turbo-paired-20261022.json) record **15/15 successful requests per model** on the unchanged manifest, with matching audio hashes, durations, references and case IDs. Source application commit is `2fa0a3f`. All 15 fresh Turbo hypotheses match the preceding structural-v3 run exactly. An independent Unicode-normalized Levenshtein implementation verifies all **30 word/character score pairs**; pooled rates use reference totals rather than averaging case percentages.
+
+| Language, three variants each | WER Turbo 4-bit → full 8-bit | CER Turbo → full | Median ASR request Turbo → full |
+| --- | ---: | ---: | ---: |
+| English | 0.00% → 0.00% | 0.00% → 0.00% | 1.327 → 1.806 s |
+| Gujarati | 69.44% → 25.00% | 39.06% → 10.94% | 3.670 → 10.446 s |
+| Hindi | 37.78% → 41.11% | 11.88% → 13.62% | 1.666 → 4.313 s |
+| Gujarati–English | 40.17% → 30.77% | 19.10% → 18.06% | 3.982 → 12.843 s |
+| Hindi–English | 25.19% → 27.41% | 7.45% → 8.38% | 3.185 → 6.756 s |
+
+Overall pooled WER **35.95% → 27.89%**; pooled CER **16.76% → 11.70%**. Median request **3.185 → 6.756 s**, nearest-rank p95 **3.990 → 18.454 s**, and corpus request RTF **0.204 → 0.567**. These are finalized-audio request timings, including cold setup on the first English case; they exclude capture, endpoint wait, Claude, TTS and playback. Removing the same first case from both leaves matched 14-case medians **3.228 → 6.792 s**. A 15-case p95 is not a latency SLO.
+
+Both runs use separate fresh processes on the **Apple M2 / 8 GiB** Mac, the same five declared route hints, installed MLX runtime versions, float16 activations, structural chunk selection, English-probability gate, normalization, greedy temperature-zero generation, 440-token cap and existing rejection thresholds. The isolated lab loader accepts the separately verified full snapshot; it does not change the application verifier, registry or config. The evaluation await timeout is 180 s for both models, with no retries or cascade; the production timeout is unchanged. Turbo has four decoder layers with 4-bit weights; full large-v3 has 32 with 8-bit weights. Thus the comparison changes model size and precision together, and does not isolate either factor. No decoder or threshold tuning was performed.
+
+Each model batches nine cases and leaves six single; every source PCM byte is preserved. Turbo accepts all 18 batch rows. Full large-v3 rejects **one** row in noisy Gujarati–English: compression ratio **8.358** exceeds the unchanged **2.4** guard, while no-speech/logprob pass. The remaining Indic row is returned; the English suffix is absent, and the resulting **56.41% WER** remains in the pooled score. Both models have **5/6 exact normalized English suffixes**, but this does not mean both preserve intelligible English in every case. Full large-v3 does not solve the remaining noisy code-mix omission. No rejected row was retried or silently excluded from accuracy statistics.
+
+| Resource, measured separately | Turbo 4-bit | Full large-v3 8-bit |
+| --- | ---: | ---: |
+| Process peak RSS | 0.466 GiB | 0.688 GiB |
+| Peak Metal allocation | 1.408 GiB | 2.573 GiB |
+| System swap before | 6.626 GiB | 7.552 GiB |
+| System swap after | 7.552 GiB | 8.470 GiB |
+| System swap peak | 7.554 GiB | 8.530 GiB |
+
+RSS uses Darwin's process high-water counter; native RSS/swap samples run every 50 ms and Metal uses its peak allocation counter. **Do not add RSS and Metal**: their allocations can overlap in unified memory, and process RSS alone understates accelerator allocations. Swap is system-wide, includes other applications and was already high before testing. The sequential single runs are not a controlled memory-pressure or full voice workload experiment. Full model loading/inference completed without timeout or out-of-memory errors, but this does not prove it fits alongside local TTS, capture and the rest of the project under acceptable pressure. The measured 2.573 GiB Metal peak is below the device's 5.333 GiB recommended working set; it is not total application or system RAM usage.
+
+Inference processes blocked TCP/DNS and recorded zero network attempts. Only the explicitly approved full snapshot was downloaded before inference; no other model was downloaded, removed or changed. No paid Claude, microphone, SQL import, working `roma` access, migration, production Twilio/Sarvam change, `.env` edit or ASR default change occurred. Historical artifacts remain immutable. The 15 derived cases still come from only three recordings with synthetic noise/telephone variants and stitched switches; no native or representative acceptance is implied.
+
+Recommendation from this trial: **keep Turbo configured and retain full large-v3 as an offline comparison**, as requested. Full large-v3 substantially improves this Gujarati sample, but the overall median is over twice as slow, Hindi degrades and noisy code-mix still omits English. Neither result closes the quality/voice gate. A representative consented corpus and later separately authorized voice/native review remain necessary before adopting a different model.
