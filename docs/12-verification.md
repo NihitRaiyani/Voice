@@ -1,9 +1,11 @@
 # Verification and acceptance evidence
 
+Current repair verification: **2,935 passed / 22 existing warnings** in each final offline suite. [ASR/consent/live delivery evidence](#asr-padding-and-deterministic-consent-repair--2026-10-22) records the exact isolated commands and distinguishes real microphone/SQL proof from remaining native/latency approval.
+
 Current source/provider policy changed on 2026-10-20: [Claude roadmap](roadmaps/README.md) and Claude Haiku 5.5 replace OpenAI. Dated checks, model names, counts and former source hashes below remain historical evidence; they do not prove Claude quality/cost/latency. No OpenAI requests or fallback are permitted. Native/representative and complete voice gates remain pending.
 
 
-Current local Phase 2–4 verification: **2,920 tests pass in both `make ci` and `make test`, with 22 existing warnings**. These offline checks do not imply hosted CI, native review or any passed gate. See the [combined delivery report](#combined-phase-24-delivery) for per-item evidence and limitations.
+Historical local Phase 2–4 verification: **2,920 tests pass in both `make ci` and `make test`, with 22 existing warnings**. These offline checks do not imply hosted CI, native review or any passed gate. See the [combined delivery report](#combined-phase-24-delivery) for per-item evidence and limitations.
 
 Historical complete-suite verification after the [Level 2 section 10 increment](levels/level-02.md): **1,674 tests passed, 23 warnings, no failures or skips**. The new `make ci` skeleton starts native local services, runs Ruff, runs mypy on the Level 1 contract surface, applies Alembic to the local database, passes **38 provider/config tests** and passes **11 mocked API/architecture/migration-settings tests**. Pre-commit hooks pass across all files.
 
@@ -449,3 +451,25 @@ The [Level 4 paired trial](levels/level-04.md#full-large-v3-8-bit-mlx-versus-tur
 Pooled WER/CER improve **35.95% / 16.76% → 27.89% / 11.70%**, while median ASR request increases **3.185 → 6.756 s**. Hindi/Hindi–English regress and full large-v3 rejects one repetitive noisy mixed row, losing its English suffix; rejected content remains represented as deletions in the score. Peak Metal allocations are **1.408 → 2.573 GiB**, process peak RSS **0.466 → 0.688 GiB**, measured separately and never summed. System swap was already high, includes other apps and cannot be attributed solely to a model; no full voice RAM or latency claim is made.
 
 The focused existing MLX/provider/rejection/evaluation checks pass **65 tests**; Markdown verification passes **87 files / 583 local links and anchors**, and `git diff --check` is clean. This evidence-only increment changes no application, dependency, config, test, migration or production path. Turbo remains the configured model and both caches remain installed. No working `roma` access, paid Claude or microphone test ran; no gate passes. Historical evidence remains intact. See the raw reports and hashed comparison linked from Level 4 for every case, runtime/weight pin, timing, row decision and memory observation.
+
+
+## ASR padding and deterministic consent repair — 2026-10-22
+
+[Level 4](levels/level-04.md#waveform-padding-repair-and-model-retirement--2026-10-22) owns the confirmed bad log-mel padding, unchanged single-call path, 30 independently checked case scores, actual decoder profiling, corrected 15/15 runs per model and authorized full-v3 cache retirement. [Level 6](levels/level-06.md#supervised-claude-and-booking-follow-up--2026-10-22) owns the paid/supervised attempts, owner clarity/relevance observation, real TEST ONLY appointment and SQL restore. All failed attempts remain in transcript-free evidence.
+
+Failing-before/passing-after: `test_batch_features_match_whisper_waveform_padding`; all six parameters of `test_natural_explicit_consent_commits_after_the_readback`; and `test_explicit_readback_confirmation_does_not_depend_on_llm_extraction`. Safeguards additionally cover questions, negations, revisions and missing selected readbacks. The affected controller/text subset passes **162 tests** before final full verification.
+
+| Final check | Result |
+| --- | --- |
+| `make -o services-up -o db-upgrade ci` | Ruff/mypy clean; full explicit CI catalog **2,935 passed**, 22 existing warnings, 95.49 s |
+| `make test` | **2,935 passed**, 22 existing warnings, 93.39 s |
+| Independent ASR score checks | **30/30**, identical case/audio/reference identities |
+| Paid Claude smoke | Three real successful requests; adapter-reported ₹0.06; model/settings unchanged |
+| Supervised microphone | 15 attempts / 13 played; one prior LLM-safe fallback and two no-speech captures retained |
+| Actual demo SQL | One confirmed 2026-10-23 15:00 appointment, booked slot and successful authoritative checkpoint restore |
+
+The CI invocation reuses the explicit service/schema preparation: a fresh disposable `roma_demo` was already migrated through all three revisions and seeded TEST ONLY. The native demo PostgreSQL was stopped before full tests to prevent macOS shared-memory exhaustion; the working `roma` URL was never used. The integration catalog still exercises its own empty-database migrations. An initial run used `APP_ENV=test` against an existing test expecting dev and retained one extra native cluster; restoring the documented dev default and stopping only the owned demo cluster resolved the setup failures, without changing tests, system limits or working services. This is local CI evidence; no GitHub Actions run or push is claimed.
+
+The root ASR repair passed both suites at **2,921** before the live follow-up exposed natural-consent handling; final **2,935** includes the additional safety/commit cases. Existing provider timeout, fallback and spend caps remain unchanged. New explicit readback consent avoids a paid extraction call. The voice adapter reports ₹0.31 across the supervised attempts, separate from the ₹0.06 smoke; these are adapter usage records rather than an invoice. No model downloads or cascades ran. Turbo artifacts reverified unchanged; only the approved full-v3 cache was removed. Disposable demo PostgreSQL/Redis were removed after evidence collection. No audio/transcripts, working-DB mutation, `.env` edit, migration change, production-provider change or section 21 implementation occurred. Formal native scoring, representative ASR quality and acceptable end-to-end voice latency remain pending; no gate passes.
+
+Markdown verification after synchronization: **87 files / 605 local links and anchors passed**; `git diff --check` is clean.

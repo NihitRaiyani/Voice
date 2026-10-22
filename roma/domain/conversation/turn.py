@@ -17,7 +17,7 @@ from datetime import date, datetime
 
 from roma.domain.appointments.booking import BookingError
 from roma.domain.appointments.calendar import DEFAULT_CALENDAR, VisitCalendar
-from roma.domain.appointments.slots import extract_discovery_slot, extract_time_slot
+from roma.domain.appointments.slots import TimeSlot, extract_discovery_slot, extract_time_slot
 from roma.domain.appointments.timeresolve import (
     CONFIDENCE_THRESHOLD,
     SlotVerdict,
@@ -658,6 +658,14 @@ def _spoken_offers(state: CallState) -> list:
     return [s for s in (spoken_slot(iso) for iso in state.slots_offered) if s]
 
 
+_EXPLICIT_BOOKING_CONSENT = frozenset(
+    tuple(tokens(phrase)) for phrase in (
+        "yes please confirm it", "yes that is correct confirm it", "yes that is correct",
+        "yes please book it", "हाँ पुष्टि कर दीजिए", "હા કન્ફર્મ કરી દો",
+    )
+)
+
+
 def _booking_affirmation(text: str) -> bool:
     # A model's readback_confirmed flag cannot authorize a durable business effect.
     # Questions, negations and tentative/unknown phrases conservatively need another readback.
@@ -688,8 +696,12 @@ def _booking_affirmation(text: str) -> bool:
         "है",
         "करो",
     }
-    words = set(tokens(text))
-    return "?" not in text and is_affirmation(text) and words <= _AFFIRMATIONS | neutral
+    phrase = tuple(tokens(text))
+    words = set(phrase)
+    return "?" not in text and (
+        phrase in _EXPLICIT_BOOKING_CONSENT
+        or (is_affirmation(text) and words <= _AFFIRMATIONS | neutral)
+    )
 
 
 def _close_turn(
@@ -910,7 +922,12 @@ async def advance_turn(
     elif stage in (ConversationStage.PIVOT, ConversationStage.CLOSE):
         if client is not None:
             offered = _parse_offers(state.slots_offered)
-            ts = await extract_time(client, user_text, offered=_spoken_offers(state))
+            if (stage == ConversationStage.CLOSE and state.booking_required
+                    and state.accepted_slot and _booking_affirmation(user_text)):
+                # Consent to an existing readback is code-owned, not another model task.
+                ts = TimeSlot(readback_confirmed=True, confidence=1.0)
+            else:
+                ts = await extract_time(client, user_text, offered=_spoken_offers(state))
             ts = _corroborate(ts, user_text)
             verdict = resolve_visit_slot(
                 ts, now, offered=offered, anchor_day=_anchor_day(state)

@@ -237,3 +237,62 @@ def test_production_refresh_keeps_the_callers_requested_day():
         calendar.offers.assert_awaited_once_with(NOW, on=date(2026, 10, 19))
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("text", [
+    "Yes, please confirm it.",
+    "Yes, that is correct. Confirm it.",
+    "Yes, that is correct.",
+    "Yes, please book it.",
+    "हाँ, पुष्टि कर दीजिए।",
+    "હા, કન્ફર્મ કરી દો.",
+])
+def test_natural_explicit_consent_commits_after_the_readback(text):
+    async def run():
+        current = state()
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, text, client=object(), now=NOW,
+                                    extract_time=extraction, confirm_booking=confirm)
+        assert result.win and current.appointment_id
+        confirm.assert_awaited_once_with(SLOT)
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("text", [
+    "Yes, is that correct", "Yes, that is not correct", "Yes, please confirm it?",
+    "Yes, please confirm tomorrow at four", "Maybe yes, please confirm it",
+])
+def test_natural_consent_does_not_accept_questions_negations_or_revisions(text):
+    async def run():
+        current = state()
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, text, client=object(), now=NOW,
+                                    extract_time=extraction, confirm_booking=confirm)
+        assert not result.win and current.appointment_id is None
+        confirm.assert_not_awaited()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("stage", ["pivot", "close"])
+def test_natural_consent_cannot_create_a_booking_without_a_selected_readback(stage):
+    async def run():
+        current = CallState(booking_required=True, stage=stage)
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, "Yes, please confirm it.", client=object(),
+                                    now=NOW, extract_time=extraction, confirm_booking=confirm)
+        assert not result.win and current.appointment_id is None
+        confirm.assert_not_awaited()
+    asyncio.run(run())
+
+
+def test_explicit_readback_confirmation_does_not_depend_on_llm_extraction():
+    async def run():
+        current = state()
+        extract = AsyncMock(side_effect=AssertionError("Confirmation must be deterministic"))
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, "Yes, please confirm it.", client=object(),
+                                    now=NOW, extract_time=extract, confirm_booking=confirm)
+        assert result.win and current.appointment_id
+        extract.assert_not_awaited()
+        confirm.assert_awaited_once_with(SLOT)
+    asyncio.run(run())

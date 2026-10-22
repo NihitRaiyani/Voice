@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-22",
+  "owner_authorized_removal": true,
+  "repository": "mlx-community/whisper-large-v3-mlx-8bit",
+  "revision": "04ca5b03c22d72ddf4f4b2d808a28bf9902fb71a",
+  "directory_removed": "var/roma/models/whisper-large-v3-mlx-8bit",
+  "model_bytes_removed": 1707566582,
+  "reason": "Full large-v3 8-bit is slower on the 8 GiB M2 and regresses Hindi; retain configured Turbo for the live prototype. It improves Gujarati but has no approved live latency evidence. Historical evidence retained; no gate passed.",
+  "retained": "Turbo 4-bit and previously installed base comparison, TTS and every other cache unchanged.",
+  "comparison": "section18/whisper-large-v3-8bit-vs-turbo-padding-v4-20261022.json"
+}

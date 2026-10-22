@@ -1,0 +1,89 @@
+{
+  "schema": "roma-paid-claude-smoke-v1",
+  "date": "2026-10-22",
+  "requested_model": "claude-haiku-5-5",
+  "effort": "low",
+  "reply_policy": "Hindi-base Hinglish / Devanagari for local TTS",
+  "results": [
+    {
+      "input_language": "en",
+      "status": "ok",
+      "finish_reason": "stop",
+      "metrics": [
+        {
+          "model": "claude-haiku-5-5",
+          "ttft_ms": 2364.9042079923674,
+          "generation_secs": 2.8119116249727085,
+          "attempts": 1,
+          "input_tokens": 643,
+          "output_tokens": 100,
+          "cached_input_tokens": 0,
+          "cost_inr": 0.02,
+          "charged_inr": 0.02,
+          "usage_known": true,
+          "call_tokens_used": 743,
+          "call_spent_inr": 0.02,
+          "error_code": null,
+          "cache_creation_input_tokens": 0,
+          "provider": "claude"
+        }
+      ],
+      "synthetic_response": "प्रैक्टिकल प्रोजेक्ट्स से आप असली कैंपेन पर काम करके पोर्टफोलियो बनाती हैं। क्या आप बताना चाहेंगी कि आप किस तरह का काम सीखना पसंद करेंगी?"
+    },
+    {
+      "input_language": "hi",
+      "status": "ok",
+      "finish_reason": "stop",
+      "metrics": [
+        {
+          "model": "claude-haiku-5-5",
+          "ttft_ms": 1362.8958329791203,
+          "generation_secs": 1.4236611250089481,
+          "attempts": 1,
+          "input_tokens": 675,
+          "output_tokens": 92,
+          "cached_input_tokens": 0,
+          "cost_inr": 0.02,
+          "charged_inr": 0.02,
+          "usage_known": true,
+          "call_tokens_used": 1510,
+          "call_spent_inr": 0.04,
+          "error_code": null,
+          "cache_creation_input_tokens": 0,
+          "provider": "claude"
+        }
+      ],
+      "synthetic_response": "प्रैक्टिकल प्रोजेक्ट्स से आप असली कैंपेन पर काम करके सीखेंगे और पोर्टफोलियो भी बनेगा। क्या आप किस फील्ड में सीखना चाहते हैं?"
+    },
+    {
+      "input_language": "gu",
+      "status": "ok",
+      "finish_reason": "stop",
+      "metrics": [
+        {
+          "model": "claude-haiku-5-5",
+          "ttft_ms": 789.2006660113111,
+          "generation_secs": 1.4069541660137475,
+          "attempts": 1,
+          "input_tokens": 681,
+          "output_tokens": 95,
+          "cached_input_tokens": 0,
+          "cost_inr": 0.02,
+          "charged_inr": 0.02,
+          "usage_known": true,
+          "call_tokens_used": 2286,
+          "call_spent_inr": 0.06,
+          "error_code": null,
+          "cache_creation_input_tokens": 0,
+          "provider": "claude"
+        }
+      ],
+      "synthetic_response": "प्रैक्टिकल प्रोजेक्ट्स से आप असली कैंपेन पर काम करके सीखेंगे, और पोर्टफोलियो भी बनेगा। क्या आप किस क्षेत्र में काम करना चाहते हैं?"
+    }
+  ],
+  "complete": true,
+  "microphone_used": false,
+  "native_review_passed": false,
+  "gate_passed": false,
+  "settings_changed": false
+}

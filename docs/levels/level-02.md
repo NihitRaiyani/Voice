@@ -2,6 +2,8 @@
 
 **Roadmap sections:** 10–12. **Status:** Section 10 state machine/checkpoint adapter implemented; section 11 Claude SDK/text integration implemented with offline evidence; section 12 deterministic safety/audit/input guards and query endpoints implemented with offline evidence; the whole Level 2 gate remains pending native/paid quality approval.
 
+The 2026-10-22 owner-authorized [Claude/microphone follow-up](level-06.md#supervised-claude-and-booking-follow-up--2026-10-22) records three paid synthetic input-language checks, supervised local speech responses and a real TEST ONLY booking. Main Claude settings and production Hindi-base Hinglish policy remain unchanged. Owner clarity/relevance approval does not supply the existing numeric native-review rubric; formal scoring remains pending.
+
 ## Entry gate
 
 Level 1 foundation and provider contracts.

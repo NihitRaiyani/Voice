@@ -184,3 +184,10 @@ Use independent configurable batch-row rejection at 0.6 no-speech, -1.0 average 
 ## Phase 4 — Representative evaluation scaffolding
 
 Preserve section18 inputs and all historical results. Add a separate consent-aware v2 source-recording manifest, configurable unset minimum distinct speakers/recordings, exact entity references and per-speaker edit totals. Reject duplicate IDs/audio and inconsistent references/permissions. Use supplied-transcript-only report annotation; retain failed recordings in denominators and leave v1 report fields unchanged. Collect no recordings, change no model/ASR strategy and claim no new model score or gate pass. Before collection, the owner must approve counts, coverage/source granularity, entity annotation policy, permissions/storage/retention and reviewers; quality/entity/latency acceptance criteria stay separate. See [the protocol](26-asr-recording-protocol.md).
+
+
+## 2026-10-22 — ASR repair, cache retirement and bounded live verification
+
+Use reference-compatible waveform padding in the MLX batch frontend. Keep existing rejection thresholds and one selected ASR model, without reference-specific text corrections, retries or cascades. The [corrected paired trial](levels/level-04.md#waveform-padding-repair-and-model-retirement--2026-10-22) keeps Turbo for the interactive M2 prototype and retires the verified full-v3 cache under explicit owner authorization. Full-v3 remains the better Gujarati result on this small corpus; its extra decoding cost and weaker Hindi do not justify replacing the interactive baseline.
+
+The owner resumed paid Claude and supervised microphone checks, with [recorded outcomes](levels/level-06.md#supervised-claude-and-booking-follow-up--2026-10-22). Natural, explicit consent after a selected readback is deterministic and no longer requires another extraction request; unknown/tentative/negative/revised responses retain their existing guards. A real TEST ONLY booking and SQL restore passed. This does not waive representative/native scoring or declare a latency SLO, and does not authorize section 21 or automatic paid testing in future tasks.

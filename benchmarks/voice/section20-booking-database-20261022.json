@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-22",
+  "working_db_accessed": false,
+  "test_only": true,
+  "confirmed_appointments": 1,
+  "booking": {
+    "date": "2026-10-23",
+    "start_time": "15:00:00",
+    "status": "confirmed",
+    "slot_status": "booked"
+  },
+  "checkpoint_restored_to_committed_booking": true,
+  "database_counts": {
+    "calls": 7,
+    "turns": 13,
+    "events": 42,
+    "transcripts_stored": 0
+  },
+  "transcripts_persisted": false,
+  "audio_recorded": false,
+  "gate_passed": false
+}

@@ -62,7 +62,7 @@ def decode_batch(folder, parts, base, policy=None):
         raise ValueError("Whisper batch requires one or two chunks")
     import mlx.core as mx
     import numpy as np
-    from mlx_whisper.audio import log_mel_spectrogram, pad_or_trim
+    from mlx_whisper.audio import N_SAMPLES, log_mel_spectrogram, pad_or_trim
     from mlx_whisper.decoding import DecodingOptions, DecodingTask
     from mlx_whisper.transcribe import ModelHolder
 
@@ -88,7 +88,8 @@ def decode_batch(folder, parts, base, policy=None):
         [
             pad_or_trim(
                 log_mel_spectrogram(
-                    np.frombuffer(part, dtype="<i2").astype(np.float32) / 32768.0, n_mels=128
+                    np.frombuffer(part, dtype="<i2").astype(np.float32) / 32768.0,
+                    n_mels=128, padding=N_SAMPLES,
                 ),
                 3000,
                 axis=-2,

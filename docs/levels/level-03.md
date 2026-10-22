@@ -2,6 +2,8 @@
 
 **Roadmap section:** 13. **Status:** PostgreSQL booking, cancellation/reuse, advisory Redis holds and the complete offline controller-to-database flow are implemented and verified. Paid/live voice approval remains deferred.
 
+The 2026-10-22 owner-authorized [supervised follow-up](level-06.md#supervised-claude-and-booking-follow-up--2026-10-22) adds one real English microphone readback/consent, confirmed TEST ONLY appointment and authoritative SQL restore. Natural explicit consent was repaired with controller regressions and no extra LLM call. The disposable database was removed after evidence collection; working `roma`, production telephony and schema remain unchanged. Formal native/representative acceptance remains pending.
+
 ## Entry gate
 
 Reuse Level 1 PostgreSQL/Alembic and the Level 2 state/readback/safety seams. This section does not retrospectively approve deferred clean-host, native-speaker or voice latency gates.

@@ -371,7 +371,7 @@ make voice-prototype
 # Apple Silicon optional runtime; host PortAudio is required.
 uv sync --inexact --locked --extra dev --extra telephony --extra workers --extra voice-lab --extra mlx-asr
 
-# Later only: real integration testing remains deferred by the owner.
+# Real integration is explicit opt-in; the owner authorized a bounded check on 2026-10-22.
 # Turbo is a development baseline; quality/native gates are not passed.
 # Do not resolve a venv interpreter symlink to its base Python executable.
 HF_HUB_OFFLINE=1 STT_PROVIDER=whisper_mlx \
@@ -388,7 +388,7 @@ Prototype diagnostics use one shared enum/mapping in `roma/core/voice_errors.py`
 
 The command above uses mock wording with real local microphone/ASR/TTS and no paid client. For the authorized Claude path set private `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL=claude-haiku-5-5`, change to `--llm-provider claude` and add `--allow-paid-api`. This does not pass native/representative prerequisites or change production speech. Synthetic mode remains mocked; OpenAI calls/fallback are forbidden.
 
-Use headphones and consenting test participants; Ctrl+C stops. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms cached ASR, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. Pinned Turbo MLX 4-bit is provisioned; the base comparison cache remains, and IndicConformer weights have been removed. All local providers remain offline/cache-only. To explicitly compare base, use `STT_PROVIDER=whisper` and `WHISPER_MODEL_ID` pointing to the base directory. Claude timeout/fallback/spend caps apply; actual model quality and native approval are separate gates.
+Use headphones and consenting test participants; Ctrl+C stops. For supervised runs, announce “Now listening” only after capture is actually open; setup/tool latency can otherwise miss short consent replies. Preserve the five-minute cap and use disposable demo data for booking. The [2026-10-22 follow-up](levels/level-06.md#supervised-claude-and-booking-follow-up--2026-10-22) records real local speech/Claude/booking outcomes and remaining acceptance limits. Local mode refuses hosted ASR and missing local runtime prerequisites. It warms cached ASR, short safe TTS and bundled Silero with synthetic silence before capture or creating the lab call. No ASR runtime/weights are installed by this command. Pinned Turbo MLX 4-bit is provisioned; the base comparison cache remains, and IndicConformer weights have been removed. All local providers remain offline/cache-only. To explicitly compare base, use `STT_PROVIDER=whisper` and `WHISPER_MODEL_ID` pointing to the base directory. Claude timeout/fallback/spend caps apply; actual model quality and native approval are separate gates.
 
 Set `STT_LANGUAGE=gu`, `hi` or `en` for the caller’s starting test language; this initializes the saved ASR route before any transcript exists. Subsequent changes still use the existing smoothed language router. Optional `--input-device N --output-device N` select PortAudio indices; `--max-turns N` defaults to 30, capped at 60 and five minutes. The microphone closes before speaking; barge-in is later work. Every attempt/ready/result uses short PostgreSQL writes in an isolated `voice-lab-…` call. Redis holds and existing DB reference slots back actual booking; startup creates no slots, seed data or migration. Schema head must already be `20261004_0003`.
 
