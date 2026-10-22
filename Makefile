@@ -103,3 +103,11 @@ pre-commit-install:
 
 voice-prototype:
 	$(UV) run --no-sync python scripts/voice_prototype.py
+
+.PHONY: demo-db demo-db-down
+# Explicit opt-in only; these are never app-start prerequisites.
+demo-db:
+	$(UV) run --no-sync python scripts/demo_database.py up
+
+demo-db-down:
+	$(UV) run --no-sync python scripts/demo_database.py down

@@ -86,7 +86,9 @@ def _result(result: STTResult) -> STTResult:
     if not isinstance(result, STTResult):
         raise ValueError("invalid STT model result")
     # A language-detection probability is not a transcript confidence score.
-    return STTResult(normalize_transcript(result.text), result.language, None)
+    if result.error_code not in {None, "ASR-BATCH-REJECTED"}:
+        raise ValueError("Invalid STT result error code")
+    return STTResult(normalize_transcript(result.text), result.language, None, result.error_code)
 
 
 class _STTSetupError(ProviderUnavailable):

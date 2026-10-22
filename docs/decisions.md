@@ -174,3 +174,8 @@ The owner explicitly selected “Allow single-model speech-chunk batching”, su
 ## Phase 2 — Prototype turn boundaries
 
 Use the owner's provisional 300 ms continuation grace and 2,000 ms minimum batch turn, configurable through the shared TurnPolicy. Batch eligibility follows a qualifying internal audio gap, including first unexpected language switches; retain the English evidence gate and two-turn saved-route smoothing. Preserve every source sample, flush capture deadlines explicitly and keep the five-minute/30-second limits. This revises the earlier label-only v2 policy without changing weights or production media. See [offline evidence and latency limits](levels/level-06.md#offline-turn-boundary-repair--phase-2). No quality gate is passed.
+
+
+## Phase 3 — Validate batch output and separate demo readiness
+
+Use independent configurable batch-row rejection at 0.6 no-speech, -1.0 average log probability and 2.4 compression ratio; retain clean rows, stop an entirely rejected turn with its own safe ASR code and preserve ordinary single-call decoding. Measure speech-end to first speaker write independently of full playback, with budgets unset until owner configuration. Explicitly provision TEST ONLY booking data in a disposable native loopback database; reject `roma` and non-dev/test targets. Check selected-branch booking readiness before model/call/device activity. No implicit seed/migration, working-DB write, model change or gate approval. See [configuration and limits](levels/level-06.md#offline-output-and-demo-readiness--phase-3).

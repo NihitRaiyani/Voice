@@ -41,6 +41,7 @@ class FakeASR:
     def __init__(self, scripts, clock, *, structured=False, policy=None, english_probability=0.99):
         self.structured, self.policy, self.english_probability = structured, policy, english_probability
         self.single_calls, self.batch_calls = [], []
+        self.batch_rows = None
         self.scripts = deque(scripts)
         self.requests = []
         self.clock = clock
@@ -55,6 +56,10 @@ class FakeASR:
             if len(parts) == 2:
                 self.batch_calls.append(parts)
                 self.clock.advance(10)
+                if self.batch_rows is not None:
+                    from roma.providers.ai.mlx_batch import validated_batch_text
+                    text = validated_batch_text(self.batch_rows)
+                    return STTResult(text, base, error_code="ASR-BATCH-REJECTED" if not text else None)
                 english = choose_chunk_language({"en": self.english_probability, "gu": 0.1, "hi": 0.1}, base)
                 return STTResult("મને અભ્યાસ વિશે જાણવું છે " + ("I would like course information" if english == "en" else "મને વધુ માહિતી જોઈએ છે"), base)
             self.single_calls.append(request.audio)
@@ -156,7 +161,10 @@ class VoiceHarness:
     async def run_audio(self, pcm, *, max_seconds=30):
         transcript = await self.capture(pcm, max_seconds=max_seconds)
         assert transcript is not None
-        return await self.voice.respond(transcript, self.last_timings)
+        with patch("roma.providers.audio.local_device.perf_counter", self.clock), patch(
+            "roma.services.text_conversation_service.perf_counter", self.clock
+        ), patch("roma.services.tts_service.perf_counter", self.clock):
+            return await self.voice.respond(transcript, self.last_timings)
 
 
     async def drain_audio(self, pcm):

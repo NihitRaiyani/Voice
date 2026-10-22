@@ -485,3 +485,19 @@ Do not rerun that download into the renamed installed directory; the extra sourc
 Choose fresh report/run keys; never overwrite committed evidence. Local benchmarking forbids `--allow-network`. References and scoring remain unchanged; no injected missing words or transliterated reference creates a pass. Review monolingual, emitted-loanword and full-sentence switching separately. Native dates such as `કાલે`/`कल` remain for context-aware date extraction. The [current evidence](levels/level-04.md#single-model-speech-batching--2026-10-21) reports actual accuracy, memory limits and rejected decode settings.
 
 The default section 20 check stays `make voice-prototype`, with scripted ASR through this same one-provider wrapper (no actual model batching in mock mode) and no network/hardware/DB writes. A later authorized microphone run must explicitly select `STT_PROVIDER=whisper_mlx`; optional `WHISPER_MLX_MODEL_DIR` changes only the verified local path. `.env` and production defaults remain unchanged. Paid Claude, microphone/native review and the full Level 6 gate remain deferred.
+
+
+## Explicit disposable voice booking database
+
+```bash
+make demo-db
+# Copy the printed DATABASE_URL into this shell before a separately authorized lab run.
+# Do not use the working roma database for a demo.
+make demo-db-down
+```
+
+Requires installed native PostgreSQL (`initdb`, `pg_ctl`, `createdb`) and `APP_ENV=dev` or `test`. This command ignores the working `DATABASE_URL`, chooses a free loopback port and uses ignored `var/roma/demo-db`. It refuses an existing directory; stop/remove the owned demo first before rebuilding. Down discards its TEST ONLY data. No automatic startup seeding, model download or microphone action occurs. Canonical branch name is Vadodara; TEST ONLY institute/branch/course codes distinguish demo records. Slots are computed relative to now, within existing visiting hours.
+
+Local prototype startup checks booking data before models/call creation/devices and reports `BOOKING-DATA-MISSING` if the selected branch has no usable future slots. Capture-deadline empty output is `CAPTURE-DEADLINE-NO-TRANSCRIPT`; entirely rejected batch output is `ASR-BATCH-REJECTED`. These extend the shared safe enum, not raw exception logging.
+
+Prototype turn settings and the mock timing table are owned by [Level 6](levels/level-06.md#offline-output-and-demo-readiness--phase-3). `VOICE_TURN_BUDGET_MS` is unset by default; configuring it reports overruns without introducing an acceptance gate. Paid Claude/microphone/native testing remains deferred.

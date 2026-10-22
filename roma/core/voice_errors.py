@@ -12,6 +12,7 @@ from roma.domain.appointments.booking import BookingError
 
 class VoiceErrorCode(StrEnum):
     ASR = "ASR"
+    ASR_BATCH_REJECTED = "ASR-BATCH-REJECTED"
     TTS = "TTS"
     DB = "DB"
     DEVICE = "DEVICE"
@@ -20,6 +21,7 @@ class VoiceErrorCode(StrEnum):
     LLM = "LLM"
     SAFETY = "SAFETY"
     BOOKING_DATA = "BOOKING-DATA"
+    BOOKING_DATA_MISSING = "BOOKING-DATA-MISSING"
     CANCELLED = "CANCELLED"
     TOKENIZER_DATA_MISSING = "TOKENIZER-DATA-MISSING"
 

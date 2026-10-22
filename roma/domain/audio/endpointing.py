@@ -103,6 +103,7 @@ class Utterance:
     end_sample: int
     speech_frames: int
     reason: EndReason
+    last_speech_sample: int | None = None
 
     @property
     def duration_ms(self) -> float:
@@ -179,6 +180,7 @@ class EndpointDetector:
             self._start_sample + end * FRAME_SAMPLES,
             self._speech_frames,
             reason,
+            self._start_sample + self._last_speech * FRAME_SAMPLES if self._last_speech else None,
         )
         silent = self._silent
         self._clear_segment()

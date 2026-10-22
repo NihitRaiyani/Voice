@@ -43,6 +43,8 @@ class SpeechTranscript:
     reason: str
     asr_ms: float
     error: str | None = None
+    last_speech_sample: int | None = None
+    speech_end_at: float | None = None
 
 
 def language_hint(state: CallState) -> str:
@@ -100,6 +102,7 @@ class SpeechInputService:
         self._turn_duration_ms = 0.0
         self._turn_asr_ms = 0.0
         self._turn_error: str | None = None
+        self._turn_last_speech: int | None = None
 
     def _turn_failure(self, code: str) -> None:
         self._turn_error = self._turn_error or code
@@ -121,6 +124,9 @@ class SpeechInputService:
                 keep = max(0, self._source_end - segment.start_sample)
                 segment = replace(segment, pcm=segment.pcm[:keep * 2],
                                   end_sample=segment.start_sample + keep)
+            if segment.last_speech_sample is not None:
+                last = min(segment.last_speech_sample, self._source_end)
+                self._turn_last_speech = max(self._turn_last_speech or 0, last)
             # An empty boundary closes an exact maximum split without inventing
             # another ASR request or accepting its earlier chunks as turns.
             if segment.pcm:
@@ -134,6 +140,8 @@ class SpeechInputService:
                             self._stt_metadata,
                         )
                     )
+                    if result.error_code:
+                        self._turn_failure("ASR-BATCH-REJECTED" if result.error_code == "ASR-BATCH-REJECTED" else "stt-unavailable")
                     if self._turn_error is None:
                         text = result.text.strip()
                         added_chars = len(text) + bool(text and self._turn_parts)
@@ -161,6 +169,7 @@ class SpeechInputService:
                         segment.reason,
                         self._turn_asr_ms,
                         self._turn_error,
+                        self._turn_last_speech,
                     )
                 )
                 self._clear_turn()

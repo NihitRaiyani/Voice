@@ -52,3 +52,6 @@ ASR maximum-size chunks are aggregated inside `SpeechInputService` until true en
 ## Section 18 measurement contract
 
 `roma/eval/asr_benchmark.py` owns edit alignment/counts, deterministic public-corpus noise and telephone variants, source hashes, weighted summaries and saved failures. `scripts/asr_benchmark.py` makes network use explicit and can resume or replay failed/high-WER cases. Direct Indic and Whisper adapters are compared without changing the production router. Stitched public language pairs are marked synthetic; they do not establish native code-mix quality. Hosted request RTF includes network/queue overhead; inference RTF remains null without compute timing. The [Level 4 brief](levels/level-04.md#section-18-asr-benchmark) owns actual results and the chosen development configuration.
+
+
+The half-duplex microphone prototype now uses a shared [TurnPolicy](../roma/domain/audio/turn_policy.py), including a provisional 300 ms continuation grace after the base 512 ms endpoint. Legacy standalone lab settings remain explicit. Capture deadlines flush source audio rather than silently resetting it; [Level 6](levels/level-06.md#offline-turn-boundary-repair--phase-2) owns the pause matrix and quantized latency. No live carrier or gate change is implied.

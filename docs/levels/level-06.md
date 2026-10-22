@@ -4,7 +4,7 @@
 
 The half-duplex prototype uses **Whisper Turbo 4-bit MLX** for current local development ASR; IndicConformer ASR weights were removed. Earlier base/Indic installation and English microphone results below are historical evidence, not approval of the current complete voice experience. No gate is marked passed.
 
-Setup now validates repo-local `punkt_tab` before tests, app startup and prototype startup. Prototype errors use the shared ASR/TTS/DB/DEVICE/CAPTURE/LLM/SAFETY/BOOKING-DATA categories. Phase 2 adds a shared turn policy, continuation grace, deadline flushing and audio-structure batch eligibility. Output validation, turn budgets, disposable demo data and evaluation scaffolding remain separate work. Paid Claude, microphone and native-speaker acceptance remain deferred; the production Twilio/Sarvam path is unchanged.
+Setup now validates repo-local `punkt_tab` before tests, app startup and prototype startup. Prototype errors use the shared ASR/TTS/DB/DEVICE/CAPTURE/LLM/SAFETY/BOOKING-DATA categories. Phase 2 adds a shared turn policy, continuation grace, deadline flushing and audio-structure batch eligibility. Phase 3 adds batch-row rejection, explicit turn timing, optional unset budgets and disposable booking-data tooling. Representative evaluation and native acceptance remain separate work. Paid Claude, microphone and native-speaker acceptance remain deferred; the production Twilio/Sarvam path is unchanged.
 
 **Roadmap sections:** 20–21. **Status:** Section 20 integration verified offline; physical English/local-TTS checks passed with Claude extraction and, in a prepared-state demo, Claude wording. The complete multilingual/native/booking gate remains pending and the owner deferred further live checks due to limits. Section 21 is not implemented by this increment.
 
@@ -128,3 +128,26 @@ The shared fake-clock/audio/ASR [integration harness](../../tests/support/voice_
 Silero's 32 ms frame rounding makes the 812 ms endpoint-plus-grace window 832 ms. Relative to zero grace, the synthetic run adds 320 ms; device block alignment can add up to a further 20 ms. This is deliberate latency, not a measured live response improvement. Continuous speech is flushed at the capture deadline, with original source bytes retained and `endpoint_reason=deadline`; empty ASR there raises `CAPTURE-DEADLINE-NO-TRANSCRIPT`. The five-minute session ceiling still bounds capture and response.
 
 Batch eligibility now examines qualifying audio structure on all five saved language routes, rather than requiring a previously mixed label. No qualifying gap retains the original single-call audio/options. At most two contiguous chunks retain all PCM; English needs probability ≥0.8 and stronger evidence than the known Indic context. Saved language changes still require two matching informative turns. The harness assigns 5 ms to a single decode and 10 ms to a batch, hence 5 ms **simulated** extra ASR time for a qualifying paused pure-language turn. Real model batch overhead is unmeasured in this work; it is not a latency claim. Native quality, paid Claude, microphone and all gates remain pending.
+
+
+## Offline output and demo readiness — Phase 3
+
+The batch decoder rejects individual rows with `no_speech_prob > 0.6`, `avg_logprob < -1.0`, or compression ratio >2.4, and rejects invalid/non-finite metadata. These are configurable provisional thresholds (`WHISPER_BATCH_NO_SPEECH`, `WHISPER_BATCH_AVG_LOGPROB`, `WHISPER_BATCH_COMPRESSION_RATIO`). Thresholds start at Whisper's numeric defaults; our batch policy independently rejects each failing criterion, with no temperature retry. Clean rows remain in order; all rejected rows produce empty text and `ASR-BATCH-REJECTED`, without controller advancement or audio. The ordinary single-call decoding path is unchanged.
+
+The prototype measures last scored speech-frame end to the first speaker write. Read-block timestamps retain device startup/ASR timing boundaries; VAD resolution remains 32 ms. First write is the software output boundary, not proof of acoustic headphone latency. Reports show endpoint wait, ASR, LLM, safety (including safety normalization/audit), TTS/cache/framing and playback-start, plus independently measured total. Controller and DB overhead need not sum to those stage columns. Full playback duration is separate.
+
+| Stage | Shared fake-clock harness (ms) |
+| --- | ---: |
+| Endpoint wait | 844 |
+| Scripted ASR | 5 |
+| Mock LLM | 0 |
+| Safety/normalization | 0 |
+| Synthetic TTS/cache | 0 |
+| Playback start | 0 |
+| Speech end → first write | 849 |
+
+Zeroes mean instantaneous fake-clock work, not zero-cost real inference. The synthetic audio duration is 100 ms; the fake output advances its clock by 1 ms for the write. `VOICE_TURN_BUDGET_MS` defaults to unset. Optionally supply a JSON object keyed by `endpoint_wait_ms`, `asr_ms`, `llm_ms`, `safety_ms`, `tts_ms`, `playback_start_ms` or `speech_to_first_audio_ms`. Only configured thresholds can report `over_budget`; no acceptance threshold or gate pass is claimed.
+
+`make demo-db` explicitly starts a separate native loopback PostgreSQL on a free port, migrates it and seeds TEST ONLY institute/course/branch codes and tomorrow-through-three-days slots at 11:00, 15:00 and 17:00 IST. The branch's canonical name remains Vadodara to satisfy the existing controller allowlist; its code is `TEST_ONLY_VADODARA`, under a TEST ONLY institute. The 18:00 cutoff is preserved. Copy the printed `DATABASE_URL` into the lab shell; never substitute the working `roma` URL. `make demo-db-down` stops/removes only the owned disposable directory. Neither command runs at app startup. Non-loopback, database `roma` and environments outside dev/test are refused.
+
+Before models, Redis, call creation or microphone construction, a read-only short session checks active branches and available future/unoccupied slots for the selected branch, respecting the 90-minute lead. Empty data produces `BOOKING-DATA-MISSING` rather than speaking a repeated re-offer. Empty/seeded disposable DB and CLI ordering tests prove the check. No working database, real microphone or paid provider was used; native and complete voice gates remain pending.

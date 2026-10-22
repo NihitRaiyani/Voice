@@ -10,7 +10,7 @@ from pathlib import Path
 
 from roma.domain.audio.turn_policy import TurnPolicy
 from roma.providers.ai.contracts import STTRequest, STTResult
-from roma.providers.ai.mlx_batch import decode_batch, turn_chunks
+from roma.providers.ai.mlx_batch import BatchRejectionPolicy, decode_batch, turn_chunks
 from roma.providers.ai.silero import SileroFrameProbability
 from roma.providers.ai.stt import (
     _PROJECT,
@@ -63,9 +63,11 @@ class WhisperMLXSTT(_LocalSTT):
         max_audio_secs: float = 30,
         loader: Loader | None = None,
         policy: TurnPolicy | None = None,
+        rejection: BatchRejectionPolicy | None = None,
     ) -> None:
         self.model_id = model_id
         self.policy = policy or TurnPolicy()
+        self.rejection = rejection or BatchRejectionPolicy()
         super().__init__(loader or self._load, timeout_secs, max_audio_secs)
 
     def _load(self) -> Inference:
@@ -98,7 +100,8 @@ class WhisperMLXSTT(_LocalSTT):
                 base = language.split("-")[0] if mixed and language is not None else language
                 parts = turn_chunks(audio, scorer, language, self.policy)
                 if len(parts) == 2:
-                    return STTResult(decode_batch(str(folder.resolve()), parts, base), base)
+                    text = decode_batch(str(folder.resolve()), parts, base, self.rejection)
+                    return STTResult(text, base, error_code="ASR-BATCH-REJECTED" if not text else None)
                 samples = np.frombuffer(audio, dtype="<i2").astype(np.float32) / 32768.0
                 result = mlx_whisper.transcribe(
                     samples,

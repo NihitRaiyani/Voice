@@ -168,3 +168,42 @@ def test_batch_minimum_turn_is_configurable_and_short_turns_keep_single_call():
         assert not h.asr.batch_calls
         assert h.asr.single_calls == [h.asr.requests[0].audio]
     asyncio.run(run())
+
+
+def test_all_rejected_batch_rows_leave_controller_unchanged_with_distinct_asr_code():
+    from tests.providers.ai.test_batch_rejection import row
+    from tests.support.voice_turns import VoiceHarness
+
+    async def run():
+        h = VoiceHarness(structured_decode=True)
+        h.asr.batch_rows = [row(no_speech_prob=0.9), row(compression_ratio=3)]
+        result = await h.run_audio(h.audio((1, 2000), (0, 800), (2, 2000), (0, 1400)))
+        assert result.error_code == 'ASR-BATCH-REJECTED'
+        assert result.status == 'failed' and h.state.turn_count == 0
+        assert not h.backend.closed_before_playback
+    asyncio.run(run())
+
+
+def test_speech_to_first_write_budget_excludes_full_playback_duration():
+    from tests.support.voice_turns import VoiceHarness
+
+    async def run():
+        h = VoiceHarness(scripts=['મને અભ્યાસ વિશે જાણવું છે'])
+        result = await h.run_audio(h.audio((1, 2000), (0, 1400)))
+        timings = result.timings
+        assert h.last_transcript.speech_end_at is not None
+        expected = (h.backend.first_write_at - h.last_transcript.speech_end_at) * 1000
+        assert timings['speech_to_first_audio_ms'] == pytest.approx(expected)
+        assert 800 <= timings['endpoint_wait_ms'] <= 860
+        assert timings['asr_ms'] == pytest.approx(5)
+        assert {'llm_ms', 'safety_ms', 'tts_ms', 'playback_start_ms'} <= timings.keys()
+        assert result.budget == {'configured': False, 'over_budget': []}
+    asyncio.run(run())
+
+
+def test_turn_budget_has_no_threshold_until_explicitly_configured():
+    from roma.domain.audio.turn_budget import TurnBudget
+    assert TurnBudget().evaluate({'asr_ms': 99999}) == {'configured': False, 'over_budget': []}
+    assert TurnBudget({'asr_ms': 10}).evaluate({'asr_ms': 11})['over_budget'] == ['asr_ms']
+    with pytest.raises(ValueError):
+        TurnBudget({'asr_ms': float('nan')})

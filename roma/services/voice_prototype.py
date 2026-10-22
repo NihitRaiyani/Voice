@@ -8,6 +8,7 @@ from time import perf_counter
 
 from roma.core.voice_errors import VoiceErrorCode, VoiceFailure, map_voice_error
 from roma.domain.appointments.timeresolve import IST
+from roma.domain.audio.turn_budget import TurnBudget
 from roma.domain.safety.audit import SafetyContext
 from roma.providers.ai.contracts import TTSRequest
 from roma.services.voice_pronunciation import render_voice_line
@@ -21,12 +22,14 @@ class VoiceTurnResult:
     language: str
     timings: dict[str, float]
     error_code: str | None
+    budget: dict | None = None
 
 
 class VoicePrototype:
-    def __init__(self, state, conversation, synthesis, speaker, store, *, clock=perf_counter):
+    def __init__(self, state, conversation, synthesis, speaker, store, *, clock=perf_counter, budget=None):
         self.state, self.conversation, self.synthesis = state, conversation, synthesis
         self.speaker, self.store, self.clock = speaker, store, clock
+        self.budget = budget or TurnBudget()
         self.attempt = 0
         self._busy = False
         self._started = clock()
@@ -47,7 +50,7 @@ class VoicePrototype:
         self._busy = True
         self.attempt += 1
         timings = dict(input_timings or {})
-        if not set(timings) <= {"capture_ms", "vad_endpoint_ms"} or any(
+        if not set(timings) <= {"capture_ms", "vad_endpoint_ms", "endpoint_wait_ms"} or any(
             not isinstance(v, (int, float)) or not math.isfinite(v) or v < 0
             for v in timings.values()
         ):
@@ -80,6 +83,7 @@ class VoicePrototype:
                     self.attempt, "failed", record["stage"], record["language"], timings, error
                 )
             tick = self.clock()
+            safety_before = getattr(self.conversation, "safety_elapsed_ms", 0.0)
             before_turn = self.state.turn_count
             llm_before = getattr(self.conversation.provider, "elapsed_ms", 0.0)
             stage = VoiceErrorCode.LLM
@@ -92,8 +96,9 @@ class VoicePrototype:
             timings["llm_ms"] = max(
                 0.0, getattr(self.conversation.provider, "elapsed_ms", 0.0) - llm_before
             )
+            controller_safety_ms = max(0.0, getattr(self.conversation, "safety_elapsed_ms", 0.0) - safety_before)
             timings["routing_controller_ms"] = max(
-                0.0, (self.clock() - tick) * 1000 - timings["llm_ms"]
+                0.0, (self.clock() - tick) * 1000 - timings["llm_ms"] - controller_safety_ms
             )
             if self.state.turn_count > before_turn:
                 record["turn_number"] = self.state.turn_count
@@ -113,6 +118,8 @@ class VoicePrototype:
                 ),
             )
             timings["safety_tts_cache_ms"] = (self.clock() - tick) * 1000
+            timings["safety_ms"] = controller_safety_ms + speech.safety_normalization_ms
+            timings["tts_ms"] = max(0.0, timings["safety_tts_cache_ms"] - speech.safety_normalization_ms)
             timings["tts_inference_ms"] = speech.synthesis_ms
             timings["audio_ms"] = speech.result.duration_ms or 0
             timings["safety_normalization_ms"] = speech.safety_normalization_ms
@@ -129,10 +136,15 @@ class VoicePrototype:
             tick = self.clock()
             stage = VoiceErrorCode.DEVICE
             await self.speaker.play(speech.result)
+            first_write = getattr(self.speaker, "first_write_at", None)
+            if first_write is not None:
+                timings["playback_start_ms"] = max(0.0, (first_write - tick) * 1000)
+                if transcript.speech_end_at is not None:
+                    timings["speech_to_first_audio_ms"] = max(0.0, (first_write - transcript.speech_end_at) * 1000)
             timings["playback_ms"] = (self.clock() - tick) * 1000
             status = "played"
             return VoiceTurnResult(
-                self.attempt, status, record["stage"], record["language"], timings, error
+                self.attempt, status, record["stage"], record["language"], timings, error, self.budget.evaluate(timings)
             )
         except asyncio.CancelledError:
             error = map_voice_error(asyncio.CancelledError()).value

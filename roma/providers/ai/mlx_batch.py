@@ -5,6 +5,39 @@ module never imports an optional runtime at module import time.
 """
 
 
+import math
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class BatchRejectionPolicy:
+    no_speech: float = 0.6
+    avg_logprob: float = -1.0
+    compression_ratio: float = 2.4
+
+    def __post_init__(self):
+        if (any(isinstance(v, bool) or not math.isfinite(v) for v in
+                (self.no_speech, self.avg_logprob, self.compression_ratio)) or
+                not 0 <= self.no_speech <= 1 or self.avg_logprob > 0 or self.compression_ratio <= 0):
+            raise ValueError("Invalid batch rejection thresholds")
+
+
+def validated_batch_text(rows, policy=None):
+    """Drop unreliable rows independently; no retry, fallback or raw diagnostics."""
+    policy = policy or BatchRejectionPolicy()
+    accepted = []
+    for row in rows:
+        values = (row.no_speech_prob, row.avg_logprob, row.compression_ratio)
+        if (any(not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) for v in values)
+                or not 0 <= row.no_speech_prob <= policy.no_speech
+                or not policy.avg_logprob <= row.avg_logprob <= 0
+                or not 0 <= row.compression_ratio <= policy.compression_ratio):
+            continue
+        if row.text.strip():
+            accepted.append(row.text.strip())
+    return " ".join(accepted)
+
+
 def speech_chunks(pcm, scorer, policy=None):
     from roma.domain.audio.endpointing import EndpointConfig, EndpointDetector
     from roma.domain.audio.speech_chunks import split_at_strongest_pause
@@ -24,7 +57,7 @@ def speech_chunks(pcm, scorer, policy=None):
         scorer.reset()
 
 
-def decode_batch(folder, parts, base):
+def decode_batch(folder, parts, base, policy=None):
     if not 1 <= len(parts) <= 2:
         raise ValueError("Whisper batch requires one or two chunks")
     import mlx.core as mx
@@ -74,7 +107,7 @@ def decode_batch(folder, parts, base):
         ),
     )
     results = task.run(batch)
-    return " ".join(result.text for result in results)
+    return validated_batch_text(results, policy)
 
 
 def compact_greedy_loop(task, audio_features, tokens):

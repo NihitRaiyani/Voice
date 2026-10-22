@@ -99,6 +99,7 @@ class LocalLanguageSTT:
             normalize_domain_loanwords(result.text, base or result.language or ""),
             hint or result.language,
             result.confidence,
+            result.error_code,
         )
 
 

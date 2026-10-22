@@ -120,7 +120,7 @@ def test_mixed_route_uses_one_batch_and_preserves_full_audio(monkeypatch, tmp_pa
         whisper_mlx, "turn_chunks", lambda pcm, scorer, language, policy: (pcm[:8000], pcm[8000:])
     )
 
-    def decode(folder, parts, language):
+    def decode(folder, parts, language, policy):
         calls.append((parts, language))
         return "કાલે appointment. Call tomorrow."
 

@@ -45,7 +45,10 @@ from roma.repositories.postgres.conversation_state import (  # noqa: E402
     PostgresConversationStateStore,
 )
 from roma.repositories.postgres.safety import PostgresSafetyEventStore  # noqa: E402
-from roma.repositories.postgres.voice_lab import PostgresVoiceLabStore  # noqa: E402
+from roma.repositories.postgres.voice_lab import (  # noqa: E402
+    PostgresVoiceLabStore,
+    require_booking_data,
+)
 from roma.repositories.redis.appointment_holds import RedisAppointmentHolds  # noqa: E402
 from roma.services.booking_service import BookingService  # noqa: E402
 from roma.services.booking_session import BookingSession  # noqa: E402
@@ -185,6 +188,8 @@ async def local_run(args):
 
 async def _local_run(args):
     cfg, llm_cfg, tts_cfg = local_preflight(args)
+    from roma.domain.audio.turn_budget import TurnBudget
+    budget = TurnBudget(cfg.voice_turn_budget_ms)
     from pydantic import SecretStr
     from pydantic_settings import BaseSettings, SettingsConfigDict
     from redis.asyncio import Redis
@@ -223,6 +228,7 @@ async def _local_run(args):
                 != "20261004_0003"
             ):
                 raise ValueError("Schema head prerequisite is missing; no migration attempted")
+        await require_booking_data(factory, branch=state.branch)
         await redis.ping()
         with voice_boundary(VoiceErrorCode.ASR):
             stt = build_stt_provider(cfg)
@@ -279,7 +285,7 @@ async def _local_run(args):
             input_device=args.input_device, output_device=args.output_device, policy=cfg.turn_policy()
         )
         speech = SpeechInputService(stt, scorer, state, policy=cfg.turn_policy())
-        voice = VoicePrototype(state, conversation, synthesis, device, store)
+        voice = VoicePrototype(state, conversation, synthesis, device, store, budget=budget)
         print(
             "Headphones required. Local ASR/TTS; "
             + (

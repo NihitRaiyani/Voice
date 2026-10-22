@@ -45,6 +45,7 @@ class PostgresVoiceLabStore:
         # Detach/validate bounded, PII-free timing metadata before opening a session.
         timings = dict(record["timings"])
         allowed = {
+            "endpoint_wait_ms", "safety_ms", "tts_ms", "playback_start_ms", "speech_to_first_audio_ms",
             "capture_ms",
             "vad_endpoint_ms",
             "asr_ms",
@@ -164,3 +165,35 @@ class PostgresVoiceLabStore:
                 if call is not None and sid.startswith("voice-lab-"):
                     call.status = "failed" if failed else "completed"
                     call.ended_at = datetime.now(UTC)
+
+
+async def require_booking_data(factory, *, branch=None, now=None):
+    """Read-only preflight, before creating any call or opening any device."""
+    from sqlalchemy import func, or_
+
+    from roma.core.voice_errors import VoiceFailure
+    from roma.domain.appointments.timeresolve import IST, VISIT_MIN_LEAD
+    from roma.repositories.postgres.models import Appointment, AppointmentSlot, Branch
+
+    minimum = (now or datetime.now(IST)).astimezone(IST) + VISIT_MIN_LEAD
+    filters = [Branch.is_active.is_(True), Branch.timezone.in_(("Asia/Kolkata", "Asia/Calcutta"))]
+    if branch is not None:
+        filters.append(Branch.name == branch)
+    occupied = select(Appointment.id).where(
+        Appointment.branch_id == AppointmentSlot.branch_id,
+        Appointment.appointment_date == AppointmentSlot.appointment_date,
+        Appointment.start_time == AppointmentSlot.start_time,
+        Appointment.status.in_(("booked", "confirmed")),
+    ).exists()
+    async with asyncio.timeout(3):
+        async with factory() as session:
+            branches = await session.scalar(select(func.count()).select_from(Branch).where(*filters))
+            slots = await session.scalar(select(func.count()).select_from(AppointmentSlot).join(Branch).where(
+                *filters, AppointmentSlot.status == "available", AppointmentSlot.capacity > 0,
+                ~occupied,
+                or_(AppointmentSlot.appointment_date > minimum.date(),
+                    (AppointmentSlot.appointment_date == minimum.date()) & (AppointmentSlot.start_time >= minimum.time().replace(tzinfo=None))),
+            ))
+    if not branches or not slots:
+        raise VoiceFailure(VoiceErrorCode.BOOKING_DATA_MISSING)
+    return {"branches": branches, "slots": slots}

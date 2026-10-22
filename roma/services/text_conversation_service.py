@@ -259,6 +259,7 @@ class TextConversationService:
         self.booking_session = booking_session
         self._booking_restored = False
         self.safety = safety if safety is not None else SafetyService()
+        self.safety_elapsed_ms = 0.0
         self._call_identity: str | int | None = None
         self.store = store or InMemoryConversationStateStore()
         self.max_tokens, self.temperature = max_tokens, temperature
@@ -290,6 +291,7 @@ class TextConversationService:
             )
             context = SafetyContext(state.call_sid, state.turn_count, state.stage.value)
             ok = await self.safety.persist(context, (event,))
+            self.safety_elapsed_ms += (perf_counter() - input_started) * 1000
             with voice_boundary(VoiceErrorCode.DB):
                 await save_state(self.store, state)
             return TextTurnTrace(
@@ -468,6 +470,7 @@ class TextConversationService:
                 candidate = HARD_FAIL_LINE
         else:
             candidate = fixed
+        safety_started = perf_counter()
         final, verdicts, events = _filter_response(
             candidate, state,
             require_devanagari=self.dialogue_language == "voice_hi" and fixed is None and not errors,
@@ -482,6 +485,7 @@ class TextConversationService:
         if not await self.safety.persist(context, events):
             final = HARD_FAIL_LINE
             errors.append("safety-audit-unavailable")
+        self.safety_elapsed_ms += (perf_counter() - safety_started) * 1000
         state.record_facts(facts_in(final))
         with voice_boundary(VoiceErrorCode.DB):
             await save_state(self.store, state)

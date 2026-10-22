@@ -38,6 +38,17 @@ class SpeechSettings(BaseSettings):
             self.voice_batch_min_turn_ms,
         )
 
+    whisper_batch_no_speech: float = Field(default=0.6, ge=0, le=1, allow_inf_nan=False)
+    whisper_batch_avg_logprob: float = Field(default=-1.0, le=0, allow_inf_nan=False)
+    whisper_batch_compression_ratio: float = Field(default=2.4, gt=0, allow_inf_nan=False)
+
+    def batch_rejection(self):
+        from roma.providers.ai.mlx_batch import BatchRejectionPolicy
+        return BatchRejectionPolicy(self.whisper_batch_no_speech, self.whisper_batch_avg_logprob,
+                                    self.whisper_batch_compression_ratio)
+
+    voice_turn_budget_ms: dict[str, float] | None = None
+
     stt_language: Literal["hi", "gu", "en"] = "hi"
     stt_timeout_secs: float = Field(default=30, gt=0, le=60, allow_inf_nan=False)
     stt_max_audio_secs: float = Field(default=30, ge=1, le=30, allow_inf_nan=False)

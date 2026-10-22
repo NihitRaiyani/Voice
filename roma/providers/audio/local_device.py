@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+from dataclasses import replace
 from time import perf_counter
 
 from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
@@ -15,6 +16,7 @@ class LocalAudioDevice:
         self.input_device, self.output_device = input_device, output_device
         self._backend = backend
         self.policy = policy or TurnPolicy()
+        self.first_write_at = None
 
     def _audio(self):
         if sys.byteorder != "little":
@@ -40,6 +42,19 @@ class LocalAudioDevice:
         read_task = None
         samples_read = 0
         sample_limit = int(max_seconds * 16000)
+        read_marks = []
+
+        def stamp(result):
+            last = getattr(result, "last_speech_sample", None)
+            if last is None:
+                return result, {}
+            for end, read_at in read_marks:
+                if end >= last:
+                    speech_end = read_at - (end - last) / 16000
+                    return replace(result, speech_end_at=speech_end), {
+                        "endpoint_wait_ms": max(0.0, (perf_counter() - speech_end) * 1000 - result.asr_ms)
+                    }
+            raise ValueError("Invalid last speech frame timing")
         try:
             read_task = asyncio.create_task(asyncio.to_thread(stream.start))
             await asyncio.shield(read_task)
@@ -57,14 +72,16 @@ class LocalAudioDevice:
                     if len(block) != count * 2:
                         raise ValueError("Unexpected microphone frame size")
                     samples_read += count
+                    read_marks.append((samples_read, perf_counter()))
                     tick = perf_counter()
                     results = await speech.feed(block)
                     processing_ms += (perf_counter() - tick) * 1000
                     if results:
                         if len(results) != 1:
                             raise ValueError("Only one finalized microphone turn is admitted")
-                        result = results[0]
+                        result, endpoint_timing = stamp(results[0])
                         return result, {
+                            **endpoint_timing,
                             "capture_ms": max(
                                 0.0, (perf_counter() - started) * 1000 - result.asr_ms
                             ),
@@ -76,10 +93,11 @@ class LocalAudioDevice:
             if results:
                 if len(results) != 1:
                     raise ValueError("Only one finalized microphone turn is admitted")
-                result = results[0]
+                result, endpoint_timing = stamp(results[0])
                 if not result.text.strip() and result.error is None:
                     raise VoiceFailure(VoiceErrorCode.CAPTURE_DEADLINE_NO_TRANSCRIPT)
                 return result, {
+                    **endpoint_timing,
                     "capture_ms": max(0.0, (perf_counter() - started) * 1000 - result.asr_ms),
                     "vad_endpoint_ms": max(0.0, processing_ms - result.asr_ms),
                 }
@@ -110,13 +128,20 @@ class LocalAudioDevice:
             device=self.output_device,
         )
         write_task = None
+        self.first_write_at = None
+
+        def write(block):
+            if self.first_write_at is None:
+                self.first_write_at = perf_counter()
+            return stream.write(block)
+
         try:
             write_task = asyncio.create_task(asyncio.to_thread(stream.start))
             await asyncio.shield(write_task)
             write_task = None
             for offset in range(0, len(result.audio), 3200):
                 write_task = asyncio.create_task(
-                    asyncio.to_thread(stream.write, result.audio[offset : offset + 3200])
+                    asyncio.to_thread(write, result.audio[offset : offset + 3200])
                 )
                 if await asyncio.shield(write_task):
                     raise ValueError("Speaker underflow")

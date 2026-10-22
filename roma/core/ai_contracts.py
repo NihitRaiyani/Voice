@@ -39,6 +39,7 @@ class STTResult:
     text: str
     language: str | None = None
     confidence: float | None = None
+    error_code: str | None = None
 
 
 @runtime_checkable

@@ -2,6 +2,8 @@
 
 ## Current readiness
 
+Phase 3 adds configurable per-row validation to batches and `ASR-BATCH-REJECTED` for an entirely rejected turn. Fake results prove rejection mechanics only; no new WER/CER or model-quality result is claimed.
+
 Phase 2 uses `whisper-turbo-structural-v3`: one existing Turbo model may batch a qualifying paused turn on any language route, with a configurable 2,000 ms minimum turn length. The no-gap single-call path is preserved; dated v2 measurements below are historical and are not v3 results. See the [turn-boundary evidence](level-06.md#offline-turn-boundary-repair--phase-2).
 
 Local development ASR uses **Whisper Turbo 4-bit MLX** (`whisper-turbo-batched-v2`), with the existing pinned cache and unchanged decoding policy. IndicConformer ASR weights were removed; its installation and benchmark evidence below is historical, even where a dated paragraph describes an available cache. Shared runtime packages may remain. Native Gujarati/Hindi, natural code-mix and voice latency acceptance remain pending. No gate is marked passed.
