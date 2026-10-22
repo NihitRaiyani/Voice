@@ -37,6 +37,7 @@ A configured, migrated PostgreSQL database is required for successful `/answer` 
 Offline checks use fake providers and disposable data:
 
 ```bash
+make nltk-data  # one-time punkt_tab setup; no speech model download
 make ci
 make test
 uv run --no-sync python scripts/run_eval.py

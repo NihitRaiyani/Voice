@@ -8,6 +8,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
+from roma.core.voice_errors import VoiceErrorCode, map_voice_error
 from roma.domain.safety.audit import POLICY_VERSION
 from roma.repositories.postgres.models import Call, CallEvent, CallTurn
 
@@ -83,21 +84,11 @@ class PostgresVoiceLabStore:
         if not isinstance(language, str) or len(language) > 32:
             raise ValueError("Invalid voice language")
         error = record["error_code"]
-        allowed_errors = {
-            None,
-            "asr-unavailable",
-            "asr-empty",
-            "listen-timeout",
-            "voice-turn-failed",
-            "cancelled",
-            "extraction-unavailable-or-invalid",
-            "generation-unavailable-or-invalid",
-            "safety-audit-unavailable",
-        }
-        if error is not None and (
-            not isinstance(error, str) or not set(error.split(",")) <= (allowed_errors - {None})
-        ):
-            raise ValueError("Invalid voice error code")
+        if error is not None:
+            try:
+                error = map_voice_error(VoiceErrorCode(error)).value
+            except (ValueError, TypeError):
+                raise ValueError("Invalid voice error code") from None
         payload = {
             "attempt": attempt,
             "turn_number": turn,

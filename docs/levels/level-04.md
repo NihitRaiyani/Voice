@@ -1,5 +1,11 @@
 # Level 4 — Audio and local ASR
 
+## Current readiness
+
+Local development ASR uses **Whisper Turbo 4-bit MLX** (`whisper-turbo-batched-v2`), with the existing pinned cache and unchanged decoding policy. IndicConformer ASR weights were removed; its installation and benchmark evidence below is historical, even where a dated paragraph describes an available cache. Shared runtime packages may remain. Native Gujarati/Hindi, natural code-mix and voice latency acceptance remain pending. No gate is marked passed.
+
+Phase 1 adds explicit offline tokenizer setup, one CI test catalog and PII-safe prototype error categories. It does not change ASR strategy, model weights or the production Twilio/Sarvam path. Paid Claude, microphone and native-speaker acceptance remain deferred throughout the current four-phase work.
+
 **Roadmap sections:** 14–18. **Status:** Audio/input/router and benchmark/failure/SQL tooling are implemented. The same pinned local Turbo model now uses owner-approved mixed-turn batching; all PCM is retained, with no second-model cascade. The 15-case run retains English output in all six mixed cases (five exact suffixes). Pure Gujarati/Hindi results are unchanged and weak; native/noisy quality and latency remain unapproved. [Current batching evidence](#single-model-speech-batching--2026-10-21) supersedes the earlier whole-turn selection; dated reports remain immutable.
 
 Current LLM policy changed to Claude Haiku 5.5 on 2026-10-20. OpenAI names in the dated speech checks below identify the former baseline; official OpenAI Whisper Space names remain ASR endpoint identities. No OpenAI LLM calls/fallback are allowed. Historical reports and counts are unchanged.
@@ -266,6 +272,8 @@ The first English case took **16.507 s**, including initial model/runtime loadin
 Thirteen public high-WER failure WAVs and review JSONs are saved under ignored `var/roma/asr-benchmark/failures-whisper-base-local`; read them with the existing failure-review command. The completed run was saved to configured `roma` as `section18-whisper-base-local-20261019-v1`, run ID `34c31fd5-9847-4109-9f43-c1b4a30b2912`: **15 samples, 90 metric rows, one distinct local model identity**. SQL status `succeeded` describes execution, not a quality gate. Schema remains at `20261004_0003`; no migration or business records were changed by the benchmark. See the [runbook](../runbook.md#local-whisper-base-benchmark) and [Level 6](level-06.md) for microphone evidence and remaining gates.
 
 ## Local IndicConformer readiness — 2026-10-21
+
+> **Historical installation evidence:** the IndicConformer ASR weights were subsequently removed. Current local development ASR is Whisper Turbo 4-bit MLX. The dated evidence below is preserved unchanged.
 
 The owner authorized local AI4Bharat IndicConformer after the Whisper base multilingual failures. The exact cache is `ai4bharat/indic-conformer-600m-multilingual` revision `2a77d305038dfc502fd9464e7d028b90381976cb`: **404 files / 2,556,502,929 bytes**, or **2.557 GB decimal / 2.381 GiB**. The optional `indic-asr` runtime adds PyTorch and Transformers; the observed installed package directories consume **645,087,232 bytes** (**645 MB / 615 MiB**) on this Mac. Combined logical size is about **3.202 GB / 2.982 GiB**, excluding filesystem allocation differences and shared dependencies. [Machine-readable install evidence](../../benchmarks/asr/indic-conformer-local-install.json) records versions and counts without credentials or transcripts.
 

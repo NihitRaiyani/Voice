@@ -13,6 +13,7 @@ from roma.api.v1.calls import mount_web_api
 from roma.core.config import get_settings, require_reachable_base_url
 from roma.core.database import Database
 from roma.core.logging import configure_logging
+from roma.core.tokenizer import require_nltk_data
 from roma.realtime.pipeline import build_media_app
 from roma.repositories.postgres.booking import PostgresBookingStore
 from roma.repositories.postgres.safety import PostgresSafetyEventStore
@@ -26,6 +27,7 @@ from roma.services.webhook_service import WebhookService
 
 def create_app() -> FastAPI:
     """Build the production backend application."""
+    require_nltk_data()
     configure_logging()
     require_reachable_base_url()
     settings = get_settings()

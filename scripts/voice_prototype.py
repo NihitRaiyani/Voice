@@ -17,7 +17,14 @@ sys.path.insert(0, str(ROOT))
 from roma.core.claude_llm_settings import ClaudeLLMSettings  # noqa: E402
 from roma.core.migration_settings import MigrationSettings  # noqa: E402
 from roma.core.speech_settings import SpeechSettings  # noqa: E402
+from roma.core.tokenizer import require_nltk_data  # noqa: E402
 from roma.core.tts_settings import TTSSettings  # noqa: E402
+from roma.core.voice_errors import (  # noqa: E402
+    VoiceErrorCode,
+    VoiceFailure,
+    map_voice_error,
+    voice_boundary,
+)
 from roma.domain.conversation.language import Language  # noqa: E402
 from roma.domain.conversation.state import CallState  # noqa: E402
 from roma.domain.safety.audit import SafetyContext  # noqa: E402
@@ -122,27 +129,31 @@ async def mock_lab():
 
 
 def local_preflight(args):
+    require_nltk_data()
     if not (args.allow_microphone and args.allow_database_write):
-        raise ValueError("Local mode requires explicit microphone and database opt-ins")
+        raise VoiceFailure(VoiceErrorCode.CAPTURE)
     if args.llm_provider == "claude" and not args.allow_paid_api:
-        raise ValueError("Claude mode requires the explicit paid API opt-in")
-    cfg = SpeechSettings()
+        raise VoiceFailure(VoiceErrorCode.LLM)
+    with voice_boundary(VoiceErrorCode.ASR):
+        cfg = SpeechSettings()
     if cfg.stt_provider not in {"whisper_mlx", "whisper"}:
-        raise ValueError(
-            "Local-only mode requires STT_PROVIDER=whisper_mlx or whisper; hosted ASR is not permitted"
-        )
+        raise VoiceFailure(VoiceErrorCode.ASR)
     packages = ["mlx_whisper" if cfg.stt_provider == "whisper_mlx" else "faster_whisper", "sounddevice"]
     if any(importlib.util.find_spec(package) is None for package in packages):
-        raise ValueError("Local ASR runtime/model prerequisite is missing; no download attempted")
+        raise VoiceFailure(VoiceErrorCode.ASR)
     if cfg.stt_provider == "whisper_mlx":
         from roma.providers.ai.whisper_mlx import verify_mlx_artifacts
-        verify_mlx_artifacts(Path(cfg.whisper_mlx_model_dir))
+        with voice_boundary(VoiceErrorCode.ASR):
+            verify_mlx_artifacts(Path(cfg.whisper_mlx_model_dir))
     if args.llm_provider == "mock":
-        return cfg, None, TTSSettings(tts_provider="indic_tts")
-    llm_cfg = ClaudeLLMSettings(llm_provider="claude")
+        with voice_boundary(VoiceErrorCode.TTS):
+            return cfg, None, TTSSettings(tts_provider="indic_tts")
+    with voice_boundary(VoiceErrorCode.LLM):
+        llm_cfg = ClaudeLLMSettings(llm_provider="claude")
     if not llm_cfg.anthropic_api_key.get_secret_value() or not llm_cfg.anthropic_model:
-        raise ValueError("Claude key/model prerequisite is missing")
-    return cfg, llm_cfg, TTSSettings(tts_provider="indic_tts")
+        raise VoiceFailure(VoiceErrorCode.LLM)
+    with voice_boundary(VoiceErrorCode.TTS):
+        return cfg, llm_cfg, TTSSettings(tts_provider="indic_tts")
 
 
 def initial_lab_state(language, branch):
@@ -158,14 +169,21 @@ def initial_lab_state(language, branch):
 async def ready_local_models(stt, tts, scorer):
     # Synthetic readiness only: no participant audio, microphone, paid LLM or DB.
     for language in ("gu", "hi", "en"):
-        await stt.transcribe(STTRequest(b"\0\0" * 16000, AudioFormat(16000), language))
+        with voice_boundary(VoiceErrorCode.ASR):
+            await stt.transcribe(STTRequest(b"\0\0" * 16000, AudioFormat(16000), language))
     safe = await SafetyService().check("नमस्ते।", SafetyContext("voice-lab-preflight", 1, "open"))
-    await tts.synthesize(TTSRequest(safe.text, language="hi"))
+    with voice_boundary(VoiceErrorCode.TTS):
+        await tts.synthesize(TTSRequest(safe.text, language="hi"))
     scorer.probability(b"\0\0" * 512)
     scorer.reset()
 
 
 async def local_run(args):
+    with voice_boundary(VoiceErrorCode.DB):
+        return await _local_run(args)
+
+
+async def _local_run(args):
     cfg, llm_cfg, tts_cfg = local_preflight(args)
     from pydantic import SecretStr
     from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -206,10 +224,14 @@ async def local_run(args):
             ):
                 raise ValueError("Schema head prerequisite is missing; no migration attempted")
         await redis.ping()
-        stt, tts = build_stt_provider(cfg), build_tts_provider(tts_cfg)
+        with voice_boundary(VoiceErrorCode.ASR):
+            stt = build_stt_provider(cfg)
+        with voice_boundary(VoiceErrorCode.TTS):
+            tts = build_tts_provider(tts_cfg)
         stt = LocalLanguageSTT(stt)
         # Read/verify provisioned TTS artifacts before opening the microphone.
-        await tts.cache_identity(TTSRequest("नमस्ते", language="hi"))
+        with voice_boundary(VoiceErrorCode.TTS):
+            await tts.cache_identity(TTSRequest("नमस्ते", language="hi"))
         scorer = SileroFrameProbability()
         await ready_local_models(stt, tts, scorer)
         store = PostgresVoiceLabStore(factory, persist_transcripts=args.persist_transcripts)
@@ -224,11 +246,12 @@ async def local_run(args):
             BookingService(PostgresBookingStore(factory), RedisAppointmentHolds(redis)), state
         )
         cleanup.push_async_callback(booking.aclose)
-        llm = (
-            MockLLMProvider(response="नमस्ते।")
-            if args.llm_provider == "mock"
-            else build_llm_provider(llm_cfg)
-        )
+        with voice_boundary(VoiceErrorCode.LLM):
+            llm = (
+                MockLLMProvider(response="नमस्ते।")
+                if args.llm_provider == "mock"
+                else build_llm_provider(llm_cfg)
+            )
         if getattr(llm, "aclose", None) is not None:
             cleanup.push_async_callback(llm.aclose)
         conversation = TextConversationService(
@@ -271,10 +294,11 @@ async def local_run(args):
         for _ in range(args.max_turns):
             if perf_counter() - tick >= 300 or state.lead_wants_out:
                 break
-            transcript, timings = await asyncio.wait_for(
-                device.listen(speech, max_seconds=min(30, 300 - (perf_counter() - tick))),
-                timeout=max(0.01, 300 - (perf_counter() - tick)),
-            )
+            with voice_boundary(VoiceErrorCode.CAPTURE):
+                transcript, timings = await asyncio.wait_for(
+                    device.listen(speech, max_seconds=min(30, 300 - (perf_counter() - tick))),
+                    timeout=max(0.01, 300 - (perf_counter() - tick)),
+                )
             if transcript is None:
                 # Silent attempts are recorded without feeding silence into the controller.
                 from roma.services.speech_input import SpeechTranscript
@@ -307,6 +331,7 @@ def parser():
 def main():
     args = parser().parse_args()
     try:
+        require_nltk_data()
         if args.mode == "mock":
             print(json.dumps(asyncio.run(mock_lab()), ensure_ascii=False, indent=2))
         else:
@@ -314,12 +339,10 @@ def main():
         return 0
     except (KeyboardInterrupt, asyncio.CancelledError):
         return 130
-    except Exception:  # noqa: BLE001 -- no .env, provider payload or participant text in ordinary errors.
-        print(
-            "Voice prototype unavailable: verify local ASR runtime/cached weights, local TTS, PostgreSQL/Redis, opt-ins and Claude availability. No downloads or hosted-ASR fallback attempted.",
-            file=sys.stderr,
-        )
+    except Exception as exc:  # noqa: BLE001 -- one fixed category, never raw details.
+        print(map_voice_error(exc).message, file=sys.stderr)
         return 1
+
 
 
 if __name__ == "__main__":

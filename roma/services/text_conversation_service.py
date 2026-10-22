@@ -13,6 +13,7 @@ from typing import Any, Literal
 from pydantic import ConfigDict, Field, ValidationError, field_validator
 
 from roma.core.prompt_privacy import redact_prompt
+from roma.core.voice_errors import VoiceErrorCode, voice_boundary
 from roma.domain.appointments.slots import (
     _DISCOVERY_SYS,
     _TIME_SYS,
@@ -289,7 +290,8 @@ class TextConversationService:
             )
             context = SafetyContext(state.call_sid, state.turn_count, state.stage.value)
             ok = await self.safety.persist(context, (event,))
-            await save_state(self.store, state)
+            with voice_boundary(VoiceErrorCode.DB):
+                await save_state(self.store, state)
             return TextTurnTrace(
                 before,
                 (),
@@ -481,7 +483,8 @@ class TextConversationService:
             final = HARD_FAIL_LINE
             errors.append("safety-audit-unavailable")
         state.record_facts(facts_in(final))
-        await save_state(self.store, state)
+        with voice_boundary(VoiceErrorCode.DB):
+            await save_state(self.store, state)
         return TextTurnTrace(
             before,
             tuple(extractions),

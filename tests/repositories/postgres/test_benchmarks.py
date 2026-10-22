@@ -349,3 +349,32 @@ def test_voice_store_rejects_private_or_invalid_metric_keys_before_database():
                 )
 
     asyncio.run(run())
+
+
+def test_voice_error_enum_codes_are_durable_and_private_error_strings_are_rejected(session_factory):
+    from roma.core.voice_errors import VoiceErrorCode
+    from roma.repositories.postgres.models import Call, CallEvent
+    from roma.repositories.postgres.voice_lab import PostgresVoiceLabStore
+
+    async def run():
+        store = PostgresVoiceLabStore(session_factory)
+        sid = "voice-lab-" + uuid4().hex
+        await store.start(sid)
+        record = {
+            "attempt": 1, "turn_number": None, "status": "failed", "stage": "open",
+            "language": "en", "caller": "PRIVATE +919876543210 /private/clip.wav",
+            "agent": None, "timings": {}, "error_code": None,
+        }
+        for index, code in enumerate(VoiceErrorCode, start=1):
+            await store.save(sid, {**record, "attempt": index, "error_code": code.value})
+        with pytest.raises(ValueError, match=r"^Invalid voice error code$"):
+            await store.save(sid, {**record, "error_code": "PRIVATE hf_private_token /private/clip.wav"})
+        async with session_factory() as session:
+            call = await session.scalar(select(Call).where(Call.provider_call_id == sid))
+            events = list(await session.scalars(select(CallEvent).where(CallEvent.call_id == call.id)))
+            assert {event.payload["error_code"] for event in events} == {code.value for code in VoiceErrorCode}
+            assert all("PRIVATE" not in str(event.payload) and "+919876543210" not in str(event.payload) for event in events)
+            await session.delete(call)
+            await session.commit()
+
+    asyncio.run(run())

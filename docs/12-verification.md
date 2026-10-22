@@ -226,3 +226,62 @@ The [versioned batch report](../benchmarks/asr/section18/whisper-turbo-batch-rep
 Fresh full offline verification: **2,829 tests pass** in 91.99 seconds, with the same 22 dependency deprecation warnings. Ruff and **79-file mypy** pass. A focused 15-test follow-up confirms the final tested language guard is wired into the decoder. Native Gujarati/Hindi/noisy quality, no-pause switching, p95/first-audible latency and microphone acceptance remain pending.
 
 A subsequent 28-test benchmark-evidence check passes, including rejection of altered batch bounds and preservation of the current report identity. Final adapter smoke checks recover the exact English suffix in both clean mixed clips; peak Metal allocation is 1.512 GB and process RSS is 0.552 GB (these measurements may overlap). Cold startup is excluded from the steady-state benchmark comparison.
+
+
+## Phase 1 setup, test catalog and safe diagnostics — 2026-10-22
+
+The missing-data subprocess regression fails before the setup guard, then stops once with `TOKENIZER-DATA-MISSING` and the setup command after the guard is added. The repo-local data directory was removed explicitly; the sentence suite refused to run before `make nltk-data` installed only `punkt_tab`. A separate direct-startup regression exposed the installed NLTK path-security requirement: register the explicit data root before opening its parameter files. Startup validation now covers app, prototype and pytest session setup without automatic installation.
+
+CI delegation/catalog regressions fail on duplicated workflow commands and an absent catalog, then pass with one explicit complete offline catalog and reasoned-exclusion validation. Eight fake-seam failures and the CLI privacy check fail on the former generic/string codes, then pass with the shared enum/mapping. A further checkpoint regression reproduces DB-as-LLM misclassification before the narrow storage-boundary fix. Disposable PostgreSQL readback covers every enum code and rejects arbitrary private error strings; ordinary events omit transcript data by default. Readiness-document tests reject stale current availability and missing current-status blocks.
+
+Required `make ci` and `make test` checks use isolated native PostgreSQL/Redis, never the working `roma` database. The scratch verification environment uses dev mode because an existing config test asserts that default; its isolated migration server is closed before the full test fixtures allocate additional clusters on this Mac. Dated benchmark evidence is unchanged. No paid provider, microphone, speech model download, ASR strategy, Claude setting or production-media change is part of this phase. No gate is marked passed. Phases 2–4 require the owner's next “continue”; the Phase 1 commit stays local without a push.
+
+
+### Phase 1 report
+
+| Item | Failing-before regression | Passing-after evidence |
+|---|---|---|
+| Tokenizer | `test_missing_tokenizer_fails_fast_before_sentence_tests`; `test_direct_startup_registers_repo_default_without_make_environment` | Four setup regressions and the existing six sentence tests pass; missing-data subprocess exits once with the setup instruction. |
+| CI definition | `test_workflow_delegates_to_the_same_ci_test_command`; `test_ci_catalog_accounts_for_every_test_module` | Three catalog/delegation tests pass, including missing-module and empty-exclusion-reason rejection. No modules are excluded. |
+| Error categories | All eight `test_each_fake_failure_has_its_own_safe_durable_code` cases; `test_cli_prints_only_a_safe_stage_code`; `test_checkpoint_failure_is_db_not_llm` | Eighteen error/CLI tests pass, plus disposable-DB enum readback and private-error rejection. |
+| Readiness docs | Two `test_level_brief_starts_with_current_readiness_without_claiming_a_gate` cases; `test_indic_cache_availability_checklist_is_explicitly_historical`; `test_speech_contract_marks_previous_indic_routing_as_historical` | Four readiness tests pass. All dated benchmark artifacts remain unchanged. |
+
+| Required item checks | `make ci` | `make test` |
+|---|---|---|
+| 1: setup | 80 provider tests + 1,210 CI tests | 2,833 passed |
+| 2: unified catalog | 2,837 passed | 2,837 passed |
+| 3: safe errors | 2,856 passed | 2,856 passed |
+| 4: final documentation/regression set | 2,860 passed | 2,860 passed |
+
+The final full runs retain 22 existing dependency deprecation warnings; no gate is marked passed. Ruff, configured mypy and all commit hooks pass. Markdown checking covers 86 files and 550 local links/anchors without errors.
+
+Repository findings beyond the brief: a completely missing tokenizer directory could previously fall back silently to home-installed data; the new explicit-root validation prevents that. The installed NLTK protects reads using registered data roots, so direct startup must register the selected root before loading it. Existing config tests assume dev mode, and this Mac cannot retain the extra migration server alongside all disposable test clusters; the verification environment accounts for both without changing application settings. The shared speech contract also contained an undated stale Indic route, now labelled historical. The only production application change is the explicitly requested startup tokenizer guard; production media/provider behavior is unchanged.
+
+The three OpenAI-named modules and their guarded behavior are documented in the runbook; none was deleted or enabled for paid runtime. No Phase 1 owner decision remains outstanding. The request to resume Claude/microphone/native acceptance remains deferred under the four-phase global rules and the stop/continue boundary.
+
+Changed files (24):
+
+- .github/workflows/ci.yml
+- Makefile
+- README.md
+- configs/ci-tests.json
+- docs/05-endpointing-vad.md
+- docs/12-verification.md
+- docs/levels/level-04.md
+- docs/levels/level-06.md
+- docs/runbook.md
+- roma/core/tokenizer.py
+- roma/core/voice_errors.py
+- roma/main.py
+- roma/repositories/postgres/voice_lab.py
+- roma/services/text_conversation_service.py
+- roma/services/voice_prototype.py
+- scripts/run_ci_tests.py
+- scripts/voice_prototype.py
+- tests/architecture/test_ci_coverage.py
+- tests/architecture/test_readiness_docs.py
+- tests/conftest.py
+- tests/core/test_tokenizer_setup.py
+- tests/repositories/postgres/test_benchmarks.py
+- tests/services/test_voice_errors.py
+- tests/services/test_voice_prototype.py

@@ -1,5 +1,11 @@
 # Level 6 — Local voice prototype
 
+## Current readiness
+
+The half-duplex prototype uses **Whisper Turbo 4-bit MLX** for current local development ASR; IndicConformer ASR weights were removed. Earlier base/Indic installation and English microphone results below are historical evidence, not approval of the current complete voice experience. No gate is marked passed.
+
+Setup now validates repo-local `punkt_tab` before tests, app startup and prototype startup. Prototype errors use the shared ASR/TTS/DB/DEVICE/CAPTURE/LLM/SAFETY/BOOKING-DATA categories. Turn-boundary repairs, output-validation/budget/demo-data work and evaluation scaffolding belong to the later authorized phases and are not implemented by Phase 1. Paid Claude, microphone and native-speaker acceptance remain deferred; the production Twilio/Sarvam path is unchanged.
+
 **Roadmap sections:** 20–21. **Status:** Section 20 integration verified offline; physical English/local-TTS checks passed with Claude extraction and, in a prepared-state demo, Claude wording. The complete multilingual/native/booking gate remains pending and the owner deferred further live checks due to limits. Section 21 is not implemented by this increment.
 
 ## Entry gate
@@ -39,7 +45,7 @@ The [runbook](../runbook.md#section-20-microphone-to-speaker-prototype) owns com
 - [x] Complete booking controller/SQL flow passes separately with disposable demo data and offline scripted extraction; this is Level 3 integration evidence, not a microphone booking pass.
 - [ ] Levels 2–5 native/representative prerequisite gates approved.
 - [x] Local Whisper base runtime and pinned model cache available on this machine; local readiness verified with installed TTS and bundled Silero.
-- [x] Pinned IndicConformer runtime/cache and same-corpus local comparison available (12 supported successes / 3 unsupported English cases). Native/code-mix quality remains pending.
+- [x] **Historical:** Pinned IndicConformer runtime/cache and same-corpus local comparison available at the earlier installation checkpoint (12 supported successes / 3 unsupported English cases). The ASR weights were subsequently removed; this is historical evidence only. Native/code-mix quality remains pending.
 - [ ] Real microphone/headphone conversation with Claude in Gujarati, Hindi, English and code-mix, including booking and native review.
 
 The current LLM selection is Claude Haiku 5.5 behind `--llm-provider claude`; `--allow-paid-api` remains required. Explicit `--llm-provider mock` uses real local audio/ASR/TTS without constructing any paid client, and still requires microphone/DB opt-ins. Synthetic mode remains mocked. A mock-LLM hardware result cannot establish Claude quality. No OpenAI calls or fallback.

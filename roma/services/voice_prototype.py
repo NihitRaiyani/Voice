@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from time import perf_counter
 
+from roma.core.voice_errors import VoiceErrorCode, VoiceFailure, map_voice_error
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.safety.audit import SafetyContext
 from roma.providers.ai.contracts import TTSRequest
@@ -69,23 +70,19 @@ class VoicePrototype:
             "status": "received",
             "error_code": None,
         }
+        stage = VoiceErrorCode.DB
         try:
             # Durable receipt before business mutation; no session spans any inference.
             await self.store.save(self.state.call_sid, record)
             if transcript.error or not transcript.text.strip():
-                error = (
-                    "listen-timeout"
-                    if transcript.error == "listen-timeout"
-                    else "asr-unavailable"
-                    if transcript.error
-                    else "asr-empty"
-                )
+                error = map_voice_error(transcript.error or "asr-empty", stage=VoiceErrorCode.ASR).value
                 return VoiceTurnResult(
                     self.attempt, "failed", record["stage"], record["language"], timings, error
                 )
             tick = self.clock()
             before_turn = self.state.turn_count
             llm_before = getattr(self.conversation.provider, "elapsed_ms", 0.0)
+            stage = VoiceErrorCode.LLM
             trace = await self.conversation.turn(
                 self.state,
                 transcript.text,
@@ -106,6 +103,7 @@ class VoicePrototype:
                 caller=transcript.text,
                 agent=trace.final_response,
             )
+            stage = VoiceErrorCode.TTS
             spoken = render_voice_line(trace.final_response, self.state)
             tick = self.clock()
             speech = await self.synthesis.synthesize(
@@ -121,10 +119,15 @@ class VoicePrototype:
             timings["tts_cache_frames_ms"] = max(
                 0.0, speech.elapsed_ms - speech.safety_normalization_ms
             )
-            error = trace.provider_error if speech.audit_ok else "safety-audit-unavailable"
+            raw_error = trace.provider_error if speech.audit_ok else "safety-audit-unavailable"
+            if raw_error is None and self.state.booking_error == "BOOKING_UNAVAILABLE":
+                raw_error = "BOOKING_UNAVAILABLE"
+            error = map_voice_error(raw_error, stage=VoiceErrorCode.LLM).value if raw_error else None
             record.update(status="ready", error_code=error, agent=speech.spoken_canonical_text)
+            stage = VoiceErrorCode.DB
             await self.store.save(self.state.call_sid, record)
             tick = self.clock()
+            stage = VoiceErrorCode.DEVICE
             await self.speaker.play(speech.result)
             timings["playback_ms"] = (self.clock() - tick) * 1000
             status = "played"
@@ -132,13 +135,14 @@ class VoicePrototype:
                 self.attempt, status, record["stage"], record["language"], timings, error
             )
         except asyncio.CancelledError:
-            error = "cancelled"
+            error = map_voice_error(asyncio.CancelledError()).value
             self._poisoned = True
             raise
-        except Exception:  # noqa: BLE001 -- fixed codes; never expose transcripts/SDK secrets.
-            error = "voice-turn-failed"
+        except Exception as exc:  # noqa: BLE001 -- fixed codes only.
+            code = map_voice_error(exc, stage=stage)
+            error = code.value
             self._poisoned = True
-            raise RuntimeError("Voice turn failed; session stopped") from None
+            raise VoiceFailure(code) from None
         finally:
             timings["response_total_ms"] = max(0.0, (self.clock() - started) * 1000)
             record.update(status=status, error_code=error, timings=dict(timings))
@@ -146,7 +150,7 @@ class VoicePrototype:
                 await self.store.save(self.state.call_sid, record)
             except Exception:  # noqa: BLE001 -- database failure must stop this session.
                 self._poisoned = True
-                raise RuntimeError("Voice persistence unavailable; session stopped") from None
+                raise VoiceFailure(VoiceErrorCode.DB) from None
             finally:
                 self._busy = False
 

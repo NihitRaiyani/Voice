@@ -107,6 +107,8 @@ Do not replay dead letters until the business effect/idempotency/privacy consequ
 ## Offline checks
 
 ```bash
+# One-time explicit tokenizer install; never performed by tests or app startup.
+make nltk-data
 make ci
 make test
 uv run --no-sync python scripts/run_eval.py
@@ -114,7 +116,13 @@ uv run --no-sync python scripts/run_eval.py
 
 Existing PostgreSQL tests try a disposable Testcontainers database, then installed native `initdb`/`pg_ctl` binaries (including `/Library/PostgreSQL/18/bin`). They never target the configured working database. Report unavailable-service skips/failures explicitly. Broker integration tests require a disposable local Redis server.
 
-Sentence aggregation needs NLTK `punkt_tab` environment data; if missing, install it explicitly as setup and verify provenance before tests. Tests must not download resources implicitly. Current async tests use `asyncio.run`.
+Sentence aggregation needs NLTK `punkt_tab`. `make nltk-data` explicitly installs that package only, with bounded network waits, under ignored `var/roma/nltk_data`. Make exports the same `NLTK_DATA` for `test`, `test-ci`, `app-start` and the prototype. Direct Python startup uses the same repo-local default. Tests, app startup and prototype startup validate that the English parameters load; missing/corrupt data stops with `TOKENIZER-DATA-MISSING: run make nltk-data before startup or tests.` They never download resources implicitly. Current async tests use `asyncio.run`.
+
+`configs/ci-tests.json` is the single explicit offline module catalog. `make test-ci` validates and runs it; GitHub Actions calls that same target. Every `tests/**/test_*.py` must appear in `modules` or in `excluded` with a nonempty reason. The current catalog includes every module and has no exclusions. The meta-test rejects new unaccounted modules, stale entries, duplicates and unreasoned exclusions.
+
+Three historical filenames intentionally remain: `test_openai_llm.py` checks the old adapter's SDK streaming/error/budget/accounting compatibility with fake HTTP transports; `test_openai_language.py` checks the reusable language corpus, safety and human-scoring rules using mocks; `test_openai_llm_settings.py` checks legacy settings and that current factory selection rejects OpenAI/Qwen. They do not enable an OpenAI runtime or make paid requests.
+
+`make ci` applies migrations to its configured `DATABASE_URL`. For verification that must preserve working `roma`, explicitly use isolated native PostgreSQL/Redis services and the disposable database URL. On resource-limited macOS, release the isolated migration server after its schema check before the full tests create their own disposable clusters.
 
 ## Authorized carrier checks and recovery
 
@@ -375,6 +383,8 @@ TTS_TIMEOUT_SECS=180 \
 uv run --no-sync python scripts/voice_prototype.py --mode local --llm-provider mock \
   --allow-microphone --allow-database-write
 ```
+
+Prototype diagnostics use one shared enum/mapping in `roma/core/voice_errors.py`: ASR, TTS, DB, DEVICE, CAPTURE, LLM, SAFETY and BOOKING-DATA. Setup also has TOKENIZER-DATA-MISSING; cancellation has CANCELLED. CLI messages contain fixed codes/instructions only, never raw exception details. Ready/result events store those same validated codes. A persistent DB outage cannot guarantee a durable error write; the CLI still reports DB and stops. The text service's checkpoint failures retain DB identity through the prototype boundary.
 
 The command above uses mock wording with real local microphone/ASR/TTS and no paid client. For the authorized Claude path set private `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL=claude-haiku-5-5`, change to `--llm-provider claude` and add `--allow-paid-api`. This does not pass native/representative prerequisites or change production speech. Synthetic mode remains mocked; OpenAI calls/fallback are forbidden.
 

@@ -83,7 +83,7 @@ def test_empty_or_failed_asr_never_advances_or_speaks(error):
         result = await voice.respond(transcript("", error=error))
         assert result.status == "failed" and voice.state.turn_count == 0
         assert not voice.speaker.played
-        assert voice.store.records[-1][1]["error_code"] in {"asr-unavailable", "asr-empty"}
+        assert voice.store.records[-1][1]["error_code"] in {"ASR"}
 
     asyncio.run(run())
 
@@ -95,7 +95,7 @@ def test_persistence_failure_prevents_provider_and_playback():
 
     async def run():
         voice = setup(store=Store())
-        with pytest.raises(RuntimeError, match="persistence unavailable"):
+        with pytest.raises(RuntimeError, match=r"^DB:"):
             await voice.respond(transcript())
         assert not voice.speaker.played and voice.state.turn_count == 0
         with pytest.raises(RuntimeError, match="restart"):
@@ -137,7 +137,7 @@ def test_concurrent_or_cancelled_turn_cannot_release_late_audio():
         with pytest.raises(asyncio.CancelledError):
             await task
         assert not voice.speaker.played and not voice._busy and voice._poisoned
-        assert voice.store.records[-1][1]["error_code"] == "cancelled"
+        assert voice.store.records[-1][1]["error_code"] == "CANCELLED"
 
     asyncio.run(run())
 
@@ -166,7 +166,7 @@ def test_cli_mock_has_four_paths_and_never_claims_hardware_gate():
     assert [c["decoder_calls"] for c in result["cases"]] == [1] * 4
     assert not result["gate_passed"] and not result["microphone_used"]
     args = module.parser().parse_args(["--mode", "local"])
-    with pytest.raises(ValueError, match="opt-ins"):
+    with pytest.raises(RuntimeError, match=r"^CAPTURE:"):
         module.local_preflight(args)
 
 
@@ -206,7 +206,7 @@ def test_local_only_preflight_rejects_hosted_asr_before_devices_or_database(monk
     args = module.parser().parse_args(
         ["--mode", "local", "--allow-microphone", "--allow-paid-api", "--allow-database-write"]
     )
-    with pytest.raises(ValueError, match="hosted ASR is not permitted"):
+    with pytest.raises(RuntimeError, match=r"^ASR:"):
         module.local_preflight(args)
 
 
@@ -314,7 +314,7 @@ def test_llm_error_chunk_closes_inner_stream_before_next_turn():
         voice.state.stage = ConversationStage.VALUE
         await voice.respond(transcript("Please explain the course"))
         assert provider.closed >= 1
-        assert voice.store.records[-1][1]["error_code"] == "generation-unavailable-or-invalid"
+        assert voice.store.records[-1][1]["error_code"] == "LLM"
 
     asyncio.run(run())
 
@@ -362,7 +362,7 @@ def test_local_mock_preflight_does_not_read_claude_settings_or_require_paid_opt_
     cfg, llm, tts = module.local_preflight(args)
     assert cfg.stt_provider == "whisper" and llm is None and tts.tts_provider == "indic_tts"
     args.llm_provider = "claude"
-    with pytest.raises(ValueError, match="paid API opt-in"):
+    with pytest.raises(RuntimeError, match=r"^LLM:"):
         module.local_preflight(args)
 
 

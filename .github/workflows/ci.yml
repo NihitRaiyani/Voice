@@ -21,7 +21,6 @@ jobs:
       EMBEDDING_PROVIDER: mock
       TELEPHONY_PROVIDER: mock
       PUBLIC_BASE_URL: https://example.invalid
-      NLTK_DATA: /tmp/voice-agent-tokenizer
       POSTGRES_INITDB_BIN: /usr/lib/postgresql/16/bin/initdb
       POSTGRES_PG_CTL_BIN: /usr/lib/postgresql/16/bin/pg_ctl
     steps:
@@ -38,6 +37,8 @@ jobs:
           sudo apt-get install -y postgresql-16 redis-server
       - name: Install locked dependencies
         run: uv sync --locked --extra dev --extra telephony --extra workers
+      - name: Install sentence tokenizer data
+        run: make nltk-data
       - name: Start native services
         run: make services-up
       - name: Lint
@@ -46,56 +47,5 @@ jobs:
         run: make type
       - name: Apply migrations
         run: make db-upgrade
-      - name: Provider contract tests
-        run: make test-provider-contracts
-      - name: Mocked unit/API checks
-        run: |
-          PYTHONDONTWRITEBYTECODE=1 uv run --no-sync pytest -q -p no:cacheprovider \
-            tests/domain/audio \
-            tests/domain/conversation/test_language.py \
-            tests/providers/ai/test_stt.py \
-            tests/providers/ai/test_local_routing.py \
-            tests/providers/ai/test_whisper_mlx.py \
-            tests/providers/ai/test_mlx_batch.py \
-            tests/eval/test_local_whisper.py \
-            tests/providers/ai/test_hf_asr.py \
-            tests/eval/test_hosted_asr.py \
-            tests/eval/test_asr_benchmark.py \
-            tests/eval/test_local_indic.py \
-            tests/eval/test_benchmark_evidence.py \
-            tests/eval/test_tts_setup.py \
-            tests/eval/test_tts_lab.py \
-            tests/eval/test_tts_safety_lab.py \
-            tests/core/test_tts_settings.py \
-            tests/providers/ai/test_indic_tts.py \
-            tests/services/test_tts_service.py \
-            tests/services/test_voice_prototype.py \
-            tests/providers/audio \
-            tests/repositories/postgres/test_benchmarks.py \
-            tests/providers/ai/test_hf_endpoint_handler.py \
-            tests/providers/ai/test_silero.py \
-            tests/core/test_speech_settings.py \
-            tests/services/test_speech_input.py \
-            tests/eval/test_speech_lab.py \
-            tests/eval/test_audio_lab.py \
-            tests/providers/telephony/twilio/test_audio_validation.py \
-            tests/providers/telephony/twilio/test_twilio_serializer.py \
-            tests/realtime/test_ulaw.py \
-            tests/realtime/test_audio_vad_boundary.py \
-            tests/api/v1/test_rest_resources.py \
-            tests/api/v1/test_booking_resources.py \
-            tests/api/v1/test_webhook_idempotency.py \
-            tests/services/test_booking_service.py \
-            tests/domain/conversation/test_booking_commit.py \
-            tests/realtime/test_booking_commit.py \
-            tests/repositories/redis/test_appointment_holds.py \
-            tests/repositories/postgres/test_booking_module.py \
-            tests/architecture/test_dependency_direction.py \
-            tests/core/test_migration_settings.py \
-            tests/core/test_openai_llm_settings.py \
-            tests/services/test_text_conversation_service.py \
-            tests/services/test_safety_service.py \
-            tests/domain/safety \
-            tests/realtime/test_safety_audit.py \
-            tests/repositories/postgres/test_safety_audit.py \
-            tests/eval/test_openai_language.py
+      - name: Offline CI catalog
+        run: make test-ci
