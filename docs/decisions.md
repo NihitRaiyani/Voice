@@ -179,3 +179,8 @@ Use the owner's provisional 300 ms continuation grace and 2,000 ms minimum batch
 ## Phase 3 — Validate batch output and separate demo readiness
 
 Use independent configurable batch-row rejection at 0.6 no-speech, -1.0 average log probability and 2.4 compression ratio; retain clean rows, stop an entirely rejected turn with its own safe ASR code and preserve ordinary single-call decoding. Measure speech-end to first speaker write independently of full playback, with budgets unset until owner configuration. Explicitly provision TEST ONLY booking data in a disposable native loopback database; reject `roma` and non-dev/test targets. Check selected-branch booking readiness before model/call/device activity. No implicit seed/migration, working-DB write, model change or gate approval. See [configuration and limits](levels/level-06.md#offline-output-and-demo-readiness--phase-3).
+
+
+## Phase 4 — Representative evaluation scaffolding
+
+Preserve section18 inputs and all historical results. Add a separate consent-aware v2 source-recording manifest, configurable unset minimum distinct speakers/recordings, exact entity references and per-speaker edit totals. Reject duplicate IDs/audio and inconsistent references/permissions. Use supplied-transcript-only report annotation; retain failed recordings in denominators and leave v1 report fields unchanged. Collect no recordings, change no model/ASR strategy and claim no new model score or gate pass. Before collection, the owner must approve counts, coverage/source granularity, entity annotation policy, permissions/storage/retention and reviewers; quality/entity/latency acceptance criteria stay separate. See [the protocol](26-asr-recording-protocol.md).

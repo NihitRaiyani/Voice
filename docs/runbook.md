@@ -501,3 +501,20 @@ Requires installed native PostgreSQL (`initdb`, `pg_ctl`, `createdb`) and `APP_E
 Local prototype startup checks booking data before models/call creation/devices and reports `BOOKING-DATA-MISSING` if the selected branch has no usable future slots. Capture-deadline empty output is `CAPTURE-DEADLINE-NO-TRANSCRIPT`; entirely rejected batch output is `ASR-BATCH-REJECTED`. These extend the shared safe enum, not raw exception logging.
 
 Prototype turn settings and the mock timing table are owned by [Level 6](levels/level-06.md#offline-output-and-demo-readiness--phase-3). `VOICE_TURN_BUDGET_MS` is unset by default; configuring it reports overruns without introducing an acceptance gate. Paid Claude/microphone/native testing remains deferred.
+
+
+## Manifest-v2 text report annotation (offline only)
+
+First set `min_distinct_speakers` and `min_distinct_recordings` in [the corpus configuration](../configs/asr-corpus-v2.json); both default to null, so v2 evaluation refuses to proceed until the owner sets them. Use [the protocol](26-asr-recording-protocol.md) and [schema](../configs/asr-corpus-v2.schema.json) for metadata/permission requirements. This tooling grants no permission to collect audio.
+
+For a separately authorized future corpus, supply a JSON report with a `cases` list containing one `recording_id` and `hypothesis` string per recording. Empty strings are valid recognition failures; rows explicitly marked `status: error` count as empty hypotheses and remain in the report. Optional reference/checksum fields and the report manifest hash must match the declared metadata. Duplicate, unknown or missing recording rows are rejected.
+
+```bash
+uv run --no-sync python scripts/asr_benchmark.py annotate \
+  --manifest var/roma/asr-corpus-v2/manifest.json \
+  --report var/roma/asr-corpus-v2/transcripts.json \
+  --corpus-config configs/asr-corpus-v2.json \
+  --output var/roma/asr-corpus-v2/scored.json
+```
+
+This command reads JSON text/metadata only. It never loads a model, opens audio, records, fetches or calls a provider. It writes a separate report and refuses to overwrite its inputs. V2 adds `per_speaker` WER/CER edit totals and `per_entity` exact normalized phrase recall (name/date/time/branch). Unicode normalization is shared with existing evaluation; semantic equivalents are not inferred. Failed recordings stay in denominators. V1 report fields remain unchanged, and the existing benchmark runner/section18 manifest are preserved. No new WER model result or gate pass is claimed by tooling tests.

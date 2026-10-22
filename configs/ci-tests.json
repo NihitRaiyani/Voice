@@ -58,6 +58,7 @@
     "tests/eval/test_benchmark_evidence.py",
     "tests/eval/test_checks.py",
     "tests/eval/test_cli.py",
+    "tests/eval/test_corpus_v2.py",
     "tests/eval/test_cost.py",
     "tests/eval/test_hosted_asr.py",
     "tests/eval/test_local_indic.py",

@@ -3,7 +3,9 @@
 Current source/provider policy changed on 2026-10-20: [Claude roadmap](roadmaps/README.md) and Claude Haiku 5.5 replace OpenAI. Dated checks, model names, counts and former source hashes below remain historical evidence; they do not prove Claude quality/cost/latency. No OpenAI requests or fallback are permitted. Native/representative and complete voice gates remain pending.
 
 
-Latest complete-suite verification after the [Level 2 section 10 increment](levels/level-02.md): **1,674 tests passed, 23 warnings, no failures or skips**. The new `make ci` skeleton starts native local services, runs Ruff, runs mypy on the Level 1 contract surface, applies Alembic to the local database, passes **38 provider/config tests** and passes **11 mocked API/architecture/migration-settings tests**. Pre-commit hooks pass across all files.
+Current local Phase 2–4 verification: **2,920 tests pass in both `make ci` and `make test`, with 22 existing warnings**. These offline checks do not imply hosted CI, native review or any passed gate. See the [combined delivery report](#combined-phase-24-delivery) for per-item evidence and limitations.
+
+Historical complete-suite verification after the [Level 2 section 10 increment](levels/level-02.md): **1,674 tests passed, 23 warnings, no failures or skips**. The new `make ci` skeleton starts native local services, runs Ruff, runs mypy on the Level 1 contract surface, applies Alembic to the local database, passes **38 provider/config tests** and passes **11 mocked API/architecture/migration-settings tests**. Pre-commit hooks pass across all files.
 
 The earlier [Level 0 baseline report](roadmaps/level-00-baseline.md) remains historical evidence of 1,571 passing tests and five lint findings before this increment. Its test/identity record is not rewritten as current implementation evidence. L1 records capacity/pressure/timeout/cancellation, relational constraint/migration/legacy-compatibility, separate-seed workflow results and the section 9 workflow skeleton. Level 2 section 10 records the software-owned state-machine facade and durable latest-checkpoint adapter. Hosted GitHub Actions passed on 2026-10-05 for commit `ac99270`; Level 0 clean-machine evidence remains separate.
 
@@ -301,3 +303,135 @@ Per-item isolated `make ci` / `make test` totals were respectively **2,890 / 2,8
 Failing-before/passing-after tests: `test_batch_rows_are_validated_before_text_is_joined` (clean/silence/low probability/repetition/partial rejection/all rejection/non-finite fixtures), `test_rejection_policy_is_configurable_and_validated`, `test_all_rejected_batch_rows_leave_controller_unchanged_with_distinct_asr_code`, `test_speech_to_first_write_budget_excludes_full_playback_duration`, `test_turn_budget_has_no_threshold_until_explicitly_configured`, `test_demo_target_refuses_remote_working_or_non_development_databases`, `test_demo_database_native_lifecycle_migrations_and_future_test_only_data`, `test_demo_stop_refuses_unowned_or_symlinked_directory`, `test_booking_readiness_rejects_empty_and_wrong_branch_and_accepts_seeded_db`, and `test_empty_booking_db_stops_cli_before_model_readiness_mic_or_lab_call`. New surfaces first failed for missing implementation; the no-advance and CLI-order tests also reproduced the previous behavior.
 
 The [Level 6 table](levels/level-06.md#offline-output-and-demo-readiness--phase-3) records the fake-clock 849 ms speech-end-to-write run and its limits. Rejection thresholds remain the owner's provisional numeric defaults; budgets remain unset. No design-changing contradiction: the general seed intentionally creates an inactive demo campus, so this phase adds an explicit separate voice demo, preserving the controller's canonical branch name and TEST ONLY codes. No working `roma`, paid API, microphone, model artifact, Claude configuration, production-media path or gate was changed. Owner decisions remaining: validate rejection thresholds on representative recordings and set budgets only after real timing review.
+
+
+## Phase 4 corpus evaluation scaffolding — offline verification
+
+Per-item isolated `make ci` / `make test` totals: **2,910 / 2,910** (schema), **2,912 / 2,912** (scoring), **2,913 / 2,913** (recording protocol), **2,920 / 2,920** (report plumbing), each with 22 existing warnings. Ruff and the configured mypy surface passed. Markdown verification before this inventory passed 87 files / 572 links and anchors. No model inference, new WER result, recording, fetch, download, paid call or microphone test ran. The section18 manifest and historical reports are unchanged.
+
+Failing-before/passing-after tests in `tests/eval/test_corpus_v2.py`:
+
+- `test_v2_accepts_explicit_metadata_and_exposes_a_schema`
+- `test_v2_rejects_duplicate_or_incomplete_recording_metadata` (duplicate ID/audio, missing entity reference/licence/consent, switch and channel cases)
+- `test_v2_minimums_are_required_config_and_no_default_counts_are_invented`
+- `test_entity_recall_uses_unicode_normalization_and_whole_phrases`
+- `test_per_speaker_edit_totals_cannot_hide_one_speakers_failures`
+- `test_recording_protocol_covers_annotation_and_owner_approval_before_collection`
+- `test_report_adds_v2_breakdowns_and_leaves_v1_format_unchanged`
+- `test_report_rejects_incomplete_or_mismatched_recording_identity`
+- `test_report_counts_failed_recordings_as_empty_without_hiding_them`
+- `test_offline_report_cli_never_reads_audio_or_loads_models`
+
+The new module contains 19 parameterized test cases. Metadata/scoring first failed for missing functions; the protocol failed for its missing page; the CLI rejected the missing `annotate` command. After implementation all pass, including the existing benchmark compatibility tests. The CLI test supplies only fake metadata/text, forbids audio/model/provider seams, preserves input bytes and rejects output-over-input writes. Error rows retain their original error status and count as empty transcripts, so speaker/entity denominators cannot hide failures. This is scoring infrastructure, not a corpus/model acceptance run.
+
+No design-changing repository contradiction was found. Metadata consistency checks cannot establish authentic consent or verify real audio; those remain human prerequisites. The owner's configuration keys are `min_distinct_speakers` and `min_distinct_recordings` in `configs/asr-corpus-v2.json`, both null. Before collection the owner must set those minimums and approve language/channel coverage, independent-source granularity, annotation rules, licence/consent, storage/retention and reviewers. The protocol contains no collection authorization.
+
+## Combined Phase 2–4 delivery
+
+The original Phase 1 baseline is `64ecbd6`. Phase 2 is local commit `2792130`; Phase 3 is local commit `6bfdd46`; the Phase 4 commit hash is supplied in the delivery response. Each phase has one commit. Nothing is pushed, no gate is marked passed, and paid Claude/microphone/native acceptance remain deferred. The working `roma` database, model weights, Claude configuration and production Twilio/Sarvam behavior are unchanged. Temporary test/demo databases were isolated native clusters and removed; the migration-check server was stopped before full suite fixtures.
+
+| Item | `make ci` tests passed | `make test` tests passed |
+| --- | ---: | ---: |
+| P2 harness | 2861 | 2861 |
+| P2 shared policy | 2868 | 2868 |
+| P2 continuation grace | 2870 | 2870 |
+| P2 capture deadline | 2873 | 2873 |
+| P2 routing recovery | 2881 | 2881 |
+| P3 batch rejection | 2890 | 2890 |
+| P3 turn timing | 2892 | 2892 |
+| P3 disposable demo DB | 2899 | 2899 |
+| P3 booking readiness | 2901 | 2901 |
+| P4 manifest v2 | 2910 | 2910 |
+| P4 entity/speaker scoring | 2912 | 2912 |
+| P4 recording protocol | 2913 | 2913 |
+| P4 report plumbing | 2920 | 2920 |
+
+The earlier phase reports name behavioral regressions and setup corrections. Clarifications: the fresh router accepts its first informative observation; the established route uses two. The general demo seed intentionally creates an inactive campus; the voice demo is separate. Neither clarification required a design change. Native/representative quality, acoustic playback latency and real-model batch overhead remain unmeasured in this work.
+
+The Level 6 pause matrix retains both sentences at 256/384/448/512/640/800 ms, merged with the provisional default grace. Configured 300 ms grace adds 320 ms after frame rounding, plus up to a device-block alignment interval. A qualifying paused pure-language turn adds **5 ms in the fake decoder** (10 ms batch versus 5 ms single); real model overhead is not measured. The fake speech-to-first-write table is endpoint 844 ms, ASR 5 ms, LLM/safety/TTS/playback-start 0 ms, total 849 ms. Zeroes denote instantaneous fake-clock work, not production performance.
+
+Provisional defaults: 512 ms base endpoint, **300 ms continuation grace**, 256 ms batch gap, **2,000 ms minimum batch turn**, 30,000 ms capture cap; batch rejection **0.6 / -1.0 / 2.4**; **TurnBudget unset**; **corpus minimums unset**. Existing English evidence threshold stays 0.8. Owner review remains needed for grace/minimum length, rejection thresholds, real timing budgets and corpus/consent/reviewer decisions before representative collection and later paid/microphone/native acceptance.
+
+### Files changed per phase
+
+Phase 2 (25 files):
+
+- `.env.example`
+- `CLAUDE.md`
+- `configs/ci-tests.json`
+- `docs/12-verification.md`
+- `docs/decisions.md`
+- `docs/levels/level-04.md`
+- `docs/levels/level-06.md`
+- `roma/core/speech_settings.py`
+- `roma/core/voice_errors.py`
+- `roma/domain/audio/endpointing.py`
+- `roma/domain/audio/speech_chunks.py`
+- `roma/domain/audio/turn_policy.py`
+- `roma/eval/benchmark_evidence.py`
+- `roma/eval/local_whisper.py`
+- `roma/providers/ai/local_routing.py`
+- `roma/providers/ai/mlx_batch.py`
+- `roma/providers/ai/registry.py`
+- `roma/providers/ai/whisper_mlx.py`
+- `roma/providers/audio/local_device.py`
+- `roma/services/speech_input.py`
+- `scripts/voice_prototype.py`
+- `tests/providers/ai/test_whisper_mlx.py`
+- `tests/services/test_turn_boundaries.py`
+- `tests/services/test_voice_prototype.py`
+- `tests/support/voice_turns.py`
+
+Phase 3 (32 files):
+
+- `.env.example`
+- `Makefile`
+- `configs/ci-tests.json`
+- `docs/05-endpointing-vad.md`
+- `docs/12-verification.md`
+- `docs/decisions.md`
+- `docs/levels/level-04.md`
+- `docs/levels/level-06.md`
+- `docs/runbook.md`
+- `roma/core/ai_contracts.py`
+- `roma/core/speech_settings.py`
+- `roma/core/voice_errors.py`
+- `roma/domain/audio/endpointing.py`
+- `roma/domain/audio/turn_budget.py`
+- `roma/providers/ai/local_routing.py`
+- `roma/providers/ai/mlx_batch.py`
+- `roma/providers/ai/registry.py`
+- `roma/providers/ai/stt.py`
+- `roma/providers/ai/whisper_mlx.py`
+- `roma/providers/audio/local_device.py`
+- `roma/repositories/postgres/demo_database.py`
+- `roma/repositories/postgres/voice_lab.py`
+- `roma/services/speech_input.py`
+- `roma/services/text_conversation_service.py`
+- `roma/services/voice_prototype.py`
+- `scripts/demo_database.py`
+- `scripts/voice_prototype.py`
+- `tests/providers/ai/test_batch_rejection.py`
+- `tests/providers/ai/test_whisper_mlx.py`
+- `tests/services/test_demo_database.py`
+- `tests/services/test_turn_boundaries.py`
+- `tests/support/voice_turns.py`
+
+Phase 4 (16 files):
+
+- `CLAUDE.md`
+- `configs/asr-corpus-v2.json`
+- `configs/asr-corpus-v2.schema.json`
+- `configs/ci-tests.json`
+- `docs/12-verification.md`
+- `docs/26-asr-recording-protocol.md`
+- `docs/README.md`
+- `docs/decisions.md`
+- `docs/levels/level-04.md`
+- `docs/levels/level-06.md`
+- `docs/runbook.md`
+- `pyproject.toml`
+- `roma/eval/asr_benchmark.py`
+- `roma/eval/corpus_v2.py`
+- `scripts/asr_benchmark.py`
+- `tests/eval/test_corpus_v2.py`

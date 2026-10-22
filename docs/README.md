@@ -52,6 +52,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | [22 Backend architecture contract](22-backend-architecture-contract.md) | Modular monolith map, dependency direction and section 6 boundary enforcement |
 | [23 Provider contracts](23-provider-contracts.md) | STT/LLM/TTS/embedding/telephony interfaces, mocks and config switching |
 | [25 Claude LLM](25-claude-llm.md) | Thin SDK adapter, text flow, failure/budget/privacy contract and deferred native review |
+| [26 ASR recording protocol](26-asr-recording-protocol.md) | Representative corpus metadata, annotation, consent/storage and owner decisions before collection |
 
 ## Decisions, source and operation
 

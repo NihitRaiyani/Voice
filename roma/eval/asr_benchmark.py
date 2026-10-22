@@ -586,3 +586,43 @@ def export_failure_samples(
         )
         exported.append(path)
     return exported
+
+
+def add_corpus_breakdowns(report: dict, manifest: dict, *, minimums=None) -> dict:
+    """Optional v2 scoring from supplied text; v1 report object/format is unchanged.
+
+    No provider, model or audio is accessed. Failed recordings contribute empty
+    hypotheses rather than disappearing from per-speaker/entity denominators.
+    """
+    if manifest.get('schema') == MANIFEST_SCHEMA:
+        return report
+    from roma.eval.corpus_v2 import CorpusMinimums, score_corpus, validate_corpus
+
+    checked = validate_corpus(manifest, minimums or CorpusMinimums())
+    identity = digest(manifest)
+    if report.get('manifest_sha256', identity) != identity:
+        raise ValueError('Report and corpus recording identity differ')
+    rows = report.get('cases')
+    if not isinstance(rows, list):
+        raise ValueError('Expected supplied recording hypotheses')
+    sources = {row.recording_id: row for row in checked.recordings}
+    hypotheses: dict[str, str] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError('Invalid recording hypothesis')
+        recording_id = row.get('recording_id')
+        if not isinstance(recording_id, str) or recording_id not in sources or recording_id in hypotheses:
+            raise ValueError('Unknown or duplicate recording hypothesis')
+        source = sources[recording_id]
+        if (row.get('reference', source.reference) != source.reference
+                or row.get('audio_sha256', source.audio_sha256) != source.audio_sha256):
+            raise ValueError('Recording hypothesis source identity differs')
+        status = row.get('status', 'ok')
+        if status not in {'ok', 'error'}:
+            raise ValueError('Invalid recording hypothesis status')
+        hypothesis = '' if status == 'error' else row.get('hypothesis')
+        if not isinstance(hypothesis, str):
+            raise ValueError('Expected supplied recording transcript text')
+        hypotheses[recording_id] = hypothesis
+    return {**report, 'manifest_schema': checked.schema_version, 'manifest_sha256': identity,
+            **score_corpus(checked, hypotheses)}

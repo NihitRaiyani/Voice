@@ -19,6 +19,7 @@ from roma.core.speech_settings import SpeechSettings  # noqa: E402
 from roma.eval.asr_benchmark import (  # noqa: E402
     LANGUAGES,
     VARIANTS,
+    add_corpus_breakdowns,
     build_manifest,
     export_failure_samples,
     failure_samples,
@@ -150,10 +151,27 @@ def parser() -> argparse.ArgumentParser:
     compare.add_argument("--indic-report", type=Path, required=True)
     compare.add_argument("--whisper-report", type=Path, required=True)
     compare.add_argument("--report", type=Path, required=True)
+    annotate = sub.add_parser("annotate", help="Offline v2 speaker/entity scoring from supplied report transcripts; no audio or inference")
+    annotate.add_argument("--manifest", type=Path, required=True)
+    annotate.add_argument("--report", type=Path, required=True)
+    annotate.add_argument("--corpus-config", type=Path, default=ROOT / "configs/asr-corpus-v2.json")
+    annotate.add_argument("--output", type=Path, required=True)
     return result
 
 
 async def run(args) -> int:
+    if args.command == "annotate":
+        from roma.eval.corpus_v2 import CorpusMinimums
+
+        if args.output.resolve() in {path.resolve() for path in (args.manifest, args.report, args.corpus_config)}:
+            raise ValueError("Refusing to overwrite corpus/report/config inputs")
+        report = add_corpus_breakdowns(
+            read_json(args.report), read_json(args.manifest),
+            minimums=CorpusMinimums.model_validate(read_json(args.corpus_config)),
+        )
+        write_json(args.output, report)
+        print(json.dumps({key: report[key] for key in ("per_speaker", "per_entity") if key in report}, ensure_ascii=False, indent=2))
+        return 0
     if args.command == "compare":
         comparison = compare_local_reports(
             read_json(args.indic_report), read_json(args.whisper_report)

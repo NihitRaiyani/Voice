@@ -2,6 +2,8 @@
 
 ## Current readiness
 
+Phase 4 adds [manifest-v2 metadata](../../configs/asr-corpus-v2.schema.json), pure entity/per-speaker scoring and offline report annotation. Speaker/recording minimums remain unset in [configuration](../../configs/asr-corpus-v2.json). No representative corpus was collected and no new ASR result was measured. The unchanged section18 manifest has 15 derived cases from three recordings; it cannot support a model decision. Use the [recording protocol](../26-asr-recording-protocol.md) only after owner approval of the remaining data/review decisions.
+
 Phase 3 adds configurable per-row validation to batches and `ASR-BATCH-REJECTED` for an entirely rejected turn. Fake results prove rejection mechanics only; no new WER/CER or model-quality result is claimed.
 
 Phase 2 uses `whisper-turbo-structural-v3`: one existing Turbo model may batch a qualifying paused turn on any language route, with a configurable 2,000 ms minimum turn length. The no-gap single-call path is preserved; dated v2 measurements below are historical and are not v3 results. See the [turn-boundary evidence](level-06.md#offline-turn-boundary-repair--phase-2).

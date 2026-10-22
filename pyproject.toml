@@ -71,6 +71,7 @@ files = [
     "roma/eval/speech.py",
     "roma/eval/hosted_asr.py",
     "roma/eval/asr_benchmark.py",
+    "roma/eval/corpus_v2.py",
     "roma/eval/local_whisper.py",
     "roma/eval/local_indic.py",
     "roma/eval/asr_comparison.py",

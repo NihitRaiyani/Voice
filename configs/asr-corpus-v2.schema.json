@@ -1,0 +1,183 @@
+{
+  "$defs": {
+    "Consent": {
+      "additionalProperties": false,
+      "properties": {
+        "granted": {
+          "title": "Granted",
+          "type": "boolean"
+        },
+        "reference": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Reference",
+          "type": "string"
+        },
+        "permitted_use": {
+          "const": "asr-evaluation",
+          "title": "Permitted Use",
+          "type": "string"
+        },
+        "storage_policy": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Storage Policy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "granted",
+        "reference",
+        "permitted_use",
+        "storage_policy"
+      ],
+      "title": "Consent",
+      "type": "object"
+    },
+    "EntityReference": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "name",
+            "date",
+            "time",
+            "branch"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "reference": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Reference",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "reference"
+      ],
+      "title": "EntityReference",
+      "type": "object"
+    },
+    "Language": {
+      "enum": [
+        "GUJARATI",
+        "HINDI",
+        "ENGLISH",
+        "GUJARATI_ENGLISH",
+        "HINDI_ENGLISH"
+      ],
+      "title": "Language",
+      "type": "string"
+    },
+    "Recording": {
+      "additionalProperties": false,
+      "properties": {
+        "recording_id": {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "title": "Recording Id",
+          "type": "string"
+        },
+        "speaker_id": {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "title": "Speaker Id",
+          "type": "string"
+        },
+        "language_state": {
+          "$ref": "#/$defs/Language"
+        },
+        "natural_switch": {
+          "title": "Natural Switch",
+          "type": "boolean"
+        },
+        "switch_positions_ms": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Switch Positions Ms",
+          "type": "array"
+        },
+        "duration_ms": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Ms",
+          "type": "number"
+        },
+        "channel": {
+          "enum": [
+            "clean",
+            "phone"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "audio_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Audio Sha256",
+          "type": "string"
+        },
+        "reference": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Reference",
+          "type": "string"
+        },
+        "entities": {
+          "items": {
+            "$ref": "#/$defs/EntityReference"
+          },
+          "title": "Entities",
+          "type": "array"
+        },
+        "license": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "License",
+          "type": "string"
+        },
+        "consent": {
+          "$ref": "#/$defs/Consent"
+        }
+      },
+      "required": [
+        "recording_id",
+        "speaker_id",
+        "language_state",
+        "natural_switch",
+        "switch_positions_ms",
+        "duration_ms",
+        "channel",
+        "audio_sha256",
+        "reference",
+        "entities",
+        "license",
+        "consent"
+      ],
+      "title": "Recording",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "roma-asr-manifest-v2",
+      "title": "Schema",
+      "type": "string"
+    },
+    "recordings": {
+      "items": {
+        "$ref": "#/$defs/Recording"
+      },
+      "minItems": 1,
+      "title": "Recordings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "recordings"
+  ],
+  "title": "CorpusManifest",
+  "type": "object"
+}
