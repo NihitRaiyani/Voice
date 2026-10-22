@@ -169,3 +169,8 @@ Use one whole-turn Turbo decoder plus exact emitted-loanword normalization in th
 The owner explicitly selected “Allow single-model speech-chunk batching”, superseding the earlier no-slicing rule for mixed turns only. Keep the same Turbo 4-bit model, pure-language decoder/settings and production pipeline. Use the strongest natural pause, at most two complete contiguous chunks and one encoder/decoder batch; retain every PCM sample and the known Indic script unless English evidence is strong. Compact finished decoder rows. Do not restore the Indic/Whisper cascade, add a reference prompt or treat a chunk language score as ASR confidence/business authority.
 
 [The 15-case report](levels/level-04.md#single-model-speech-batching--2026-10-21) recovers English output in all mixed cases with five exact suffixes; native/noisy quality and latency remain unapproved. Full-precision Turbo and fused-attention controls were rejected and removed/not adopted. Paid Claude, microphone/native tests, `.env`, TTS, booking, safety, production speech and schema remain unchanged.
+
+
+## Phase 2 — Prototype turn boundaries
+
+Use the owner's provisional 300 ms continuation grace and 2,000 ms minimum batch turn, configurable through the shared TurnPolicy. Batch eligibility follows a qualifying internal audio gap, including first unexpected language switches; retain the English evidence gate and two-turn saved-route smoothing. Preserve every source sample, flush capture deadlines explicitly and keep the five-minute/30-second limits. This revises the earlier label-only v2 policy without changing weights or production media. See [offline evidence and latency limits](levels/level-06.md#offline-turn-boundary-repair--phase-2). No quality gate is passed.

@@ -8,8 +8,9 @@ import os
 import threading
 from pathlib import Path
 
+from roma.domain.audio.turn_policy import TurnPolicy
 from roma.providers.ai.contracts import STTRequest, STTResult
-from roma.providers.ai.mlx_batch import decode_batch, speech_chunks
+from roma.providers.ai.mlx_batch import decode_batch, turn_chunks
 from roma.providers.ai.silero import SileroFrameProbability
 from roma.providers.ai.stt import (
     _PROJECT,
@@ -61,8 +62,10 @@ class WhisperMLXSTT(_LocalSTT):
         timeout_secs: float = 30,
         max_audio_secs: float = 30,
         loader: Loader | None = None,
+        policy: TurnPolicy | None = None,
     ) -> None:
         self.model_id = model_id
+        self.policy = policy or TurnPolicy()
         super().__init__(loader or self._load, timeout_secs, max_audio_secs)
 
     def _load(self) -> Inference:
@@ -93,7 +96,7 @@ class WhisperMLXSTT(_LocalSTT):
                 mx.set_cache_limit(256 * 1024 * 1024)
                 mixed = language in {"gu-en", "hi-en"}
                 base = language.split("-")[0] if mixed and language is not None else language
-                parts = speech_chunks(audio, scorer) if mixed else (audio,)
+                parts = turn_chunks(audio, scorer, language, self.policy)
                 if len(parts) == 2:
                     return STTResult(decode_batch(str(folder.resolve()), parts, base), base)
                 samples = np.frombuffer(audio, dtype="<i2").astype(np.float32) / 32768.0

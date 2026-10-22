@@ -10,7 +10,7 @@ import unicodedata
 from roma.providers.ai.contracts import STTProvider, STTRequest, STTResult
 from roma.providers.ai.stt import normalize_transcript
 
-ROUTER_VERSION = "whisper-turbo-batched-v2"
+ROUTER_VERSION = "whisper-turbo-structural-v3"
 _LOANWORDS = {
     "gu": {
         "અપોઇન્ટમેન્ટ": "appointment",

@@ -5,19 +5,21 @@ module never imports an optional runtime at module import time.
 """
 
 
-def speech_chunks(pcm, scorer):
+def speech_chunks(pcm, scorer, policy=None):
     from roma.domain.audio.endpointing import EndpointConfig, EndpointDetector
     from roma.domain.audio.speech_chunks import split_at_strongest_pause
+    from roma.domain.audio.turn_policy import TurnPolicy
 
+    policy = policy or TurnPolicy()
     scorer.reset()
-    endpoint = EndpointDetector(EndpointConfig(silence_ms=384))
+    endpoint = EndpointDetector(EndpointConfig(silence_ms=policy.batch_detector_silence_ms))
     spans = []
     try:
         for start in range(0, len(pcm), 1024):
             frame = pcm[start : start + 1024].ljust(1024, b"\0")
             spans.extend(endpoint.feed(frame, scorer.probability(frame)))
         spans.extend(endpoint.flush())
-        return split_at_strongest_pause(pcm, spans)
+        return split_at_strongest_pause(pcm, spans, policy)
     finally:
         scorer.reset()
 
@@ -136,13 +138,22 @@ def compact_greedy_loop(task, audio_features, tokens):
     return mx.array(padded), mx.array(finished_scores), no_speech
 
 
-def choose_chunk_language(probabilities: dict[str, float], base: str) -> str:
+def choose_chunk_language(probabilities: dict[str, float], base: str | None) -> str:
     """Keep the caller's known script; admit only strong English evidence."""
     import math
 
-    if base not in {"gu", "hi"}:
-        raise ValueError("Mixed speech requires Gujarati or Hindi context")
+    if base is None:
+        base = max(("gu", "hi", "en"), key=lambda lang: probabilities.get(lang, 0))
+    if base not in {"gu", "hi", "en"}:
+        raise ValueError("Unsupported local speech context")
     english, context = probabilities["en"], probabilities[base]
     if not all(math.isfinite(p) and 0 <= p <= 1 for p in (english, context)):
         raise ValueError("Invalid local language evidence")
     return "en" if english >= 0.8 and english > context else base
+
+
+def turn_chunks(pcm, scorer, language, policy):
+    """Choose one full-coverage batch or the original, byte-identical input."""
+    if len(pcm) < policy.batch_min_turn_ms * 32:
+        return (pcm,)
+    return speech_chunks(pcm, scorer, policy)

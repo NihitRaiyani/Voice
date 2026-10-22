@@ -117,7 +117,7 @@ def test_mixed_route_uses_one_batch_and_preserves_full_audio(monkeypatch, tmp_pa
     )
     calls = []
     monkeypatch.setattr(
-        whisper_mlx, "speech_chunks", lambda pcm, scorer: (pcm[:8000], pcm[8000:])
+        whisper_mlx, "turn_chunks", lambda pcm, scorer, language, policy: (pcm[:8000], pcm[8000:])
     )
 
     def decode(folder, parts, language):

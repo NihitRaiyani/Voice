@@ -149,6 +149,7 @@
     "tests/services/test_speech_input.py",
     "tests/services/test_text_conversation_service.py",
     "tests/services/test_tts_service.py",
+    "tests/services/test_turn_boundaries.py",
     "tests/services/test_voice_errors.py",
     "tests/services/test_voice_prototype.py",
     "tests/workers/postcall/test_job_and_spool.py",

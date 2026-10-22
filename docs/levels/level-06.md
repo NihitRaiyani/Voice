@@ -4,7 +4,7 @@
 
 The half-duplex prototype uses **Whisper Turbo 4-bit MLX** for current local development ASR; IndicConformer ASR weights were removed. Earlier base/Indic installation and English microphone results below are historical evidence, not approval of the current complete voice experience. No gate is marked passed.
 
-Setup now validates repo-local `punkt_tab` before tests, app startup and prototype startup. Prototype errors use the shared ASR/TTS/DB/DEVICE/CAPTURE/LLM/SAFETY/BOOKING-DATA categories. Turn-boundary repairs, output-validation/budget/demo-data work and evaluation scaffolding belong to the later authorized phases and are not implemented by Phase 1. Paid Claude, microphone and native-speaker acceptance remain deferred; the production Twilio/Sarvam path is unchanged.
+Setup now validates repo-local `punkt_tab` before tests, app startup and prototype startup. Prototype errors use the shared ASR/TTS/DB/DEVICE/CAPTURE/LLM/SAFETY/BOOKING-DATA categories. Phase 2 adds a shared turn policy, continuation grace, deadline flushing and audio-structure batch eligibility. Output validation, turn budgets, disposable demo data and evaluation scaffolding remain separate work. Paid Claude, microphone and native-speaker acceptance remain deferred; the production Twilio/Sarvam path is unchanged.
 
 **Roadmap sections:** 20–21. **Status:** Section 20 integration verified offline; physical English/local-TTS checks passed with Claude extraction and, in a prepared-state demo, Claude wording. The complete multilingual/native/booking gate remains pending and the owner deferred further live checks due to limits. Section 21 is not implemented by this increment.
 
@@ -108,3 +108,23 @@ The owner-approved single-model replacement is wired into the isolated local pro
 ## Single-model batching integration follow-up
 
 The explicit owner approval for speech-chunk batching supersedes the earlier whole-turn-only constraint. Mixed route metadata now reaches the same Turbo adapter through both local microphone composition and WAV lab; actual microphone testing remains deferred. The default four-path mock remains offline, and the existing durable booking/controller/safety/TTS seams are unchanged. Recovered benchmark English does not pass native recognition or first-audible latency; the section 20 gate remains pending.
+
+
+## Offline turn-boundary repair — Phase 2
+
+The shared fake-clock/audio/ASR [integration harness](../../tests/support/voice_turns.py) drives the real endpoint detector, speech input, local language wrapper, router and controller. This proves orchestration, not recognition quality. The prototype remains half-duplex; input closes before the controller and speaker run.
+
+[TurnPolicy](../../roma/domain/audio/turn_policy.py) owns the provisional defaults: endpoint silence 512 ms, continuation grace 300 ms, minimum internal batch gap 256 ms, maximum utterance 30,000 ms and minimum batch turn 2,000 ms. Configure `VOICE_ENDPOINT_SILENCE_MS`, `VOICE_CONTINUATION_GRACE_MS`, `VOICE_BATCH_GAP_MIN_MS`, `VOICE_MAX_UTTERANCE_MS`, `VOICE_BATCH_MIN_TURN_MS`. The batch gap must be smaller than the base endpoint window. The prototype defers finalization through the grace window; legacy standalone endpoint configurations remain explicit.
+
+| Pause between sentences (ms) | Harness outcome with default grace | Second sentence retained |
+| --- | --- | --- |
+| 256 | Same turn | Yes |
+| 384 | Same turn | Yes |
+| 448 | Same turn | Yes |
+| 512 | Same turn | Yes |
+| 640 | Same turn | Yes |
+| 800 | Same turn | Yes |
+
+Silero's 32 ms frame rounding makes the 812 ms endpoint-plus-grace window 832 ms. Relative to zero grace, the synthetic run adds 320 ms; device block alignment can add up to a further 20 ms. This is deliberate latency, not a measured live response improvement. Continuous speech is flushed at the capture deadline, with original source bytes retained and `endpoint_reason=deadline`; empty ASR there raises `CAPTURE-DEADLINE-NO-TRANSCRIPT`. The five-minute session ceiling still bounds capture and response.
+
+Batch eligibility now examines qualifying audio structure on all five saved language routes, rather than requiring a previously mixed label. No qualifying gap retains the original single-call audio/options. At most two contiguous chunks retain all PCM; English needs probability ≥0.8 and stronger evidence than the known Indic context. Saved language changes still require two matching informative turns. The harness assigns 5 ms to a single decode and 10 ms to a batch, hence 5 ms **simulated** extra ASR time for a qualifying paused pure-language turn. Real model batch overhead is unmeasured in this work; it is not a latency claim. Native quality, paid Claude, microphone and all gates remain pending.

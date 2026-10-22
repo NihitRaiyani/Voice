@@ -5,17 +5,19 @@ from itertools import pairwise
 
 from roma.domain.audio.endpointing import Utterance
 from roma.domain.audio.pcm import validate_pcm16
+from roma.domain.audio.turn_policy import TurnPolicy
 
 
-def split_at_strongest_pause(pcm: bytes, spans: Sequence[Utterance]) -> tuple[bytes, ...]:
+def split_at_strongest_pause(pcm: bytes, spans: Sequence[Utterance], policy: TurnPolicy | None = None) -> tuple[bytes, ...]:
     validate_pcm16(pcm)
+    policy = policy or TurnPolicy()
     samples = len(pcm) // 2
     candidates = []
     for left, right in pairwise(spans):
         gap = right.start_sample - left.end_sample
         cut = (left.end_sample + right.start_sample) // 2
         # At least 256 ms of measured gap; retain one second on either side.
-        if gap >= 4096 and 16000 <= cut <= samples - 16000:
+        if gap >= policy.batch_gap_min_ms * 16 and 16000 <= cut <= samples - 16000:
             candidates.append((gap, cut))
     if not candidates:
         return (pcm,)

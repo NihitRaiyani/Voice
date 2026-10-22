@@ -276,9 +276,9 @@ async def _local_run(args):
             max_concurrency=tts_cfg.tts_max_concurrency,
         )
         device = LocalAudioDevice(
-            input_device=args.input_device, output_device=args.output_device
+            input_device=args.input_device, output_device=args.output_device, policy=cfg.turn_policy()
         )
-        speech = SpeechInputService(stt, scorer, state)
+        speech = SpeechInputService(stt, scorer, state, policy=cfg.turn_policy())
         voice = VoicePrototype(state, conversation, synthesis, device, store)
         print(
             "Headphones required. Local ASR/TTS; "
@@ -296,7 +296,7 @@ async def _local_run(args):
                 break
             with voice_boundary(VoiceErrorCode.CAPTURE):
                 transcript, timings = await asyncio.wait_for(
-                    device.listen(speech, max_seconds=min(30, 300 - (perf_counter() - tick))),
+                    device.listen(speech, max_seconds=min(cfg.turn_policy().max_utterance_ms / 1000, 300 - (perf_counter() - tick))),
                     timeout=max(0.01, 300 - (perf_counter() - tick)),
                 )
             if transcript is None:

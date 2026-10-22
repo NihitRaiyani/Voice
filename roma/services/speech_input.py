@@ -7,12 +7,18 @@ final results to the accepted-turn controller to save language evidence once.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from time import perf_counter
-from typing import Protocol
+from typing import Literal, Protocol
 
-from roma.domain.audio.endpointing import FRAME_BYTES, EndpointDetector, Utterance
+from roma.domain.audio.endpointing import (
+    FRAME_BYTES,
+    EndpointConfig,
+    EndpointDetector,
+    Utterance,
+)
 from roma.domain.audio.pcm import AudioFormatError, validate_pcm16
+from roma.domain.audio.turn_policy import TurnPolicy
 from roma.domain.conversation.language import Language
 from roma.domain.conversation.state import CallState
 from roma.domain.safety.inputs import CALLER_TEXT_LIMIT
@@ -57,6 +63,9 @@ class SpeechInputService:
     discards partial endpoint state. No silence timer runs while ASR is executing.
     Input sample duration, not network delay, drives endpointing. Explicit gaps flush
     the old utterance, discard a partial frame and reset Silero recurrent state.
+    An explicit prototype policy keeps the provisional endpoint open through its
+    continuation grace; resumed speech resets the same audio-duration timer.
+    Legacy standalone labs retain their explicitly configured endpoint behavior.
     Only finalized turns are returned. Internal ASR chunk text is capped at the
     caller-text limit; overflow or any chunk error rejects the entire turn.
     """
@@ -68,12 +77,19 @@ class SpeechInputService:
         state: CallState,
         *,
         endpoint: EndpointDetector | None = None,
+        policy: TurnPolicy | None = None,
         stt_metadata: Mapping[str, str] | None = None,
     ) -> None:
         self.provider, self.scorer, self.call_state = provider, scorer, state
-        self.endpoint = endpoint or EndpointDetector()
+        if endpoint is not None and policy is not None:
+            raise ValueError("Supply a turn policy or an explicit legacy endpoint, not both")
+        self.policy = policy
+        config = EndpointConfig(silence_ms=policy.endpoint_wait_ms,
+                                max_utterance_ms=policy.max_utterance_ms) if policy else None
+        self.endpoint = endpoint or EndpointDetector(config)
         self._stt_metadata = dict(stt_metadata or {})
         self._carry = bytearray()
+        self._source_end = 0
         self._busy = False
         self._clear_turn()
 
@@ -100,6 +116,11 @@ class SpeechInputService:
     ) -> tuple[SpeechTranscript, ...]:
         results = []
         for segment in segments:
+            if self.policy is not None and segment.end_sample > self._source_end:
+                # Silero needs a complete frame; ASR receives only original source samples.
+                keep = max(0, self._source_end - segment.start_sample)
+                segment = replace(segment, pcm=segment.pcm[:keep * 2],
+                                  end_sample=segment.start_sample + keep)
             # An empty boundary closes an exact maximum split without inventing
             # another ASR request or accepting its earlier chunks as turns.
             if segment.pcm:
@@ -176,6 +197,7 @@ class SpeechInputService:
                 segments.extend(self.endpoint.discontinuity())
                 self._carry.clear()
                 self.scorer.reset()
+            self._source_end = self.endpoint.position_samples + (len(self._carry) + len(pcm)) // 2
             self._carry.extend(pcm)
             while len(self._carry) >= FRAME_BYTES:
                 frame = bytes(self._carry[:FRAME_BYTES])
@@ -188,7 +210,7 @@ class SpeechInputService:
         finally:
             self._busy = False
 
-    async def finish(self, *, pad_tail: bool = False) -> tuple[SpeechTranscript, ...]:
+    async def finish(self, *, pad_tail: bool = False, endpoint_reason: Literal["flush", "deadline"] = "flush") -> tuple[SpeechTranscript, ...]:
         if self._carry and not pad_tail:
             raise AudioFormatError("Partial Silero frame: explicitly pad_tail or reset")
         self._enter()
@@ -198,7 +220,7 @@ class SpeechInputService:
                 frame = bytes(self._carry).ljust(FRAME_BYTES, b"\0")
                 self._carry.clear()
                 segments.extend(self.endpoint.feed(frame, self.scorer.probability(frame)))
-            segments.extend(self.endpoint.flush())
+            segments.extend(self.endpoint.flush(reason=endpoint_reason))
             return await self._transcribe(tuple(segments))
         except BaseException:
             self._discard()
@@ -208,6 +230,7 @@ class SpeechInputService:
 
     def _discard(self) -> None:
         self._carry.clear()
+        self._source_end = 0
         self._clear_turn()
         self.endpoint.reset()
         self.scorer.reset()

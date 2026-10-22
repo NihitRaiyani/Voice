@@ -12,13 +12,14 @@ from numbers import Real
 from typing import Literal
 
 from roma.domain.audio.pcm import AudioFormatError
+from roma.domain.audio.turn_policy import TurnPolicy
 
 SAMPLE_RATE = 16000
 FRAME_SAMPLES = 512
 FRAME_BYTES = FRAME_SAMPLES * 2
 FRAME_MS = 32
 
-EndReason = Literal["silence", "max_duration", "flush", "discontinuity"]
+EndReason = Literal["silence", "max_duration", "flush", "discontinuity", "deadline"]
 
 
 def validate_frame(
@@ -55,8 +56,8 @@ class EndpointConfig:
     start_ms: int = 64
     pre_roll_ms: int = 192
     hangover_ms: int = 128
-    silence_ms: int = 512
-    max_utterance_ms: int = 30000
+    silence_ms: int = TurnPolicy().endpoint_silence_ms
+    max_utterance_ms: int = TurnPolicy().max_utterance_ms
 
     def __post_init__(self) -> None:
         validate_probability(self.speech_threshold)
@@ -247,9 +248,11 @@ class EndpointDetector:
         self._clear_segment()
         return ()
 
-    def flush(self) -> tuple[Utterance, ...]:
+    def flush(self, *, reason: Literal["flush", "deadline"] = "flush") -> tuple[Utterance, ...]:
         """Finish available speech without inventing silence; idempotent."""
-        return self._finish("flush")
+        if reason not in {"flush", "deadline"}:
+            raise ValueError("Invalid endpoint flush reason")
+        return self._finish(reason)
 
     def discontinuity(self) -> tuple[Utterance, ...]:
         """Finish the old segment and discard all onset/hysteresis history."""

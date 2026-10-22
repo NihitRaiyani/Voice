@@ -285,3 +285,11 @@ Changed files (24):
 - tests/repositories/postgres/test_benchmarks.py
 - tests/services/test_voice_errors.py
 - tests/services/test_voice_prototype.py
+
+## Phase 2 turn boundaries — offline verification
+
+Both `make ci` and `make test` passed **2,881 tests, 22 warnings** using the Phase 1 isolated dev-mode service setup, with the migration server stopped before full integration fixtures. Ruff and mypy passed; 86 Markdown files / 554 local links and anchors passed. No model inference, paid call, microphone, working `roma` DB change, push or gate approval occurred.
+
+Failing-before/passing-after regressions in `tests/services/test_turn_boundaries.py`: `test_continuation_grace_merges_800ms_pause_before_any_asr_or_playback`, `test_grace_wait_is_bounded_and_respects_the_session_ceiling`, `test_capture_deadline_flushes_partial_source_audio_before_reset`, `test_empty_asr_at_capture_deadline_has_a_distinct_safe_code`, `test_deadline_preserves_the_hard_30_second_input_cap`, and `test_audio_gap_can_recover_unexpected_english_from_every_saved_route` (the three pure routes failed before structural eligibility). The harness/policy tests first failed for missing scaffolding; all pause cases now retain the second sentence. Low-English evidence, exact no-gap bytes, configurable minimum length and saved-route recovery also pass. Current router-version expectations were updated; historical v2 benchmark fixtures/reports remain immutable.
+
+[Level 6](levels/level-06.md#offline-turn-boundary-repair--phase-2) owns the pause matrix, quantized 320 ms grace cost, simulated 5 ms batch overhead and provisional defaults. No design-changing contradiction was found: an established route uses two informative observations; a fresh router can select its first informative route. Real pure-language batch overhead and quality remain unmeasured. The owner still needs to approve the provisional grace/minimum length after representative evaluation.

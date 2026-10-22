@@ -171,7 +171,7 @@ def _asr(
             or details.get("model_name") != "mlx-community/whisper-large-v3-turbo-4bit"
             or details.get("model_revision") != "0f058d38170d183f9fdee07908f5b515d91793a8"
             or details.get("device") != "metal" or details.get("compute_type") != "int4"
-            or details.get("router_version") != ("whisper-turbo-single-pass-v1" if provider == "whisper_turbo_local" else "whisper-turbo-batched-v2")
+            or details.get("router_version") not in ({"whisper-turbo-single-pass-v1"} if provider == "whisper_turbo_local" else {"whisper-turbo-batched-v2", "whisper-turbo-structural-v3"})
             or details.get("temperature") != 0 or details.get("sample_len") != 440
             or details.get("condition_on_previous_text") is not False
             or details.get("without_timestamps") is not True
@@ -180,6 +180,7 @@ def _asr(
         if provider == "whisper_turbo_batch_local" and details.get("mixed_batch") != {
             "max_chunks": 2, "silence_ms": 384, "min_gap_ms": 256, "min_chunk_ms": 1000,
             "english_probability": 0.8, "preserve_all_pcm": True, "compact_completed_rows": True,
+            **({"eligibility": "audio-gap", "min_turn_ms": 2000} if details.get("router_version") == "whisper-turbo-structural-v3" else {}),
         }:
             raise ValueError("Invalid mixed batch provenance")
         local_model = ModelEvidence(

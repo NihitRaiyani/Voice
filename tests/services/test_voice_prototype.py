@@ -162,7 +162,7 @@ def test_cli_mock_has_four_paths_and_never_claims_hardware_gate():
     result = asyncio.run(module.mock_lab())
     assert len(result["cases"]) == 4 and all(c["status"] == "played" for c in result["cases"])
     assert all(c["restored_state"] for c in result["cases"])
-    assert result["local_router_version"] == "whisper-turbo-batched-v2"
+    assert result["local_router_version"] == "whisper-turbo-structural-v3"
     assert [c["decoder_calls"] for c in result["cases"]] == [1] * 4
     assert not result["gate_passed"] and not result["microphone_used"]
     args = module.parser().parse_args(["--mode", "local"])

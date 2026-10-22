@@ -69,9 +69,9 @@ def local_mlx_details(model_dir: Path) -> dict:
         "device": "metal", "compute_type": "int4", "temperature": 0,
         "sample_len": 440, "without_timestamps": True,
         "condition_on_previous_text": False, "cache_limit_bytes": 268435456,
-        "router_version": "whisper-turbo-batched-v2",
-        "mixed_batch": {"max_chunks": 2, "silence_ms": 384, "min_gap_ms": 256, "min_chunk_ms": 1000, "english_probability": 0.8, "preserve_all_pcm": True, "compact_completed_rows": True}, "timeout_secs": 60,
+        "router_version": "whisper-turbo-structural-v3",
+        "mixed_batch": {"max_chunks": 2, "silence_ms": 384, "min_gap_ms": 256, "min_chunk_ms": 1000, "english_probability": 0.8, "preserve_all_pcm": True, "compact_completed_rows": True, "eligibility": "audio-gap", "min_turn_ms": 2000}, "timeout_secs": 60,
         "runtime_versions": {name: version(name) for name in ("mlx", "mlx-metal", "mlx-whisper")},
         "machine": platform.machine(), "network_calls": False,
-        "setup": "Approved Turbo 4-bit; pure routes unchanged; mixed routes use at most two full-coverage speech chunks in one compacted model batch",
+        "setup": "Approved Turbo 4-bit; no-gap decoding unchanged; qualifying paused turns use at most two full-coverage speech chunks in one compacted model batch",
     }

@@ -4,14 +4,17 @@ import asyncio
 import sys
 from time import perf_counter
 
+from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
 from roma.domain.audio.pcm import validate_pcm16
+from roma.domain.audio.turn_policy import TurnPolicy
 from roma.providers.ai.contracts import TTSResult
 
 
 class LocalAudioDevice:
-    def __init__(self, *, input_device=None, output_device=None, backend=None):
+    def __init__(self, *, input_device=None, output_device=None, backend=None, policy=None):
         self.input_device, self.output_device = input_device, output_device
         self._backend = backend
+        self.policy = policy or TurnPolicy()
 
     def _audio(self):
         if sys.byteorder != "little":
@@ -23,7 +26,7 @@ class LocalAudioDevice:
         return self._backend
 
     async def listen(self, speech, *, max_seconds=30):
-        if not 0 < max_seconds <= 30:
+        if not 0 < max_seconds <= self.policy.max_utterance_ms / 1000:
             raise ValueError("Capture limit must be in (0,30] seconds")
         started = perf_counter()
         processing_ms = 0.0
@@ -35,21 +38,25 @@ class LocalAudioDevice:
             device=self.input_device,
         )
         read_task = None
+        samples_read = 0
+        sample_limit = int(max_seconds * 16000)
         try:
             read_task = asyncio.create_task(asyncio.to_thread(stream.start))
             await asyncio.shield(read_task)
             read_task = None
             async with asyncio.timeout(max_seconds + 120):
-                while perf_counter() - started < max_seconds:
-                    read_task = asyncio.create_task(asyncio.to_thread(stream.read, 320))
+                while perf_counter() - started < max_seconds and samples_read < sample_limit:
+                    count = min(320, sample_limit - samples_read)
+                    read_task = asyncio.create_task(asyncio.to_thread(stream.read, count))
                     block, overflow = await asyncio.shield(read_task)
                     read_task = None
                     if overflow:
                         raise ValueError("Microphone overflow: incomplete utterance discarded")
                     block = bytes(block)
                     validate_pcm16(block)
-                    if len(block) != 640:
+                    if len(block) != count * 2:
                         raise ValueError("Unexpected microphone frame size")
+                    samples_read += count
                     tick = perf_counter()
                     results = await speech.feed(block)
                     processing_ms += (perf_counter() - tick) * 1000
@@ -63,6 +70,19 @@ class LocalAudioDevice:
                             ),
                             "vad_endpoint_ms": max(0.0, processing_ms - result.asr_ms),
                         }
+            tick = perf_counter()
+            results = await speech.finish(pad_tail=True, endpoint_reason="deadline")
+            processing_ms += (perf_counter() - tick) * 1000
+            if results:
+                if len(results) != 1:
+                    raise ValueError("Only one finalized microphone turn is admitted")
+                result = results[0]
+                if not result.text.strip() and result.error is None:
+                    raise VoiceFailure(VoiceErrorCode.CAPTURE_DEADLINE_NO_TRANSCRIPT)
+                return result, {
+                    "capture_ms": max(0.0, (perf_counter() - started) * 1000 - result.asr_ms),
+                    "vad_endpoint_ms": max(0.0, processing_ms - result.asr_ms),
+                }
             return None, {
                 "capture_ms": (perf_counter() - started) * 1000,
                 "vad_endpoint_ms": processing_ms,

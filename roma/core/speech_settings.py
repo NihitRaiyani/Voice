@@ -5,6 +5,8 @@ from typing import Literal
 from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from roma.domain.audio.turn_policy import TurnPolicy
+
 
 class SpeechSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -23,6 +25,19 @@ class SpeechSettings(BaseSettings):
         "hf_public_lab",
         "hf_whisper",
     ] = "mock"
+    voice_endpoint_silence_ms: int = Field(default=TurnPolicy().endpoint_silence_ms, gt=0, le=2000)
+    voice_continuation_grace_ms: int = Field(default=TurnPolicy().continuation_grace_ms, ge=0, le=2000)
+    voice_batch_gap_min_ms: int = Field(default=TurnPolicy().batch_gap_min_ms, gt=0, le=2000)
+    voice_max_utterance_ms: int = Field(default=TurnPolicy().max_utterance_ms, gt=0, le=30000)
+    voice_batch_min_turn_ms: int = Field(default=TurnPolicy().batch_min_turn_ms, ge=0, le=30000)
+
+    def turn_policy(self) -> TurnPolicy:
+        return TurnPolicy(
+            self.voice_endpoint_silence_ms, self.voice_continuation_grace_ms,
+            self.voice_batch_gap_min_ms, min(self.voice_max_utterance_ms, int(self.stt_max_audio_secs * 1000)),
+            self.voice_batch_min_turn_ms,
+        )
+
     stt_language: Literal["hi", "gu", "en"] = "hi"
     stt_timeout_secs: float = Field(default=30, gt=0, le=60, allow_inf_nan=False)
     stt_max_audio_secs: float = Field(default=30, ge=1, le=30, allow_inf_nan=False)
