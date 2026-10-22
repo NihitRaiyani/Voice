@@ -435,3 +435,8 @@ Phase 4 (16 files):
 - `roma/eval/corpus_v2.py`
 - `scripts/asr_benchmark.py`
 - `tests/eval/test_corpus_v2.py`
+
+
+## Post-fix 15-case ASR rerun — 2026-10-22
+
+The [Level 4 comparison](levels/level-04.md#structural-routing-and-rejection-rerun--2026-10-22) records 15/15 offline executions on the existing pinned Turbo model and unchanged public manifest. Independent scoring verifies all 30 current/baseline cases and matched audio/reference identities. No rows were rejected; Gujarati-only structural batches regress pooled quality and latency, while the other 12 hypotheses are unchanged. This benchmark result supersedes no historical report and passes no gate. It excludes capture/LLM/TTS/playback, and no paid call, microphone, download, model/config change, SQL import or working `roma` write ran. The focused existing MLX/provider/rejection/evaluation checks pass **65 tests**; Markdown verification passes **87 files / 577 links and anchors**. The full-suite counts above remain the earlier phase evidence; no application code was changed by this evidence-only increment.

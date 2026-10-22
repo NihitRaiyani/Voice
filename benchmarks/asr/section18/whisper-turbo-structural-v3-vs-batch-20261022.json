@@ -1,0 +1,461 @@
+{
+  "schema": "roma-asr-fixed-corpus-comparison-v1",
+  "manifest_sha256": "0d47af5679c81b904fb64803767107ef44d9d31affa81180e690647b6b99816b",
+  "reports": {
+    "previous": {
+      "path": "whisper-turbo-batch-report.json",
+      "sha256": "5eb2b6c3c5d131b8e581b29f0490d7b9f29cbbebfc31060724c446cb8a4968e7",
+      "router_version": "whisper-turbo-batched-v2"
+    },
+    "current": {
+      "path": "whisper-turbo-structural-v3-20261022-report.json",
+      "sha256": "cd874fc3f485443bc2bb07a8f093ef99e9ce7909abf071f3dbb1c86191ee0409",
+      "router_version": "whisper-turbo-structural-v3"
+    }
+  },
+  "independent_score_checks": 30,
+  "network_calls": false,
+  "downloads": false,
+  "paid_api_calls": false,
+  "microphone_used": false,
+  "gate_passed": false,
+  "limits": "15 derived cases, three source recordings; historical timing comparison, no concurrent baseline control. ASR request wall time only, not voice response latency. p95 is nearest-rank over a small derived corpus, not an SLO. Defaults unchanged. Minimal read-only observers included in current timings.",
+  "by_language": [
+    {
+      "language": "en",
+      "previous": {
+        "cases": 3,
+        "word_edits": 0,
+        "reference_words": 45,
+        "char_edits": 0,
+        "reference_chars": 192,
+        "wer": 0.0,
+        "cer": 0.0,
+        "median_request_ms": 1294.634,
+        "nearest_rank_p95_request_ms": 3365.53,
+        "total_request_ms": 5940.89,
+        "request_rtf": 0.30279765545361875
+      },
+      "current": {
+        "cases": 3,
+        "word_edits": 0,
+        "reference_words": 45,
+        "char_edits": 0,
+        "reference_chars": 192,
+        "wer": 0.0,
+        "cer": 0.0,
+        "median_request_ms": 1306.04,
+        "nearest_rank_p95_request_ms": 3792.729,
+        "total_request_ms": 6391.038,
+        "request_rtf": 0.32574097859327217
+      }
+    },
+    {
+      "language": "gu",
+      "previous": {
+        "cases": 3,
+        "word_edits": 38,
+        "reference_words": 72,
+        "char_edits": 82,
+        "reference_chars": 384,
+        "wer": 0.5277777777777778,
+        "cer": 0.21354166666666666,
+        "median_request_ms": 2138.128,
+        "nearest_rank_p95_request_ms": 2168.677,
+        "total_request_ms": 6426.0960000000005,
+        "request_rtf": 0.1803057239057239
+      },
+      "current": {
+        "cases": 3,
+        "word_edits": 50,
+        "reference_words": 72,
+        "char_edits": 150,
+        "reference_chars": 384,
+        "wer": 0.6944444444444444,
+        "cer": 0.390625,
+        "median_request_ms": 3627.347,
+        "nearest_rank_p95_request_ms": 3642.949,
+        "total_request_ms": 10509.66,
+        "request_rtf": 0.29488383838383836
+      }
+    },
+    {
+      "language": "hi",
+      "previous": {
+        "cases": 3,
+        "word_edits": 34,
+        "reference_words": 90,
+        "char_edits": 41,
+        "reference_chars": 345,
+        "wer": 0.37777777777777777,
+        "cer": 0.11884057971014493,
+        "median_request_ms": 1603.901,
+        "nearest_rank_p95_request_ms": 1630.432,
+        "total_request_ms": 4789.851000000001,
+        "request_rtf": 0.13044256535947715
+      },
+      "current": {
+        "cases": 3,
+        "word_edits": 34,
+        "reference_words": 90,
+        "char_edits": 41,
+        "reference_chars": 345,
+        "wer": 0.37777777777777777,
+        "cer": 0.11884057971014493,
+        "median_request_ms": 1633.053,
+        "nearest_rank_p95_request_ms": 1701.844,
+        "total_request_ms": 4953.226000000001,
+        "request_rtf": 0.13489177559912857
+      }
+    },
+    {
+      "language": "gu-en",
+      "previous": {
+        "cases": 3,
+        "word_edits": 47,
+        "reference_words": 117,
+        "char_edits": 110,
+        "reference_chars": 576,
+        "wer": 0.4017094017094017,
+        "cer": 0.1909722222222222,
+        "median_request_ms": 3883.963,
+        "nearest_rank_p95_request_ms": 4399.938,
+        "total_request_ms": 12151.874,
+        "request_rtf": 0.21695900732012138
+      },
+      "current": {
+        "cases": 3,
+        "word_edits": 47,
+        "reference_words": 117,
+        "char_edits": 110,
+        "reference_chars": 576,
+        "wer": 0.4017094017094017,
+        "cer": 0.1909722222222222,
+        "median_request_ms": 3908.562,
+        "nearest_rank_p95_request_ms": 3929.104,
+        "total_request_ms": 11737.621,
+        "request_rtf": 0.20956295304409922
+      }
+    },
+    {
+      "language": "hi-en",
+      "previous": {
+        "cases": 3,
+        "word_edits": 34,
+        "reference_words": 135,
+        "char_edits": 40,
+        "reference_chars": 537,
+        "wer": 0.2518518518518518,
+        "cer": 0.074487895716946,
+        "median_request_ms": 3144.783,
+        "nearest_rank_p95_request_ms": 3260.713,
+        "total_request_ms": 9509.476,
+        "request_rtf": 0.16656990716412684
+      },
+      "current": {
+        "cases": 3,
+        "word_edits": 34,
+        "reference_words": 135,
+        "char_edits": 40,
+        "reference_chars": 537,
+        "wer": 0.2518518518518518,
+        "cer": 0.074487895716946,
+        "median_request_ms": 3224.496,
+        "nearest_rank_p95_request_ms": 3275.185,
+        "total_request_ms": 9656.064,
+        "request_rtf": 0.16913757225433526
+      }
+    }
+  ],
+  "overall": {
+    "previous": {
+      "cases": 15,
+      "word_edits": 153,
+      "reference_words": 459,
+      "char_edits": 273,
+      "reference_chars": 2034,
+      "wer": 0.3333333333333333,
+      "cer": 0.13421828908554573,
+      "median_request_ms": 2168.677,
+      "nearest_rank_p95_request_ms": 4399.938,
+      "total_request_ms": 38818.187,
+      "request_rtf": 0.18928314316364342
+    },
+    "current": {
+      "cases": 15,
+      "word_edits": 165,
+      "reference_words": 459,
+      "char_edits": 341,
+      "reference_chars": 2034,
+      "wer": 0.35947712418300654,
+      "cer": 0.16764995083579154,
+      "median_request_ms": 3239.364,
+      "nearest_rank_p95_request_ms": 3929.104,
+      "total_request_ms": 43247.609,
+      "request_rtf": 0.21088165106299978
+    }
+  },
+  "case_deltas": [
+    {
+      "case_id": "en-0000:clean",
+      "language": "en",
+      "transcript_changed": false,
+      "wer_before": 0.0,
+      "wer_after": 0.0,
+      "cer_before": 0.0,
+      "cer_after": 0.0,
+      "request_ms_before": 3365.53,
+      "request_ms_after": 3792.729,
+      "decode_path": "single",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "en-0000:noise",
+      "language": "en",
+      "transcript_changed": false,
+      "wer_before": 0.0,
+      "wer_after": 0.0,
+      "cer_before": 0.0,
+      "cer_after": 0.0,
+      "request_ms_before": 1294.634,
+      "request_ms_after": 1292.269,
+      "decode_path": "single",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "en-0000:telephone",
+      "language": "en",
+      "transcript_changed": false,
+      "wer_before": 0.0,
+      "wer_after": 0.0,
+      "cer_before": 0.0,
+      "cer_after": 0.0,
+      "request_ms_before": 1280.726,
+      "request_ms_after": 1306.04,
+      "decode_path": "single",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "language": "gu",
+      "transcript_changed": true,
+      "wer_before": 0.5416666666666666,
+      "wer_after": 0.5833333333333334,
+      "cer_before": 0.1953125,
+      "cer_after": 0.2265625,
+      "request_ms_before": 2168.677,
+      "request_ms_after": 3627.347,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "gu-0000:noise",
+      "language": "gu",
+      "transcript_changed": true,
+      "wer_before": 0.5416666666666666,
+      "wer_after": 0.9583333333333334,
+      "cer_before": 0.234375,
+      "cer_after": 0.7578125,
+      "request_ms_before": 2119.291,
+      "request_ms_after": 3239.364,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "gu-0000:telephone",
+      "language": "gu",
+      "transcript_changed": true,
+      "wer_before": 0.5,
+      "wer_after": 0.5416666666666666,
+      "cer_before": 0.2109375,
+      "cer_after": 0.1875,
+      "request_ms_before": 2138.128,
+      "request_ms_after": 3642.949,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "language": "hi",
+      "transcript_changed": false,
+      "wer_before": 0.36666666666666664,
+      "wer_after": 0.36666666666666664,
+      "cer_before": 0.10434782608695652,
+      "cer_after": 0.10434782608695652,
+      "request_ms_before": 1603.901,
+      "request_ms_after": 1633.053,
+      "decode_path": "single",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "hi-0000:noise",
+      "language": "hi",
+      "transcript_changed": false,
+      "wer_before": 0.4,
+      "wer_after": 0.4,
+      "cer_before": 0.12173913043478261,
+      "cer_after": 0.12173913043478261,
+      "request_ms_before": 1555.518,
+      "request_ms_after": 1618.329,
+      "decode_path": "single",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "hi-0000:telephone",
+      "language": "hi",
+      "transcript_changed": false,
+      "wer_before": 0.36666666666666664,
+      "wer_after": 0.36666666666666664,
+      "cer_before": 0.13043478260869565,
+      "cer_after": 0.13043478260869565,
+      "request_ms_before": 1630.432,
+      "request_ms_after": 1701.844,
+      "decode_path": "single",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "language": "gu-en",
+      "transcript_changed": false,
+      "wer_before": 0.358974358974359,
+      "wer_after": 0.358974358974359,
+      "cer_before": 0.14583333333333334,
+      "cer_after": 0.14583333333333334,
+      "request_ms_before": 4399.938,
+      "request_ms_after": 3908.562,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "gu-0000+en-0000:noise",
+      "language": "gu-en",
+      "transcript_changed": false,
+      "wer_before": 0.48717948717948717,
+      "wer_after": 0.48717948717948717,
+      "cer_before": 0.2708333333333333,
+      "cer_after": 0.2708333333333333,
+      "request_ms_before": 3867.973,
+      "request_ms_after": 3899.955,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "gu-0000+en-0000:telephone",
+      "language": "gu-en",
+      "transcript_changed": false,
+      "wer_before": 0.358974358974359,
+      "wer_after": 0.358974358974359,
+      "cer_before": 0.15625,
+      "cer_after": 0.15625,
+      "request_ms_before": 3883.963,
+      "request_ms_after": 3929.104,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "language": "hi-en",
+      "transcript_changed": false,
+      "wer_before": 0.26666666666666666,
+      "wer_after": 0.26666666666666666,
+      "cer_before": 0.07262569832402235,
+      "cer_after": 0.07262569832402235,
+      "request_ms_before": 3103.98,
+      "request_ms_after": 3224.496,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "hi-0000+en-0000:noise",
+      "language": "hi-en",
+      "transcript_changed": false,
+      "wer_before": 0.24444444444444444,
+      "wer_after": 0.24444444444444444,
+      "cer_before": 0.0670391061452514,
+      "cer_after": 0.0670391061452514,
+      "request_ms_before": 3260.713,
+      "request_ms_after": 3156.383,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    },
+    {
+      "case_id": "hi-0000+en-0000:telephone",
+      "language": "hi-en",
+      "transcript_changed": false,
+      "wer_before": 0.24444444444444444,
+      "wer_after": 0.24444444444444444,
+      "cer_before": 0.08379888268156424,
+      "cer_after": 0.08379888268156424,
+      "request_ms_before": 3144.783,
+      "request_ms_after": 3275.185,
+      "decode_path": "batch",
+      "rejected_rows": 0
+    }
+  ],
+  "warm_matched_14_excluding_process_first_en_clean": {
+    "previous": {
+      "cases": 14,
+      "word_edits": 153,
+      "reference_words": 444,
+      "char_edits": 273,
+      "reference_chars": 1970,
+      "wer": 0.34459459459459457,
+      "cer": 0.13857868020304567,
+      "median_request_ms": 2153.4025,
+      "nearest_rank_p95_request_ms": 4399.938,
+      "total_request_ms": 35452.657,
+      "request_rtf": 0.17856682280648736
+    },
+    "current": {
+      "cases": 14,
+      "word_edits": 165,
+      "reference_words": 444,
+      "char_edits": 341,
+      "reference_chars": 1970,
+      "wer": 0.3716216216216216,
+      "cer": 0.1730964467005076,
+      "median_request_ms": 3231.9300000000003,
+      "nearest_rank_p95_request_ms": 3929.104,
+      "total_request_ms": 39454.88,
+      "request_rtf": 0.19872509318021553
+    }
+  },
+  "mixed": {
+    "previous": {
+      "cases": 6,
+      "word_edits": 81,
+      "reference_words": 252,
+      "char_edits": 150,
+      "reference_chars": 1113,
+      "wer": 0.32142857142857145,
+      "cer": 0.1347708894878706,
+      "median_request_ms": 3564.343,
+      "nearest_rank_p95_request_ms": 4399.938,
+      "total_request_ms": 21661.35,
+      "request_rtf": 0.19152387267904505
+    },
+    "current": {
+      "cases": 6,
+      "word_edits": 81,
+      "reference_words": 252,
+      "char_edits": 150,
+      "reference_chars": 1113,
+      "wer": 0.32142857142857145,
+      "cer": 0.1347708894878706,
+      "median_request_ms": 3587.5699999999997,
+      "nearest_rank_p95_request_ms": 3929.104,
+      "total_request_ms": 21393.684999999998,
+      "request_rtf": 0.1891572502210433
+    }
+  },
+  "exact_normalized_english_suffix": {
+    "previous": 5,
+    "current": 5
+  },
+  "current_observations": {
+    "batch_cases": 9,
+    "rows_rejected": 0,
+    "entire_batches_rejected": 0,
+    "network_attempts_blocked": 0
+  }
+}

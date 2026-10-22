@@ -2,6 +2,8 @@
 
 ## Current readiness
 
+The 2026-10-22 fixed-corpus rerun completed 15/15 requests but regressed Gujarati-only accuracy and median latency with structural batching. Mixed transcripts were unchanged; no batch rows were rejected. This is an unsuccessful quality result, not a gate pass. See [the measured comparison](#structural-routing-and-rejection-rerun--2026-10-22).
+
 Phase 4 adds [manifest-v2 metadata](../../configs/asr-corpus-v2.schema.json), pure entity/per-speaker scoring and offline report annotation. Speaker/recording minimums remain unset in [configuration](../../configs/asr-corpus-v2.json). No representative corpus was collected and no new ASR result was measured. The unchanged section18 manifest has 15 derived cases from three recordings; it cannot support a model decision. Use the [recording protocol](../26-asr-recording-protocol.md) only after owner approval of the remaining data/review decisions.
 
 Phase 3 adds configurable per-row validation to batches and `ASR-BATCH-REJECTED` for an entirely rejected turn. Fake results prove rejection mechanics only; no new WER/CER or model-quality result is claimed.
@@ -472,3 +474,38 @@ Mixed request median is **3.564 s**, versus 1.894 s for the incomplete whole-tur
 SQL run `section18-whisper-turbo-batch-20261021-v1`, ID `117f91b1-1e9d-4ea3-b1f6-299bb0adc522`, stores 15 samples / 90 aggregate rows with a distinct router configuration and the unchanged MLX model identity. Report SHA-256: `5eb2b6c3c5d131b8e581b29f0490d7b9f29cbbebfc31060724c446cb8a4968e7`. Failure WAV/review pairs remain under ignored `var/roma/asr-benchmark/failures-whisper-turbo-batch`; SQL stores no transcript. No schema or business data is changed.
 
 **Acceptance:** the measured full-suffix omission and wrong-script routing mechanisms have concrete fixes for the supported pause-separated cases. Broader Gujarati/Hindi/noisy recognition, no-pause switching, real voice latency and native review remain open. The selected model cannot be declared accurate from successful execution or deterministic text matching. Paid Claude and microphone checks stay deferred; production Twilio/Sarvam, `.env`, Claude, TTS, booking and safety remain unchanged.
+
+
+## Structural routing and rejection rerun — 2026-10-22
+
+The owner authorized a fresh offline run of the unchanged 15-case section18 corpus using all current fixes, with no downloads, paid Claude or microphone testing. The [new raw report](../../benchmarks/asr/section18/whisper-turbo-structural-v3-20261022-report.json) and [comparison](../../benchmarks/asr/section18/whisper-turbo-structural-v3-vs-batch-20261022.json) preserve the earlier v2 report. Case IDs, references, PCM hashes, model weights and runtime versions match. Source code is commit `238ea9a`; current routing is `whisper-turbo-structural-v3`, with the existing recommended 512/300/256/30000/2000 ms TurnPolicy and batch rejection 0.6/-1.0/2.4.
+
+All **15/15 requests complete, zero execution errors**. TCP/DNS connections were blocked in the isolated benchmark process; zero network attempts occurred. Silero uses its already installed package weights, and the existing Turbo artifact hashes were verified. Read-only observers recorded actual chunk selection, row acceptance and result error codes without changing decoder inputs or decisions. No model, config, application, schema, working database or production speech path was changed.
+
+| Language, three variants each | WER previous → current | CER previous → current | Median ASR request previous → current |
+| --- | ---: | ---: | ---: |
+| English | 0.00% → 0.00% | 0.00% → 0.00% | 1.295 → 1.306 s |
+| Gujarati | 52.78% → 69.44% | 21.35% → 39.06% | 2.138 → 3.627 s |
+| Hindi | 37.78% → 37.78% | 11.88% → 11.88% | 1.604 → 1.633 s |
+| Gujarati–English | 40.17% → 40.17% | 19.10% → 19.10% | 3.884 → 3.909 s |
+| Hindi–English | 25.19% → 25.19% | 7.45% → 7.45% | 3.145 → 3.224 s |
+
+Pooled WER **33.33% → 35.95%**, pooled CER **13.42% → 16.76%**. Overall median request **2.169 → 3.239 s**; nearest-rank request p95 **4.400 → 3.929 s**, with only 15 derived observations. This small historical comparison is not a latency SLO or proof of a tail improvement. Excluding the same process-first English-clean case from both runs leaves 14 matched cases with median **2.153 → 3.232 s**; cold setup does not explain the median regression.
+
+Mixed request median **3.564 → 3.588 s**, with all six mixed hypotheses identical to v2 and **5/6 exact normalized English suffixes** in both runs. English/Hindi-only hypotheses are also unchanged. Only the three Gujarati-only hypotheses changed: their internal pause now admits a two-row batch. Nine cases batch and six stay single. All source PCM is retained; all 18 batch rows pass the current rejection criteria. Thus rejected output does not account for this regression. The noisy Gujarati-only result includes a longer wrong-script span despite passing the reliability thresholds; those scores cannot establish linguistic correctness. The new structural path is the changed execution path on these cases; no same-process old/new A/B or tuning is claimed.
+
+Every word/character edit total in both reports was recomputed with an independent Levenshtein implementation: **30 case-score checks pass**. Metrics include every case and are pooled by reference length, not averaged sample percentages. The original manifest and historical reports remain unchanged. No SQL import was performed.
+
+This is a finalized-audio ASR benchmark. It cannot exercise capture continuation grace/deadlines, turn-controller recovery or speech-end-to-speaker timing; paid Claude, microphone and native review remain deferred. Three recordings with synthetic noise/telephone variants and stitched code-mix cannot support a representative model decision. Preserve the requested settings; do not promote this regression, silently relax rejection thresholds or claim the Gujarati/Hindi/code-mix quality gate passed.
+
+To reproduce the inference with the existing CLI and a fresh output path (the measured run additionally blocked network and observed row metadata):
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 UV_OFFLINE=1 \
+uv run --no-sync python scripts/asr_benchmark.py run \
+  --provider whisper_turbo_batch_local \
+  --local-model-dir var/roma/models/whisper-large-v3-turbo-mlx-4bit \
+  --manifest benchmarks/asr/section18/manifest.json \
+  --audio-dir var/roma/asr-public \
+  --report var/roma/asr-benchmark/structural-v3-rerun.json
+```
