@@ -130,7 +130,7 @@ def parser() -> argparse.ArgumentParser:
                 "hf_whisper_space",
                 "whisper_local",
                 "indic_local",
-                "whisper_turbo_local",
+                "whisper_turbo_batch_local",
             ),
             default="hf_public_lab",
         )
@@ -203,12 +203,12 @@ async def run(args) -> int:
             )
         )
         return 0
-    local = args.provider in {"whisper_local", "indic_local", "whisper_turbo_local"}
+    local = args.provider in {"whisper_local", "indic_local", "whisper_turbo_batch_local"}
     if not local and not args.allow_network:
         raise ValueError("Hosted benchmark requests require --allow-network")
     if local and args.allow_network:
         raise ValueError("Local benchmark forbids --allow-network")
-    if args.provider in {"whisper_local", "whisper_turbo_local"} and not args.local_model_dir:
+    if args.provider in {"whisper_local", "whisper_turbo_batch_local"} and not args.local_model_dir:
         raise ValueError(
             "Local benchmark requires --local-model-dir and forbids --allow-network"
         )
@@ -247,7 +247,7 @@ async def run(args) -> int:
             max_audio_secs=config.stt_max_audio_secs,
             timeout_secs=60,
         )
-    elif args.provider == "whisper_turbo_local":
+    elif args.provider == "whisper_turbo_batch_local":
         details = local_mlx_details(args.local_model_dir)
         provider = LocalLanguageSTT(WhisperMLXSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60))
     elif args.provider == "hf_indic":

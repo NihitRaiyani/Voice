@@ -78,3 +78,7 @@ The code change removes the cascade rather than hiding its failures. The new dic
 ## Turbo review through section 20 — 2026-10-21
 
 The owner's later model decision supersedes the Indic/base selection: pinned MLX 4-bit Turbo is the single local development decoder for all five routes, and Indic weights are removed. Adapter/registry/settings, benchmark provenance/SQL input, isolated prototype and WAV lab are synchronized. Mocks, deterministic controller/booking/safety, TTS, production speech and Claude stay intact. [Level 4](../levels/level-04.md#whisper-turbo-replacement--2026-10-21) records all 15 real public ASR attempts and failed mixed/native quality; [Level 6](../levels/level-06.md#turbo-composition-follow-up--2026-10-21) records current offline integration. Paid Claude, microphone/native acceptance and section 21 remain deferred/outside scope.
+
+## Single-model batch review through section 20
+
+The owner's explicit batch approval permits natural-pause partitioning for mixed turns while retaining one Turbo model and every PCM sample. Provider/wrapper metadata, byte-preserving domain chunking, native batch/cache lifecycle, benchmark provenance and the existing local prototype are synchronized. Pure-language outputs and production/TTS/Claude/booking/safety behavior stay unchanged. [The measured run](../levels/level-04.md#single-model-speech-batching--2026-10-21) recovers suffixes but retains native/noisy/latency gaps. Paid Claude, microphone/native gates and section 21 stay deferred/outside scope.

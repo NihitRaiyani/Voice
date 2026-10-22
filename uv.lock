@@ -3222,7 +3222,7 @@ requires-dist = [
     { name = "fakeredis", marker = "extra == 'dev'", specifier = ">=2.20" },
     { name = "fastapi", marker = "extra == 'telephony'", specifier = ">=0.139.2" },
     { name = "faster-whisper", marker = "extra == 'voice-lab'", specifier = ">=1.2,<2" },
-    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'mlx-asr'", specifier = ">=0.4.3,<0.5" },
+    { name = "mlx-whisper", marker = "platform_machine == 'arm64' and sys_platform == 'darwin' and extra == 'mlx-asr'", specifier = "==0.4.3" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=2.4.0" },
     { name = "pipecat-ai", extras = ["sarvam", "silero", "openai"], marker = "extra == 'telephony'", specifier = ">=1.6.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.6.2" },

@@ -1,6 +1,6 @@
 # Level 4 — Audio and local ASR
 
-**Roadmap sections:** 14–18. **Status:** Audio/input/router and benchmark/failure/SQL tooling are implemented. The approved local development ASR is now single-model Whisper Turbo MLX 4-bit; IndicConformer weights are removed. The unchanged 15 cases complete, but Gujarati/Hindi and full-English-suffix quality fail. Native/representative approval and full Level 4/6 gates remain pending. Dated earlier reports retain their identities; [current replacement evidence](#whisper-turbo-replacement--2026-10-21) supersedes their provider selection.
+**Roadmap sections:** 14–18. **Status:** Audio/input/router and benchmark/failure/SQL tooling are implemented. The same pinned local Turbo model now uses owner-approved mixed-turn batching; all PCM is retained, with no second-model cascade. The 15-case run retains English output in all six mixed cases (five exact suffixes). Pure Gujarati/Hindi results are unchanged and weak; native/noisy quality and latency remain unapproved. [Current batching evidence](#single-model-speech-batching--2026-10-21) supersedes the earlier whole-turn selection; dated reports remain immutable.
 
 Current LLM policy changed to Claude Haiku 5.5 on 2026-10-20. OpenAI names in the dated speech checks below identify the former baseline; official OpenAI Whisper Space names remain ASR endpoint identities. No OpenAI LLM calls/fallback are allowed. Historical reports and counts are unchanged.
 
@@ -397,6 +397,8 @@ At this root-cause checkpoint, only base and the specified Indic snapshot had do
 
 ## Whisper Turbo replacement — 2026-10-21
 
+Historical whole-turn selection, superseded for explicit mixed turns by the [owner-approved single-model batch](#single-model-speech-batching--2026-10-21). All original installation and accuracy evidence below is preserved.
+
 The owner approved keeping Whisper large-v3-turbo and removing IndicConformer weights. The [verified installation record](../../benchmarks/asr/whisper-turbo-local-install.json) and [MLX artifact manifest](../../benchmarks/asr/whisper-turbo-mlx-artifacts.json) pin `mlx-community/whisper-large-v3-turbo-4bit` revision `0f058d38170d183f9fdee07908f5b515d91793a8`: three runtime files / **464,280,053 bytes** (464 MB decimal / 443 MiB). This is a 4-bit conversion of the approved Turbo model. Its upstream `model.safetensors` is renamed to `weights.safetensors` to match installed `mlx-whisper` 0.4.3, with identical bytes/hash. The optional `mlx-asr` extra is Apple Silicon-only; imports and model loading remain lazy.
 
 The initial approved [CPU INT8 artifacts](../../benchmarks/asr/whisper-turbo-artifacts.json) totalled 1,621,665,983 bytes. A five-clean-case trial took roughly 10–13 seconds per decode and peaked near 1.67 GB process RSS; it failed mixed quality. After verifying the MLX copy, this redundant CPU model directory was removed. The exact Indic Hub repository was removed with `hf cache rm`, freeing 2,556,502,929 logical bytes. Its adapter and immutable reports remain for historical contracts, with no automatic reinstall. Shared runtime packages, base comparison weights, Indic-TTS artifacts/runtime and `.env` are preserved.
@@ -422,3 +424,37 @@ Twelve high-WER public samples are exported under ignored `var/roma/asr-benchmar
 The [four-phrase Turbo loanword smoke](../../benchmarks/asr/section18/turbo-loanword-synthetic-report.json) uses existing local Indic-TTS, one whole Turbo call per phrase and exact normalization. The measured Hindi variant `अपाइंटमेंट` is explicitly mapped to `appointment`; no fuzzy entity rewriting is added. All four phrases complete with one decoder call each, recovering **7/7 expected keyword occurrences** after exact normalization. Keyword scoring ignores case/punctuation using the existing Unicode benchmark normalization. This small synthetic corpus does not demonstrate complete Indic grammar, full-sentence English retention, native quality or booking success.
 
 **Decision:** keep the approved Turbo 4-bit model and remove Indic weights as requested, but classify Turbo as a **development baseline**. Native/mixed accuracy is worse than the historical Indic-plus-loanword route on this limited corpus. No tested single-pass setting resolves full-sentence code-switching reliably. A representative human code-mix corpus and a changed recognition strategy or a validated stronger model are still required before quality approval; no further weights, cascade, paid Claude or microphone test is started here. Production Twilio/Sarvam, Claude, Hindi-base Hinglish, local TTS, booking and safety remain unchanged. See the [runbook](../runbook.md#local-single-pass-code-mix-benchmark).
+
+## Single-model speech batching — 2026-10-21
+
+The owner approved **“Allow single-model speech-chunk batching”** after the whole-turn Turbo failures. This explicitly relaxes the earlier no-slicing restriction, while preserving one ASR model, mock defaults and the deferral of paid Claude/microphone tests. It does not authorize a production speech switch or a passed native gate.
+
+The [controlled diagnosis](../../benchmarks/asr/section18/turbo-omission-diagnosis.json) isolates the omission from several plausible causes:
+
+- The full waveform reaches the encoder. Independent faster-whisper/MLX mel features agree closely over 1,188 common frames (mean absolute difference 0.00000364). The extra endpoint frame is accounted for.
+- English source RMS is −49.90 dBFS, versus Gujarati −32.88 and Hindi −37.16. Global normalization and an explicitly oracle/source-equalized diagnostic still omit both suffixes. The loudness difference is a corpus confound, not a sufficient fix.
+- FP32 activation computation still omits both suffixes. The separately verified **same Turbo model at full precision** also omits them, with native WER still 45.83% Gujarati and 40% Hindi on the clean controls. Its temporary 1,613,977,880-byte format was removed; the active 4-bit artifacts remain unchanged. No different model, paid service or microphone is used.
+- Decodes finish below the 440-token ceiling (roughly 368 Gujarati or 143 Hindi tokens in these mixed probes), consistent with early end-of-text after the dominant-language sentence rather than a transport truncation or exhausted token cap. A high model text likelihood does not certify audio coverage.
+- Cropping VAD speech regions loses quiet initial English words; unrestricted chunk language detection emits Gujarati as Hindi and Hindi as Urdu. Those variants are rejected. A fused-attention experiment did not improve measured latency/quality and is not adopted; installed SDK files stay unchanged.
+
+**Implemented boundary:** `SpeechInputService` and the saved language router remain unchanged. `LocalLanguageSTT` preserves the route in copied `local_language_route` request metadata while retaining the canonical model hint. For explicit `gu-en`/`hi-en` only, bundled Silero scores the bounded finished waveform; a local endpoint detector uses 384 ms silence. The strongest internal gap of at least 256 ms can produce two chunks, each at least one second. The cut lies in the gap; **concatenating the chunks reproduces every original PCM byte exactly**. Leading/trailing/quiet speech is never trimmed. With no qualifying pause, the original single-turn decoder remains in use.
+
+`mlx_batch.py` uses one cached Turbo model and one encoder batch, at most two rows. The decoder keeps the known Gujarati/Hindi script unless English language probability is at least 0.8 and exceeds the context language probability. This is a conservative local routing heuristic, not calibrated ASR confidence or a language-state change. Completed rows and their full self/cross-attention caches are removed from active generation, preserving output order and avoiding padded decoder work. No second model, fallback, speculative decode or reference prompt is added. Decoder internals are pinned to `mlx-whisper==0.4.3`; no site-packages patch is used. Pure-language calls retain the exact earlier API/settings/output, verified against all nine prior pure cases.
+
+The [fresh report](../../benchmarks/asr/section18/whisper-turbo-batch-report.json) retains the same manifest, references, audio hashes and scoring; all **15/15** requests complete offline. The earlier whole-turn report is immutable.
+
+| Language, three variants each | Before WER | Batch WER | Batch CER | Median request |
+|---|---:|---:|---:|---:|
+| English | 0.00% | 0.00% | 0.00% | 1.295 s |
+| Gujarati | 52.78% | 52.78% | 21.35% | 2.138 s |
+| Hindi | 37.78% | 37.78% | 11.88% | 1.604 s |
+| Gujarati–English | 75.21% | **40.17%** | 19.10% | 3.884 s |
+| Hindi–English | 59.26% | **25.19%** | 7.45% | 3.145 s |
+
+English output is retained in **6/6 mixed cases**. The complete suffix is exact in **5/6**; noisy Gujarati–English still has substitutions. These are three source recordings with synthetic variants/stitching, not native conversational code-mix or a 100% word/slot-recall claim. Gujarati/Hindi recognition accuracy is **not fixed by batching** and remains below the target. Continuous switching without a detected pause also remains unapproved.
+
+Mixed request median is **3.564 s**, versus 1.894 s for the incomplete whole-turn output. There is no two-model cascade, but retaining the missing speech costs more work and this does **not** pass the earlier latency target. The non-compacted pilot records about 1.52 GB peak Metal allocation and 0.74 GB peak process RSS; those unified-memory figures may overlap, are not additive total RAM and exclude concurrent TTS/microphone conditions. The generic report's “CPU wall RTF” wording is historical; `device=metal` identifies this GPU request-wall measurement.
+
+SQL run `section18-whisper-turbo-batch-20261021-v1`, ID `117f91b1-1e9d-4ea3-b1f6-299bb0adc522`, stores 15 samples / 90 aggregate rows with a distinct router configuration and the unchanged MLX model identity. Report SHA-256: `5eb2b6c3c5d131b8e581b29f0490d7b9f29cbbebfc31060724c446cb8a4968e7`. Failure WAV/review pairs remain under ignored `var/roma/asr-benchmark/failures-whisper-turbo-batch`; SQL stores no transcript. No schema or business data is changed.
+
+**Acceptance:** the measured full-suffix omission and wrong-script routing mechanisms have concrete fixes for the supported pause-separated cases. Broader Gujarati/Hindi/noisy recognition, no-pause switching, real voice latency and native review remain open. The selected model cannot be declared accurate from successful execution or deterministic text matching. Paid Claude and microphone checks stay deferred; production Twilio/Sarvam, `.env`, Claude, TTS, booking and safety remain unchanged.

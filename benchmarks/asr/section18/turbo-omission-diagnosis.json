@@ -1,0 +1,1330 @@
+{
+  "schema": "roma-turbo-omission-diagnosis-v1",
+  "recorded_at": "2026-10-21",
+  "public_audio_only": true,
+  "microphone_used": false,
+  "paid_llm_calls": false,
+  "baseline_commit": "555feb4a4c6188dc1da15391412551b6f4bc9429",
+  "feature_parity": {
+    "compared_frames": 1188,
+    "mel_bins": 128,
+    "mean_absolute_delta": 3.637626832642127e-06,
+    "maximum_delta": 0.030914783477783203,
+    "note": "Independent faster-whisper and MLX frontends; comparison excludes the independent extractor extra boundary frame. No material global feature mismatch."
+  },
+  "trace": {
+    "audio_stats": [
+      {
+        "source": "en-0000",
+        "seconds": 6.54,
+        "rms_dbfs": -49.897308349609375,
+        "peak": 0.02362060546875
+      },
+      {
+        "source": "gu-0000",
+        "seconds": 11.88,
+        "rms_dbfs": -32.8782958984375,
+        "peak": 0.158721923828125
+      },
+      {
+        "source": "hi-0000",
+        "seconds": 12.24,
+        "rms_dbfs": -37.157894134521484,
+        "peak": 0.109283447265625
+      }
+    ],
+    "fp32_probe": [
+      {
+        "case_id": "gu-0000:clean",
+        "text": "તિબેટનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રિમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગતીય દવારા વિસ્તાર કરવામામાા આવયો છે",
+        "metrics": {
+          "reference_words": 24,
+          "word_edits": 14,
+          "substitutions": 13,
+          "deletions": 1,
+          "insertions": 0,
+          "wer": 0.5833333333333334,
+          "reference_chars": 128,
+          "char_edits": 27,
+          "char_substitutions": 13,
+          "char_deletions": 12,
+          "char_insertions": 2,
+          "cer": 0.2109375
+        },
+        "ms": 4393.899666029029,
+        "segments": [
+          {
+            "avg_logprob": -0.09589150281456428,
+            "no_speech_prob": 2.3771755877532996e-05,
+            "compression_ratio": 2.1123595505617976,
+            "generated_tokens": 368
+          }
+        ]
+      },
+      {
+        "case_id": "hi-0000:clean",
+        "text": " मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+        "metrics": {
+          "reference_words": 30,
+          "word_edits": 11,
+          "substitutions": 9,
+          "deletions": 0,
+          "insertions": 2,
+          "wer": 0.36666666666666664,
+          "reference_chars": 115,
+          "char_edits": 12,
+          "char_substitutions": 4,
+          "char_deletions": 5,
+          "char_insertions": 3,
+          "cer": 0.10434782608695652
+        },
+        "ms": 2083.4183749975637,
+        "segments": [
+          {
+            "avg_logprob": -0.06936108819369612,
+            "no_speech_prob": 6.304148314484337e-10,
+            "compression_ratio": 2.021857923497268,
+            "generated_tokens": 144
+          }
+        ]
+      },
+      {
+        "case_id": "gu-0000+en-0000:clean",
+        "text": " TİBET નો બોદ વાદ બોદ ના ઉપદે શો પર આદારિચ છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગ્તિય દવારા વિસ્તાર કરવામામાા આવયો છે",
+        "metrics": {
+          "reference_words": 39,
+          "word_edits": 32,
+          "substitutions": 13,
+          "deletions": 15,
+          "insertions": 4,
+          "wer": 0.8205128205128205,
+          "reference_chars": 192,
+          "char_edits": 92,
+          "char_substitutions": 15,
+          "char_deletions": 74,
+          "char_insertions": 3,
+          "cer": 0.4791666666666667
+        },
+        "ms": 2956.9998329970986,
+        "segments": [
+          {
+            "avg_logprob": -0.10816139903494983,
+            "no_speech_prob": 2.0521818441920914e-05,
+            "compression_ratio": 2.021390374331551,
+            "generated_tokens": 368
+          }
+        ]
+      },
+      {
+        "case_id": "hi-0000+en-0000:clean",
+        "text": " मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सबजियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+        "metrics": {
+          "reference_words": 45,
+          "word_edits": 27,
+          "substitutions": 10,
+          "deletions": 15,
+          "insertions": 2,
+          "wer": 0.6,
+          "reference_chars": 179,
+          "char_edits": 77,
+          "char_substitutions": 4,
+          "char_deletions": 70,
+          "char_insertions": 3,
+          "cer": 0.4301675977653631
+        },
+        "ms": 2117.516874917783,
+        "segments": [
+          {
+            "avg_logprob": -0.09235929118262397,
+            "no_speech_prob": 1.2707938035205757e-09,
+            "compression_ratio": 2.0164835164835164,
+            "generated_tokens": 143
+          }
+        ]
+      }
+    ]
+  },
+  "level_controls": [
+    {
+      "case_id": "en-0000:clean",
+      "option": "global-rms",
+      "text": " When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "ms": 2021.3789580157027
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "option": "global-rms",
+      "text": "તિબેટનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રેમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગ્તિય દવારા વિસ્તાર કરવામામામાવયો છે",
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 13,
+        "substitutions": 11,
+        "deletions": 2,
+        "insertions": 0,
+        "wer": 0.5416666666666666,
+        "reference_chars": 128,
+        "char_edits": 25,
+        "char_substitutions": 14,
+        "char_deletions": 10,
+        "char_insertions": 1,
+        "cer": 0.1953125
+      },
+      "ms": 2219.52791698277
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "option": "global-rms",
+      "text": " मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सबजियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 12,
+        "substitutions": 10,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.4,
+        "reference_chars": 115,
+        "char_edits": 13,
+        "char_substitutions": 4,
+        "char_deletions": 6,
+        "char_insertions": 3,
+        "cer": 0.11304347826086956
+      },
+      "ms": 1618.5281670186669
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "option": "global-rms",
+      "text": " TIGET નો બોદ વાદ બોદ ના ઉપદે શો પર આ દારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગ્તિય દવારા વિસ્તાર કરવામામાા આવયો છે",
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 33,
+        "substitutions": 13,
+        "deletions": 15,
+        "insertions": 5,
+        "wer": 0.8461538461538461,
+        "reference_chars": 192,
+        "char_edits": 90,
+        "char_substitutions": 14,
+        "char_deletions": 74,
+        "char_insertions": 2,
+        "cer": 0.46875
+      },
+      "ms": 2230.3962089354172
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "option": "global-rms",
+      "text": " मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सबजियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 27,
+        "substitutions": 10,
+        "deletions": 15,
+        "insertions": 2,
+        "wer": 0.6,
+        "reference_chars": 179,
+        "char_edits": 77,
+        "char_substitutions": 4,
+        "char_deletions": 70,
+        "char_insertions": 3,
+        "cer": 0.4301675977653631
+      },
+      "ms": 1612.1924580074847
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "option": "source-equalized-oracle",
+      "text": " TIGET નો બોદ વાદ બોદ ના ઉપદે શો પર આ દારિત છે પરંતુ તેનો પ્રઇમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગ્તિય દવારા વિસ્તાર કરવામામાા આવયો છે",
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 34,
+        "substitutions": 14,
+        "deletions": 15,
+        "insertions": 5,
+        "wer": 0.8717948717948718,
+        "reference_chars": 192,
+        "char_edits": 91,
+        "char_substitutions": 15,
+        "char_deletions": 74,
+        "char_insertions": 2,
+        "cer": 0.4739583333333333
+      },
+      "ms": 2238.848042092286
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "option": "source-equalized-oracle",
+      "text": " मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सबजियों और मास विशेश रूप से सूर का मास पर आधारत है और जैतून के तेल का उप्योग करता है",
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 28,
+        "substitutions": 11,
+        "deletions": 15,
+        "insertions": 2,
+        "wer": 0.6222222222222222,
+        "reference_chars": 179,
+        "char_edits": 78,
+        "char_substitutions": 4,
+        "char_deletions": 71,
+        "char_insertions": 3,
+        "cer": 0.43575418994413406
+      },
+      "ms": 1628.930208971724
+    }
+  ],
+  "full_precision_control": {
+    "artifacts": {
+      "repository": "mlx-community/whisper-large-v3-turbo",
+      "revision": "a4aaeec0636e6fef84abdcbe3544cb2bf7e9f6fb",
+      "files": {
+        "config.json": {
+          "bytes": 268,
+          "sha256": "b34fc29e4e11e0a25e812775dd67f4dd16fc2c8eb43d28ae25ff7d660ecb6379"
+        },
+        "weights.safetensors": {
+          "bytes": 1613977612,
+          "sha256": "951ed3fc1203e6a62467abb2144a96ce7eafca8fa77e3704fdb8635ff3e7f8a6"
+        }
+      }
+    },
+    "results": [
+      {
+        "case_id": "en-0000:clean",
+        "text": " When you call someone who is thousands of miles away, you are using a satellite.",
+        "metrics": {
+          "reference_words": 15,
+          "word_edits": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "wer": 0.0,
+          "reference_chars": 64,
+          "char_edits": 0,
+          "char_substitutions": 0,
+          "char_deletions": 0,
+          "char_insertions": 0,
+          "cer": 0.0
+        },
+        "ms": 2954.41,
+        "process_peak_rss_bytes": 786825216,
+        "metal_peak_bytes": 2138794874,
+        "token_counts": [
+          17
+        ]
+      },
+      {
+        "case_id": "gu-0000:clean",
+        "text": " तिबेटનો બોધવાદ બોધના ઉપદેશો પર આદારીત છે પરંતુ તેનો પ્રીમના મહાયન પંથ દવારા અને ભારતે યોગની ઘણી બધી પ્રયુક્તીઓ દવારા વિસ્તાર કરવામાં આવ્યો છે",
+        "metrics": {
+          "reference_words": 24,
+          "word_edits": 11,
+          "substitutions": 11,
+          "deletions": 0,
+          "insertions": 0,
+          "wer": 0.4583333333333333,
+          "reference_chars": 128,
+          "char_edits": 22,
+          "char_substitutions": 12,
+          "char_deletions": 10,
+          "char_insertions": 0,
+          "cer": 0.171875
+        },
+        "ms": 2954.596,
+        "process_peak_rss_bytes": 786825216,
+        "metal_peak_bytes": 2139466614,
+        "token_counts": [
+          362
+        ]
+      },
+      {
+        "case_id": "hi-0000:clean",
+        "text": " मेजर किन खाना भूम अध्य सागर में सामान शेतरों की तरह रोटी सबजियों और मास विशेश रूप से सुवर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+        "metrics": {
+          "reference_words": 30,
+          "word_edits": 12,
+          "substitutions": 10,
+          "deletions": 0,
+          "insertions": 2,
+          "wer": 0.4,
+          "reference_chars": 115,
+          "char_edits": 14,
+          "char_substitutions": 5,
+          "char_deletions": 6,
+          "char_insertions": 3,
+          "cer": 0.12173913043478261
+        },
+        "ms": 1881.333,
+        "process_peak_rss_bytes": 786825216,
+        "metal_peak_bytes": 2139482998,
+        "token_counts": [
+          144
+        ]
+      },
+      {
+        "case_id": "gu-0000+en-0000:clean",
+        "text": " TIGET નો બોધવાદ બોધના ઉપધેશો પર આદારીત છે પરંતુ તેનો પ્રીમના મહાયન પંથ દવારા અને ભારતે યોગની ઘણી બધી પ્રયુક્તીઓ દવારા વિસ્તાર કરવામાં આવ્યો છે",
+        "metrics": {
+          "reference_words": 39,
+          "word_edits": 28,
+          "substitutions": 12,
+          "deletions": 15,
+          "insertions": 1,
+          "wer": 0.717948717948718,
+          "reference_chars": 192,
+          "char_edits": 87,
+          "char_substitutions": 13,
+          "char_deletions": 74,
+          "char_insertions": 0,
+          "cer": 0.453125
+        },
+        "ms": 2850.977,
+        "process_peak_rss_bytes": 786825216,
+        "metal_peak_bytes": 2139827062,
+        "token_counts": [
+          358
+        ]
+      },
+      {
+        "case_id": "hi-0000+en-0000:clean",
+        "text": " मेजर किन खाना भूम अध्य सागर में सामान शेतरों की तरह रोटी सबजियों और मास विशेश रूप से सुवर का मास पर आधारित है और जैतून के तेल का उपयोग करता है",
+        "metrics": {
+          "reference_words": 45,
+          "word_edits": 26,
+          "substitutions": 9,
+          "deletions": 15,
+          "insertions": 2,
+          "wer": 0.5777777777777777,
+          "reference_chars": 179,
+          "char_edits": 77,
+          "char_substitutions": 5,
+          "char_deletions": 70,
+          "char_insertions": 2,
+          "cer": 0.4301675977653631
+        },
+        "ms": 1872.892,
+        "process_peak_rss_bytes": 786825216,
+        "metal_peak_bytes": 2139843446,
+        "token_counts": [
+          143
+        ]
+      }
+    ],
+    "conclusion": "Same full-precision Turbo still drops both English suffixes and fails native accuracy; compression is not the main omission cause. Control copy removed after verification."
+  },
+  "rejected_cropped_unrestricted_language_batch": [
+    {
+      "case_id": "en-0000:clean",
+      "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "ms": 1840.5703749740496,
+      "languages": [
+        "en"
+      ],
+      "chunks": 1,
+      "metal_peak_bytes": 1132932586,
+      "process_peak_rss_bytes": 740573184
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "text": "तिबेट नो बहुद्वाद बहुद्णा उपदेशो पर आधारीच छे परंतो तेनो प्रिम्ना महायान पंत द्वारा आने भार्तिय योगनी घणी बदी प्रयुक्तियो द्वारा विस्तार करवामा आवियो छे",
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 25,
+        "substitutions": 24,
+        "deletions": 0,
+        "insertions": 1,
+        "wer": 1.0416666666666667,
+        "reference_chars": 128,
+        "char_edits": 128,
+        "char_substitutions": 128,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 1.0
+      },
+      "ms": 3309.3315840233117,
+      "languages": [
+        "hi",
+        "hi"
+      ],
+      "chunks": 2,
+      "metal_peak_bytes": 1515936298,
+      "process_peak_rss_bytes": 740573184
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "text": "میجر کن کھانا بھوم ادیس آگر میں سامان شیطروں کی طرح روٹی سبجیوں اور ماس وشیش روب سے سور کا ماس پر آدارت ہے اور جیتون کے تیل کا اپیوب کرتا ہے",
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 32,
+        "substitutions": 30,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 1.0666666666666667,
+        "reference_chars": 115,
+        "char_edits": 115,
+        "char_substitutions": 109,
+        "char_deletions": 6,
+        "char_insertions": 0,
+        "cer": 1.0
+      },
+      "ms": 1479.1929579805583,
+      "languages": [
+        "ur"
+      ],
+      "chunks": 1,
+      "metal_peak_bytes": 1515936298,
+      "process_peak_rss_bytes": 740573184
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "text": "तिबेट नो बहुद्वाद बहुद्णा उपदेशो पर आधारीच छे परंतो तेनो प्रिम्ना महायान पंत द्वारा आने भार्तिय योगनी घणी बदी प्रयुक्तियो द्वारा विस्तार करवामा आवियो छे someone who is thousands of miles away You're using a satellite.",
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 28,
+        "substitutions": 26,
+        "deletions": 2,
+        "insertions": 0,
+        "wer": 0.717948717948718,
+        "reference_chars": 192,
+        "char_edits": 140,
+        "char_substitutions": 128,
+        "char_deletions": 12,
+        "char_insertions": 0,
+        "cer": 0.7291666666666666
+      },
+      "ms": 5591.6140410117805,
+      "languages": [
+        "hi",
+        "hi",
+        "en",
+        "en"
+      ],
+      "chunks": 4,
+      "metal_peak_bytes": 1519770154,
+      "process_peak_rss_bytes": 740573184
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "text": "میجر کن کھانا بھوم ادیس آگر میں سامان شیطروں کی طرح روٹی سبجیوں اور ماس وشیش روپ سے سور کا ماس پر آدارت ہے اور جیتون کے تیل کا اپیوب کرتا ہے someone who is thousands of miles away You're using a satellite.",
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 34,
+        "substitutions": 33,
+        "deletions": 1,
+        "insertions": 0,
+        "wer": 0.7555555555555555,
+        "reference_chars": 179,
+        "char_edits": 127,
+        "char_substitutions": 109,
+        "char_deletions": 18,
+        "char_insertions": 0,
+        "cer": 0.7094972067039106
+      },
+      "ms": 4220.545083051547,
+      "languages": [
+        "ur",
+        "en",
+        "en"
+      ],
+      "chunks": 3,
+      "metal_peak_bytes": 1519770154,
+      "process_peak_rss_bytes": 740573184
+    }
+  ],
+  "context_full_coverage_pilot": [
+    {
+      "case_id": "en-0000:clean",
+      "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "ms": 1593.9869160065427,
+      "languages": [
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.9997207522392273,
+          "gu": 7.091290228633529e-12,
+          "hi": 2.2045405501103232e-08,
+          "ur": 2.9752353469802983e-08
+        }
+      ],
+      "cut_seconds": null,
+      "metal_peak_bytes": 1132932586,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "en-0000:noise",
+      "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "ms": 1367.3261249205098,
+      "languages": [
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.9996665716171265,
+          "gu": 8.586749367101021e-12,
+          "hi": 2.7247557099485675e-08,
+          "ur": 3.0875508372218974e-08
+        }
+      ],
+      "cut_seconds": null,
+      "metal_peak_bytes": 1137214298,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "en-0000:telephone",
+      "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "ms": 2231.1192919733003,
+      "languages": [
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.9997335076332092,
+          "gu": 6.113155121001412e-12,
+          "hi": 1.9116235705496365e-08,
+          "ur": 2.3605416288319248e-08
+        }
+      ],
+      "cut_seconds": null,
+      "metal_peak_bytes": 1137214298,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "text": "તિબેટનો બોદવાદ બોદનાવદેશો પર આધારિચે પરંતો તેનો પરેમના મહાયન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્તીવ દ્વારા વિસ્તાર કરવામામામામાવયો છે",
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 14,
+        "substitutions": 11,
+        "deletions": 3,
+        "insertions": 0,
+        "wer": 0.5833333333333334,
+        "reference_chars": 128,
+        "char_edits": 29,
+        "char_substitutions": 15,
+        "char_deletions": 11,
+        "char_insertions": 3,
+        "cer": 0.2265625
+      },
+      "ms": 3580.3923329804093,
+      "languages": [
+        "gu",
+        "gu"
+      ],
+      "language_probs": [
+        {
+          "en": 0.0024751059245318174,
+          "gu": 0.3331613838672638,
+          "hi": 0.17972707748413086,
+          "ur": 0.0005855971830897033
+        },
+        {
+          "en": 0.009637847542762756,
+          "gu": 0.2210768163204193,
+          "hi": 0.43966373801231384,
+          "ur": 0.001131019671447575
+        }
+      ],
+      "cut_seconds": 4.96,
+      "metal_peak_bytes": 1515952682,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "gu-0000:noise",
+      "text": "તિબેટનો બોધવાદ બોધનાવધ્થેશો પર આધારી છે પરંતો ઉકતેનો प्रेम्ना महायान पंथ द्वारा और भार्ते योगनी घणी बदी प्रयुक्तियो द्वारा विस्तार कर्वामा आवियो छे",
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 23,
+        "substitutions": 22,
+        "deletions": 1,
+        "insertions": 0,
+        "wer": 0.9583333333333334,
+        "reference_chars": 128,
+        "char_edits": 97,
+        "char_substitutions": 88,
+        "char_deletions": 6,
+        "char_insertions": 3,
+        "cer": 0.7578125
+      },
+      "ms": 3208.23750004638,
+      "languages": [
+        "gu",
+        "gu"
+      ],
+      "language_probs": [
+        {
+          "en": 0.005853820126503706,
+          "gu": 0.17107367515563965,
+          "hi": 0.4578169286251068,
+          "ur": 0.0013371381210163236
+        },
+        {
+          "en": 0.00905322004109621,
+          "gu": 0.1068975105881691,
+          "hi": 0.6009027361869812,
+          "ur": 0.0017010495066642761
+        }
+      ],
+      "cut_seconds": 4.96,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "gu-0000:telephone",
+      "text": "તિબેટનો બોધવાદ બોધનાવધ્થેશો પર આધારિછે પરંતુથેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્થયો દ્વારા વિસ્તાર કરવામામાવયો છે",
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 13,
+        "substitutions": 9,
+        "deletions": 4,
+        "insertions": 0,
+        "wer": 0.5416666666666666,
+        "reference_chars": 128,
+        "char_edits": 24,
+        "char_substitutions": 16,
+        "char_deletions": 8,
+        "char_insertions": 0,
+        "cer": 0.1875
+      },
+      "ms": 5134.312957990915,
+      "languages": [
+        "gu",
+        "gu"
+      ],
+      "language_probs": [
+        {
+          "en": 0.004575354978442192,
+          "gu": 0.28640392422676086,
+          "hi": 0.2886502146720886,
+          "ur": 0.0005572260706685483
+        },
+        {
+          "en": 0.007986442185938358,
+          "gu": 0.32026591897010803,
+          "hi": 0.293892502784729,
+          "ur": 0.0007046959945000708
+        }
+      ],
+      "cut_seconds": 4.928,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "text": "मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 11,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.36666666666666664,
+        "reference_chars": 115,
+        "char_edits": 12,
+        "char_substitutions": 4,
+        "char_deletions": 5,
+        "char_insertions": 3,
+        "cer": 0.10434782608695652
+      },
+      "ms": 1618.1287090294063,
+      "languages": [
+        "hi"
+      ],
+      "language_probs": [
+        {
+          "en": 0.00437802542001009,
+          "gu": 1.863552796521617e-07,
+          "hi": 0.14498025178909302,
+          "ur": 0.8343039155006409
+        }
+      ],
+      "cut_seconds": null,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "hi-0000:noise",
+      "text": "मेजर किन खाना भूम अदे सागर में सामान शेत्रों की तरह रोटी सब्जीयों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 12,
+        "substitutions": 10,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.4,
+        "reference_chars": 115,
+        "char_edits": 14,
+        "char_substitutions": 7,
+        "char_deletions": 5,
+        "char_insertions": 2,
+        "cer": 0.12173913043478261
+      },
+      "ms": 1758.4764999337494,
+      "languages": [
+        "hi"
+      ],
+      "language_probs": [
+        {
+          "en": 0.006441615056246519,
+          "gu": 2.8483879077612073e-07,
+          "hi": 0.2051449716091156,
+          "ur": 0.7681841254234314
+        }
+      ],
+      "cut_seconds": null,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "hi-0000:telephone",
+      "text": "मेजर किन खाना भूम अज्जे सागर में सामान शेतरों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 11,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.36666666666666664,
+        "reference_chars": 115,
+        "char_edits": 15,
+        "char_substitutions": 5,
+        "char_deletions": 6,
+        "char_insertions": 4,
+        "cer": 0.13043478260869565
+      },
+      "ms": 3347.147291060537,
+      "languages": [
+        "hi"
+      ],
+      "language_probs": [
+        {
+          "en": 0.0031320760026574135,
+          "gu": 1.1788468157192256e-07,
+          "hi": 0.07128572463989258,
+          "ur": 0.9101151823997498
+        }
+      ],
+      "cut_seconds": null,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "text": "તિબેટનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રિમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગતીય દવારા વિસ્તાર કરવામામામાવયો છે When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 14,
+        "substitutions": 12,
+        "deletions": 2,
+        "insertions": 0,
+        "wer": 0.358974358974359,
+        "reference_chars": 192,
+        "char_edits": 28,
+        "char_substitutions": 16,
+        "char_deletions": 11,
+        "char_insertions": 1,
+        "cer": 0.14583333333333334
+      },
+      "ms": 4238.2619170239195,
+      "languages": [
+        "gu",
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.007242896128445864,
+          "gu": 0.39855027198791504,
+          "hi": 0.17008036375045776,
+          "ur": 0.0004191240877844393
+        },
+        {
+          "en": 0.9997720122337341,
+          "gu": 5.2906958328269305e-12,
+          "hi": 1.5526829599821212e-08,
+          "ur": 1.9936846840096223e-08
+        }
+      ],
+      "cut_seconds": 12.544,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "gu-0000+en-0000:noise",
+      "text": "तिबेटનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રેમના મહાયાન પંથ દવારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્તીવ દવારા વિસ્તાર કરવામામામાવયો છે When this ocean line is thousands of miles away, we are using a set-up.",
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 19,
+        "substitutions": 15,
+        "deletions": 3,
+        "insertions": 1,
+        "wer": 0.48717948717948717,
+        "reference_chars": 192,
+        "char_edits": 52,
+        "char_substitutions": 32,
+        "char_deletions": 19,
+        "char_insertions": 1,
+        "cer": 0.2708333333333333
+      },
+      "ms": 4303.636958007701,
+      "languages": [
+        "gu",
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.00682787224650383,
+          "gu": 0.2891966700553894,
+          "hi": 0.3054525852203369,
+          "ur": 0.0006578158354386687
+        },
+        {
+          "en": 0.9942499399185181,
+          "gu": 3.106091495119756e-10,
+          "hi": 1.7847436311058118e-06,
+          "ur": 1.205262151415809e-06
+        }
+      ],
+      "cut_seconds": 12.432,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "gu-0000+en-0000:telephone",
+      "text": "तिबेटનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રઇમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગ્તિય દવારા વિસ્તાર કરવામામામાવયો છે When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 14,
+        "substitutions": 12,
+        "deletions": 2,
+        "insertions": 0,
+        "wer": 0.358974358974359,
+        "reference_chars": 192,
+        "char_edits": 30,
+        "char_substitutions": 19,
+        "char_deletions": 10,
+        "char_insertions": 1,
+        "cer": 0.15625
+      },
+      "ms": 6598.613750073127,
+      "languages": [
+        "gu",
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.00558526860550046,
+          "gu": 0.4524438679218292,
+          "hi": 0.1327013522386551,
+          "ur": 0.0002643057960085571
+        },
+        {
+          "en": 0.9996775388717651,
+          "gu": 7.431289958392817e-12,
+          "hi": 2.425840861519646e-08,
+          "ur": 2.928983988681466e-08
+        }
+      ],
+      "cut_seconds": 12.784,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "text": "मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सबजियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 12,
+        "substitutions": 10,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.26666666666666666,
+        "reference_chars": 179,
+        "char_edits": 13,
+        "char_substitutions": 4,
+        "char_deletions": 6,
+        "char_insertions": 3,
+        "cer": 0.07262569832402235
+      },
+      "ms": 3171.549165970646,
+      "languages": [
+        "hi",
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.0051720282062888145,
+          "gu": 3.01207421671279e-07,
+          "hi": 0.22690118849277496,
+          "ur": 0.7498155832290649
+        },
+        {
+          "en": 0.999758780002594,
+          "gu": 5.810620647833664e-12,
+          "hi": 1.59726241122371e-08,
+          "ur": 2.0092938868288002e-08
+        }
+      ],
+      "cut_seconds": 12.928,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "hi-0000+en-0000:noise",
+      "text": "मेजर किन खाना भूम अज्य सागर में सामान शेत्रों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 11,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.24444444444444444,
+        "reference_chars": 179,
+        "char_edits": 12,
+        "char_substitutions": 4,
+        "char_deletions": 5,
+        "char_insertions": 3,
+        "cer": 0.0670391061452514
+      },
+      "ms": 3349.403874948621,
+      "languages": [
+        "hi",
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.011455027386546135,
+          "gu": 6.390573616954498e-07,
+          "hi": 0.40697067975997925,
+          "ur": 0.5562629699707031
+        },
+        {
+          "en": 0.9930029511451721,
+          "gu": 3.6983682782931737e-10,
+          "hi": 2.0758352548000403e-06,
+          "ur": 1.460533667341224e-06
+        }
+      ],
+      "cut_seconds": 12.848,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    },
+    {
+      "case_id": "hi-0000+en-0000:telephone",
+      "text": "मेजर किन खाना भूम अज्जे सागर में सामान शेतरों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 11,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.24444444444444444,
+        "reference_chars": 179,
+        "char_edits": 15,
+        "char_substitutions": 5,
+        "char_deletions": 6,
+        "char_insertions": 4,
+        "cer": 0.08379888268156424
+      },
+      "ms": 5670.457375003025,
+      "languages": [
+        "hi",
+        "en"
+      ],
+      "language_probs": [
+        {
+          "en": 0.003834059229120612,
+          "gu": 1.5679543707847188e-07,
+          "hi": 0.09811218082904816,
+          "ur": 0.8813229203224182
+        },
+        {
+          "en": 0.9997487664222717,
+          "gu": 5.810562534597219e-12,
+          "hi": 1.725349285663924e-08,
+          "ur": 2.1326030719137634e-08
+        }
+      ],
+      "cut_seconds": 12.816,
+      "metal_peak_bytes": 1519786538,
+      "process_peak_rss_bytes": 735313920
+    }
+  ],
+  "rejected_fused_attention_trial": {
+    "results": [
+      {
+        "case_id": "en-0000:clean",
+        "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+        "metrics": {
+          "reference_words": 15,
+          "word_edits": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "wer": 0.0,
+          "reference_chars": 64,
+          "char_edits": 0,
+          "char_substitutions": 0,
+          "char_deletions": 0,
+          "char_insertions": 0,
+          "cer": 0.0
+        },
+        "ms": 1928.6652080481872,
+        "languages": [
+          "en"
+        ],
+        "language_probs": [
+          {
+            "en": 0.9997114539146423,
+            "gu": 7.519144161471925e-12,
+            "hi": 2.353583994363362e-08,
+            "ur": 3.148592142565576e-08
+          }
+        ],
+        "cut_seconds": null,
+        "metal_peak_bytes": 1259973966,
+        "process_peak_rss_bytes": 410566656
+      },
+      {
+        "case_id": "gu-0000:clean",
+        "text": "તિબેટનો બોદવાદ બોદનાવદેશો પર આધારિચે પરંતો તેનો પરેમના મહાયન પંથ દવારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્તિયો દવારા વિસ્તાર કરવામામામામામામામામયો છે",
+        "metrics": {
+          "reference_words": 24,
+          "word_edits": 16,
+          "substitutions": 13,
+          "deletions": 3,
+          "insertions": 0,
+          "wer": 0.6666666666666666,
+          "reference_chars": 128,
+          "char_edits": 37,
+          "char_substitutions": 16,
+          "char_deletions": 12,
+          "char_insertions": 9,
+          "cer": 0.2890625
+        },
+        "ms": 3928.9329160237685,
+        "languages": [
+          "gu",
+          "gu"
+        ],
+        "language_probs": [
+          {
+            "en": 0.0024353282060474157,
+            "gu": 0.3316711187362671,
+            "hi": 0.1803264319896698,
+            "ur": 0.0005910031031817198
+          },
+          {
+            "en": 0.009545184671878815,
+            "gu": 0.2172473967075348,
+            "hi": 0.4457627534866333,
+            "ur": 0.0011467091972008348
+          }
+        ],
+        "cut_seconds": 4.96,
+        "metal_peak_bytes": 1259973966,
+        "process_peak_rss_bytes": 410566656
+      },
+      {
+        "case_id": "hi-0000:clean",
+        "text": "मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+        "metrics": {
+          "reference_words": 30,
+          "word_edits": 11,
+          "substitutions": 9,
+          "deletions": 0,
+          "insertions": 2,
+          "wer": 0.36666666666666664,
+          "reference_chars": 115,
+          "char_edits": 12,
+          "char_substitutions": 4,
+          "char_deletions": 5,
+          "char_insertions": 3,
+          "cer": 0.10434782608695652
+        },
+        "ms": 1561.1863340018317,
+        "languages": [
+          "hi"
+        ],
+        "language_probs": [
+          {
+            "en": 0.0043542394414544106,
+            "gu": 1.8606841933888063e-07,
+            "hi": 0.1430705040693283,
+            "ur": 0.8362792730331421
+          }
+        ],
+        "cut_seconds": null,
+        "metal_peak_bytes": 1268067418,
+        "process_peak_rss_bytes": 410566656
+      },
+      {
+        "case_id": "gu-0000+en-0000:clean",
+        "text": "તિબેટનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રીમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગતીય દવારા વિસ્તાર કરવામામામાવયો છે When you call someone who is thousands of miles away, you are using a satellite.",
+        "metrics": {
+          "reference_words": 39,
+          "word_edits": 14,
+          "substitutions": 12,
+          "deletions": 2,
+          "insertions": 0,
+          "wer": 0.358974358974359,
+          "reference_chars": 192,
+          "char_edits": 28,
+          "char_substitutions": 16,
+          "char_deletions": 11,
+          "char_insertions": 1,
+          "cer": 0.14583333333333334
+        },
+        "ms": 4630.957790999673,
+        "languages": [
+          "gu",
+          "en"
+        ],
+        "language_probs": [
+          {
+            "en": 0.007284387480467558,
+            "gu": 0.40240225195884705,
+            "hi": 0.16774620115756989,
+            "ur": 0.00041256556869484484
+          },
+          {
+            "en": 0.9997757077217102,
+            "gu": 5.208694586755769e-12,
+            "hi": 1.5049176127490682e-08,
+            "ur": 1.9304657428165228e-08
+          }
+        ],
+        "cut_seconds": 12.544,
+        "metal_peak_bytes": 1268067418,
+        "process_peak_rss_bytes": 410566656
+      },
+      {
+        "case_id": "hi-0000+en-0000:clean",
+        "text": "मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सबजियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+        "metrics": {
+          "reference_words": 45,
+          "word_edits": 12,
+          "substitutions": 10,
+          "deletions": 0,
+          "insertions": 2,
+          "wer": 0.26666666666666666,
+          "reference_chars": 179,
+          "char_edits": 13,
+          "char_substitutions": 4,
+          "char_deletions": 6,
+          "char_insertions": 3,
+          "cer": 0.07262569832402235
+        },
+        "ms": 3221.2503750342876,
+        "languages": [
+          "hi",
+          "en"
+        ],
+        "language_probs": [
+          {
+            "en": 0.005272001028060913,
+            "gu": 3.040459262138029e-07,
+            "hi": 0.22417117655277252,
+            "ur": 0.752459704875946
+          },
+          {
+            "en": 0.9997647404670715,
+            "gu": 5.6099218152805275e-12,
+            "hi": 1.5315885448785593e-08,
+            "ur": 1.9229176473345433e-08
+          }
+        ],
+        "cut_seconds": 12.928,
+        "metal_peak_bytes": 1268067418,
+        "process_peak_rss_bytes": 410566656
+      }
+    ],
+    "decision": "Reduced peak allocator usage but did not improve measured latency or native quality; not adopted. No installed SDK source or model artifacts changed."
+  },
+  "adopted": "Owner-approved mixed-only speech chunks, strongest internal VAD pause, all PCM retained, two-row maximum, one Turbo encoder batch, context script unless English posterior>=0.8, compact completed decoder rows, no second model/fallback/retry. Pure routes unchanged.",
+  "limits": "Only three public source recordings with synthetic perturbations/stitching. Native-language recognition is still weak; no quality gate, microphone, real-time SLO or no-pause code-switch approval.",
+  "final_adapter_smoke": [
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "english_suffix_exact": true,
+      "ms": 6445.487,
+      "metal_peak_bytes": 1511680142,
+      "process_peak_rss_bytes": 552124416
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "english_suffix_exact": true,
+      "ms": 3117.317,
+      "metal_peak_bytes": 1512086050,
+      "process_peak_rss_bytes": 552124416
+    }
+  ]
+}

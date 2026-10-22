@@ -1,7 +1,7 @@
 """One local multilingual ASR decode for Gujarati, Hindi, English and code-mix.
 
-The complete audio goes to the selected Whisper model once. Exact phonetic
-loanwords are canonicalized before the controller; no split or cascade occurs.
+One selected Whisper model receives every audio byte. Mixed turns may use a
+bounded speech batch; exact loanwords are normalized before the controller.
 """
 
 import re
@@ -10,7 +10,7 @@ import unicodedata
 from roma.providers.ai.contracts import STTProvider, STTRequest, STTResult
 from roma.providers.ai.stt import normalize_transcript
 
-ROUTER_VERSION = "whisper-turbo-single-pass-v1"
+ROUTER_VERSION = "whisper-turbo-batched-v2"
 _LOANWORDS = {
     "gu": {
         "અપોઇન્ટમેન્ટ": "appointment",
@@ -93,7 +93,7 @@ class LocalLanguageSTT:
         if base not in {None, "gu", "hi", "en"}:
             raise ValueError("Unsupported local ASR language route")
         result = await self.provider.transcribe(
-            STTRequest(request.audio, request.format, base, request.metadata)
+            STTRequest(request.audio, request.format, base, {**request.metadata, **({"local_language_route": hint} if hint else {})})
         )
         return STTResult(
             normalize_domain_loanwords(result.text, base or result.language or ""),

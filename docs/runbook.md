@@ -432,7 +432,7 @@ Choose new report/run identities for a fresh measurement. Local Indic preflight 
 
 ## Local single-pass code-mix benchmark
 
-Current owner-selected local development ASR is **Whisper large-v3-turbo, MLX 4-bit on Apple Silicon**. IndicConformer model weights are removed. All gu/hi/en/gu-en/hi-en turns use one full selected-model call and exact emitted-loanword normalization; no slicing or second-model cascade. The 15-case run fails multilingual/full-English-suffix quality, so this setup is for development and offline evidence only. Historical `single_pass_local` and `adaptive_local` CLI choices are retired; their reports remain readable/importable.
+Current local development ASR is **Whisper Turbo MLX 4-bit**. After explicit owner approval, mixed routes use at most two complete contiguous speech chunks in one encoder batch; all PCM is retained. Context preserves Gujarati/Hindi script unless English evidence is strong. Pure gu/hi/en decoding stays unchanged. No second ASR model or retry is added. The new run recovers English suffixes but fails native/noisy accuracy and latency gates. `single_pass_local`, `adaptive_local` and whole-turn `whisper_turbo_local` are historical report identities; their executable selections are retired and reports remain importable.
 
 ```bash
 # Installed optional runtime on this Apple Silicon Mac; --inexact preserves other extras.
@@ -440,21 +440,21 @@ uv sync --inexact --locked --extra dev --extra telephony --extra workers --extra
 
 # Offline, unchanged 15 public cases. Pick a fresh output file for a new run.
 HF_HUB_OFFLINE=1 uv run --no-sync python scripts/asr_benchmark.py run \
-  --provider whisper_turbo_local \
+  --provider whisper_turbo_batch_local \
   --local-model-dir var/roma/models/whisper-large-v3-turbo-mlx-4bit \
   --manifest benchmarks/asr/section18/manifest.json \
   --audio-dir var/roma/asr-public \
-  --report var/roma/asr-benchmark/turbo-new.json
+  --report var/roma/asr-benchmark/turbo-batch-new.json
 
 uv run --no-sync python scripts/asr_benchmark.py failures \
-  --report var/roma/asr-benchmark/turbo-new.json \
+  --report var/roma/asr-benchmark/turbo-batch-new.json \
   --manifest benchmarks/asr/section18/manifest.json \
   --audio-dir var/roma/asr-public \
-  --export-dir var/roma/asr-benchmark/failures-turbo-new
+  --export-dir var/roma/asr-benchmark/failures-turbo-batch-new
 
 uv run --no-sync python scripts/save_benchmark.py \
-  --report var/roma/asr-benchmark/turbo-new.json \
-  --run-key section18-whisper-turbo-local-new --allow-database-write
+  --report var/roma/asr-benchmark/turbo-batch-new.json \
+  --run-key section18-whisper-turbo-batch-new --allow-database-write
 ```
 
 The local decoder requires `HF_HUB_OFFLINE=1` and verifies the exact [artifact manifest](../benchmarks/asr/whisper-turbo-mlx-artifacts.json) before loading. Its installed three-file directory is 464,280,053 bytes. `mlx-whisper` 0.4.3 expects `weights.safetensors`; the upstream `model.safetensors` was renamed without changing bytes. A new machine must provision that exact revision/layout before use; inference never downloads weights. Linux/Intel hosts retain mocks or explicit base comparison until a separately measured supported runtime is chosen; do not install MLX there.
@@ -472,6 +472,6 @@ mv var/roma/models/whisper-large-v3-turbo-mlx-4bit/model.safetensors \
 
 Do not rerun that download into the renamed installed directory; the extra source filename would intentionally fail exact-file-set verification. Restore into a fresh directory and validate it. Download authentication uses the HF CLI's private token environment/login; never put token values in commands, committed config or public-Space requests.
 
-Choose fresh report/run keys; never overwrite committed evidence. Local benchmarking forbids `--allow-network`. References and scoring remain unchanged; no injected missing words or transliterated reference creates a pass. Review monolingual, emitted-loanword and full-sentence switching separately. Native dates such as `કાલે`/`कल` remain for context-aware date extraction. The [current evidence](levels/level-04.md#whisper-turbo-replacement--2026-10-21) reports actual accuracy, memory limits and rejected decode settings.
+Choose fresh report/run keys; never overwrite committed evidence. Local benchmarking forbids `--allow-network`. References and scoring remain unchanged; no injected missing words or transliterated reference creates a pass. Review monolingual, emitted-loanword and full-sentence switching separately. Native dates such as `કાલે`/`कल` remain for context-aware date extraction. The [current evidence](levels/level-04.md#single-model-speech-batching--2026-10-21) reports actual accuracy, memory limits and rejected decode settings.
 
-The default section 20 check stays `make voice-prototype`, with scripted ASR through this same one-provider wrapper and no network/hardware/DB writes. A later authorized microphone run must explicitly select `STT_PROVIDER=whisper_mlx`; optional `WHISPER_MLX_MODEL_DIR` changes only the verified local path. `.env` and production defaults remain unchanged. Paid Claude, microphone/native review and the full Level 6 gate remain deferred.
+The default section 20 check stays `make voice-prototype`, with scripted ASR through this same one-provider wrapper (no actual model batching in mock mode) and no network/hardware/DB writes. A later authorized microphone run must explicitly select `STT_PROVIDER=whisper_mlx`; optional `WHISPER_MLX_MODEL_DIR` changes only the verified local path. `.env` and production defaults remain unchanged. Paid Claude, microphone/native review and the full Level 6 gate remain deferred.

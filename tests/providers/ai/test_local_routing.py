@@ -84,7 +84,7 @@ def test_indic_and_mixed_turns_use_one_full_audio_pass(language, base, text, exp
         assert decoder.requests[0].audio is audio
         assert decoder.requests[0].language_hint == base
         assert decoder.requests[0].format == original.format
-        assert decoder.requests[0].metadata == original.metadata
+        assert decoder.requests[0].metadata == {**original.metadata, "local_language_route": language}
     asyncio.run(run())
 
 

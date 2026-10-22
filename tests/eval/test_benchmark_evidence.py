@@ -459,3 +459,18 @@ def test_turbo_evidence_is_separate_from_base_and_keeps_single_decode_settings()
     report["provider_details"]["sample_len"] = 224
     with pytest.raises(ValueError, match="provenance"):
         convert(report)
+
+
+def test_current_batch_report_keeps_distinct_config_and_rejects_changed_chunk_bound():
+    path = Path(__file__).resolve().parents[2] / "benchmarks/asr/section18/whisper-turbo-batch-report.json"
+    report, checksum = read_report(path)
+    evidence = evidence_from_report(report, run_key="batch-regression", report_path=path, report_sha256=checksum)
+    run, models, metrics = _prepare(evidence)
+    assert len(models) == 1 and len(metrics) == 90
+    assert models[0]["provider"] == "mlx-whisper"
+    assert evidence.config["provider_details"]["mixed_batch"]["max_chunks"] == 2
+    encoded = json.dumps(run, default=str)
+    assert report["cases"][0]["reference"] not in encoded
+    report["provider_details"]["mixed_batch"]["max_chunks"] = 3
+    with pytest.raises(ValueError, match="provenance"):
+        convert(report)

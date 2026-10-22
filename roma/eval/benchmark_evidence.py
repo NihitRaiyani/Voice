@@ -94,6 +94,7 @@ def _asr(
         "hf_public_lab",
         "whisper_local",
         "whisper_turbo_local",
+        "whisper_turbo_batch_local",
         "indic_local",
         "adaptive_local",
         "single_pass_local",
@@ -163,19 +164,24 @@ def _asr(
             license_name="MIT",
         )
         _checksum(details["artifact_manifest_sha256"])
-    elif provider == "whisper_turbo_local":
+    elif provider in {"whisper_turbo_local", "whisper_turbo_batch_local"}:
         if (
             report.get("network_calls") is not False
             or details.get("network_calls") is not False
             or details.get("model_name") != "mlx-community/whisper-large-v3-turbo-4bit"
             or details.get("model_revision") != "0f058d38170d183f9fdee07908f5b515d91793a8"
             or details.get("device") != "metal" or details.get("compute_type") != "int4"
-            or details.get("router_version") != "whisper-turbo-single-pass-v1"
+            or details.get("router_version") != ("whisper-turbo-single-pass-v1" if provider == "whisper_turbo_local" else "whisper-turbo-batched-v2")
             or details.get("temperature") != 0 or details.get("sample_len") != 440
             or details.get("condition_on_previous_text") is not False
             or details.get("without_timestamps") is not True
         ):
             raise ValueError("Invalid local Turbo benchmark provenance")
+        if provider == "whisper_turbo_batch_local" and details.get("mixed_batch") != {
+            "max_chunks": 2, "silence_ms": 384, "min_gap_ms": 256, "min_chunk_ms": 1000,
+            "english_probability": 0.8, "preserve_all_pcm": True, "compact_completed_rows": True,
+        }:
+            raise ValueError("Invalid mixed batch provenance")
         local_model = ModelEvidence(
             "mlx-whisper", details["model_name"], details["model_revision"],
             artifact_uri=_endpoint(details["artifact_source"]),
@@ -400,7 +406,7 @@ def _asr(
                     "without_timestamps", "condition_on_previous_text", "cache_limit_bytes",
                     "router_version", "timeout_secs", "runtime_versions", "machine", "network_calls", "setup",
                 )
-                if provider == "whisper_turbo_local"
+                if provider in {"whisper_turbo_local", "whisper_turbo_batch_local"}
                 else (
                     "model_name", "model_revision", "model_sha256", "checksum_scope",
                     "artifact_manifest_sha256", "artifact_source", "device", "compute_type",
@@ -412,6 +418,8 @@ def _asr(
             )
         }
     )
+    if provider == "whisper_turbo_batch_local":
+        safe_details["mixed_batch"] = details["mixed_batch"]
     config = {
         "provider": provider,
         "provider_details": safe_details,

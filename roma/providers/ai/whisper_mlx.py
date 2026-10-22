@@ -9,6 +9,8 @@ import threading
 from pathlib import Path
 
 from roma.providers.ai.contracts import STTRequest, STTResult
+from roma.providers.ai.mlx_batch import decode_batch, speech_chunks
+from roma.providers.ai.silero import SileroFrameProbability
 from roma.providers.ai.stt import (
     _PROJECT,
     Inference,
@@ -50,7 +52,7 @@ def verify_mlx_artifacts(folder: Path) -> dict:
 
 
 class WhisperMLXSTT(_LocalSTT):
-    """One whole-turn multilingual decode; optional MLX import stays lazy."""
+    """One local model with bounded mixed-speech batching; MLX imports stay lazy."""
 
     def __init__(
         self,
@@ -82,16 +84,23 @@ class WhisperMLXSTT(_LocalSTT):
                 "Install the optional mlx-asr runtime on Apple Silicon; no model download is attempted"
             ) from None
 
+        scorer = SileroFrameProbability()
+
         def infer(audio: bytes, language: str | None) -> STTResult:
             if not _NATIVE_SLOT.acquire(blocking=False):
                 raise _STTSetupError("Whisper MLX worker is busy; no queued native inference")
             try:
                 mx.set_cache_limit(256 * 1024 * 1024)
+                mixed = language in {"gu-en", "hi-en"}
+                base = language.split("-")[0] if mixed and language is not None else language
+                parts = speech_chunks(audio, scorer) if mixed else (audio,)
+                if len(parts) == 2:
+                    return STTResult(decode_batch(str(folder.resolve()), parts, base), base)
                 samples = np.frombuffer(audio, dtype="<i2").astype(np.float32) / 32768.0
                 result = mlx_whisper.transcribe(
                     samples,
                     path_or_hf_repo=str(folder.resolve()),
-                    language=language,
+                    language=base,
                     task="transcribe",
                     temperature=0,
                     condition_on_previous_text=False,
@@ -110,4 +119,12 @@ class WhisperMLXSTT(_LocalSTT):
 
     async def transcribe(self, request: STTRequest) -> STTResult:
         _validate_audio(request, self.max_audio_secs)
-        return await self._run(request, _language(request.language_hint, _PROJECT))
+        base = _language(request.language_hint, _PROJECT)
+        route = request.metadata.get("local_language_route")
+        if route is not None and not isinstance(route, str):
+            raise ValueError("Invalid local ASR language route metadata")
+        if route in {"gu-en", "hi-en"}:
+            if route.split("-")[0] != base:
+                raise ValueError("Local ASR route disagrees with its model language hint")
+            return await self._run(request, route)
+        return await self._run(request, base)

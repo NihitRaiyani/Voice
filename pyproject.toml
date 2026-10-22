@@ -40,7 +40,7 @@ indic-asr = [
     "transformers>=4.46,<6",
 ]
 mlx-asr = [
-    "mlx-whisper>=0.4.3,<0.5 ; platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "mlx-whisper==0.4.3 ; platform_machine == 'arm64' and sys_platform == 'darwin'",
 ]
 
 [build-system]

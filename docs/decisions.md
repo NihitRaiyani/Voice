@@ -40,7 +40,9 @@ Current provider policy was replaced explicitly on 2026-10-20. The active rows b
 | A29 | Hosted HF ASR is an explicit lab exception to the local-speech target | `hf_public_lab` uses only declared public benchmark audio, never private caller audio; anonymous defaults remain, with the later user-authorized official Whisper edge authentication exception; Gujarati/Hindi use the selected Indic Space and English the official Whisper Space. The authenticated router is separately selected, with no fallback/retry on 402 or automatic credit purchase/deployment. Three successful public clips prove access, not native quality or a Level 4 pass. |
 | A30 | Historical approved IndicConformer comparison; superseded by A31 | Cache revision `2a77d305038dfc502fd9464e7d028b90381976cb`, keep inference offline, pin custom code/config to that snapshot and retain Whisper for English/comparison. Smoke readiness is not model selection; require matched WER/CER/RTF and native review before a production switch. |
 
-| A31 | Keep approved Whisper Turbo MLX 4-bit and remove Indic model weights | One local development model for all input routes, offline/cache-only with exact loanwords; 15-case execution is not quality approval. Preserve base comparison/TTS/production/Claude; defer paid and microphone tests. |
+| A31 | Keep approved Whisper Turbo MLX 4-bit and remove Indic model weights; whole-turn-only policy superseded by A32 | One local development model for all input routes, offline/cache-only with exact loanwords; 15-case execution is not quality approval. Preserve base comparison/TTS/production/Claude; defer paid and microphone tests. |
+
+| A32 | Allow at most two full-coverage speech chunks in one Turbo batch for mixed turns | Owner-approved relaxation of no-slicing; preserve all PCM, known Indic script and pure-language behavior. One ASR model with compacted decoder rows, no cascade. Native/noisy/latency gates remain pending. |
 
 ## Preserved operational invariants
 
@@ -161,3 +163,9 @@ Propose one pinned local Whisper large-v3-turbo decode for mixed turns, using th
 The owner approved Whisper large-v3-turbo and requested removal of IndicConformer weights. Keep the pinned Apple Silicon MLX 4-bit conversion (464,280,053 bytes); remove the exact Indic cache (2,556,502,929 bytes) and the redundant CPU Turbo trial after hash verification. Preserve shared dependencies, base comparison weights, Indic-TTS, `.env`, Claude, production speech and schema.
 
 Use one whole-turn Turbo decoder plus exact emitted-loanword normalization in the isolated local prototype. Keep mocks by default and inference cache-only. The [15-case evaluation](levels/level-04.md#whisper-turbo-replacement--2026-10-21) completes but fails Gujarati/Hindi and full English-suffix quality; CPU, prompt, timestamp and automatic-language probes do not justify declaring a fix. Retain Turbo only as the owner-selected development baseline. Do not restore the slow cascade or download another model as a hidden fallback. Paid Claude, microphone/native tests and production adoption remain deferred.
+
+## Owner-approved single-model speech batching
+
+The owner explicitly selected “Allow single-model speech-chunk batching”, superseding the earlier no-slicing rule for mixed turns only. Keep the same Turbo 4-bit model, pure-language decoder/settings and production pipeline. Use the strongest natural pause, at most two complete contiguous chunks and one encoder/decoder batch; retain every PCM sample and the known Indic script unless English evidence is strong. Compact finished decoder rows. Do not restore the Indic/Whisper cascade, add a reference prompt or treat a chunk language score as ASR confidence/business authority.
+
+[The 15-case report](levels/level-04.md#single-model-speech-batching--2026-10-21) recovers English output in all mixed cases with five exact suffixes; native/noisy quality and latency remain unapproved. Full-precision Turbo and fused-attention controls were rejected and removed/not adopted. Paid Claude, microphone/native tests, `.env`, TTS, booking, safety, production speech and schema remain unchanged.

@@ -601,7 +601,7 @@ def test_turbo_local_cli_uses_one_pinned_model_and_preserves_mixed_hint(
     monkeypatch.setattr(
         module,
         "local_mlx_details",
-        lambda config: {"model_revision": "a" * 40, "network_calls": False, "router_version": "whisper-turbo-single-pass-v1"},
+        lambda config: {"model_revision": "a" * 40, "network_calls": False, "router_version": "whisper-turbo-batched-v2"},
     )
     monkeypatch.setattr(
         module,
@@ -643,7 +643,7 @@ def test_turbo_local_cli_uses_one_pinned_model_and_preserves_mixed_hint(
     manifest_path, report_path = tmp_path / "manifest.json", tmp_path / "single-pass.json"
     manifest_path.write_text(json.dumps(manifest))
     args = [
-        "run", "--provider", "whisper_turbo_local", "--manifest", str(manifest_path),
+        "run", "--provider", "whisper_turbo_batch_local", "--manifest", str(manifest_path),
         "--audio-dir", str(public_cache), "--report", str(report_path),
     ]
     with pytest.raises(ValueError, match="local-model-dir"):
@@ -653,11 +653,11 @@ def test_turbo_local_cli_uses_one_pinned_model_and_preserves_mixed_hint(
         asyncio.run(module.run(module.parser().parse_args([*args, "--allow-network"])))
     assert asyncio.run(module.run(module.parser().parse_args(args))) == 0
     report = read_json(report_path)
-    assert report["provider"] == "whisper_turbo_local" and report["network_calls"] is False
+    assert report["provider"] == "whisper_turbo_batch_local" and report["network_calls"] is False
     assert {request.language_hint for request in provider.requests} == {
         "gu", "hi", "en", "gu-en", "hi-en"
     }
-    assert report["provider_details"]["router_version"] == "whisper-turbo-single-pass-v1"
+    assert report["provider_details"]["router_version"] == "whisper-turbo-batched-v2"
     assert [kind for kind, _ in constructed] == ["whisper"]
     capsys.readouterr()
 

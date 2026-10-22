@@ -226,3 +226,13 @@ An HF token solves identity, not unlimited inference capacity. Hosted ASR is a u
 **What did we fix in the runtime?** MLX's default 224 generated-token budget cut Gujarati mid-word; the bounded 440-token budget preserves more text. We kept one decoder, transcription mode and exact loanword normalization. An observed `अपाइंटमेंट` variant now maps exactly to `appointment`; missing whole sentences cannot be dictionary-repaired.
 
 **Why MLX 4-bit?** The same approved Turbo model has 464 MB of local artifacts and much faster measured decoding than the CPU INT8 trial on this 8 GiB Mac. Process RSS and Metal allocation may overlap; neither an allocator-cache cap nor disk size proves total-call RAM safety. English-only success and seven synthetic keywords do not pass native/code-mix or the deferred microphone gate. See [measured results](levels/level-04.md#whisper-turbo-replacement--2026-10-21).
+
+## Why single-model speech batching helps
+
+**Why was English missing despite a multilingual model?** The whole-turn decoder emitted end-of-text after the dominant-language sentence even with full audio and spare token budget. Independent features, equalized volume, FP32 computation and full-precision Turbo did not remove that behavior.
+
+**What changed?** After owner approval, only mixed turns may split at a strong VAD pause. We retain every PCM sample and run at most two chunks through one Turbo encoder batch. Context keeps Gujarati/Hindi script; only strong English evidence changes a chunk's decoder token. This prevents the observed automatic Hindi/Urdu script errors without changing conversation-language policy.
+
+**Why compact completed rows?** English may finish far earlier than Gujarati's byte-heavy token sequence. Remove finished rows and their self/cross-attention caches instead of computing padded end tokens. Preserve original order; a one-row cache that keeps index zero still needs slicing from the old two-row batch.
+
+**Is this now accurate and fast enough?** Five of six measured English suffixes are exact; noisy Gujarati–English still errs. Pure Gujarati/Hindi accuracy is unchanged, and mixed median is 3.564 seconds. One model and passing unit tests are not a passed native or voice-latency gate. [Measured evidence](levels/level-04.md#single-model-speech-batching--2026-10-21) retains those limits.

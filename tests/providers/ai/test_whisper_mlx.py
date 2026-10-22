@@ -102,3 +102,32 @@ def test_registry_selects_mlx_lazily_without_loading_runtime(monkeypatch):
     assert isinstance(provider, whisper_mlx.WhisperMLXSTT)
     assert provider._inference is None
     assert provider.model_id.endswith("whisper-large-v3-turbo-mlx-4bit")
+
+
+def test_mixed_route_uses_one_batch_and_preserves_full_audio(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    monkeypatch.setattr(whisper_mlx, "verify_mlx_artifacts", lambda path: {})
+    core = SimpleNamespace(set_cache_limit=lambda n: None, clear_cache=lambda: None)
+    monkeypatch.setitem(sys.modules, "mlx", SimpleNamespace(core=core))
+    monkeypatch.setitem(sys.modules, "mlx.core", core)
+    monkeypatch.setitem(
+        sys.modules,
+        "mlx_whisper",
+        SimpleNamespace(transcribe=lambda *a, **kw: pytest.fail("second ASR decode")),
+    )
+    calls = []
+    monkeypatch.setattr(
+        whisper_mlx, "speech_chunks", lambda pcm, scorer: (pcm[:8000], pcm[8000:])
+    )
+
+    def decode(folder, parts, language):
+        calls.append((parts, language))
+        return "કાલે appointment. Call tomorrow."
+
+    monkeypatch.setattr(whisper_mlx, "decode_batch", decode)
+    original = STTRequest(
+        b"\0\0" * 16000, AudioFormat(16000), "gu", {"local_language_route": "gu-en"}
+    )
+    result = asyncio.run(whisper_mlx.WhisperMLXSTT(model_id=str(tmp_path)).transcribe(original))
+    assert result.text.endswith("Call tomorrow.") and len(calls) == 1
+    assert b"".join(calls[0][0]) == original.audio and calls[0][1] == "gu"
