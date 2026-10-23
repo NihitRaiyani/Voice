@@ -518,3 +518,17 @@ uv run --no-sync python scripts/asr_benchmark.py annotate \
 ```
 
 This command reads JSON text/metadata only. It never loads a model, opens audio, records, fetches or calls a provider. It writes a separate report and refuses to overwrite its inputs. V2 adds `per_speaker` WER/CER edit totals and `per_entity` exact normalized phrase recall (name/date/time/branch). Unicode normalization is shared with existing evaluation; semantic equivalents are not inferred. Failed recordings stay in denominators. V1 report fields remain unchanged, and the existing benchmark runner/section18 manifest are preserved. No new WER model result or gate pass is claimed by tooling tests.
+
+
+## Structured logging (section 21)
+
+The production composition and voice-prototype CLI call `configure_logging()`. Roma stdlib and configured Uvicorn records emit newline-delimited JSON on their handlers. Prototype instructions and final JSON reports remain stdout output. For an entirely offline example:
+
+```bash
+make --silent voice-prototype > "$TMPDIR/roma-prototype-report.json" 2> "$TMPDIR/roma-prototype-events.jsonl"
+jq -c 'select(.event == "turn_completed" or .event == "turn_failed")' "$TMPDIR/roma-prototype-events.jsonl"
+```
+
+Use the `call_id` to follow all attempts, `correlation_id` for the prototype/request scope, and `request_id` plus `turn_id` for one attempt. HTTP/WebSocket accept headers return fresh server-generated request/correlation IDs. Incoming IDs are ignored; use these response IDs when reporting an error. Null call/turn/stage fields are normal outside a call. An ASR-rejected attempt has its own `turn_id` without advancing the conversation controller.
+
+Check `event`, `level`, stage timings and the shared safe `error_code`; do not enable transcript/exception dumps to diagnose failures. Legacy messages are omitted and represented as `legacy_log`; add a reviewed event and explicit safe metadata when extending operational coverage. Do not use phone numbers, lead tokens, prompts, raw transcripts, slot values or paths as IDs. SDKs using independent sinks may require their own configuration; this increment does not claim that every third-party diagnostic is a Roma JSON event. [Level 6](levels/level-06.md#section-21--structured-logging) owns implementation details and limitations.

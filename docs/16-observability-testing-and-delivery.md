@@ -1,10 +1,12 @@
 # Observability, testing and delivery
 
-**Present:** timing/cost logs, offline evaluations and database/worker integration test sources. **Pending:** production tracing/metrics dashboards, SQL analytics integration, real local-model capacity/chaos reports, CI hardening and full deployment packaging.
+**Present:** [Section 21 JSON logging](levels/level-06.md#section-21--structured-logging) with scoped request/call/turn IDs, voice-stage events, timing/cost evidence, offline evaluations and database/worker integration tests. **Pending:** production tracing/metrics dashboards, SQL analytics integration, real local-model capacity/chaos reports, CI hardening and full deployment packaging.
 
 ## Measurement design
 
 Start with a question: which call/turn/stage failed, where time was spent, what retried, what effect committed and what resource saturated? Use PII-safe correlation and stable event names. Do not use phone numbers/transcripts/tokens as trace or metric labels.
+
+The shared logger serializes approved metadata only; arbitrary messages and tracebacks become `legacy_log` without free-form content. Prototype stdout reports remain CLI output, while operational events use JSON on stderr. The [runbook](runbook.md#structured-logging-section-21) explains how to follow one call.
 
 Measure endpoint/ASR/extraction/LLM first token/TTS first audio, conditional retrieval/fallback, end-to-end response, queues, event-loop lag, database pools, Redis, GPU, safety, job attempts and normalized carrier/hardware costs. SQL outcomes must reconcile with durable records.
 

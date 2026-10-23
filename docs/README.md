@@ -14,12 +14,12 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 3 | [Transactional booking](levels/level-03.md) | Offline controller/commit/restore/conflict verified; English TEST ONLY microphone booking/SQL restore recorded; full acceptance remains separate |
 | 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–18 implemented; waveform-padding repair and 15-case rerun recorded; Turbo retained, full-v3 cache retired; native/noisy quality and latency gates pending |
 | 5 | [Local TTS](levels/level-05.md) | Section 19 local Indic-TTS: 18 general and 24 approved-line cases passed; native approval pending |
-| 6 | [Local voice prototype](levels/level-06.md) | Four language-labelled local Claude/TTS checks and real TEST ONLY booking/SQL restore recorded; formal native/representative/latency acceptance pending |
+| 6 | [Local voice prototype](levels/level-06.md) | Section 21 JSON request/call/turn logging added; four language-labelled local checks and TEST ONLY booking/restore recorded; formal acceptance pending |
 | 7 | [Real-time reliability](levels/level-07.md) | Cloud seams; local-stack gate pending |
 | 8 | [Secure jobs/access](levels/level-08.md) | Signed answer/durable jobs present; full gate pending |
 | 9 | [Governed retrieval](levels/level-09.md) | Planned |
 | 10 | [Telephony/model serving](levels/level-10.md) | Twilio cloud baseline; local integration planned |
-| 11 | [Observability/analytics](levels/level-11.md) | Basic logs; full telemetry planned |
+| 11 | [Observability/analytics](levels/level-11.md) | Structured logging foundation; full telemetry planned |
 | 12 | [Evaluation/capacity](levels/level-12.md) | Offline foundation; production report pending |
 | 13 | [Container deployment](levels/level-13.md) | Pre-v4 infrastructure only; full packaging planned |
 | 14 | [Optional optimization](levels/level-14.md) | No experiment selected |

@@ -1,6 +1,6 @@
 # Verification and acceptance evidence
 
-Current repair verification: **2,935 passed / 22 existing warnings** in each final offline suite. [ASR/consent/live delivery evidence](#asr-padding-and-deterministic-consent-repair--2026-10-22) records the exact isolated commands and distinguishes real microphone/SQL proof from remaining native/latency approval.
+Current section 21 verification: **2,953 passed / 22 existing warnings** in each final offline suite. [Structured logging evidence](#section-21-structured-logging) records the current checks. Historical ASR/consent repair verification passed **2,935 tests** per suite. [ASR/consent/live delivery evidence](#asr-padding-and-deterministic-consent-repair--2026-10-22) records the exact isolated commands and distinguishes real microphone/SQL proof from remaining native/latency approval.
 
 Current source/provider policy changed on 2026-10-20: [Claude roadmap](roadmaps/README.md) and Claude Haiku 5.5 replace OpenAI. Dated checks, model names, counts and former source hashes below remain historical evidence; they do not prove Claude quality/cost/latency. No OpenAI requests or fallback are permitted. Native/representative and complete voice gates remain pending.
 
@@ -473,3 +473,18 @@ The CI invocation reuses the explicit service/schema preparation: a fresh dispos
 The root ASR repair passed both suites at **2,921** before the live follow-up exposed natural-consent handling; final **2,935** includes the additional safety/commit cases. Existing provider timeout, fallback and spend caps remain unchanged. New explicit readback consent avoids a paid extraction call. The voice adapter reports ₹0.31 across the supervised attempts, separate from the ₹0.06 smoke; these are adapter usage records rather than an invoice. No model downloads or cascades ran. Turbo artifacts reverified unchanged; only the approved full-v3 cache was removed. Disposable demo PostgreSQL/Redis were removed after evidence collection. No audio/transcripts, working-DB mutation, `.env` edit, migration change, production-provider change or section 21 implementation occurred. Formal native scoring, representative ASR quality and acceptable end-to-end voice latency remain pending; no gate passes.
 
 Markdown verification after synchronization: **87 files / 605 local links and anchors passed**; `git diff --check` is clean.
+
+
+## Section 21 structured logging
+
+Test-first coverage in `tests/core/test_structured_logging.py` and `tests/services/test_voice_prototype.py` checks JSON shape/privacy, untrusted metadata rejection, concurrency and nested-context cleanup, HTTP/WebSocket IDs, request exceptions/cancellation, independently handled Uvicorn privacy, two-turn tracing, stage failures and current LLM stage/language. The initial focused run failed to import the absent formatter/context API. Follow-up tests caught missing cancellation metadata and stale pre-controller LLM stages before those were fixed. A Uvicorn fixture initially omitted required synthetic settings; it was corrected without changing application settings.
+
+The focused logging/prototype/error-compatibility run passed **87 tests**. The first full CI run exposed three test-order failures because in-process Alembic disables existing loggers; event-log tests now restore their own logger state, and startup re-enables the owned event logger. A separate failing-before/passing-after subprocess test proves the mock CLI works without a `.env` file or provider credentials: logging now has its own optional settings profile instead of requiring the full provider settings. Final **2026-10-23** verification passed:
+
+- `make -o services-up -o db-upgrade ci`: Ruff clean, mypy clean on 82 source files, **2,953 tests passed / 22 existing dependency deprecation warnings** (97.50 s).
+- `make test`: **2,953 passed / the same 22 warnings** (97.36 s); no failures or skips.
+- Before CI, `make db-upgrade` applied all existing migrations to a fresh native disposable PostgreSQL database. That server was stopped before the suites; the two Make prerequisites were deliberately bypassed to avoid starting/upgrading the working `roma` services. Integration fixtures created their own disposable databases. No migration file changed.
+- `make --silent voice-prototype`: four synthetic paths, **38 valid JSON log records**, four correlated completed turns, no microphone/network/download activity. A subprocess test separately verifies startup from a clean directory without `.env` or provider credentials.
+- Markdown check: **87 files / 615 local links and anchors**, zero issues. `git diff --check` is clean.
+
+These are local checks; no GitHub Actions run or paid/live acceptance is claimed. All providers/devices are fake; no paid API, microphone, download, model changes or working `roma` access is involved. This verifies structured operational logging, not native voice readiness or Level 11 telemetry.

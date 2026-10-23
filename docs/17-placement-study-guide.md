@@ -236,3 +236,14 @@ An HF token solves identity, not unlimited inference capacity. Hosted ASR is a u
 **Why compact completed rows?** English may finish far earlier than Gujarati's byte-heavy token sequence. Remove finished rows and their self/cross-attention caches instead of computing padded end tokens. Preserve original order; a one-row cache that keeps index zero still needs slicing from the old two-row batch.
 
 **Is this now accurate and fast enough?** Five of six measured English suffixes are exact; noisy Gujarati–English still errs. Pure Gujarati/Hindi accuracy is unchanged, and mixed median is 3.564 seconds. One model and passing unit tests are not a passed native or voice-latency gate. [Measured evidence](levels/level-04.md#single-model-speech-batching--2026-10-21) retains those limits.
+
+
+## Level 6 section 21 explanation
+
+**Why JSON instead of print debugging?** Stable event names and typed metadata let a tool filter one call, order its attempts and identify the failing stage. `VoicePrototype` emits stage timings; stdout reports remain a CLI interface. One LLM timing aggregates extraction/generation, not TTFT.
+
+**Why four IDs?** Call ID joins a call to existing records; correlation ID groups the prototype's attempts; request ID distinguishes one attempt or HTTP/WebSocket request; turn ID orders attempts even when ASR rejects one. These are operational identifiers, never phone numbers. Server-generated response headers give API clients safe IDs to quote.
+
+**Why ContextVars?** Two async calls interleave on one thread. A process-global ID would mix them; task-local scopes inherit into child tasks and reset after errors/cancellation. Tests drive two concurrent calls and two real orchestration turns with fake providers.
+
+**Why omit free text?** Secret replacement cannot identify every caller name or transcript. Only reviewed fields/events and the shared error codes enter JSON; arbitrary messages, extras and tracebacks are omitted. Older records become metadata-only `legacy_log`. Logging setup loads only optional logging settings, so mock runs need no provider credentials. [Level 6](levels/level-06.md#section-21--structured-logging) records the contract and remaining gates.

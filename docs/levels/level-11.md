@@ -1,6 +1,6 @@
 # Level 11 — Observability and analytics
 
-**Roadmap sections:** 45–48. **Status:** Basic logs/model foundations present; full telemetry/analytics planned.
+**Roadmap sections:** 45–48. **Status:** Section 21 structured logs/model foundations present; full telemetry/analytics planned.
 
 ## Entry gate
 
@@ -14,7 +14,7 @@ Normalize carrier/Claude-token/GPU/resource usage and costs with explicit units;
 
 ## Existing reuse in Voice_Agent
 
-Timing/cost logs, call status, durable lifecycle/job records and usage/cost model foundations.
+[Section 21 JSON events and correlation](level-06.md#section-21--structured-logging), timing/cost evidence, call status, durable lifecycle/job records and usage/cost model foundations.
 
 ## Acceptance gate
 

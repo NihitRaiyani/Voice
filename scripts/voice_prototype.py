@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from roma.core.claude_llm_settings import ClaudeLLMSettings  # noqa: E402
+from roma.core.logging import configure_logging  # noqa: E402
 from roma.core.migration_settings import MigrationSettings  # noqa: E402
 from roma.core.speech_settings import SpeechSettings  # noqa: E402
 from roma.core.tokenizer import require_nltk_data  # noqa: E402
@@ -338,6 +339,7 @@ def main():
     args = parser().parse_args()
     try:
         require_nltk_data()
+        configure_logging()
         if args.mode == "mock":
             print(json.dumps(asyncio.run(mock_lab()), ensure_ascii=False, indent=2))
         else:

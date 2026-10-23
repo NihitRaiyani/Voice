@@ -12,7 +12,7 @@ from redis.asyncio import Redis
 from roma.api.v1.calls import mount_web_api
 from roma.core.config import get_settings, require_reachable_base_url
 from roma.core.database import Database
-from roma.core.logging import configure_logging
+from roma.core.logging import RequestLogMiddleware, configure_logging
 from roma.core.tokenizer import require_nltk_data
 from roma.realtime.pipeline import build_media_app
 from roma.repositories.postgres.booking import PostgresBookingStore
@@ -64,6 +64,7 @@ def create_app() -> FastAPI:
         if database
         else UnavailableSafetyEventStore(),
     )
+    app.add_middleware(RequestLogMiddleware)
     app.state.booking_service = booking
     mount_web_api(app, session_factory=database.session_factory if database else None)
     return app

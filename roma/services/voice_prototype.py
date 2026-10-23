@@ -5,7 +5,9 @@ import math
 from dataclasses import dataclass
 from datetime import datetime
 from time import perf_counter
+from uuid import uuid4
 
+from roma.core.logging import LogEvent, log_context, log_event, update_log_context
 from roma.core.voice_errors import VoiceErrorCode, VoiceFailure, map_voice_error
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.audio.turn_budget import TurnBudget
@@ -30,6 +32,7 @@ class VoicePrototype:
         self.state, self.conversation, self.synthesis = state, conversation, synthesis
         self.speaker, self.store, self.clock = speaker, store, clock
         self.budget = budget or TurnBudget()
+        self.correlation_id = uuid4().hex
         self.attempt = 0
         self._busy = False
         self._started = clock()
@@ -39,8 +42,12 @@ class VoicePrototype:
         remaining = 300 - (self.clock() - self._started)
         if remaining <= 0:
             raise RuntimeError("Voice session reached its five-minute limit")
-        async with asyncio.timeout(remaining):
-            return await self._respond(transcript, input_timings)
+        with log_context(call_id=self.state.call_sid, correlation_id=self.correlation_id,
+                         request_id=uuid4().hex, turn_id=self.attempt + 1,
+                         stage=self.state.stage.value,
+                         language=self.state.language_router.current.value):
+            async with asyncio.timeout(remaining):
+                return await self._respond(transcript, input_timings)
 
     async def _respond(self, transcript, input_timings=None):
         if self._busy or self._poisoned:
@@ -73,6 +80,10 @@ class VoicePrototype:
             "status": "received",
             "error_code": None,
         }
+        log_event(LogEvent.TURN_STARTED)
+        log_event(LogEvent.ASR_COMPLETED, latency_ms=transcript.asr_ms,
+                  error_code=map_voice_error(transcript.error, stage=VoiceErrorCode.ASR).value
+                  if transcript.error or not transcript.text.strip() else None)
         stage = VoiceErrorCode.DB
         try:
             # Durable receipt before business mutation; no session spans any inference.
@@ -108,6 +119,13 @@ class VoicePrototype:
                 caller=transcript.text,
                 agent=trace.final_response,
             )
+            update_log_context(stage=record["stage"], language=record["language"])
+            if timings["llm_ms"] > 0:
+                llm_failed = trace.provider_error and map_voice_error(trace.provider_error) == VoiceErrorCode.LLM
+                log_event(LogEvent.LLM_FAILED if llm_failed else LogEvent.LLM_COMPLETED,
+                          latency_ms=timings["llm_ms"],
+                          error_code=VoiceErrorCode.LLM.value if llm_failed else None)
+            log_event(LogEvent.CONTROLLER_COMPLETED, latency_ms=timings["routing_controller_ms"])
             stage = VoiceErrorCode.TTS
             spoken = render_voice_line(trace.final_response, self.state)
             tick = self.clock()
@@ -120,6 +138,9 @@ class VoicePrototype:
             timings["safety_tts_cache_ms"] = (self.clock() - tick) * 1000
             timings["safety_ms"] = controller_safety_ms + speech.safety_normalization_ms
             timings["tts_ms"] = max(0.0, timings["safety_tts_cache_ms"] - speech.safety_normalization_ms)
+            log_event(LogEvent.SAFETY_COMPLETED, latency_ms=timings["safety_ms"],
+                      error_code=None if speech.audit_ok else VoiceErrorCode.SAFETY.value)
+            log_event(LogEvent.TTS_COMPLETED, latency_ms=timings["tts_ms"])
             timings["tts_inference_ms"] = speech.synthesis_ms
             timings["audio_ms"] = speech.result.duration_ms or 0
             timings["safety_normalization_ms"] = speech.safety_normalization_ms
@@ -142,6 +163,7 @@ class VoicePrototype:
                 if transcript.speech_end_at is not None:
                     timings["speech_to_first_audio_ms"] = max(0.0, (first_write - transcript.speech_end_at) * 1000)
             timings["playback_ms"] = (self.clock() - tick) * 1000
+            log_event(LogEvent.PLAYBACK_COMPLETED, latency_ms=timings["playback_ms"])
             status = "played"
             return VoiceTurnResult(
                 self.attempt, status, record["stage"], record["language"], timings, error, self.budget.evaluate(timings)
@@ -162,8 +184,11 @@ class VoicePrototype:
                 await self.store.save(self.state.call_sid, record)
             except Exception:  # noqa: BLE001 -- database failure must stop this session.
                 self._poisoned = True
+                status, error = "failed", VoiceErrorCode.DB.value
                 raise VoiceFailure(VoiceErrorCode.DB) from None
             finally:
+                log_event(LogEvent.TURN_COMPLETED if status == "played" else LogEvent.TURN_FAILED,
+                          latency_ms=timings["response_total_ms"], error_code=error, status=status)
                 self._busy = False
 
 

@@ -454,3 +454,89 @@ def test_single_pass_speech_reaches_controller_safety_and_speaker(
         assert {"asr_ms", "llm_ms", "routing_controller_ms", "safety_normalization_ms", "playback_ms"} <= outcome.timings.keys()
 
     asyncio.run(run())
+
+
+def test_operational_events_correlate_two_turns_and_do_not_log_transcripts(caplog, monkeypatch):
+    import json
+    import logging
+
+    from roma.core.logging import JsonFormatter
+    monkeypatch.setattr(logging.getLogger("roma.events"), "disabled", False)
+    caplog.set_level(logging.INFO, logger="roma.events")
+    async def run():
+        voice = setup()
+        await voice.respond(transcript("fees 50000"))
+        await voice.respond(transcript("fees 50000"))
+    asyncio.run(run())
+    rows = [json.loads(JsonFormatter().format(r)) for r in caplog.records
+            if getattr(r, "event", None) is not None]
+    completed = [r for r in rows if r["event"] == "turn_completed"]
+    assert [r["turn_id"] for r in completed] == [1, 2]
+    assert len({r["correlation_id"] for r in completed}) == 1
+    assert completed[0]["correlation_id"] is not None
+    assert len({r["request_id"] for r in completed}) == 2
+    assert all(r["call_id"] == "voice-lab-test" for r in rows)
+    for event in ("asr_completed", "controller_completed", "safety_completed", "tts_completed",
+                  "playback_completed", "turn_started", "turn_completed"):
+        assert sum(r["event"] == event for r in rows) == 2
+    assert all("fees 50000" not in v for row in rows for v in row.values() if isinstance(v, str))
+    assert all(r["language"] in {"hi", "gu", "en", "hi-en", "gu-en"} for r in rows)
+
+
+def test_failed_voice_turn_logs_fixed_error_with_context(caplog, monkeypatch):
+    import json
+    import logging
+
+    from roma.core.logging import JsonFormatter
+    monkeypatch.setattr(logging.getLogger("roma.events"), "disabled", False)
+    caplog.set_level(logging.INFO, logger="roma.events")
+    class Broken(Speaker):
+        async def play(self, result):
+            raise OSError("private +919876543210")
+    async def run():
+        with pytest.raises(RuntimeError):
+            await setup(speaker=Broken()).respond(transcript())
+    asyncio.run(run())
+    rows = [json.loads(JsonFormatter().format(r)) for r in caplog.records]
+    failed = [r for r in rows if r["event"] == "turn_failed"]
+    assert len(failed) == 1 and failed[0]["error_code"] == "DEVICE"
+    assert failed[0]["turn_id"] == 1 and failed[0]["level"] == "ERROR"
+    assert "private" not in json.dumps(rows)
+
+
+def test_llm_event_uses_completed_controller_stage_and_language(caplog, monkeypatch):
+    import json
+    import logging
+
+    from roma.core.logging import JsonFormatter
+    monkeypatch.setattr(logging.getLogger("roma.events"), "disabled", False)
+    caplog.set_level(logging.INFO, logger="roma.events")
+    async def run():
+        voice = setup()
+        result = await voice.respond(transcript())
+        return result
+    result = asyncio.run(run())
+    rows = [json.loads(JsonFormatter().format(r)) for r in caplog.records]
+    llm = [r for r in rows if r["event"] == "llm_completed"]
+    assert len(llm) == 1
+    assert llm[0]["stage"] == result.stage
+    assert llm[0]["language"] is not None
+
+
+def test_mock_cli_logging_needs_no_provider_credentials_or_env_file(tmp_path):
+    import json
+    import os
+    import subprocess
+    import sys
+    root = Path(__file__).resolve().parents[2]
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/voice_prototype.py"), "--mode", "mock"],
+        cwd=tmp_path, capture_output=True, text=True, timeout=30,
+        env={"PATH": os.environ["PATH"], "NLTK_DATA": str(root / "var/roma/nltk_data"),
+             "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"},
+    )
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert len(report["cases"]) == 4 and not report["network_calls"]
+    events = [json.loads(line) for line in result.stderr.splitlines()]
+    assert sum(row["event"] == "turn_completed" for row in events) == 4

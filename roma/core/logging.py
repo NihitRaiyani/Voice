@@ -4,11 +4,23 @@ RedactionFilter is defense-in-depth: even if a secret value is accidentally
 logged, it is scrubbed from the record before emission.
 """
 
+import asyncio
+import json
 import logging
+import math
 import re
+from contextlib import contextmanager
 from contextvars import ContextVar
+from datetime import UTC, datetime
+from enum import StrEnum
+from time import perf_counter
+from uuid import uuid4
 
-from roma.core.config import Settings, get_settings
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from roma.core.config import Settings
+from roma.core.voice_errors import VoiceErrorCode
 
 _REDACTED = "***REDACTED***"
 
@@ -99,7 +111,24 @@ class CallSidFilter(logging.Filter):
         return True
 
 
-def _secret_values(settings: Settings):
+class _LoggingSettings(BaseSettings):
+    """Logging can start without configuring or requiring any provider client."""
+
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore",
+        env_ignore_empty=True, hide_input_in_errors=True,
+    )
+    log_level: str = "INFO"
+    twilio_account_sid: SecretStr = SecretStr("")
+    twilio_auth_token: SecretStr = SecretStr("")
+    twilio_from_number: SecretStr = SecretStr("")
+    sarvam_api_key: SecretStr = SecretStr("")
+    openai_api_key: SecretStr = SecretStr("")
+    anthropic_api_key: SecretStr = SecretStr("")
+    redis_url: SecretStr = SecretStr("")
+
+
+def _secret_values(settings: Settings | _LoggingSettings):
     """Every value that must never appear in a log line (CLAUDE.md gate 2, docs/07)."""
     return [
         settings.twilio_account_sid.get_secret_value(),
@@ -131,8 +160,10 @@ def _attach_to_uvicorn(*filters: logging.Filter) -> None:
 
 def configure_logging(settings: Settings | None = None) -> None:
     """Install a root handler that redacts known secrets. Call once at start."""
-    settings = settings or get_settings()
+    settings = settings or _LoggingSettings()
+    logging.getLogger("roma.events").disabled = False
     handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
     redaction = RedactionFilter(_secret_values(settings))
     handler.addFilter(redaction)
     handler.addFilter(LeadTokenFilter())
@@ -141,10 +172,12 @@ def configure_logging(settings: Settings | None = None) -> None:
     # this, so these stick. Both filters: uvicorn.access logs URLs, and a URL is exactly
     # where a credential ends up.
     _attach_to_uvicorn(redaction, LeadTokenFilter())
+    for name in _UVICORN_LOGGERS:
+        for existing_handler in logging.getLogger(name).handlers:
+            existing_handler.setFormatter(JsonFormatter())
     logging.basicConfig(
         level=settings.log_level.upper(),
         handlers=[handler],
-        format="%(asctime)s %(levelname)s %(name)s [%(call_sid)s] %(message)s",
         force=True,
     )
     if redaction.skipped_short:
@@ -154,3 +187,155 @@ def configure_logging(settings: Settings | None = None) -> None:
             redaction.skipped_short,
             _MIN_SECRET_LEN,
         )
+
+
+class LogEvent(StrEnum):
+    """Reviewed operational vocabulary; never derive an event from caller text."""
+
+    REQUEST_COMPLETED = "request_completed"
+    REQUEST_FAILED = "request_failed"
+    TURN_STARTED = "turn_started"
+    ASR_COMPLETED = "asr_completed"
+    CONTROLLER_COMPLETED = "controller_completed"
+    LLM_COMPLETED = "llm_completed"
+    LLM_FAILED = "llm_failed"
+    SAFETY_COMPLETED = "safety_completed"
+    TTS_COMPLETED = "tts_completed"
+    PLAYBACK_COMPLETED = "playback_completed"
+    TURN_COMPLETED = "turn_completed"
+    TURN_FAILED = "turn_failed"
+
+
+_log_context: ContextVar[dict | None] = ContextVar("structured_log_context", default=None)
+_CONTEXT_FIELDS = ("correlation_id", "request_id", "call_id", "turn_id", "stage", "language")
+_STAGES = {"open", "discover", "value", "structure", "pivot", "objection", "close"}
+_LANGUAGES = {"gu", "hi", "en", "gu-en", "hi-en", "gujarati", "hindi", "english",
+              "gujarati_english", "hindi_english"}
+_ERROR_CODES = {code.value for code in VoiceErrorCode}
+_ID = re.compile(r"(?:CALL-[0-9]+|[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\Z")
+_CALL_ID = re.compile(r"(?:CA[A-Za-z0-9_]{1,64}|CALL-[0-9]+|voice-lab-[A-Za-z0-9-]{1,64})\Z")
+
+
+def _context_value(key, value):
+    if key == "turn_id":
+        return value if type(value) is int and 1 <= value <= 1000000 else None
+    if not isinstance(value, str):
+        return None
+    if key == "stage":
+        return value if value in _STAGES else None
+    if key == "language":
+        value = value.lower()
+        return {"gujarati": "gu", "hindi": "hi", "english": "en",
+                "gujarati_english": "gu-en", "hindi_english": "hi-en"}.get(value, value) if value in _LANGUAGES else None
+    pattern = _CALL_ID if key == "call_id" else _ID
+    return value if pattern.fullmatch(value) else None
+
+
+def update_log_context(**values):
+    """Update only reviewed metadata; enclosing log_context restores the prior scope."""
+    context = dict(_log_context.get() or {})
+    for key, value in values.items():
+        if key in _CONTEXT_FIELDS:
+            context[key] = _context_value(key, value)
+    _log_context.set(context)
+
+
+@contextmanager
+def log_context(**values):
+    """Task-local correlation, restored even on cancellation or a nested failure."""
+    token = _log_context.set(dict(_log_context.get() or {}))
+    sid_token = current_call_sid.set(current_call_sid.get())
+    try:
+        update_log_context(**values)
+        if "call_id" in values:
+            current_call_sid.set((_log_context.get() or {}).get("call_id"))
+        yield
+    finally:
+        current_call_sid.reset(sid_token)
+        _log_context.reset(token)
+
+
+class JsonFormatter(logging.Formatter):
+    """One JSON object per record. Arbitrary messages/extras/tracebacks are never emitted.
+
+    Old module loggers remain usable and correlated as legacy_log. Their free-form
+    messages can include transcripts; structured events replace those diagnostics.
+    Redaction filters remain installed for handlers outside this JSON boundary.
+    """
+
+    def format(self, record):
+        context = getattr(record, "roma_context", (_log_context.get() or {}))
+        row = {"timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(),
+               "level": record.levelname}
+        for key in _CONTEXT_FIELDS:
+            value = context.get(key)
+            if key == "call_id" and value is None:
+                value = current_call_sid.get()
+            row[key] = _context_value(key, value)
+        event = getattr(record, "event", None)
+        row["event"] = event.value if isinstance(event, LogEvent) else "legacy_log"
+        latency = getattr(record, "latency_ms", None)
+        row["latency_ms"] = latency if type(latency) in (int, float) and math.isfinite(latency) and latency >= 0 else None
+        code = getattr(record, "error_code", None)
+        if isinstance(code, str) and code in _ERROR_CODES:
+            row["error_code"] = code
+        status = getattr(record, "status", None)
+        if isinstance(status, str) and status in ("played", "failed", "received"):
+            row["status"] = status
+        status_code = getattr(record, "status_code", None)
+        if type(status_code) is int and 100 <= status_code <= 599:
+            row["status_code"] = status_code
+        return json.dumps(row, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
+
+
+def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None, status_code=None):
+    if not isinstance(event, LogEvent):
+        raise ValueError("Use a reviewed LogEvent")
+    failed = event in {LogEvent.REQUEST_FAILED, LogEvent.TURN_FAILED, LogEvent.LLM_FAILED}
+    logging.getLogger("roma.events").log(
+        logging.ERROR if failed else logging.INFO, event.value,
+        extra={"event": event, "roma_context": dict(_log_context.get() or {}),
+               "latency_ms": latency_ms, "error_code": error_code,
+               "status": status, "status_code": status_code},
+    )
+
+
+class RequestLogMiddleware:
+    """Pure ASGI middleware: streaming/WS safe, no body, query, path or auth inspection.
+
+    Server-generated IDs avoid reflecting client PII. The request correlation is
+    inherited by child tasks; voice calls also have their own stable correlation.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] not in ("http", "websocket"):
+            return await self.app(scope, receive, send)
+        request_id, correlation_id = uuid4().hex, uuid4().hex
+        status = None
+        started = perf_counter()
+        async def correlated_send(message):
+            nonlocal status
+            if message["type"] in ("http.response.start", "websocket.accept"):
+                message = dict(message)
+                headers = [(k, v) for k, v in message.get("headers", [])
+                           if k.lower() not in (b"x-request-id", b"x-correlation-id")]
+                headers.extend([(b"x-request-id", request_id.encode()),
+                                (b"x-correlation-id", correlation_id.encode())])
+                message["headers"] = headers
+                status = message.get("status", 101)
+            await send(message)
+        with log_context(request_id=request_id, correlation_id=correlation_id):
+            try:
+                await self.app(scope, receive, correlated_send)
+            except BaseException as exc:
+                log_event(LogEvent.REQUEST_FAILED, latency_ms=(perf_counter() - started) * 1000,
+                          error_code=VoiceErrorCode.CANCELLED.value
+                          if isinstance(exc, asyncio.CancelledError) else None,
+                          status_code=500 if status is None else status)
+                raise
+            else:
+                log_event(LogEvent.REQUEST_COMPLETED, latency_ms=(perf_counter() - started) * 1000,
+                          status_code=status)

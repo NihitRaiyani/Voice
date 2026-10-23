@@ -21,6 +21,7 @@
     "tests/core/test_migration_settings.py",
     "tests/core/test_openai_llm_settings.py",
     "tests/core/test_speech_settings.py",
+    "tests/core/test_structured_logging.py",
     "tests/core/test_tokenizer_setup.py",
     "tests/core/test_tts_settings.py",
     "tests/domain/appointments/test_calendar.py",

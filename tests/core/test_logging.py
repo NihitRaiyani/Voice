@@ -56,7 +56,11 @@ def test_configured_logging_redacts_all_twilio_credentials(capsys):
     assert account_sid not in output
     assert auth_token not in output
     assert from_number not in output
-    assert output.count("***REDACTED***") == 3
+    # Section 21 omits unreviewed free-form messages entirely, beyond redaction.
+    import json
+    row = json.loads(output.splitlines()[-1])
+    assert row["event"] == "legacy_log"
+    assert "message" not in row
 
 
 def test_redaction_filter_ignores_empty_secrets():

@@ -2,13 +2,13 @@
 
 ## Current readiness
 
-The owner resumed bounded paid Claude and supervised microphone checks on 2026-10-22. English, Hindi, Gujarati and a mixed-input trial played replies with local Turbo/Indic-TTS; the owner reported **“All four were clear and relevant.”** A natural-consent defect was reproduced and repaired, and a real English consent produced one confirmed TEST ONLY appointment with correct SQL restore. [Live evidence and remaining limits](#supervised-claude-and-booking-follow-up--2026-10-22) supersede earlier deferral statements for this bounded follow-up. Formal native scores, representative recognition and acceptable voice latency remain pending; no full gate passes. Section 21 remains outside this increment.
+The owner resumed bounded paid Claude and supervised microphone checks on 2026-10-22. English, Hindi, Gujarati and a mixed-input trial played replies with local Turbo/Indic-TTS; the owner reported **“All four were clear and relevant.”** A natural-consent defect was reproduced and repaired, and a real English consent produced one confirmed TEST ONLY appointment with correct SQL restore. [Live evidence and remaining limits](#supervised-claude-and-booking-follow-up--2026-10-22) supersede earlier deferral statements for this bounded follow-up. Formal native scores, representative recognition and acceptable voice latency remain pending; no full gate passes. [Section 21 structured logging](#section-21--structured-logging) is now implemented and verified offline.
 
 The half-duplex prototype uses **Whisper Turbo 4-bit MLX** for current local development ASR; IndicConformer ASR weights were removed. Earlier base/Indic installation and English microphone results below are historical evidence, not approval of the current complete voice experience. No gate is marked passed.
 
 Setup now validates repo-local `punkt_tab` before tests, app startup and prototype startup. Prototype errors use the shared ASR/TTS/DB/DEVICE/CAPTURE/LLM/SAFETY/BOOKING-DATA categories. Phase 2 adds a shared turn policy, continuation grace, deadline flushing and audio-structure batch eligibility. Phase 3 adds batch-row rejection, explicit turn timing, optional unset budgets and disposable booking-data tooling. Phase 4 adds metadata/scoring tooling; representative audio collection, real-model timing and native acceptance remain pending. Those phases deferred paid/microphone tests; the owner subsequently resumed the bounded follow-up below. Formal native-speaker scoring remains pending; the production Twilio/Sarvam path is unchanged.
 
-**Roadmap sections:** 20–21. **Status:** Section 20 integration is verified offline, with supervised English/Hindi/Gujarati/mixed-input Claude/local-TTS checks and one committed TEST ONLY microphone booking plus SQL restore. Formal native/representative and voice latency approval remain pending. Section 21 is not implemented by this increment.
+**Roadmap sections:** 20–21. **Status:** Section 20 integration is verified offline, with supervised English/Hindi/Gujarati/mixed-input Claude/local-TTS checks and one committed TEST ONLY microphone booking plus SQL restore. Formal native/representative and voice latency approval remain pending. Section 21 adds scoped JSON events and request/call/turn correlation; offline verification is recorded below.
 
 ## Entry gate
 
@@ -167,3 +167,27 @@ The report contains **15 attempts: 13 played, 12 played without an error code, t
 English/Hindi/Gujarati ASR request times in the language checks were about **1.40 / 1.55 / 1.50 s**; mixed input **2.77 s**. Speech-end to first speaker write was about **14.16 / 14.65 / 13.63 / 15.25 s**, respectively, dominated by cold synthesis of new lines. Cached readbacks took tens of milliseconds. The mixed trial's observed router label was **ENGLISH**; owner relevance/clarity approval does not prove verbatim code-switch retention or route classification. These are prepared-state functional checks rather than a new full discovery journey or a representative corpus. Numeric native-speaker scores were not supplied, so the existing 40-case/native rubric remains pending.
 
 Only TEST ONLY demo data was used: seven calls, 13 logical turns, 42 events, one appointment, zero stored transcripts. The working `roma` database, production Twilio/Sarvam, `.env`, Claude model/settings and TTS implementation remain unchanged. The newly authorized cache retirement and ASR padding fix are owned by [Level 4](level-04.md#waveform-padding-repair-and-model-retirement--2026-10-22). No new section or gate is marked passed.
+
+
+## Section 21 — Structured logging
+
+The existing stdlib logger now emits one JSON object per record, without a new dependency. Its optional logging-only settings read secret values for redaction without requiring provider credentials or constructing clients. `roma/core/logging.py` owns the event vocabulary, formatter, context and ASGI request middleware; `roma/main.py` installs the middleware and `scripts/voice_prototype.py` configures the same logger. `VoicePrototype` emits correlated operational events, retaining the existing stdout CLI reports and headphone instructions as user-facing output.
+
+| Field | Meaning |
+|---|---|
+| `timestamp`, `level`, `event` | UTC ISO-8601 emission time, severity and a reviewed snake_case event name |
+| `correlation_id` | Stable, server-generated ID for one prototype instance; request-scoped for HTTP/WebSocket |
+| `request_id` | New server-generated ID per HTTP/WebSocket connection or prototype turn attempt |
+| `call_id` | Existing provider/lab call identity; never a caller phone number |
+| `turn_id` | Prototype attempt number, including rejected ASR attempts; accepted controller `turn_count` remains separate |
+| `stage`, `language` | Code-owned conversation stage and normalized `gu`, `hi`, `en`, `gu-en` or `hi-en` route |
+| `latency_ms` | Finite, nonnegative elapsed stage time; null for events without a measurement |
+| `error_code`, `status`, `status_code` | Optional reviewed voice error enum, prototype outcome or HTTP status |
+
+Events: `request_completed`, `request_failed`, `turn_started`, `asr_completed`, `controller_completed`, `llm_completed`, `llm_failed`, `safety_completed`, `tts_completed`, `playback_completed`, `turn_completed`, `turn_failed`. The LLM event measures aggregate extraction/generation time for that turn, when an inference was attempted; it is not model TTFT. A played safe fallback may have `turn_completed` plus an `error_code`; completion is not a claim that the provider or a quality gate passed. Safety timing includes the existing controller and final speech checks. ASR completion is logged from the received transcript's measured ASR duration; it does not invoke ASR again.
+
+ContextVars isolate concurrent calls and restore outer context on failures/cancellation. Child tasks inherit the scope. HTTP and WebSocket accept responses include `X-Request-ID` and `X-Correlation-ID`; caller-supplied header values are not trusted or reflected. A call ID remains the join key across separate carrier requests. Request completion latency measures the request/connection lifetime, rather than model latency.
+
+Only approved metadata is serialized. Caller/agent text, prompts, names, dates/slot values, phones, credentials, raw exceptions, paths, query strings and arbitrary extras are omitted. Existing redaction filters remain installed, including Uvicorn's independently handled logs. Unconverted free-form records become `legacy_log` with available context and severity; their messages/tracebacks are intentionally not emitted. Third-party SDKs with independent logging sinks are outside the stdlib formatter contract. No transcript retention, durable event schema, provider, model, booking, safety policy, half-duplex behavior or working database is changed.
+
+Offline verification: **2,953 tests passed** in both the isolated CI invocation and full test suite, with 22 existing warnings; Ruff/mypy and 615 local Markdown links passed. The mock CLI emitted 38 valid JSON records for four synthetic paths. See [Section 21 verification](../12-verification.md#section-21-structured-logging). This increment does not pass the outstanding Level 6 native, representative-ASR or voice-latency gates, and does not implement Level 11 tracing/dashboards.
