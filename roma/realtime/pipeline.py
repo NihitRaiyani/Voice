@@ -77,6 +77,7 @@ from roma.api.v1.health import mount_health_route
 from roma.api.v1.twilio_webhooks import mount_answer_route
 from roma.core.config import get_settings
 from roma.core.logging import RedactionFilter, current_call_sid
+from roma.core.voice_errors import VoiceFailure
 from roma.domain.calls import consent_signed_off
 from roma.domain.conversation import CallState, ConversationStage
 from roma.domain.conversation.prompts import (
@@ -131,6 +132,12 @@ from roma.repositories.redis.conversation_state import RedisCallStateStore
 from roma.repositories.redis.leads import RedisLeadStore
 from roma.repositories.redis.opener_audio import OpenerStore
 from roma.repositories.redis.postcall_queue import RedisPostcallQueue
+from roma.services.live_call_state import (
+    CheckpointMilestone,
+    CheckpointSafetyEventStore,
+    checkpoint_milestone,
+    save_checkpoint,
+)
 from roma.services.safety_service import SafetyService
 from roma.workers.postcall.job import PostcallJob, outcome_for
 from roma.workers.postcall.paths import job_spool_dir, media_dir, spend_ledger_path
@@ -274,6 +281,34 @@ def sole_call(app) -> "CallHandles | None":
     return next(iter(calls.values())) if len(calls) == 1 else None
 
 
+async def _restore_call_state(store, call_sid, *, seed, booking_factory=None):
+    """Restore/checkpoint before media starts; failed startup releases call ownership."""
+    booking_session = None
+    try:
+        state = None
+        if call_sid:
+            try:
+                state = await store.load(call_sid)
+            except VoiceFailure:
+                raise  # Never replace unreadable durable truth with a fresh state.
+            except Exception:  # noqa: BLE001 -- legacy Redis-only restore stays best-effort.
+                _log.warning("call-state load failed; starting fresh")
+        if state is None:
+            state = CallState(call_sid=call_sid or "", **seed)
+        if booking_factory is not None:
+            booking_session = booking_factory(state)
+            await booking_session.restore()
+        await checkpoint_milestone(store, state, CheckpointMilestone.CALL_STARTED)
+        return state, booking_session
+    except BaseException:
+        for resource in (booking_session, store):
+            close = getattr(resource, "aclose", None)
+            if close is not None:
+                with contextlib.suppress(Exception):
+                    await close()
+        raise
+
+
 async def finalize_call(
     *,
     state,
@@ -313,7 +348,7 @@ async def finalize_call(
             _log.warning("recording close failed")
 
     try:
-        await store.save(state)
+        await save_checkpoint(store, state, CheckpointMilestone.CALL_ENDED)
     except Exception:  # noqa: BLE001
         _log.warning("final call-state save failed")
 
@@ -1239,12 +1274,6 @@ def build_media_app(
         opening_guard = OpeningTurnGuard(opener_is_raw_audio=posture.opener_is_raw_audio)
         noise_gate = NoiseGate()
 
-        recorder = capture = None
-        queue = build_queue_fn(settings)
-        if settings.recording_enabled:
-            recorder = build_recorder(settings, call_sid or stream_sid)
-            capture = attach_recorder(recorder)
-
         store = build_store_fn(settings)
         lead = await _load_triggered_lead(app, lead_token)
         caller_digest = None
@@ -1255,29 +1284,23 @@ def build_media_app(
                 )
             except ValueError:
                 _log.warning("outbound lead identity could not be linked to durable storage")
-        state = None
-        if call_sid:
-            try:
-                state = await store.load(call_sid)
-            except Exception:  # noqa: BLE001 - resume is best-effort; never block the call
-                _log.warning("call-state load failed; starting fresh")
-        if state is None:
-            # The dynamic variables from the trigger, if this call was one we placed. Only on
-            # a FRESH state: a resumed call already carries what it learned, and re-seeding
-            # would overwrite a name the lead corrected mid-call with the one the CRM had.
-            seed = dict(DEFAULT_LEAD)
-            if lead is not None:
-                seed.update(lead.as_state_seed())
-                _log.info(
-                    "outbound lead attached: segment=%s named=%s",
-                    lead.segment or "-",
-                    bool(lead.lead_name),
-                )
-            state = CallState(call_sid=call_sid or "", **seed)
+        seed = dict(DEFAULT_LEAD)
+        if lead is not None:
+            seed.update(lead.as_state_seed())
+        try:
+            state, booking_session = await _restore_call_state(
+                store, call_sid, seed=seed, booking_factory=booking_factory,
+            )
+        except VoiceFailure:
+            _log.warning("durable call-state unavailable; closing media stream")
+            await websocket.close(code=1011)
+            return
 
-        booking_session = booking_factory(state) if booking_factory is not None else None
-        if booking_session is not None:
-            await booking_session.restore()
+        recorder = capture = None
+        queue = build_queue_fn(settings)
+        if settings.recording_enabled:
+            recorder = build_recorder(settings, call_sid or stream_sid)
+            capture = attach_recorder(recorder)
 
         context = LLMContext(
             messages=[
@@ -1296,6 +1319,8 @@ def build_media_app(
             ledger=SpendLedger(spend_ledger_path(settings)), call_sid=call_sid,
         )
         safety = SafetyService(safety_store)
+        if getattr(store, "checkpoint", None) is not None:
+            safety.store = CheckpointSafetyEventStore(safety.store, store, state)
         stage_ctrl = StageControllerProcessor(
             state,
             safety=safety,

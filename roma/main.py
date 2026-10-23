@@ -16,11 +16,15 @@ from roma.core.logging import RequestLogMiddleware, configure_logging
 from roma.core.tokenizer import require_nltk_data
 from roma.realtime.pipeline import build_media_app
 from roma.repositories.postgres.booking import PostgresBookingStore
+from roma.repositories.postgres.conversation_state import PostgresConversationStateStore
 from roma.repositories.postgres.safety import PostgresSafetyEventStore
 from roma.repositories.postgres.webhooks import WebhookRepository
 from roma.repositories.redis.appointment_holds import RedisAppointmentHolds
+from roma.repositories.redis.call_lease import RedisCallLease
+from roma.repositories.redis.conversation_state import RedisCallStateStore
 from roma.services.booking_service import BookingService
 from roma.services.booking_session import BookingSession
+from roma.services.live_call_state import LiveCallStateStore
 from roma.services.safety_service import UnavailableSafetyEventStore
 from roma.services.webhook_service import WebhookService
 
@@ -43,6 +47,16 @@ def create_app() -> FastAPI:
         redis_timeout=settings.booking_redis_timeout_secs,
     )
 
+    def build_call_store(call_settings):
+        hot = RedisCallStateStore(call_settings.redis_url.get_secret_value())
+        if database is None:
+            return hot
+        return LiveCallStateStore(
+            hot,
+            PostgresConversationStateStore(database.session_factory),
+            lease_factory=lambda sid: RedisCallLease(redis, sid),
+        )
+
     @asynccontextmanager
     async def lifespan(_app):
         try:
@@ -57,6 +71,7 @@ def create_app() -> FastAPI:
     service = WebhookService(WebhookRepository(database.session_factory)) if database else None
     app = build_media_app(
         auto_hang_up=True,
+        build_store_fn=build_call_store,
         webhook_service=service,
         lifespan=lifespan,
         booking_factory=lambda state: BookingSession(booking, state),

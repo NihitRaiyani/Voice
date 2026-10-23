@@ -84,6 +84,8 @@ files = [
     "roma/core/cpu_worker.py",
     "roma/services/streaming_text.py",
     "roma/services/streaming_voice.py",
+    "roma/services/live_call_state.py",
+    "roma/repositories/redis/call_lease.py",
     "roma/services/voice_pronunciation.py",
     "roma/providers/audio",
     "roma/repositories/postgres/voice_lab.py",

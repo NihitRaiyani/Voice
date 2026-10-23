@@ -29,3 +29,7 @@ L1 introduces the expanded quality/CI skeleton; L12 adds security scans, migrati
 Existing database/Redis Compose predates v4 and does not complete L13. Native-service startup remains the foundation-learning path. Roadmap latency/event-loop/packet-loss numbers are provisional and transport-specific. Agree SLO/error-budget policy after measurements; recurring misses prioritize reliability.
 
 See [verification](12-verification.md), [L11](levels/level-11.md), [L12](levels/level-12.md), [L13](levels/level-13.md) and [runbook](runbook.md).
+
+## Section 24 checkpoint signals
+
+Reviewed JSON events add `checkpoint_completed`, `checkpoint_failed` and `state_cache_failed`. Failure events use ERROR. The finite nonnegative metric allowlist is checkpoints, failures, retries, redis_failures, recoveries, pending and lag_ms; transcripts, slot values, Redis keys/tokens, database URLs and arbitrary extras are omitted. Completed checkpoint latency includes its awaited milestone work; no numeric SLO is asserted. Existing queue and turn metrics remain separate. [Level 7](levels/level-07.md#section-24-live-state-and-supervised-checkpoints) defines the supervised retry and recovery contract.

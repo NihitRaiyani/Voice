@@ -88,8 +88,13 @@ class BookingSession:
             except BookingError as exc:
                 if exc.code == "APPOINTMENT_SLOT_UNAVAILABLE":
                     continue
-                raise
-            self._leases[key] = owner
+                if exc.code != "HOLD_UNAVAILABLE":
+                    raise
+                # Redis is advisory: SQL can offer a time without claiming a lease.
+                if not await self.service.available(key):
+                    continue
+            else:
+                self._leases[key] = owner
             keep.add(key)
             result.append(datetime.combine(key.appointment_date, key.start_time, IST))
             if len(result) >= count:
@@ -107,8 +112,12 @@ class BookingSession:
         except BookingError as exc:
             if exc.code == "APPOINTMENT_SLOT_UNAVAILABLE":
                 return False
-            raise
-        self._leases[key] = owner
+            if exc.code != "HOLD_UNAVAILABLE":
+                raise
+            if not await self.service.available(key):
+                return False
+        else:
+            self._leases[key] = owner
         await self._release_except({key})
         return True
 
@@ -128,7 +137,9 @@ class BookingSession:
             created_at=now,
             updated_at=now,
         )
-        saved = await self.service.confirm(record, owner=self._leases.get(key))
+        # A timed-out acquire may have committed its lease before losing the reply.
+        owner = self._leases.get(key, HoldOwner(call.id, self._token))
+        saved = await self.service.confirm(record, owner=owner)
         await self.aclose()
         return str(saved.id)
 

@@ -192,6 +192,9 @@ def configure_logging(settings: Settings | None = None) -> None:
 class LogEvent(StrEnum):
     """Reviewed operational vocabulary; never derive an event from caller text."""
 
+    CHECKPOINT_COMPLETED = "checkpoint_completed"
+    CHECKPOINT_FAILED = "checkpoint_failed"
+    STATE_CACHE_FAILED = "state_cache_failed"
     STREAM_FALLBACK = "stream_fallback"
     QUEUE_SUMMARY = "queue_summary"
     TURN_INTERRUPTED = "turn_interrupted"
@@ -290,6 +293,11 @@ class JsonFormatter(logging.Formatter):
         if type(status_code) is int and 100 <= status_code <= 599:
             row["status_code"] = status_code
         queue_name = getattr(record, "queue_name", None)
+        checkpoint_metrics = getattr(record, "checkpoint_metrics", None)
+        if isinstance(checkpoint_metrics, dict):
+            row["checkpoint"] = {key: value for key, value in checkpoint_metrics.items()
+                                 if key in {"checkpoints", "failures", "retries", "redis_failures", "recoveries", "pending", "lag_ms"}
+                                 and type(value) in (int, float) and math.isfinite(value) and value >= 0}
         queue_metrics = getattr(record, "queue_metrics", None)
         if isinstance(queue_name, str) and queue_name in {"audio_in", "partials", "finals", "tokens", "chunks", "safe_chunks", "tts_text", "tts_audio"} and isinstance(queue_metrics, dict):
             row["queue_name"] = queue_name
@@ -299,16 +307,16 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(row, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
 
 
-def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None, status_code=None, queue_name=None, queue_metrics=None):
+def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None, status_code=None, queue_name=None, queue_metrics=None, checkpoint_metrics=None):
     if not isinstance(event, LogEvent):
         raise ValueError("Use a reviewed LogEvent")
-    failed = event in {LogEvent.REQUEST_FAILED, LogEvent.TURN_FAILED, LogEvent.LLM_FAILED}
+    failed = event in {LogEvent.CHECKPOINT_FAILED, LogEvent.STATE_CACHE_FAILED, LogEvent.REQUEST_FAILED, LogEvent.TURN_FAILED, LogEvent.LLM_FAILED}
     logging.getLogger("roma.events").log(
         logging.ERROR if failed else logging.INFO, event.value,
         extra={"event": event, "roma_context": dict(_log_context.get() or {}),
                "latency_ms": latency_ms, "error_code": error_code,
                "status": status, "status_code": status_code,
-               "queue_name": queue_name, "queue_metrics": queue_metrics},
+               "queue_name": queue_name, "queue_metrics": queue_metrics, "checkpoint_metrics": checkpoint_metrics},
     )
 
 

@@ -8,6 +8,7 @@ guarantees below could be tested at all.
 
 import asyncio
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
 import pytest
 from roma.domain.conversation.state import CallState
@@ -264,3 +265,16 @@ def test_recording_can_be_switched_off_entirely():
     assert Settings.model_fields["recording_enabled"].default is True
     assert Settings.model_fields["recording_retention_days"].default == 90
     assert Settings.model_fields["roma_data_dir"].default == "var/roma"
+
+
+def test_finalize_records_explicit_call_ended_milestone_without_duplicate_save():
+    from types import SimpleNamespace
+
+    from roma.services.live_call_state import CheckpointMilestone
+
+    store = SimpleNamespace(checkpoint=AsyncMock(), save=AsyncMock(), aclose=AsyncMock())
+    state = _state()
+    assert _finalize(state=state, store=store) == "skipped"
+    store.checkpoint.assert_awaited_once_with(state, CheckpointMilestone.CALL_ENDED)
+    store.save.assert_not_awaited()
+    store.aclose.assert_awaited_once()

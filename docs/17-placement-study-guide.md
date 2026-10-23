@@ -258,3 +258,11 @@ An HF token solves identity, not unlimited inference capacity. Hosted ASR is a u
 **Why a process worker?** Pure-Python resampling/scans can hold the GIL. Shared bounded processes keep the WebSocket loop coordinating I/O; cancelling an await must not release a still-running job's lease. Models stay behind their existing providers/runtime boundaries, not in every CPU process.
 
 **What does barge-in cancel?** Only the current response task, never the worker waiting for the next final transcript. Minimum sustained speech avoids brief cough/noise cuts. Invalidate delivery, cancel/flush, join then clear output; disconnect also releases resources and writes its exact event. A failed clear still runs cleanup. Late-result ownership tests are core cancellation tests; advanced epoch tests wait for the core gate. See [Level 7](levels/level-07.md).
+
+## Level 7 section 24 explanation
+
+- **Why both Redis and PostgreSQL?** Redis serves expiring live state; SQL retains committed milestones and booking truth.
+- **Why await checkpoint writes?** Failures/retries/lag remain supervised, and a delayed older retry cannot overwrite newer state.
+- **What happens after a worker crashes?** Its token lease expires; a new owner restores SQL stage/slots and rebuilds Redis. Uncommitted in-progress work can be lost.
+- **Why can booking continue when a hold fails?** A hold is advisory. Fresh SQL availability guides offers, and the short SQL transaction/unique constraint decides confirmation. Foreign ownership still conflicts.
+- **Is event replay implemented?** No. Redis Streams and crash-window replay wait for the core gate.

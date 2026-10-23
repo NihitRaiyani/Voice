@@ -159,7 +159,7 @@ class PhraseCache:
             client = redis_asyncio.from_url(redis_url, decode_responses=False)
             try:
                 for key, pcm in self._clips.items():
-                    await client.set(f"roma:phrase:{key}", pcm)
+                    await client.set(f"roma:phrase:{key}", pcm, ex=3600)
             finally:
                 await client.aclose()
             _log.info("phrase cache mirrored to redis (%d clip(s))", len(self._clips))

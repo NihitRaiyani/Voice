@@ -152,7 +152,8 @@ def test_acceptance_timeout_is_retryable(monkeypatch):
     asyncio.run(run())
 
 
-def test_production_composition_wires_service_and_closes_database(monkeypatch):
+@pytest.mark.parametrize("with_database", [True, False])
+def test_production_composition_wires_service_and_closes_database(monkeypatch, with_database):
     import roma.main as module
 
     database = SimpleNamespace(session_factory=object(), close=AsyncMock())
@@ -162,7 +163,7 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch):
         module,
         "get_settings",
         lambda: SimpleNamespace(
-            database_url=SecretStr("postgresql+asyncpg://unused"),
+            database_url=SecretStr("postgresql+asyncpg://unused" if with_database else ""),
             redis_url=SecretStr("redis://unused"),
             booking_hold_ttl_secs=90,
             booking_db_timeout_secs=3,
@@ -171,7 +172,7 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch):
     )
     monkeypatch.setattr(module.Database, "from_settings", lambda _settings: database)
     redis = SimpleNamespace(aclose=AsyncMock())
-    monkeypatch.setattr(module.Redis, "from_url", lambda _url: redis)
+    monkeypatch.setattr(module.Redis, "from_url", lambda _url, **_kwargs: redis)
     mounted = {}
 
     def mount_web_api(app, *, session_factory=None):
@@ -191,14 +192,38 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch):
         booking_session = kwargs["booking_factory"](state)
         assert isinstance(booking_session, BookingSession) and booking_session.state is state
         app.state.test_booking = booking_session.service
+        from roma.repositories.postgres.conversation_state import PostgresConversationStateStore
+        from roma.repositories.redis.call_lease import RedisCallLease
+        from roma.repositories.redis.conversation_state import RedisCallStateStore
+        from roma.services.live_call_state import LiveCallStateStore
+
+        factory = kwargs["build_store_fn"]
+        settings = module.get_settings()
+        first, second = factory(settings), factory(settings)
+        assert first is not second
+        if not with_database:
+            assert isinstance(first, RedisCallStateStore)
+            return app
+        assert isinstance(first, LiveCallStateStore)
+        assert isinstance(first.hot, RedisCallStateStore)
+        assert isinstance(first.durable, PostgresConversationStateStore)
+        assert first.durable._session_factory is database.session_factory
+        lease = first.lease_factory("synthetic")
+        assert isinstance(lease, RedisCallLease) and lease._client is redis
         return app
 
     monkeypatch.setattr(module, "build_media_app", build_app)
     with TestClient(module.create_app()) as client:
-        assert isinstance(client.app.state.webhook_service, WebhookService)
-        assert mounted == {"app": client.app, "session_factory": database.session_factory}
+        if with_database:
+            assert isinstance(client.app.state.webhook_service, WebhookService)
+        else:
+            assert client.app.state.webhook_service is None
+        assert mounted == {"app": client.app, "session_factory": database.session_factory if with_database else None}
         assert client.app.state.test_booking is client.app.state.booking_service
         database.close.assert_not_awaited()
         redis.aclose.assert_not_awaited()
-    database.close.assert_awaited_once()
+    if with_database:
+        database.close.assert_awaited_once()
+    else:
+        database.close.assert_not_awaited()
     redis.aclose.assert_awaited_once()

@@ -282,3 +282,67 @@ def test_building_the_app_without_configured_logging_says_so(monkeypatch, capsys
     finally:
         root.handlers = saved
         get_settings.cache_clear()
+
+
+def test_restore_call_checkpoints_start_after_booking_restore():
+    from unittest.mock import AsyncMock
+
+    from roma.domain.conversation.state import CallState
+    from roma.realtime.pipeline import _restore_call_state
+    from roma.services.live_call_state import CheckpointMilestone
+
+    async def run():
+        state = CallState(call_sid="CA-start", city="Synthetic")
+        order = []
+        async def restore():
+            order.append("booking")
+        async def checkpoint(saved, milestone):
+            assert saved is state and milestone == CheckpointMilestone.CALL_STARTED
+            order.append("start")
+        store = SimpleNamespace(load=AsyncMock(return_value=state), checkpoint=checkpoint,
+                                aclose=AsyncMock())
+        booking = SimpleNamespace(restore=restore, aclose=AsyncMock())
+        restored, session = await _restore_call_state(store, "CA-start", seed={},
+                                                    booking_factory=lambda _: booking)
+        assert restored is state and session is booking and order == ["booking", "start"]
+        store.aclose.assert_not_awaited()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("failure_at", ["load", "start"])
+def test_checkpoint_start_failure_is_not_fresh_state_and_closes_owned_resources(failure_at):
+    from unittest.mock import AsyncMock
+
+    from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
+    from roma.realtime.pipeline import _restore_call_state
+
+    async def run():
+        store = SimpleNamespace(load=AsyncMock(return_value=None), checkpoint=AsyncMock(),
+                                aclose=AsyncMock())
+        booking = SimpleNamespace(restore=AsyncMock(), aclose=AsyncMock())
+        getattr(store, "load" if failure_at == "load" else "checkpoint").side_effect = VoiceFailure(VoiceErrorCode.DB)
+        factory_calls = []
+        def factory(state):
+            factory_calls.append(state)
+            return booking
+        with pytest.raises(VoiceFailure):
+            await _restore_call_state(store, "CA-start", seed={}, booking_factory=factory)
+        store.aclose.assert_awaited_once()
+        if failure_at == "load":
+            assert not factory_calls
+        else:
+            booking.aclose.assert_awaited_once()
+    asyncio.run(run())
+
+
+def test_legacy_restore_still_starts_fresh_when_redis_is_unavailable():
+    from unittest.mock import AsyncMock
+
+    from roma.realtime.pipeline import _restore_call_state
+
+    async def run():
+        store = SimpleNamespace(load=AsyncMock(side_effect=OSError("offline")), aclose=AsyncMock())
+        state, booking = await _restore_call_state(store, "CA-legacy", seed={"city": "Synthetic"})
+        assert state.city == "Synthetic" and booking is None
+        store.aclose.assert_not_awaited()
+    asyncio.run(run())

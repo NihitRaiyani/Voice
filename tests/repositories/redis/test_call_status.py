@@ -242,10 +242,50 @@ def test_an_unreachable_counter_fails_open():
     from roma.repositories.redis.call_status import HourlyDialCap
 
     class _Broken:
-        async def incr(self, key):
+        def pipeline(self, *, transaction):
             raise RuntimeError("redis is down")
 
     async def run():
         return await HourlyDialCap(client=_Broken(), limit=5).take()
 
     assert asyncio.run(run()) is True
+
+
+def test_counter_response_loss_never_leaves_an_immortal_bucket():
+    from roma.repositories.redis.call_status import HourlyDialCap, hour_key
+
+    async def run():
+        client = _client()
+        original_incr = client.incr
+
+        async def lost_response(key):
+            await original_incr(key)
+            raise asyncio.CancelledError
+
+        client.incr = lost_response
+        await asyncio.gather(
+            HourlyDialCap(client=client, limit=5).take(360000),
+            return_exceptions=True,
+        )
+        assert await client.ttl(hour_key(360000)) > 0
+
+    asyncio.run(run())
+
+
+def test_counter_retries_preserve_expiry_and_repair_a_missing_expiry():
+    from roma.repositories.redis.call_status import HourlyDialCap, hour_key
+
+    async def run():
+        client = _client()
+        cap = HourlyDialCap(client=client, limit=5)
+        key = hour_key(360000)
+        assert await cap.take(360000)
+        await client.expire(key, 10)
+        assert await cap.take(360000)
+        assert 0 < await client.ttl(key) <= 10
+        await client.persist(key)
+        assert await cap.take(360000)
+        assert 0 < await client.ttl(key) <= 3600
+        assert int(await client.get(key)) == 3
+
+    asyncio.run(run())

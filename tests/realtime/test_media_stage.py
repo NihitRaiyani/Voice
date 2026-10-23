@@ -5,7 +5,10 @@ message) leaves the seeded open prompt untouched. Driven via Pipecat's run_test 
 
 import asyncio
 from datetime import datetime
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
+import pytest
 from pipecat.frames.frames import LLMContextFrame, LLMUpdateSettingsFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.tests.utils import run_test
@@ -94,3 +97,94 @@ def test_user_message_left_intact_only_system_is_swapped():
     _run(proc, ctx)
     users = [m for m in ctx.get_messages() if m["role"] == "user"]
     assert users and users[-1]["content"] == "haan ji"
+
+
+def test_completed_turn_is_checkpointed_before_wording_settings_are_forwarded():
+    from roma.services.live_call_state import CheckpointMilestone
+
+    async def run():
+        state = CallState(call_sid="CA-checkpoint", stage="open")
+        observed = []
+        async def checkpoint(saved, milestone):
+            assert saved.turn_count == 1 and saved.stage == "discover"
+            observed.append(milestone)
+        store = SimpleNamespace(save=AsyncMock(), checkpoint=checkpoint)
+        proc = StageControllerProcessor(state, store=store, now_fn=lambda: NOW)
+        async def push(frame, direction):
+            assert observed == [CheckpointMilestone.TURN_COMPLETED]
+        proc.push_frame = push
+        await proc._drive(LLMContextFrame(_ctx("open", "haan ji")))
+        assert observed == [CheckpointMilestone.TURN_COMPLETED]
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("failure_at", ["advance", "checkpoint"])
+def test_checkpoint_voice_failure_cannot_continue_to_wording(monkeypatch, failure_at):
+    from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
+    from roma.realtime import stage_controller as module
+
+    async def run():
+        state = CallState(call_sid="CA-checkpoint", stage="open")
+        store = SimpleNamespace(save=AsyncMock(), checkpoint=AsyncMock())
+        if failure_at == "advance":
+            monkeypatch.setattr(module, "advance_turn", AsyncMock(side_effect=VoiceFailure(VoiceErrorCode.DB)))
+        else:
+            store.checkpoint.side_effect = VoiceFailure(VoiceErrorCode.DB)
+        proc = StageControllerProcessor(state, store=store, now_fn=lambda: NOW)
+        proc.push_frame = AsyncMock()
+        with pytest.raises(VoiceFailure):
+            await proc._drive(LLMContextFrame(_ctx("open", "haan ji")))
+        proc.push_frame.assert_not_awaited()
+    asyncio.run(run())
+
+
+def test_repeated_context_cannot_bypass_a_failed_checkpoint_or_advance_twice():
+    from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
+
+    async def run():
+        state = CallState(call_sid="CA-checkpoint-repeat", stage="open")
+        store = SimpleNamespace(save=AsyncMock(), checkpoint=AsyncMock(side_effect=VoiceFailure(VoiceErrorCode.DB)))
+        proc = StageControllerProcessor(state, store=store, now_fn=lambda: NOW)
+        proc.push_frame = AsyncMock()
+        frame = LLMContextFrame(_ctx("open", "haan ji"))
+        for _ in range(2):
+            with pytest.raises(VoiceFailure):
+                await proc._drive(frame)
+        assert state.turn_count == 1 and state.stage == "discover"
+        assert store.checkpoint.await_count == 2
+        proc.push_frame.assert_not_awaited()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("win", [False, True])
+def test_identical_context_recovery_finishes_prompt_settings_and_win_without_readvance(monkeypatch, win):
+    from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
+    from roma.realtime import stage_controller as module
+
+    async def run():
+        state = CallState(call_sid="CA-checkpoint-recovery", stage="open")
+        store = SimpleNamespace(save=AsyncMock(), checkpoint=AsyncMock(side_effect=[VoiceFailure(VoiceErrorCode.DB), None]))
+        if win:
+            async def advance(*args, **kwargs):
+                state.stage = module.ConversationStage.CLOSE
+                state.turn_count += 1
+                return SimpleNamespace(win=True)
+            driver = AsyncMock(side_effect=advance)
+        else:
+            driver = AsyncMock(wraps=module.advance_turn)
+        monkeypatch.setattr(module, "advance_turn", driver)
+        proc = StageControllerProcessor(state, store=store, now_fn=lambda: NOW)
+        proc.push_frame = AsyncMock()
+        context = _ctx("open", "haan ji")
+        frame = LLMContextFrame(context)
+        with pytest.raises(VoiceFailure):
+            await proc._drive(frame)
+        assert "STAGE: OPEN" in _system(context)
+        await proc._drive(frame)
+        expected = "close" if win else "discover"
+        assert f"STAGE: {expected.upper()}" in _system(context)
+        driver.assert_awaited_once()
+        assert state.turn_count == 1 and proc.won is win
+        proc.push_frame.assert_awaited_once()
+        assert proc.push_frame.await_args.args[0].delta.max_tokens == stage_max_tokens(expected)
+    asyncio.run(run())

@@ -15,7 +15,7 @@ context before the mutation lands (docs/03).
 
 The opening turn (an `LLMRunFrame` with no user message yet) carries no user text, so the
 controller leaves the seeded open prompt + open max_tokens untouched. Any error inside the turn
-logic is swallowed — Roma still speaks the prior stage's prompt (the guardrail always gates
+logic is swallowed, except coordinator persistence failures — Roma otherwise speaks the prior stage's prompt (the guardrail always gates
 the actual line); a controller bug must never drop the call.
 """
 
@@ -39,6 +39,7 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.settings import LLMSettings
 
+from roma.core.voice_errors import VoiceFailure
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.confirmguard import SAFE_SIGNOFF_LINE, lead_wants_out
 from roma.domain.conversation.facts import facts_in
@@ -58,6 +59,7 @@ from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS
 from roma.domain.safety.normalize import tokens
 from roma.realtime.filler import SAMPLE_RATE as FILLER_RATE
 from roma.realtime.filler import intent_for
+from roma.services.live_call_state import CheckpointMilestone, checkpoint_milestone
 from roma.services.safety_service import SafetyService
 
 _log = logging.getLogger("roma.realtime")
@@ -179,6 +181,7 @@ class StageControllerProcessor(FrameProcessor):
         self._flight = flight
         self._health = health
         self._last_driven_text: str | None = None
+        self._pending_transition = None
         self.repeat_skips = 0
         # Diagnostics for the prompt cache (see `_note_prefix`). `prefix_hash` is read by
         # `_UsageLogger` so each spend row carries the prefix its request was billed against.
@@ -486,9 +489,18 @@ class StageControllerProcessor(FrameProcessor):
         if user_text is None:
             return
         if user_text == self._last_driven_text:
+            # A repeated context must still persist an earlier failed turn before wording.
+            await checkpoint_milestone(self._store, self.state, CheckpointMilestone.TURN_COMPLETED)
+            if self._pending_transition is not None:
+                await self._finish_drive(context, self._pending_transition)
+                self._pending_transition = None
             self.repeat_skips += 1
             _log.info("stage controller: same utterance re-driven; not advancing again")
             return
+        if self._pending_transition is not None:
+            await checkpoint_milestone(self._store, self.state, CheckpointMilestone.TURN_COMPLETED)
+            await self._finish_drive(context, self._pending_transition)
+            self._pending_transition = None
         self._last_driven_text = user_text
         # Mark whatever Roma said LAST turn as spent, before this turn's prompt is built.
         # Done here rather than at TTS time so it reflects the line that actually reached
@@ -511,6 +523,8 @@ class StageControllerProcessor(FrameProcessor):
                 elapsed_secs=self.elapsed(),
                 **self._advance_kwargs,
             )
+        except VoiceFailure:
+            raise  # Unpersisted coordinator state cannot authorize further wording.
         except Exception:  # noqa: BLE001 — a stage-advance bug must not kill the call
             _log.exception("stage controller failed; holding stage %s", self.state.stage)
             if self._health is not None:
@@ -519,6 +533,12 @@ class StageControllerProcessor(FrameProcessor):
         finally:
             self.advance_secs.append(time.monotonic() - started)
 
+        self._pending_transition = transition
+        await checkpoint_milestone(self._store, self.state, CheckpointMilestone.TURN_COMPLETED)
+        await self._finish_drive(context, transition)
+        self._pending_transition = None
+
+    async def _finish_drive(self, context, transition):
         stage = self.state.stage
         prompt_vars = self.state.as_prompt_vars()
         prompt = assemble_system_prompt(prompt_vars, stage)

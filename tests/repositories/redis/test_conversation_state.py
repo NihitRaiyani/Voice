@@ -10,12 +10,15 @@ import json
 import fakeredis.aioredis
 import pytest
 from roma.domain.conversation.state import DISCOVERY_ORDER, CallState
+from roma.repositories.redis.call_status import CallStatusStore
 from roma.repositories.redis.conversation_state import (
     STATE_TTL_SECONDS,
     InMemoryCallStateStore,
     RedisCallStateStore,
     state_key,
 )
+from roma.repositories.redis.leads import RedisLeadStore
+from roma.repositories.redis.opener_audio import OpenerStore
 
 
 def _mid_call_state() -> CallState:
@@ -105,3 +108,15 @@ def test_redis_sets_ttl():
 def test_url_or_client_required():
     with pytest.raises(ValueError):
         RedisCallStateStore()
+
+
+@pytest.mark.parametrize("store_type", [
+    RedisCallStateStore,
+    RedisLeadStore,
+    OpenerStore,
+    CallStatusStore,
+])
+@pytest.mark.parametrize("ttl", [0, -1, 86401, True, 1.5, "60", None])
+def test_transient_stores_reject_unbounded_or_nonintegral_ttls(store_type, ttl):
+    with pytest.raises(ValueError, match="TTL"):
+        store_type(client=object(), ttl=ttl)

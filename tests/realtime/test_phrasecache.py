@@ -204,3 +204,24 @@ def test_saved_inr_is_proportional_and_zero_for_zero():
     assert saved_inr(0) == 0.0
     assert saved_inr(1000) > 0
     assert abs(saved_inr(2000) - 2 * saved_inr(1000)) < 1e-9
+
+
+def test_redis_mirror_expires_without_affecting_the_local_clip(monkeypatch):
+    import fakeredis.aioredis
+    from redis import asyncio as redis_asyncio
+
+    async def run():
+        client = fakeredis.aioredis.FakeRedis(decode_responses=False)
+        monkeypatch.setattr(redis_asyncio, "from_url", lambda *args, **kwargs: client)
+        cache = PhraseCache()
+        text = next(iter(phrase_inventory().values()))
+        clip = cache.lookup(text)
+        assert clip
+        await cache.mirror_to_redis("redis://unused")
+        key = f"roma:phrase:{phrase_key(text)}"
+        assert await client.get(key) == clip
+        assert 0 < await client.ttl(key) <= 3600
+        await client.delete(key)  # Expired/evicted mirrors are disposable.
+        assert cache.lookup(text) == clip
+
+    asyncio.run(run())

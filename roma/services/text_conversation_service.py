@@ -40,7 +40,6 @@ from roma.domain.conversation.state_machine import (
     ConversationStateStore,
     InMemoryConversationStateStore,
     route_intent,
-    save_state,
 )
 from roma.domain.conversation.turn import advance_turn
 from roma.domain.safety.audit import SafetyActivation, SafetyContext, activation, check_sentence
@@ -55,6 +54,7 @@ from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS
 from roma.domain.safety.normalize import tokens
 from roma.providers.ai.contracts import LLMMessage, LLMProvider, LLMRequest, ProviderUnavailable
 from roma.services.conversation_prompts import LANGUAGE_INSTRUCTIONS, dialogue_request
+from roma.services.live_call_state import CheckpointMilestone, save_checkpoint
 from roma.services.safety_service import SafetyService
 from roma.services.streaming_text import StreamConfig, StreamingText
 
@@ -308,7 +308,7 @@ class TextConversationService:
             ok = await self.safety.persist(context, (event,))
             self.safety_elapsed_ms += (perf_counter() - input_started) * 1000
             with voice_boundary(VoiceErrorCode.DB):
-                await save_state(self.store, state)
+                await save_checkpoint(self.store, state, CheckpointMilestone.TURN_COMPLETED)
             if on_sentence is not None:
                 await on_sentence(final if ok else HARD_FAIL_LINE)
             return TextTurnTrace(
@@ -465,7 +465,7 @@ class TextConversationService:
         if on_sentence is not None:
             # An interruption during generation must not erase already accepted slots.
             with voice_boundary(VoiceErrorCode.DB):
-                await save_state(self.store, state)
+                await save_checkpoint(self.store, state, CheckpointMilestone.STATE_CHANGED)
         fixed = canned_reply(state, user_text)
         route = route_intent(state, deterministic_reply=fixed)
         narrow_task = (
@@ -546,7 +546,7 @@ class TextConversationService:
         self.safety_elapsed_ms += (perf_counter() - safety_started) * 1000
         state.record_facts(facts_in(final))
         with voice_boundary(VoiceErrorCode.DB):
-            await save_state(self.store, state)
+            await save_checkpoint(self.store, state, CheckpointMilestone.TURN_COMPLETED)
         if on_sentence is not None and streamed is None:
             await on_sentence(final)
         return TextTurnTrace(

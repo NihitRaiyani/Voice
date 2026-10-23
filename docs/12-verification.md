@@ -1,6 +1,8 @@
 # Verification and acceptance evidence
 
-Current sections 22–23 verification: **2,994 passed / 22 existing warnings** in each final offline suite. [Streaming/interruption evidence](#sections-2223-streaming-and-interruption) records the current isolated checks and remaining gates.
+Current section 24 verification: **3,078 passed / 22 existing warnings** in each final offline suite. [Redis state/recovery evidence](#section-24-redis-state-and-milestone-recovery) records exact checks and limits.
+
+Historical sections 22–23 verification (`f9d1785`): **2,994 passed / 22 existing warnings** in each final offline suite. [Streaming/interruption evidence](#sections-2223-streaming-and-interruption) records the current isolated checks and remaining gates.
 
 Historical section 21 verification: **2,953 passed / 22 existing warnings** in each final offline suite. [Structured logging evidence](#section-21-structured-logging) records the current checks. Historical ASR/consent repair verification passed **2,935 tests** per suite. [ASR/consent/live delivery evidence](#asr-padding-and-deterministic-consent-repair--2026-10-22) records the exact isolated commands and distinguishes real microphone/SQL proof from remaining native/latency approval.
 
@@ -513,3 +515,16 @@ The initial focused suite passed **160 tests**. Final subagent review reproduced
 | 3 | 560.34 |
 
 Fake WebSocket heartbeat: **124 samples**, maximum observed event-loop delay **2.13 ms** beyond a 5 ms target interval. No SLO/pass threshold is claimed. Local checks do not imply GitHub Actions or live/native acceptance. No new model/weight, paid API, microphone, working DB, schema migration or production-carrier change is involved. Advanced epochs remain gated; no Level 7 gate is marked passed.
+
+
+## Section 24 Redis state and milestone recovery
+
+Test-first additions reproduced the missing coordinator/lease APIs, immortal counter after a lost reply, missing phrase expiry, invalid TTL acceptance, missing turn/safety milestones and non-error checkpoint failure logs. Follow-up red/green cases repaired initial lease acquisition recovery and transient lease-check poisoning while preserving stale-owner rejection. Production composition, startup cleanup, turn/end/safety hooks and duplicate-context checkpoint/prompt recovery are covered with fake seams; FSM transitions must never execute twice for the same recovered frame.
+
+Disposable PostgreSQL/Redis tests use existing migrations and real repository adapters. They restore exact stage, accepted slot, discovery slots and language metadata after missing/expired hot keys; successor ownership prevents old writes/releases. Booking tests cover advisory hold outages, a lost acquire reply, recovery and foreign ownership without bypassing SQL conflicts. The source/tests never contact working `roma`, paid providers, microphone or models.
+
+The combined checkpoint/Redis/booking/streaming/architecture run passed **223 tests** before final production wiring; production focused checks passed **64**, and the final duplicate-frame checks are included in the full suites below. Final **2026-10-23** verification passed `make -o services-up -o db-upgrade ci`: Ruff clean, mypy clean on **88 source files**, **3,078 tests / 22 existing warnings** (121.20 s); `make test`: **3,078 passed / the same 22 warnings** (100.94 s), no failures/skips. The final controller-focused run passed **59 tests**, including failed and recovered duplicate frames; final native SQL/Redis milestone regressions passed **13 tests**. Local checks do not claim a GitHub Actions result. All existing migrations are verified on a fresh native disposable database; working-service/DB Make prerequisites are deliberately bypassed, and integration tests create their own disposable services. Ruff/mypy and Markdown checks are part of final verification.
+
+The acknowledged-milestone recovery point comes from awaited SQL commit, not Redis persistence or replay. In-progress work since the last SQL milestone may be lost; a crashed worker's lease can delay admission until expiry. The core gate, native/reliability acceptance, deployment RPO/RTO and advanced Streams/replay remain pending. No schema/provider/model/settings change or live call was used. The sections 22–23 synthetic timing report remains historical to its source fingerprint; no fresh native capacity/latency claim is inferred from it.
+
+Final Markdown verification: **87 files / 630 local links and anchors**, zero issues; scoped diff whitespace check is clean. No core or advanced gate is marked passed.

@@ -56,6 +56,8 @@ class RedisCallStateStore:
     def __init__(
         self, redis_url: "str | None" = None, *, client=None, ttl: int = STATE_TTL_SECONDS
     ) -> None:
+        if type(ttl) is not int or not 1 <= ttl <= 86400:
+            raise ValueError("TTL must be an integer from 1 to 86400 seconds")
         if client is None:
             if not redis_url:
                 raise ValueError("RedisCallStateStore needs a redis_url or a client")

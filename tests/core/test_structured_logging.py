@@ -213,3 +213,14 @@ def test_queue_metric_fields_cannot_serialize_private_extras(logs):
     row = logs()[0]
     assert row["queue"] == {"depth": 2, "dropped_newest": 1, "wait_ms": 12.5}
     assert "private" not in json.dumps(row)
+
+
+def test_checkpoint_metrics_are_finite_numeric_and_pii_safe(logs):
+    log_event(LogEvent.CHECKPOINT_FAILED, error_code='DB',
+              checkpoint_metrics={'pending': 1, 'lag_ms': 25.0, 'failures': 2,
+                                  'phone': '+919876543210', 'private': '/private/token',
+                                  'retries': 'sk-secret', 'recoveries': float('nan')})
+    row = logs()[0]
+    assert row['checkpoint'] == {'pending': 1, 'lag_ms': 25.0, 'failures': 2}
+    assert row['level'] == 'ERROR'
+    assert 'secret' not in json.dumps(row) and '9876543210' not in json.dumps(row)

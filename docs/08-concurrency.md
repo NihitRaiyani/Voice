@@ -31,3 +31,7 @@ Recording conversion/retention and external sync stay off the spoken turn. Post-
 Dramatiq notifications carry job UUIDs; PostgreSQL owns leases, business attempts, effects and terminal state. Broker redelivery is at least once. Dispatcher duplicates are safe for business effects but need future publication/backpressure bounds. Dead-letter retention/replay needs explicit governance.
 
 Stop new calls first, allow or terminate active work through the cleanup contract, stop publishing, drain the recording queue and let actors settle before shutdown. Preserve pending database/spool intents. See [jobs](19-background-task-framework.md), [recordings](09-recording-storage.md) and [verification](12-verification.md).
+
+## Section 24 checkpoint ownership
+
+Production and prototype stores serialize awaited SQL milestones per call and publish Redis only after commit. One frozen pending snapshot prevents a delayed retry overwriting a newer accepted state. A bounded token lease expires after a crashed worker; stale owners/releases are rejected. Redis key loss restores from compatible SQL rather than resetting stages/slots. Known transient writes get two attempts; permanent errors stay failed, with pending lag/failure counters. See [Level 7](levels/level-07.md#section-24-live-state-and-supervised-checkpoints) for exact timeout, lease, recovery-point and outage limits. Redis Streams/replay remain deferred.

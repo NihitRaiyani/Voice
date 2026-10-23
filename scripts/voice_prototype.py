@@ -52,8 +52,15 @@ from roma.repositories.postgres.voice_lab import (  # noqa: E402
     require_booking_data,
 )
 from roma.repositories.redis.appointment_holds import RedisAppointmentHolds  # noqa: E402
+from roma.repositories.redis.call_lease import RedisCallLease  # noqa: E402
+from roma.repositories.redis.conversation_state import RedisCallStateStore  # noqa: E402
 from roma.services.booking_service import BookingService  # noqa: E402
 from roma.services.booking_session import BookingSession  # noqa: E402
+from roma.services.live_call_state import (  # noqa: E402
+    CheckpointMilestone,
+    CheckpointSafetyEventStore,
+    LiveCallStateStore,
+)
 from roma.services.safety_service import SafetyService  # noqa: E402
 from roma.services.speech_input import SpeechInputService  # noqa: E402
 from roma.services.streaming_text import StreamConfig  # noqa: E402
@@ -263,7 +270,21 @@ async def _local_run(args):
             await store.finish(state.call_sid, failed=failed)
 
         cleanup.push_async_callback(finish_call)
-        safety = SafetyService(PostgresSafetyEventStore(factory, source="voice"))
+        live_state = LiveCallStateStore(
+            RedisCallStateStore(redis_url=RedisSettings().redis_url.get_secret_value()),
+            PostgresConversationStateStore(factory),
+            lease_factory=lambda sid: RedisCallLease(redis, sid),
+        )
+        async def finish_state():
+            try:
+                await live_state.checkpoint(state, CheckpointMilestone.CALL_ENDED)
+            finally:
+                await live_state.aclose()
+        cleanup.push_async_callback(finish_state)
+        await live_state.checkpoint(state, CheckpointMilestone.CALL_STARTED)
+        safety = SafetyService(CheckpointSafetyEventStore(
+            PostgresSafetyEventStore(factory, source="voice"), live_state, state
+        ))
         booking = BookingSession(
             BookingService(PostgresBookingStore(factory), RedisAppointmentHolds(redis)), state
         )
@@ -279,7 +300,7 @@ async def _local_run(args):
         conversation = TextConversationService(
             TimedLLMProvider(llm),
             safety=safety,
-            store=PostgresConversationStateStore(factory),
+            store=live_state,
             booking_session=booking,
             max_tokens=llm_cfg.anthropic_max_output_tokens if llm_cfg is not None else 128,
             temperature=0.7,

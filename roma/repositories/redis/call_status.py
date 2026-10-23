@@ -68,6 +68,8 @@ class CallStatusStore:
     """
 
     def __init__(self, redis_url: "str | None" = None, *, client=None, ttl: int = 3600) -> None:
+        if type(ttl) is not int or not 1 <= ttl <= 86400:
+            raise ValueError("TTL must be an integer from 1 to 86400 seconds")
         if client is None:
             if not redis_url:
                 raise ValueError("CallStatusStore needs a redis_url or a client")
@@ -199,10 +201,12 @@ class HourlyDialCap:
             return False
         try:
             key = hour_key(now if now is not None else time.time())
-            count = await self._client.incr(key)
-            if count == 1:
-                # Only on creation, so a long hour cannot keep pushing its own expiry out.
-                await self._client.expire(key, 3600)
+            # Redis executes both mutations atomically even if the response is lost.
+            # NX preserves an existing expiry and repairs historical immortal buckets.
+            async with self._client.pipeline(transaction=True) as pipe:
+                pipe.incr(key)
+                pipe.expire(key, 3600, nx=True)
+                count, _ = await pipe.execute()
             return count <= self._limit
         except Exception:  # noqa: BLE001 — a broken counter must not stop the operator
             _log.warning("hourly dial cap unreadable; allowing the call")
