@@ -203,3 +203,13 @@ def test_configure_logging_reenables_owned_event_logger(capsys):
     finally:
         root.handlers, logger.disabled = handlers, disabled
         root.setLevel(level)
+
+
+def test_queue_metric_fields_cannot_serialize_private_extras(logs):
+    log_event(LogEvent.QUEUE_SUMMARY, queue_name="tokens", queue_metrics={
+        "depth": 2, "dropped_newest": 1, "wait_ms": 12.5,
+        "transcript": "private words", "phone": "+919876543210", "capacity": "private",
+    })
+    row = logs()[0]
+    assert row["queue"] == {"depth": 2, "dropped_newest": 1, "wait_ms": 12.5}
+    assert "private" not in json.dumps(row)

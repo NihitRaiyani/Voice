@@ -15,7 +15,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 4 | [Audio/local ASR](levels/level-04.md) | Sections 14–18 implemented; waveform-padding repair and 15-case rerun recorded; Turbo retained, full-v3 cache retired; native/noisy quality and latency gates pending |
 | 5 | [Local TTS](levels/level-05.md) | Section 19 local Indic-TTS: 18 general and 24 approved-line cases passed; native approval pending |
 | 6 | [Local voice prototype](levels/level-06.md) | Section 21 JSON request/call/turn logging added; four language-labelled local checks and TEST ONLY booking/restore recorded; formal acceptance pending |
-| 7 | [Real-time reliability](levels/level-07.md) | Cloud seams; local-stack gate pending |
+| 7 | [Real-time reliability](levels/level-07.md) | Sections 22–23 opt-in bounded streaming/cancellation verified offline; native reliability and full gate pending |
 | 8 | [Secure jobs/access](levels/level-08.md) | Signed answer/durable jobs present; full gate pending |
 | 9 | [Governed retrieval](levels/level-09.md) | Planned |
 | 10 | [Telephony/model serving](levels/level-10.md) | Twilio cloud baseline; local integration planned |

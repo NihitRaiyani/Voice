@@ -23,6 +23,7 @@ export PUBLIC_BASE_URL ?= https://example.invalid
 help:
 	@printf '%s\n' \
 	  'make tts-lab                 synthetic TTS/cache/frames report; no model loads' \
+	  'make streaming-lab          four mock calls, queue/TTFA/CPU heartbeat evidence' \
 	  'make speech-lab              synthetic endpoint/STT/language report; no downloads' \
 	  'make audio-lab               synthetic audio conversion/jitter report; no services' \
 	  'make text-console            synthetic mock text conversation; no paid calls' \
@@ -102,7 +103,7 @@ pre-commit-install:
 	$(UV) run --no-sync pre-commit install
 
 voice-prototype:
-	$(UV) run --no-sync python scripts/voice_prototype.py
+	$(UV) run --no-sync python scripts/voice_prototype.py $(ARGS)
 
 .PHONY: demo-db demo-db-down
 # Explicit opt-in only; these are never app-start prerequisites.
@@ -111,3 +112,8 @@ demo-db:
 
 demo-db-down:
 	$(UV) run --no-sync python scripts/demo_database.py down
+
+
+.PHONY: streaming-lab
+streaming-lab:
+	$(UV) run --no-sync python scripts/streaming_lab.py

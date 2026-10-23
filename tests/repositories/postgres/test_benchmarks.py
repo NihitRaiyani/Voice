@@ -378,3 +378,27 @@ def test_voice_error_enum_codes_are_durable_and_private_error_strings_are_reject
             await session.commit()
 
     asyncio.run(run())
+
+
+def test_voice_disconnect_event_and_interrupted_turn_use_existing_schema(session_factory):
+    from roma.repositories.postgres.models import Call, CallEvent
+    from roma.repositories.postgres.voice_lab import PostgresVoiceLabStore
+    async def run():
+        sid = "voice-lab-" + uuid4().hex
+        store = PostgresVoiceLabStore(session_factory)
+        await store.start(sid)
+        record = {"attempt": 1, "turn_number": 1, "status": "interrupted", "stage": "value",
+                  "language": "hi", "caller": None, "agent": None,
+                  "timings": {"asr_ms": 2.0}, "error_code": "CANCELLED"}
+        await store.save(sid, record)
+        await store.finish(sid, failed=True, disconnected=True)
+        await store.finish(sid, failed=True, disconnected=True)
+        async with session_factory() as session:
+            call = await session.scalar(select(Call).where(Call.provider_call_id == sid))
+            events = list(await session.scalars(select(CallEvent).where(CallEvent.call_id == call.id)))
+            assert call.status == "failed" and call.ended_at is not None
+            assert len([event for event in events if event.event_type == "voice_lab.disconnected"]) == 1
+            assert any(event.payload["status"] == "interrupted" for event in events)
+            await session.delete(call)
+            await session.commit()
+    asyncio.run(run())

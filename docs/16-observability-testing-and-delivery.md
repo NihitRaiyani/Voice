@@ -14,6 +14,8 @@ L11 adds OpenTelemetry/Prometheus/Grafana; tools consume defined signals rather 
 
 `model_registry`, `benchmark_runs` and `benchmark_results` now provide the relational evidence foundation. Future runners must pin model/version and dataset identity, record hardware/configuration and meaningful units/sample counts, and keep PII/sample media out of these metadata rows. A schema row or `is_active` flag is not a license approval, completed benchmark or production selection. See the [schema catalog](20-relational-schema.md).
 
+Sections 22–23 add PII-safe queue snapshots, producer/consumer wait, drop/discard counters and synthetic concurrent first-audio/heartbeat evidence. Streaming stage timings overlap; a fake software write is not acoustic playback, and the four-call report cannot establish native capacity or an SLO. [Level 7](levels/level-07.md#sections-2223-implementation) owns these limits and cancellation/pressure policy.
+
 ## Tests and capacity
 
 Unit/provider-fake/API/repository/worker/concurrency/evaluation tests make no paid calls. PostgreSQL tests need a disposable database; report skips and environment limits. Manual local-model/GPU and authorized carrier checks are separate evidence.

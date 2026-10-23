@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import unicodedata
@@ -55,6 +56,7 @@ from roma.domain.safety.normalize import tokens
 from roma.providers.ai.contracts import LLMMessage, LLMProvider, LLMRequest, ProviderUnavailable
 from roma.services.conversation_prompts import LANGUAGE_INSTRUCTIONS, dialogue_request
 from roma.services.safety_service import SafetyService
+from roma.services.streaming_text import StreamConfig, StreamingText
 
 
 class ValidatedDiscoveryValue(DiscoveryValue):
@@ -193,6 +195,17 @@ def filter_response(raw: str, state: CallState) -> tuple[str, tuple[dict[str, An
     return final, verdicts
 
 
+def stream_filter(prefix, line, snapshot, require_devanagari):
+    """Pickle-safe, bounded CPU work; reuse the controller's exact final-speech rules."""
+    state = CallState.from_dict(snapshot)
+    _, _, prefix_events = _filter_response(prefix, state, require_devanagari=require_devanagari)
+    final, verdicts, events = _filter_response(line, state, require_devanagari=require_devanagari)
+    # A comma cannot separate a risky noun from its later amount and evade screening.
+    if prefix_events and not events:
+        final = HARD_FAIL_LINE
+    return final, verdicts, prefix_events or events, bool(prefix_events or events)
+
+
 DISCOVERY_QUESTIONS = {
     "lead_name": "Aapka naam kya hai?",
     "current_status": "Aap abhi padh rahe hain ya job kar rahe hain?",
@@ -260,12 +273,14 @@ class TextConversationService:
         self._booking_restored = False
         self.safety = safety if safety is not None else SafetyService()
         self.safety_elapsed_ms = 0.0
+        self.controller_elapsed_ms = 0.0
         self._call_identity: str | int | None = None
         self.store = store or InMemoryConversationStateStore()
         self.max_tokens, self.temperature = max_tokens, temperature
 
     async def turn(
-        self, state: CallState, user_text: str, *, now: datetime, elapsed_secs: float = 0
+        self, state: CallState, user_text: str, *, now: datetime, elapsed_secs: float = 0,
+        on_sentence=None, stream_config=None, stream_metrics=None, cpu_worker=None,
     ) -> TextTurnTrace:
         identity = state.call_sid or id(state)
         if self._call_identity is not None and self._call_identity != identity:
@@ -294,6 +309,8 @@ class TextConversationService:
             self.safety_elapsed_ms += (perf_counter() - input_started) * 1000
             with voice_boundary(VoiceErrorCode.DB):
                 await save_state(self.store, state)
+            if on_sentence is not None:
+                await on_sentence(final if ok else HARD_FAIL_LINE)
             return TextTurnTrace(
                 before,
                 (),
@@ -312,7 +329,7 @@ class TextConversationService:
         metrics: list[dict[str, Any]] = []
         errors: list[str] = []
 
-        async def collect(request: LLMRequest) -> str:
+        async def collect(request: LLMRequest, on_token=None) -> str:
             nonlocal collection_output
             collection_output = ""
             text = []
@@ -327,6 +344,8 @@ class TextConversationService:
                         self.dialogue_language == "voice_hi" and chunk.finish_reason == "length"
                     ):
                         raise ProviderUnavailable("Provider returned a fallback/error")
+                    if on_token is not None and chunk.text:
+                        await on_token(chunk.text)
             finally:
                 close = getattr(stream, "aclose", None)
                 if close is not None:
@@ -429,6 +448,8 @@ class TextConversationService:
             if self.booking_session
             else {}
         )
+        controller_started = perf_counter()
+        extraction_before = getattr(self.provider, "elapsed_ms", 0.0)
         await advance_turn(
             state,
             user_text,
@@ -439,6 +460,12 @@ class TextConversationService:
             extract_time=time_slot,
             **booking_kwargs,
         )
+        self.controller_elapsed_ms += max(0.0, (perf_counter() - controller_started) * 1000
+                                          - (getattr(self.provider, "elapsed_ms", 0.0) - extraction_before))
+        if on_sentence is not None:
+            # An interruption during generation must not erase already accepted slots.
+            with voice_boundary(VoiceErrorCode.DB):
+                await save_state(self.store, state)
         fixed = canned_reply(state, user_text)
         route = route_intent(state, deterministic_reply=fixed)
         narrow_task = (
@@ -460,7 +487,35 @@ class TextConversationService:
             if next_field:
                 fixed = DISCOVERY_QUESTIONS[next_field]
         raw = ""
-        if fixed is None:
+        streamed = None
+        if fixed is None and on_sentence is not None:
+            all_verdicts, all_events = [], []
+            async def guard(prefix, line):
+                started = perf_counter()
+                args = (prefix, line, state.to_dict(), self.dialogue_language == "voice_hi")
+                result = (await cpu_worker.run(stream_filter, *args) if cpu_worker
+                          else await asyncio.to_thread(stream_filter, *args))
+                final, verdicts, events, stop = result
+                ok = await self.safety.persist(
+                    SafetyContext(state.call_sid, max(1, state.turn_count), state.stage.value), events
+                )
+                all_verdicts.extend(verdicts)
+                all_events.extend(events)
+                self.safety_elapsed_ms += (perf_counter() - started) * 1000
+                if not ok:
+                    errors.append("safety-audit-unavailable")
+                return final if ok else HARD_FAIL_LINE, stop or not ok
+            pipeline = StreamingText(stream_config or StreamConfig(),
+                                     metrics=stream_metrics if stream_metrics is not None else {})
+            final = await pipeline.run(lambda feed: collect(request, feed), guard, on_sentence)
+            raw = collection_output
+            if not final:
+                final, verdicts, events = _filter_response(HARD_FAIL_LINE, state)
+                await self.safety.persist(SafetyContext(state.call_sid, max(1, state.turn_count), state.stage.value), events)
+                await on_sentence(final)
+            streamed = final, tuple(all_verdicts), tuple(all_events)
+            candidate = final
+        elif fixed is None:
             try:
                 raw = await collect(request)
                 candidate = raw
@@ -471,10 +526,13 @@ class TextConversationService:
         else:
             candidate = fixed
         safety_started = perf_counter()
-        final, verdicts, events = _filter_response(
-            candidate, state,
-            require_devanagari=self.dialogue_language == "voice_hi" and fixed is None and not errors,
-        )
+        if streamed is not None:
+            final, verdicts, events = streamed
+        else:
+            final, verdicts, events = _filter_response(
+                candidate, state,
+                require_devanagari=self.dialogue_language == "voice_hi" and fixed is None and not errors,
+            )
         category = guarded_category(set(tokens(user_text)))
         if fixed is not None and category is not None and fixed == SUBSTITUTIONS[category]:
             events = (
@@ -482,13 +540,15 @@ class TextConversationService:
                 activation(f"route.{category.value.lower()}.v2", category.value, fixed),
             )
         context = SafetyContext(state.call_sid, max(1, state.turn_count), state.stage.value)
-        if not await self.safety.persist(context, events):
+        if streamed is None and not await self.safety.persist(context, events):
             final = HARD_FAIL_LINE
             errors.append("safety-audit-unavailable")
         self.safety_elapsed_ms += (perf_counter() - safety_started) * 1000
         state.record_facts(facts_in(final))
         with voice_boundary(VoiceErrorCode.DB):
             await save_state(self.store, state)
+        if on_sentence is not None and streamed is None:
+            await on_sentence(final)
         return TextTurnTrace(
             before,
             tuple(extractions),

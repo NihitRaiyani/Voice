@@ -532,3 +532,17 @@ jq -c 'select(.event == "turn_completed" or .event == "turn_failed")' "$TMPDIR/r
 Use the `call_id` to follow all attempts, `correlation_id` for the prototype/request scope, and `request_id` plus `turn_id` for one attempt. HTTP/WebSocket accept headers return fresh server-generated request/correlation IDs. Incoming IDs are ignored; use these response IDs when reporting an error. Null call/turn/stage fields are normal outside a call. An ASR-rejected attempt has its own `turn_id` without advancing the conversation controller.
 
 Check `event`, `level`, stage timings and the shared safe `error_code`; do not enable transcript/exception dumps to diagnose failures. Legacy messages are omitted and represented as `legacy_log`; add a reviewed event and explicit safe metadata when extending operational coverage. Do not use phone numbers, lead tokens, prompts, raw transcripts, slot values or paths as IDs. SDKs using independent sinks may require their own configuration; this increment does not claim that every third-party diagnostic is a Roma JSON event. [Level 6](levels/level-06.md#section-21--structured-logging) owns implementation details and limitations.
+
+
+## Streaming and interruption (sections 22–23)
+
+```bash
+make --silent voice-prototype ARGS=--streaming
+make --silent streaming-lab
+```
+
+Both commands above use mocks and make no paid API calls, open no microphone, download no models and write no working-database records. The first exercises all eight queue stages; the second runs four concurrent fake calls with deliberate CPU/TTS delays and fake WebSocket heartbeats. Plain `make voice-prototype` retains the existing sequential mode. Preserve real local mode's existing microphone/paid-API/DB opt-ins; `--streaming` grants none of them and keeps physical capture half duplex.
+
+Watch `queue_summary` by call ID: capacity, current/peak depth, high-water hits, oldest/newest drops, discarded cancellation data, `put_wait_ms`, `get_wait_ms` and combined `wait_ms`. `STREAM-BACKPRESSURE` stops the turn with approved fallback or close; do not ignore a drop and continue speech. CPU worker and stage timings overlap and must not be summed as serial durations. `speech_to_first_audio_ms` is measured from the saved last-speech timestamp to the first software write; real acoustic latency still needs independent testing.
+
+Transport adapters feed final audio through `StreamingInput`, optional interim text through `partial()`, and confirmed VAD evidence through `observe_speech()`. Call `disconnect()` for transport loss; it shares the cancellation/clear path and releases resources. Provide `clear`/`close` transport callbacks and `release_on_disconnect` where the transport owns them. `prime_filler()` prepares approved cached filler outside the hot path; `play_cached_filler()` rechecks safety and never synthesizes on a miss. No filler is played over active caller speech automatically. See [Level 7](levels/level-07.md#sections-2223-implementation) for defaults, DB event semantics and pending advanced/native gates.

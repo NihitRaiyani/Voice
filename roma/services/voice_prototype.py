@@ -28,15 +28,26 @@ class VoiceTurnResult:
 
 
 class VoicePrototype:
-    def __init__(self, state, conversation, synthesis, speaker, store, *, clock=perf_counter, budget=None):
+    def __init__(self, state, conversation, synthesis, speaker, store, *, clock=perf_counter, budget=None, streaming=None, cpu_worker=None):
         self.state, self.conversation, self.synthesis = state, conversation, synthesis
         self.speaker, self.store, self.clock = speaker, store, clock
         self.budget = budget or TurnBudget()
         self.correlation_id = uuid4().hex
+        self.streaming, self.cpu_worker = streaming, cpu_worker
+        self.queue_metrics = {}
+        self.stream_fallbacks = 0
         self.attempt = 0
         self._busy = False
         self._started = clock()
         self._poisoned = False
+        self._response_task = None
+        self._delivery = None
+        self._control_lock = asyncio.Lock()
+        self._stop_reason = None
+        self._speech_ms = 0
+        self.disconnected = False
+        self.release_on_disconnect = None
+        self._filler = None
 
     async def respond(self, transcript, input_timings=None):
         remaining = 300 - (self.clock() - self._started)
@@ -47,14 +58,20 @@ class VoicePrototype:
                          stage=self.state.stage.value,
                          language=self.state.language_router.current.value):
             async with asyncio.timeout(remaining):
+                if self.streaming:
+                    # A previous clear must finish before any new turn can speak.
+                    async with self._control_lock:
+                        pass
                 return await self._respond(transcript, input_timings)
 
     async def _respond(self, transcript, input_timings=None):
-        if self._busy or self._poisoned:
+        if self._busy or self._poisoned or self.disconnected:
             raise RuntimeError("Voice session is busy or requires restart")
         if self.clock() - self._started >= 300:
             raise RuntimeError("Voice session reached its five-minute limit")
         self._busy = True
+        self._response_task = asyncio.current_task()
+        self._stop_reason = None
         self.attempt += 1
         timings = dict(input_timings or {})
         if not set(timings) <= {"capture_ms", "vad_endpoint_ms", "endpoint_wait_ms"} or any(
@@ -93,6 +110,43 @@ class VoicePrototype:
                 return VoiceTurnResult(
                     self.attempt, "failed", record["stage"], record["language"], timings, error
                 )
+            if self.streaming is not None:
+                from roma.services.streaming_voice import StreamingDelivery
+
+                self.queue_metrics = {}
+                record["caller"] = transcript.text
+                llm_before = getattr(self.conversation.provider, "elapsed_ms", 0.0)
+                safety_before = getattr(self.conversation, "safety_elapsed_ms", 0.0)
+                controller_before = getattr(self.conversation, "controller_elapsed_ms", 0.0)
+                stage = VoiceErrorCode.LLM
+                delivery = StreamingDelivery(self, record, timings)
+                self._delivery = delivery
+                async with delivery:
+                    trace = await self.conversation.turn(
+                        self.state, transcript.text, now=datetime.now(IST),
+                        elapsed_secs=self.clock() - self._started,
+                        on_sentence=delivery.enqueue, stream_config=self.streaming,
+                        stream_metrics=self.queue_metrics, cpu_worker=self.cpu_worker,
+                    )
+                timings["llm_ms"] = max(0, getattr(self.conversation.provider, "elapsed_ms", 0.0) - llm_before)
+                timings["safety_ms"] = timings.get("safety_ms", 0) + max(0, getattr(self.conversation, "safety_elapsed_ms", 0.0) - safety_before)
+                if delivery.first_write is not None and transcript.speech_end_at is not None:
+                    timings["speech_to_first_audio_ms"] = max(0, (delivery.first_write - transcript.speech_end_at) * 1000)
+                error = delivery.error_code or (map_voice_error(trace.provider_error, stage=VoiceErrorCode.LLM).value if trace.provider_error else None)
+                if error is None and self.state.booking_error == "BOOKING_UNAVAILABLE":
+                    error = VoiceErrorCode.BOOKING_DATA.value
+                timings["routing_controller_ms"] = max(0, getattr(self.conversation, "controller_elapsed_ms", 0.0) - controller_before)
+                record.update(stage=self.state.stage.value, language=self.state.language_router.current.value)
+                update_log_context(stage=record["stage"], language=record["language"])
+                if timings["llm_ms"] > 0:
+                    log_event(LogEvent.LLM_FAILED if error == VoiceErrorCode.LLM.value else LogEvent.LLM_COMPLETED,
+                              latency_ms=timings["llm_ms"], error_code=error if error == VoiceErrorCode.LLM.value else None)
+                log_event(LogEvent.CONTROLLER_COMPLETED, latency_ms=timings["routing_controller_ms"])
+                log_event(LogEvent.SAFETY_COMPLETED, latency_ms=timings["safety_ms"],
+                          error_code=error if error == VoiceErrorCode.SAFETY.value else None)
+                status = "played"
+                return VoiceTurnResult(self.attempt, status, record["stage"], record["language"], timings,
+                                       error, self.budget.evaluate(timings))
             tick = self.clock()
             safety_before = getattr(self.conversation, "safety_elapsed_ms", 0.0)
             before_turn = self.state.turn_count
@@ -170,7 +224,9 @@ class VoicePrototype:
             )
         except asyncio.CancelledError:
             error = map_voice_error(asyncio.CancelledError()).value
-            self._poisoned = True
+            self._poisoned = not (self.streaming and self._stop_reason == "interrupted")
+            if self.streaming and self._stop_reason:
+                status = self._stop_reason
             raise
         except Exception as exc:  # noqa: BLE001 -- fixed codes only.
             code = map_voice_error(exc, stage=stage)
@@ -189,7 +245,127 @@ class VoicePrototype:
             finally:
                 log_event(LogEvent.TURN_COMPLETED if status == "played" else LogEvent.TURN_FAILED,
                           latency_ms=timings["response_total_ms"], error_code=error, status=status)
+                for name, snapshot in self.queue_metrics.items():
+                    log_event(LogEvent.QUEUE_SUMMARY, queue_name=name, queue_metrics=snapshot)
+                if status in {"interrupted", "disconnected"}:
+                    log_event(LogEvent.TURN_INTERRUPTED if status == "interrupted" else LogEvent.CALL_DISCONNECTED,
+                              error_code=error, status=status)
+                self._response_task = None
+                self._delivery = None
                 self._busy = False
+
+    def barge_in_due(self, probability, duration_ms):
+        if not self.streaming:
+            return False
+        if not math.isfinite(probability) or not 0 <= probability <= 1 or not math.isfinite(duration_ms) or not 0 < duration_ms <= 2000:
+            raise ValueError("Invalid speech evidence")
+        if not self._busy or probability < self.streaming.speech_threshold:
+            self._speech_ms = 0
+            return False
+        self._speech_ms += duration_ms
+        if self._speech_ms < self.streaming.minimum_speech_ms:
+            return False
+        self._speech_ms = 0
+        return True
+
+    async def observe_speech(self, probability, duration_ms):
+        return await self.interrupt() if self.barge_in_due(probability, duration_ms) else False
+
+    async def interrupt(self, *, owner=None):
+        return await self._cancel_response(disconnect=False, owner=owner)
+
+    async def disconnect(self):
+        return await self._cancel_response(disconnect=True)
+
+    async def _cancel_response(self, *, disconnect, owner=None):
+        if not self.streaming:
+            raise RuntimeError("Streaming control requires explicit streaming mode")
+        async with self._control_lock:
+            if self.disconnected:
+                return False
+            target = self._response_task
+            if owner is not None and target is not owner:
+                return False
+            if not disconnect and (target is None or target.done()):
+                return False
+            self._stop_reason = "disconnected" if disconnect else "interrupted"
+            self.disconnected = disconnect
+            if self._delivery:
+                self._delivery.active = False
+            cleanup_error = None
+            if target is not None and target is not asyncio.current_task() and not target.done():
+                target.cancel()
+                done, pending = await asyncio.wait({target}, timeout=self.streaming.cleanup_timeout_secs)
+                if pending:
+                    self.disconnected = True
+                    self._poisoned = True
+                    target.add_done_callback(lambda task: task.exception() if not task.cancelled() else None)
+                    close = getattr(self.speaker, "close", None)
+                    if close:
+                        try:
+                            async with asyncio.timeout(self.streaming.cleanup_timeout_secs):
+                                await close()
+                        except Exception:  # noqa: BLE001 -- still clear/release/persist below.
+                            cleanup_error = VoiceErrorCode.DEVICE
+                for task in done:
+                    if not task.cancelled():
+                        task.exception()
+            clear = getattr(self.speaker, "clear", None)
+            try:
+                if clear:
+                    async with asyncio.timeout(self.streaming.cleanup_timeout_secs):
+                        await clear()
+            except Exception:  # noqa: BLE001 -- clear failure must still release the call.
+                cleanup_error = VoiceErrorCode.DEVICE
+                self.disconnected = self._poisoned = True
+                close = getattr(self.speaker, "close", None)
+                if close:
+                    try:
+                        async with asyncio.timeout(self.streaming.cleanup_timeout_secs):
+                            await close()
+                    except Exception:  # noqa: BLE001
+                        pass
+            finally:
+                if self.disconnected:
+                    self._poisoned = True
+                    try:
+                        if self.release_on_disconnect:
+                            async with asyncio.timeout(self.streaming.cleanup_timeout_secs):
+                                await self.release_on_disconnect()
+                    except Exception:  # noqa: BLE001
+                        cleanup_error = VoiceErrorCode.DB
+                    finally:
+                        finish = getattr(self.store, "finish", None)
+                        if finish:
+                            try:
+                                await finish(self.state.call_sid, failed=True, disconnected=True)
+                            except Exception:  # noqa: BLE001
+                                cleanup_error = VoiceErrorCode.DB
+            if cleanup_error:
+                raise VoiceFailure(cleanup_error) from None
+            return True
+
+    async def prime_filler(self):
+        if not self.streaming:
+            return
+        speech = await self.synthesis.synthesize(
+            TTSRequest("अच्छा।", language="hi"),
+            SafetyContext(self.state.call_sid, max(1, self.state.turn_count), self.state.stage.value),
+        )
+        if speech.audit_ok and speech.spoken_canonical_text == "अच्छा।":
+            self._filler = speech.result
+
+    async def play_cached_filler(self):
+        if self._filler is None or self._busy or self.disconnected:
+            return False
+        check = await self.synthesis.safety.check(
+            "अच्छा।", SafetyContext(self.state.call_sid, max(1, self.state.turn_count), self.state.stage.value)
+        )
+        if not check.audit_ok or check.text != "अच्छा।":
+            return False
+        async with asyncio.timeout(self.streaming.playback_timeout_secs):
+            await self.speaker.play(self._filler)
+        return True
 
 
 class InMemoryVoiceTurnStore:

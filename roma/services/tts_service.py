@@ -101,6 +101,18 @@ def normalize_tts_text(text: str, language: str) -> str:
     return " ".join(text.split())
 
 
+def build_mulaw_frames(audio, sample_rate):
+    """Pickle-safe CPU boundary for the streaming profile; PCM output stays unchanged."""
+    converter, framer = PCMResampler(sample_rate, 8000), PCMFramer(8000)
+    frames = []
+    for offset in range(0, len(audio), 3200):
+        frames.extend(encode(frame) for frame in framer.feed(converter.feed(audio[offset:offset + 3200])))
+    frames.extend(encode(frame) for frame in framer.feed(converter.finish()))
+    if tail := framer.finish(pad=True):
+        frames.append(encode(tail))
+    return tuple(frames)
+
+
 @dataclass(frozen=True)
 class SynthesizedSpeech:
     text: str
@@ -213,7 +225,7 @@ class SpeechSynthesisService:
             return result, synthesis_ms
 
     async def synthesize(
-        self, request: TTSRequest, context: SafetyContext
+        self, request: TTSRequest, context: SafetyContext, *, cpu_worker=None
     ) -> SynthesizedSpeech:
         validate_request(request, self.max_text_bytes)
         request = replace(request, metadata=dict(request.metadata))
@@ -222,18 +234,19 @@ class SpeechSynthesisService:
         self._pending += 1
         try:
             async with asyncio.timeout(self.timeout_secs):
-                return await self._synthesize(request, context)
+                return await self._synthesize(request, context, cpu_worker=cpu_worker)
         finally:
             self._pending -= 1
 
     async def _synthesize(
-        self, request: TTSRequest, context: SafetyContext
+        self, request: TTSRequest, context: SafetyContext, *, cpu_worker=None
     ) -> SynthesizedSpeech:
         started = perf_counter()
         # Check before spelling digits, so normalization cannot erase an amount signal.
         original = await self.safety.check(request.text, context)
         requested_language = language_code(request.language)
-        normalized = normalize_tts_text(original.text, request.language)
+        normalized = (await cpu_worker.run(normalize_tts_text, original.text, request.language)
+                      if cpu_worker else normalize_tts_text(original.text, request.language))
         if len(normalized.encode("utf-8")) > self.max_text_bytes:
             raise ValueError("Normalized TTS text exceeds its bounded UTF-8 size")
         final = await self.safety.check(normalized, context)
@@ -304,17 +317,20 @@ class SpeechSynthesisService:
                     if not flight.task.done():
                         flight.task.cancel()
                         await asyncio.gather(flight.task, return_exceptions=True)
-        # Bound each CPU batch and yield between them so timeout/barge-in remains responsive.
-        converter = PCMResampler(result.format.sample_rate_hz, 8000)
-        framer = PCMFramer(8000)
-        frames: list[bytes] = []
-        for offset in range(0, len(result.audio), 3200):
-            pcm = converter.feed(result.audio[offset : offset + 3200])
-            frames.extend(encode(frame) for frame in framer.feed(pcm))
-            await asyncio.sleep(0)
-        frames.extend(encode(frame) for frame in framer.feed(converter.finish()))
-        if tail := framer.finish(pad=True):
-            frames.append(encode(tail))
+        if cpu_worker:
+            frames = list(await cpu_worker.run(build_mulaw_frames, result.audio, result.format.sample_rate_hz))
+        else:
+            # Bound each CPU batch and yield between them so timeout/barge-in remains responsive.
+            converter = PCMResampler(result.format.sample_rate_hz, 8000)
+            framer = PCMFramer(8000)
+            frames = []
+            for offset in range(0, len(result.audio), 3200):
+                pcm = converter.feed(result.audio[offset : offset + 3200])
+                frames.extend(encode(frame) for frame in framer.feed(pcm))
+                await asyncio.sleep(0)
+            frames.extend(encode(frame) for frame in framer.feed(converter.finish()))
+            if tail := framer.finish(pad=True):
+                frames.append(encode(tail))
         elapsed = (perf_counter() - started) * 1000
         duration_ms = len(result.audio) / 2 / result.format.sample_rate_hz * 1000
         return SynthesizedSpeech(

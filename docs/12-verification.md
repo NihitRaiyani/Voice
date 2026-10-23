@@ -1,6 +1,8 @@
 # Verification and acceptance evidence
 
-Current section 21 verification: **2,953 passed / 22 existing warnings** in each final offline suite. [Structured logging evidence](#section-21-structured-logging) records the current checks. Historical ASR/consent repair verification passed **2,935 tests** per suite. [ASR/consent/live delivery evidence](#asr-padding-and-deterministic-consent-repair--2026-10-22) records the exact isolated commands and distinguishes real microphone/SQL proof from remaining native/latency approval.
+Current sections 22–23 verification: **2,994 passed / 22 existing warnings** in each final offline suite. [Streaming/interruption evidence](#sections-2223-streaming-and-interruption) records the current isolated checks and remaining gates.
+
+Historical section 21 verification: **2,953 passed / 22 existing warnings** in each final offline suite. [Structured logging evidence](#section-21-structured-logging) records the current checks. Historical ASR/consent repair verification passed **2,935 tests** per suite. [ASR/consent/live delivery evidence](#asr-padding-and-deterministic-consent-repair--2026-10-22) records the exact isolated commands and distinguishes real microphone/SQL proof from remaining native/latency approval.
 
 Current source/provider policy changed on 2026-10-20: [Claude roadmap](roadmaps/README.md) and Claude Haiku 5.5 replace OpenAI. Dated checks, model names, counts and former source hashes below remain historical evidence; they do not prove Claude quality/cost/latency. No OpenAI requests or fallback are permitted. Native/representative and complete voice gates remain pending.
 
@@ -488,3 +490,26 @@ The focused logging/prototype/error-compatibility run passed **87 tests**. The f
 - Markdown check: **87 files / 615 local links and anchors**, zero issues. `git diff --check` is clean.
 
 These are local checks; no GitHub Actions run or paid/live acceptance is claimed. All providers/devices are fake; no paid API, microphone, download, model changes or working `roma` access is involved. This verifies structured operational logging, not native voice readiness or Level 11 telemetry.
+
+
+## Sections 22–23 streaming and interruption
+
+Test-first queue/streaming coverage initially failed because the new modules did not exist. Focused checks then caught cancellation being mistaken for queue overflow, the response cancelling its long-lived final-transcript consumer, and clear failure skipping resource release. Regression tests now exercise those exact seams, interruption during generation/TTS/playback, delayed cancellation-resistant TTS, next-turn checkpoint/resumption, real VAD frames, `WebSocketDisconnect`, fallback/close pressure, audited cache-only filler, private metric rejection and uncommitted booking-claim suppression. Process-offloaded PCM framing is byte-identical to the retained path; process jobs retain bounded leases after cancellation. New modules are in the single CI catalog and mypy surface.
+
+The initial focused suite passed **160 tests**. Final subagent review reproduced four more cancellation races: late fallback and post-receipt playback, device-close failure bypassing disconnect cleanup, and next-turn admission before old output clear. Four failing-before regression tests now pass; the related final suite passed **92 tests**. Additional failing-before/passing-after cases cover capture overflow closing/clearing the transport and the existing five-minute session cap. The four-call [offline report](../benchmarks/voice/section22-23-offline-report.json) is reproducible via `make --silent streaming-lab` and records first software audio, queue bounds and fake WebSocket heartbeat timing under deliberately slow pure-Python CPU/TTS work. It includes cold process startup. It contains no real-model quality/capacity or native/acoustic acceptance claim. Final verification on **2026-10-23**:
+
+- `make -o services-up -o db-upgrade ci`: Ruff clean, mypy clean on **86 source files**, **2,994 passed / 22 existing warnings**, no failures/skips (103.96 s).
+- `make test`: **2,994 passed / the same 22 dependency deprecation warnings**, no failures/skips (99.13 s).
+- All existing migrations applied to fresh native disposable PostgreSQL before CI; it was stopped before the suites to avoid macOS shared-memory exhaustion. Integration fixtures used their own disposable databases. The working-service/DB Make prerequisites were bypassed deliberately; no configured `roma` connection or migration occurred.
+- Disposable SQL tests verified interrupted turn receipts, an idempotent disconnect event and the existing terminal `failed` call status without a schema change.
+- The final four-call synthetic run has **zero queue drops/fallbacks**; queue peaks stay within configured capacities. It includes a 30 ms pure-Python delay per process job, 20 ms fake TTS and cold process startup. Measurements below are first software writes and fake WebSocket heartbeat delay, not acoustic/native production acceptance.
+- Markdown: **87 files / 624 local links and anchors**, zero issues; `git diff --check` is clean.
+
+| Synthetic call | Speech-end to first software audio (ms) |
+|---|---:|
+| 0 | 530.56 |
+| 1 | 529.75 |
+| 2 | 560.36 |
+| 3 | 560.34 |
+
+Fake WebSocket heartbeat: **124 samples**, maximum observed event-loop delay **2.13 ms** beyond a 5 ms target interval. No SLO/pass threshold is claimed. Local checks do not imply GitHub Actions or live/native acceptance. No new model/weight, paid API, microphone, working DB, schema migration or production-carrier change is involved. Advanced epochs remain gated; no Level 7 gate is marked passed.

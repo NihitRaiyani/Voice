@@ -10,6 +10,12 @@ Use **one recording queue consumer**: its startup inflight recovery assumes one 
 
 Replica growth must review signature/external-URL handling, shared Redis coordination, per-process database pools, admission and shutdown. No source-only test establishes a supported number of real GPU calls.
 
+## Implemented sections 22–23 opt-in path
+
+[Level 7](levels/level-07.md#sections-2223-implementation) owns the bounded streaming contract and evidence. `BoundedChannel` provides explicit capacities/high-low watermarks and recorded overflow/wait metrics. `StreamingText` separates tokens, punctuation and audited clauses; `StreamingDelivery` overlaps TTS/playback. `CpuWorker` isolates bounded pure-Python work without duplicating model weights. `StreamingInput` keeps unstable partials out of the controller and owns each response task separately so barge-in cannot kill the final-transcript consumer.
+
+Cancellation invalidates old delivery before joining tasks. Confirmed speech cancels the active turn; disconnect additionally clears/closes output, attempts resource release and writes an idempotent disconnect event. Output pressure is an explicit safe fallback or transport-close outcome. Physical microphone input remains half duplex; advanced epochs, native reliability/latency and sections 24–25 remain pending. The existing carrier pipeline is preserved.
+
 ## Level 7 real-time gate
 
 Bound queues with capacities, high/low watermarks, age, timeout and explicit overflow behavior. Disposable data may have a documented drop policy; validated caller speech and committed business events cannot silently disappear. Capture pressure/drop/lag metrics.

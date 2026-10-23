@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from roma.core.claude_llm_settings import ClaudeLLMSettings  # noqa: E402
+from roma.core.cpu_worker import CpuWorker  # noqa: E402
 from roma.core.logging import configure_logging  # noqa: E402
 from roma.core.migration_settings import MigrationSettings  # noqa: E402
 from roma.core.speech_settings import SpeechSettings  # noqa: E402
@@ -55,6 +56,8 @@ from roma.services.booking_service import BookingService  # noqa: E402
 from roma.services.booking_session import BookingSession  # noqa: E402
 from roma.services.safety_service import SafetyService  # noqa: E402
 from roma.services.speech_input import SpeechInputService  # noqa: E402
+from roma.services.streaming_text import StreamConfig  # noqa: E402
+from roma.services.streaming_voice import StreamingInput  # noqa: E402
 from roma.services.text_conversation_service import TextConversationService  # noqa: E402
 from roma.services.tts_service import SpeechSynthesisService  # noqa: E402
 from roma.services.voice_prototype import (  # noqa: E402
@@ -74,7 +77,7 @@ class SyntheticSpeaker:
         self.played += 1
 
 
-async def mock_lab():
+async def mock_lab(*, streaming=False, cpu_worker=None):
     cases = []
     for language, text in (
         ("gu", "અપોઈન્ટમેન્ટ ફી 50000"),
@@ -97,17 +100,28 @@ async def mock_lab():
         synth = SpeechSynthesisService(
             SyntheticPCMProvider(), safety, model_version="synthetic-pcm-v1"
         )
-        voice = VoicePrototype(state, text_service, synth, speaker, store)
+        voice = VoicePrototype(state, text_service, synth, speaker, store,
+                               streaming=StreamConfig() if streaming else None, cpu_worker=cpu_worker)
         decoder = ScriptedSTT((text,))
         speech = SpeechInputService(
             LocalLanguageSTT(decoder), ScriptedProbability(), state
         )
-        results = []
-        for speaking in [1] * 4 + [0] * 20:
-            results.extend(await speech.feed(bytes([speaking, 0]) * 512))
-        if len(results) != 1:
-            raise ValueError("Synthetic endpoint did not finalize")
-        outcome = await voice.respond(results[0])
+        if streaming:
+            async def audio_source():
+                for speaking in [1] * 4 + [0] * 20:
+                    yield bytes([speaking, 0]) * 512
+                    await asyncio.sleep(0)
+            outcomes = await StreamingInput(voice).run(audio_source(), speech)
+            if len(outcomes) != 1:
+                raise ValueError("Synthetic endpoint did not finalize")
+            outcome = outcomes[0]
+        else:
+            results = []
+            for speaking in [1] * 4 + [0] * 20:
+                results.extend(await speech.feed(bytes([speaking, 0]) * 512))
+            if len(results) != 1:
+                raise ValueError("Synthetic endpoint did not finalize")
+            outcome = await voice.respond(results[0])
         cases.append(
             {
                 "input_language": language,
@@ -116,6 +130,7 @@ async def mock_lab():
                 "speaker_outputs": speaker.played,
                 "durable_database": False,
                 "saved_phases": len(store.records),
+                **({"queue_metrics": voice.queue_metrics, "streaming": True} if streaming else {}),
                 "restored_state": CallState.from_dict(state.to_dict()).to_dict()
                 == state.to_dict(),
             }
@@ -286,7 +301,16 @@ async def _local_run(args):
             input_device=args.input_device, output_device=args.output_device, policy=cfg.turn_policy()
         )
         speech = SpeechInputService(stt, scorer, state, policy=cfg.turn_policy())
-        voice = VoicePrototype(state, conversation, synthesis, device, store, budget=budget)
+        cpu_worker = None
+        if args.streaming:
+            cpu_worker = CpuWorker()
+            cleanup.push_async_callback(cpu_worker.aclose)
+            await cpu_worker.run(int, 0)
+        voice = VoicePrototype(state, conversation, synthesis, device, store, budget=budget,
+                               streaming=StreamConfig() if args.streaming else None, cpu_worker=cpu_worker)
+        voice.release_on_disconnect = booking.aclose
+        if args.streaming:
+            await voice.prime_filler()
         print(
             "Headphones required. Local ASR/TTS; "
             + (
@@ -322,6 +346,7 @@ async def _local_run(args):
 
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--streaming", action="store_true", help="Opt-in audited sentence streaming; microphone remains half duplex")
     p.add_argument("--mode", choices=("mock", "local"), default="mock")
     p.add_argument("--llm-provider", choices=("claude", "mock"), default="claude")
     p.add_argument("--allow-microphone", action="store_true")
@@ -341,7 +366,17 @@ def main():
         require_nltk_data()
         configure_logging()
         if args.mode == "mock":
-            print(json.dumps(asyncio.run(mock_lab()), ensure_ascii=False, indent=2))
+            if args.streaming:
+                async def streamed_mock():
+                    worker = CpuWorker()
+                    try:
+                        return await mock_lab(streaming=True, cpu_worker=worker)
+                    finally:
+                        await worker.aclose()
+                report = asyncio.run(streamed_mock())
+            else:
+                report = asyncio.run(mock_lab())
+            print(json.dumps(report, ensure_ascii=False, indent=2))
         else:
             asyncio.run(local_run(args))
         return 0

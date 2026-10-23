@@ -72,7 +72,7 @@ class PostgresVoiceLabStore:
         ):
             raise ValueError("Invalid voice turn identity")
         status, stage, language = record["status"], record["stage"], record["language"]
-        if status not in {"received", "ready", "played", "failed"} or stage not in {
+        if status not in {"received", "ready", "played", "failed", "interrupted", "disconnected"} or stage not in {
             "open",
             "discover",
             "value",
@@ -158,13 +158,24 @@ class PostgresVoiceLabStore:
                 )
                 call.final_stage, call.language = stage, language
 
-    async def finish(self, sid, *, failed=False):
+    async def finish(self, sid, *, failed=False, disconnected=False):
         async with asyncio.timeout(self.timeout):
             async with self.factory() as session, session.begin():
                 call = await session.scalar(select(Call).where(Call.provider_call_id == sid))
                 if call is not None and sid.startswith("voice-lab-"):
                     call.status = "failed" if failed else "completed"
                     call.ended_at = datetime.now(UTC)
+                    if disconnected:
+                        # Existing calls.status constraint uses failed; the durable event
+                        # records the distinct disconnect reason without a schema change.
+                        call.status = "failed"
+                        identity = f"{sid}:disconnected"
+                        await session.execute(insert(CallEvent).values(
+                            id=uuid5(NAMESPACE_URL, identity), call_id=call.id,
+                            event_type="voice_lab.disconnected", conversation_stage=call.final_stage,
+                            payload={"status": "disconnected", "source": "microphone_lab"},
+                            occurred_at=call.ended_at, idempotency_key=identity,
+                        ).on_conflict_do_nothing(index_elements=[CallEvent.idempotency_key]))
 
 
 async def require_booking_data(factory, *, branch=None, now=None):

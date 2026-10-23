@@ -1,0 +1,351 @@
+{
+  "schema": "section22-23-offline-v1",
+  "created_at": "2026-10-23T14:08:57.446504+00:00",
+  "synthetic_only": true,
+  "microphone_used": false,
+  "paid_api_calls": false,
+  "model_downloads": false,
+  "durable_database": false,
+  "gate_passed": false,
+  "advanced_epochs": false,
+  "concurrent_calls": 4,
+  "cpu_workers": 2,
+  "cpu_delay_per_job_ms": 30,
+  "scripted_tts_delay_ms": 20,
+  "heartbeat_target_interval_ms": 5,
+  "heartbeat_samples": 124,
+  "max_event_loop_stall_ms": 2.1307499846443534,
+  "websocket_writes": 134,
+  "config": {
+    "capacity": 8,
+    "high": 6,
+    "low": 2,
+    "queue_timeout_secs": 2.0,
+    "playback_timeout_secs": 30.0,
+    "cleanup_timeout_secs": 1.0,
+    "max_chunk_chars": 512,
+    "max_turn_chars": 4096,
+    "minimum_speech_ms": 600,
+    "speech_threshold": 0.8
+  },
+  "source_sha256": "4b45db6a58602d344a9d96a99ed490f76f22a5b86ea2984d88e6881a9de2678c",
+  "calls": [
+    {
+      "call": 0,
+      "status": "played",
+      "timings": {
+        "asr_ms": 0,
+        "tts_ms": 304.65925100725144,
+        "safety_ms": 557.9335840884596,
+        "tts_inference_ms": 41.87870898749679,
+        "playback_ms": 10.935876052826643,
+        "audio_ms": 560,
+        "llm_ms": 200.43799991253763,
+        "speech_to_first_audio_ms": 530.5596669204533,
+        "routing_controller_ms": 0.17804198432713747,
+        "response_total_ms": 658.4455410484225
+      },
+      "queues": {
+        "tokens": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 200.47462615184486,
+          "put_wait_ms": 0.021458021365106106,
+          "get_wait_ms": 200.45316813047975,
+          "depth": 0
+        },
+        "chunks": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 0.01354212872684002,
+          "put_wait_ms": 0.005917041562497616,
+          "get_wait_ms": 0.007625087164342403,
+          "depth": 0
+        },
+        "safe_chunks": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 403.73958204872906,
+          "put_wait_ms": 0.01183303538709879,
+          "get_wait_ms": 403.72774901334196,
+          "depth": 0
+        },
+        "tts_text": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 346.16079099942,
+          "put_wait_ms": 0.00458303838968277,
+          "get_wait_ms": 346.1562079610303,
+          "depth": 0
+        },
+        "tts_audio": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 645.4283341299742,
+          "put_wait_ms": 0.00795908272266388,
+          "get_wait_ms": 645.4203750472516,
+          "depth": 0
+        }
+      },
+      "fallbacks": 0
+    },
+    {
+      "call": 1,
+      "status": "played",
+      "timings": {
+        "asr_ms": 0,
+        "tts_ms": 304.6074580634013,
+        "safety_ms": 555.6765001965687,
+        "tts_inference_ms": 42.579667060635984,
+        "playback_ms": 10.42883307673037,
+        "audio_ms": 560,
+        "llm_ms": 200.08937502279878,
+        "speech_to_first_audio_ms": 529.7545839566737,
+        "routing_controller_ms": 0.11079199612140656,
+        "response_total_ms": 657.5182910310104
+      },
+      "queues": {
+        "tokens": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 200.05950203631073,
+          "put_wait_ms": 0.010709045454859734,
+          "get_wait_ms": 200.04879299085587,
+          "depth": 0
+        },
+        "chunks": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 0.009457929991185665,
+          "put_wait_ms": 0.004291883669793606,
+          "get_wait_ms": 0.005166046321392059,
+          "depth": 0
+        },
+        "safe_chunks": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 402.4232921656221,
+          "put_wait_ms": 0.005875015631318092,
+          "get_wait_ms": 402.4174171499908,
+          "depth": 0
+        },
+        "tts_text": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 343.9066242426634,
+          "put_wait_ms": 0.003291177563369274,
+          "get_wait_ms": 343.9033330651,
+          "depth": 0
+        },
+        "tts_audio": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 643.3674988802522,
+          "put_wait_ms": 0.005875015631318092,
+          "get_wait_ms": 643.3616238646209,
+          "depth": 0
+        }
+      },
+      "fallbacks": 0
+    },
+    {
+      "call": 2,
+      "status": "played",
+      "timings": {
+        "asr_ms": 0,
+        "tts_ms": 306.13820801954716,
+        "safety_ms": 613.6877071112394,
+        "tts_inference_ms": 41.74599901307374,
+        "playback_ms": 10.491958004422486,
+        "audio_ms": 560,
+        "llm_ms": 200.34287497401237,
+        "speech_to_first_audio_ms": 560.3644589427859,
+        "routing_controller_ms": 0.10087492410093546,
+        "response_total_ms": 688.1210829596967
+      },
+      "queues": {
+        "tokens": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 200.33224893268198,
+          "put_wait_ms": 0.017040991224348545,
+          "get_wait_ms": 200.31520794145763,
+          "depth": 0
+        },
+        "chunks": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 0.00995909795165062,
+          "put_wait_ms": 0.003917142748832703,
+          "get_wait_ms": 0.006041955202817917,
+          "depth": 0
+        },
+        "safe_chunks": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 462.4460821505636,
+          "put_wait_ms": 0.01200009137392044,
+          "get_wait_ms": 462.4340820591897,
+          "depth": 0
+        },
+        "tts_text": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 371.64550099987537,
+          "put_wait_ms": 0.004791887477040291,
+          "get_wait_ms": 371.6407091123983,
+          "depth": 0
+        },
+        "tts_audio": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 672.6382079068571,
+          "put_wait_ms": 0.009665964171290398,
+          "get_wait_ms": 672.6285419426858,
+          "depth": 0
+        }
+      },
+      "fallbacks": 0
+    },
+    {
+      "call": 3,
+      "status": "played",
+      "timings": {
+        "asr_ms": 0,
+        "tts_ms": 306.0077908448875,
+        "safety_ms": 673.5051650321111,
+        "tts_inference_ms": 42.313416954129934,
+        "playback_ms": 10.181291028857231,
+        "audio_ms": 560,
+        "llm_ms": 200.1875420100987,
+        "speech_to_first_audio_ms": 560.3383750421926,
+        "routing_controller_ms": 0.09737501386553049,
+        "response_total_ms": 687.9131250316277
+      },
+      "queues": {
+        "tokens": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 200.22079010959715,
+          "put_wait_ms": 0.00520702451467514,
+          "get_wait_ms": 200.21558308508247,
+          "depth": 0
+        },
+        "chunks": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 0.0072499969974160194,
+          "put_wait_ms": 0.0026669586077332497,
+          "get_wait_ms": 0.00458303838968277,
+          "depth": 0
+        },
+        "safe_chunks": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 492.65070690307766,
+          "put_wait_ms": 0.006375019438564777,
+          "get_wait_ms": 492.6443318836391,
+          "depth": 0
+        },
+        "tts_text": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 371.73637305386364,
+          "put_wait_ms": 0.0037910649552941322,
+          "get_wait_ms": 371.73258198890835,
+          "depth": 0
+        },
+        "tts_audio": {
+          "capacity": 8,
+          "peak_depth": 1,
+          "dropped_oldest": 0,
+          "dropped_newest": 0,
+          "discarded": 0,
+          "high_water_hits": 0,
+          "wait_ms": 672.7310009300709,
+          "put_wait_ms": 0.006209011189639568,
+          "get_wait_ms": 672.7247919188812,
+          "depth": 0
+        }
+      },
+      "fallbacks": 0
+    }
+  ],
+  "limits": "Fake WebSocket I/O, ASR, LLM and PCM only; TTFA is first software write, not acoustic/native capacity or an SLO."
+}

@@ -6,11 +6,13 @@ from enum import StrEnum
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from roma.core.async_queue import QueuePressure
 from roma.core.tokenizer import TOKENIZER_SETUP_MESSAGE, TokenizerSetupError
 from roma.domain.appointments.booking import BookingError
 
 
 class VoiceErrorCode(StrEnum):
+    STREAM_BACKPRESSURE = "STREAM-BACKPRESSURE"
     ASR = "ASR"
     ASR_BATCH_REJECTED = "ASR-BATCH-REJECTED"
     TTS = "TTS"
@@ -54,6 +56,14 @@ _LEGACY = {
 
 def map_voice_error(error: object, *, stage: VoiceErrorCode = VoiceErrorCode.CAPTURE) -> VoiceErrorCode:
     """Map trusted codes/types/context only; never inspect or return exception text."""
+    if isinstance(error, BaseExceptionGroup):
+        for child in error.exceptions:
+            code = map_voice_error(child, stage=stage)
+            if isinstance(child, (VoiceFailure, QueuePressure, BaseExceptionGroup)) or code != stage:
+                return code
+        return stage
+    if isinstance(error, QueuePressure):
+        return VoiceErrorCode.STREAM_BACKPRESSURE
     if isinstance(error, VoiceFailure):
         return error.code
     if isinstance(error, VoiceErrorCode):

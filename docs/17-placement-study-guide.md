@@ -247,3 +247,14 @@ An HF token solves identity, not unlimited inference capacity. Hosted ASR is a u
 **Why ContextVars?** Two async calls interleave on one thread. A process-global ID would mix them; task-local scopes inherit into child tasks and reset after errors/cancellation. Tests drive two concurrent calls and two real orchestration turns with fake providers.
 
 **Why omit free text?** Secret replacement cannot identify every caller name or transcript. Only reviewed fields/events and the shared error codes enter JSON; arbitrary messages, extras and tracebacks are omitted. Older records become metadata-only `legacy_log`. Logging setup loads only optional logging settings, so mock runs need no provider credentials. [Level 6](levels/level-06.md#section-21--structured-logging) records the contract and remaining gates.
+
+
+## Level 7 sections 22–23 explanation
+
+**How can speech start before the model finishes?** Token, punctuation, safety, TTS and audio workers have separate bounded queues. Each approved clause can be synthesized/played while later tokens arrive. Extraction stays separate and deterministic state/booking still run first.
+
+**Why not drop speech to catch up?** Stale partials/audio can use DropOldest with explicit rejection of incomplete input. Approved speech preserves order, waits through high/low-water hysteresis and fails visibly on timeout, with approved fallback or transport close. Queue capacity, peak, loss and wait counters make that decision inspectable.
+
+**Why a process worker?** Pure-Python resampling/scans can hold the GIL. Shared bounded processes keep the WebSocket loop coordinating I/O; cancelling an await must not release a still-running job's lease. Models stay behind their existing providers/runtime boundaries, not in every CPU process.
+
+**What does barge-in cancel?** Only the current response task, never the worker waiting for the next final transcript. Minimum sustained speech avoids brief cough/noise cuts. Invalidate delivery, cancel/flush, join then clear output; disconnect also releases resources and writes its exact event. A failed clear still runs cleanup. Late-result ownership tests are core cancellation tests; advanced epoch tests wait for the core gate. See [Level 7](levels/level-07.md).

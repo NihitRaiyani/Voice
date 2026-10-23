@@ -192,6 +192,10 @@ def configure_logging(settings: Settings | None = None) -> None:
 class LogEvent(StrEnum):
     """Reviewed operational vocabulary; never derive an event from caller text."""
 
+    STREAM_FALLBACK = "stream_fallback"
+    QUEUE_SUMMARY = "queue_summary"
+    TURN_INTERRUPTED = "turn_interrupted"
+    CALL_DISCONNECTED = "call_disconnected"
     REQUEST_COMPLETED = "request_completed"
     REQUEST_FAILED = "request_failed"
     TURN_STARTED = "turn_started"
@@ -280,15 +284,22 @@ class JsonFormatter(logging.Formatter):
         if isinstance(code, str) and code in _ERROR_CODES:
             row["error_code"] = code
         status = getattr(record, "status", None)
-        if isinstance(status, str) and status in ("played", "failed", "received"):
+        if isinstance(status, str) and status in ("played", "failed", "received", "interrupted", "disconnected"):
             row["status"] = status
         status_code = getattr(record, "status_code", None)
         if type(status_code) is int and 100 <= status_code <= 599:
             row["status_code"] = status_code
+        queue_name = getattr(record, "queue_name", None)
+        queue_metrics = getattr(record, "queue_metrics", None)
+        if isinstance(queue_name, str) and queue_name in {"audio_in", "partials", "finals", "tokens", "chunks", "safe_chunks", "tts_text", "tts_audio"} and isinstance(queue_metrics, dict):
+            row["queue_name"] = queue_name
+            row["queue"] = {key: value for key, value in queue_metrics.items()
+                            if key in {"capacity", "peak_depth", "depth", "dropped_oldest", "dropped_newest", "discarded", "high_water_hits", "wait_ms", "put_wait_ms", "get_wait_ms"}
+                            and type(value) in (int, float) and math.isfinite(value) and value >= 0}
         return json.dumps(row, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
 
 
-def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None, status_code=None):
+def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None, status_code=None, queue_name=None, queue_metrics=None):
     if not isinstance(event, LogEvent):
         raise ValueError("Use a reviewed LogEvent")
     failed = event in {LogEvent.REQUEST_FAILED, LogEvent.TURN_FAILED, LogEvent.LLM_FAILED}
@@ -296,7 +307,8 @@ def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None,
         logging.ERROR if failed else logging.INFO, event.value,
         extra={"event": event, "roma_context": dict(_log_context.get() or {}),
                "latency_ms": latency_ms, "error_code": error_code,
-               "status": status, "status_code": status_code},
+               "status": status, "status_code": status_code,
+               "queue_name": queue_name, "queue_metrics": queue_metrics},
     )
 
 
