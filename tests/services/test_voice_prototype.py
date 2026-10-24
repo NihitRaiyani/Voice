@@ -540,3 +540,18 @@ def test_mock_cli_logging_needs_no_provider_credentials_or_env_file(tmp_path):
     assert len(report["cases"]) == 4 and not report["network_calls"]
     events = [json.loads(line) for line in result.stderr.splitlines()]
     assert sum(row["event"] == "turn_completed" for row in events) == 4
+
+
+def test_remaining_call_budget_reaches_provider_work():
+    from roma.providers.reliability import remaining_timeout
+
+    async def run():
+        voice = setup()
+        voice.clock = lambda: voice._started + 299
+        original = voice.conversation.turn
+        async def turn(*args, **kwargs):
+            assert 0 < remaining_timeout(1000) <= 1
+            return await original(*args, **kwargs)
+        voice.conversation.turn = turn
+        assert (await voice.respond(transcript())).status == "played"
+    asyncio.run(run())

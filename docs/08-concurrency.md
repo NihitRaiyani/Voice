@@ -35,3 +35,7 @@ Stop new calls first, allow or terminate active work through the cleanup contrac
 ## Section 24 checkpoint ownership
 
 Production and prototype stores serialize awaited SQL milestones per call and publish Redis only after commit. One frozen pending snapshot prevents a delayed retry overwriting a newer accepted state. A bounded token lease expires after a crashed worker; stale owners/releases are rejected. Redis key loss restores from compatible SQL rather than resetting stages/slots. Known transient writes get two attempts; permanent errors stay failed, with pending lag/failure counters. See [Level 7](levels/level-07.md#section-24-live-state-and-supervised-checkpoints) for exact timeout, lease, recovery-point and outage limits. Redis Streams/replay remain deferred.
+
+## Provider deadlines and yielded output
+
+Section 25 timers surround provider I/O/pulls only. No timer remains active across a yielded chunk, so queue backpressure cannot cancel its consumer as a false barge-in. Elapsed downstream time still reduces the next provider pull's remaining budget. Native hash/model jobs retain admission until actual completion even after request cancellation. Existing bounded queues and explicit output-loss fallback remain. See [provider reliability](levels/level-07.md#section-25-provider-reliability).

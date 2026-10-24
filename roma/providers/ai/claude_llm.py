@@ -10,7 +10,8 @@ import asyncio
 import json
 import math
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import AsyncExitStack, aclosing
 from email.utils import parsedate_to_datetime
 from typing import Any
 
@@ -23,10 +24,17 @@ from roma.core.ai_contracts import (
 from roma.core.prompt_privacy import redact_prompt
 from roma.domain.costs.spend import Usage, inr_for
 from roma.domain.safety.lexicon import HARD_FAIL_LINE
+from roma.providers.reliability import (
+    CircuitBreaker,
+    FailureKind,
+    ProviderFailure,
+    bounded_stream,
+    remaining_timeout,
+)
 
 
 class ClaudeLLM:
-    def __init__(self, settings, *, client: Any = None) -> None:
+    def __init__(self, settings, *, client: Any = None, circuit=None) -> None:
         if not settings.anthropic_api_key.get_secret_value():
             raise ProviderUnavailable("ANTHROPIC_API_KEY is required")
         if settings.anthropic_model != "claude-haiku-5-5":
@@ -39,6 +47,8 @@ class ClaudeLLM:
         )
         self._owns_client = client is None
         self._lock = asyncio.Lock()
+        self.circuit = circuit if circuit is not None else CircuitBreaker()
+        self._last_failure: ProviderFailure | None = None
         self.tokens_used = self.spent_cents = 0
 
     @property
@@ -82,28 +92,41 @@ class ClaudeLLM:
         return tokens, cents
 
     @staticmethod
-    def _retry_delay(exc, backoff):
-        from anthropic import APIConnectionError, APIStatusError
+    def _failure(exc):
+        from anthropic import APIConnectionError, APIError, APITimeoutError
 
-        if isinstance(exc, (TimeoutError, APIConnectionError)):
-            return backoff
-        if not isinstance(exc, APIStatusError):
-            return None
+        if isinstance(exc, (TimeoutError, APITimeoutError)):
+            return ProviderFailure(FailureKind.TIMEOUT)
+        if isinstance(exc, APIConnectionError):
+            return ProviderFailure(FailureKind.TRANSIENT)
+        if not isinstance(exc, APIError):
+            return ProviderFailure(FailureKind.INVALID_REQUEST if isinstance(exc, ValueError)
+                                   else FailureKind.UNAVAILABLE)
         body = exc.body if isinstance(exc.body, dict) else {}
         body = body.get("error", body)
-        category = (
-            str(body.get("type", "")) + " " + str(body.get("code", ""))
-            if isinstance(body, dict)
-            else ""
-        )
-        if any(
-            cue in category.lower()
-            for cue in ("quota", "billing", "credit", "spend", "budget", "usage_limit")
-        ):
+        category = (str(body.get("type", "")) + " " + str(body.get("code", ""))) if isinstance(body, dict) else ""
+        category = category.lower()
+        status = getattr(exc, "status_code", None)
+        if any(cue in category for cue in ("quota", "billing", "credit", "spend", "budget", "usage_limit")):
+            kind = FailureKind.QUOTA
+        elif status in {401, 403} or "authentication_error" in category:
+            kind = FailureKind.AUTH
+        elif status == 408 or "timeout_error" in category:
+            kind = FailureKind.TIMEOUT
+        elif status == 429 or "rate_limit_error" in category:
+            kind = FailureKind.RATE_LIMIT
+        elif status == 409 or (status is not None and status >= 500) or category.strip() in {"overloaded_error", "api_error"}:
+            kind = FailureKind.TRANSIENT
+        else:
+            kind = FailureKind.INVALID_REQUEST
+        return ProviderFailure(kind)
+
+    @staticmethod
+    def _retry_delay(exc, backoff):
+        if not ClaudeLLM._failure(exc).retryable:
             return None
-        if exc.status_code not in {408, 409, 429} and exc.status_code < 500:
-            return None
-        value = exc.response.headers.get("retry-after")
+        response = getattr(exc, "response", None)
+        value = response.headers.get("retry-after") if response is not None else None
         if value is not None:
             try:
                 delay = float(value)
@@ -112,7 +135,6 @@ class ClaudeLLM:
                     delay = parsedate_to_datetime(value).timestamp() - time.time()
                 except (ValueError, TypeError, OverflowError):
                     return None
-            # A malformed Retry-After is not permission to hammer a provider.
             return max(0.0, delay) if math.isfinite(delay) else None
         return backoff
 
@@ -218,103 +240,117 @@ class ClaudeLLM:
         )
 
     async def generate(self, request: LLMRequest) -> AsyncIterator[LLMChunk]:
+        started = time.perf_counter()
+        deadline = time.monotonic() + remaining_timeout(self.settings.anthropic_turn_timeout_secs)
+        permit = None
+        acquired = False
+        progress = {"first": None, "attempts": 0, "charged": 0}
+        try:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError
+            async with asyncio.timeout(remaining):
+                await self._lock.acquire()
+            acquired = True
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError
+            permit = self.circuit.enter()
+            async with aclosing(bounded_stream(self._generate_locked(request, started, progress), remaining)) as generation:
+                async for chunk in generation:
+                    if chunk.metrics is not None:
+                        if chunk.metrics.error_code is None:
+                            self.circuit.success(permit)
+                        elif chunk.metrics.error_code != "budget_exhausted":
+                            self.circuit.failure(permit, self._last_failure or ProviderFailure(FailureKind.UNAVAILABLE))
+                        else:
+                            self.circuit.abandon(permit)
+                        permit = None
+                    yield chunk
+        except (TimeoutError, ProviderFailure) as exc:
+            failure = exc if isinstance(exc, ProviderFailure) else ProviderFailure(FailureKind.TIMEOUT)
+            if permit is not None:
+                self.circuit.failure(permit, failure)
+                permit = None
+            error = "provider_timeout" if failure.kind == FailureKind.TIMEOUT else "provider_unavailable"
+            yield LLMChunk(HARD_FAIL_LINE, error,
+                           self._metrics(started, progress["first"], progress["attempts"], None,
+                                         progress["charged"], error))
+        finally:
+            if permit is not None:
+                self.circuit.abandon(permit)
+            if acquired:
+                self._lock.release()
+
+    async def _attempt_await(self, operation, deadline):
+        remaining = min(remaining_timeout(self.settings.anthropic_attempt_timeout_secs),
+                        deadline - time.monotonic())
+        if remaining <= 0:
+            raise TimeoutError
+        async with asyncio.timeout(remaining):
+            return await operation()
+
+    async def _generate_locked(self, request: LLMRequest, started, progress) -> AsyncGenerator[LLMChunk, None]:
         options, input_bound, cap = self._payload(request)
-        async with self._lock:
-            started = time.perf_counter()
-            first = None
-            attempts = charged = 0
-            error = "provider_unavailable"
+        first = None
+        attempts = charged = 0
+        error = "provider_unavailable"
+        self._last_failure = None
+        for index in range(self.settings.anthropic_max_retries + 1):
+            if remaining_timeout(self.settings.anthropic_turn_timeout_secs) <= 0:
+                raise TimeoutError
+            reservation = self._reserve(input_bound, cap)
+            if reservation is None:
+                error = "budget_exhausted"
+                break
+            charged += reservation[1]
+            attempts += 1
+            progress.update(attempts=attempts, charged=charged)
+            attempt_deadline = time.monotonic() + self.settings.anthropic_attempt_timeout_secs
             try:
-                async with asyncio.timeout(self.settings.anthropic_turn_timeout_secs):
-                    for index in range(self.settings.anthropic_max_retries + 1):
-                        reservation = self._reserve(input_bound, cap)
-                        if reservation is None:
-                            error = "budget_exhausted"
-                            break
-                        charged += reservation[1]
-                        attempts += 1
+                async with AsyncExitStack() as stack:
+                    stream = await self._attempt_await(
+                        lambda: stack.enter_async_context(self._get_client().messages.stream(**options)),
+                        attempt_deadline,
+                    )
+                    texts = stream.text_stream.__aiter__()
+                    while True:
                         try:
-                            async with asyncio.timeout(
-                                self.settings.anthropic_attempt_timeout_secs
-                            ):
-                                async with self._get_client().messages.stream(
-                                    **options
-                                ) as stream:
-                                    async for text in stream.text_stream:
-                                        if text:
-                                            if first is None:
-                                                first = time.perf_counter()
-                                            yield LLMChunk(text)
-                                    message = await stream.get_final_message()
-                                    usage = self._usage(message)
-                                    if (
-                                        message.stop_reason not in {"end_turn", "max_tokens"}
-                                        or usage is None
-                                        or (first is not None and usage.output_tokens <= 0)
-                                    ):
-                                        raise ValueError(
-                                            "Incomplete or unmetered Claude completion"
-                                        )
-                                    if any(
-                                        block.type
-                                        not in {"text", "thinking", "redacted_thinking"}
-                                        for block in message.content
-                                    ):
-                                        raise ValueError("Unexpected Claude tool response")
-                                    actual_cents = math.ceil(
-                                        inr_for(usage, self.settings.anthropic_model) * 100
-                                    )
-                                    # If a provider violates our bound, retain its larger actual usage.
-                                    self.tokens_used += (
-                                        usage.input_tokens
-                                        + usage.output_tokens
-                                        - reservation[0]
-                                    )
-                                    self.spent_cents += actual_cents - reservation[1]
-                                    charged += actual_cents - reservation[1]
-                                    if first is None:
-                                        yield LLMChunk(
-                                            HARD_FAIL_LINE,
-                                            "provider_unavailable",
-                                            self._metrics(
-                                                started,
-                                                first,
-                                                attempts,
-                                                usage,
-                                                charged,
-                                                "empty_output",
-                                            ),
-                                        )
-                                        return
-                                    yield LLMChunk(
-                                        "",
-                                        "stop"
-                                        if message.stop_reason == "end_turn"
-                                        else "length",
-                                        self._metrics(
-                                            started, first, attempts, usage, charged, None
-                                        ),
-                                    )
-                                    return
-                        except Exception as exc:  # noqa: BLE001 -- strip SDK payloads/PII before exposing failure.
-                            delay = self._retry_delay(
-                                exc, self.settings.anthropic_retry_backoff_secs * (2**index)
-                            )
-                            remaining = self.settings.anthropic_turn_timeout_secs - (
-                                time.perf_counter() - started
-                            )
-                            if (
-                                first is not None
-                                or index >= self.settings.anthropic_max_retries
-                                or delay is None
-                                or delay >= remaining
-                            ):
-                                break
-                            await asyncio.sleep(delay)
-            except TimeoutError:
-                error = "provider_timeout"
-            yield LLMChunk(
-                HARD_FAIL_LINE,
-                error,
-                self._metrics(started, first, attempts, None, charged, error),
-            )
+                            text = await self._attempt_await(texts.__anext__, attempt_deadline)
+                        except StopAsyncIteration:
+                            break
+                        if text:
+                            if first is None:
+                                first = time.perf_counter()
+                                progress["first"] = first
+                            yield LLMChunk(text)
+                    message = await self._attempt_await(stream.get_final_message, attempt_deadline)
+                    usage = self._usage(message)
+                    if (message.stop_reason not in {"end_turn", "max_tokens"}
+                            or usage is None or (first is not None and usage.output_tokens <= 0)):
+                        raise ValueError("Incomplete or unmetered Claude completion")
+                    if any(block.type not in {"text", "thinking", "redacted_thinking"}
+                           for block in message.content):
+                        raise ValueError("Unexpected Claude tool response")
+                    actual_cents = math.ceil(inr_for(usage, self.settings.anthropic_model) * 100)
+                    self.tokens_used += usage.input_tokens + usage.output_tokens - reservation[0]
+                    self.spent_cents += actual_cents - reservation[1]
+                    charged += actual_cents - reservation[1]
+                    progress["charged"] = charged
+                    if first is None:
+                        yield LLMChunk(HARD_FAIL_LINE, "provider_unavailable",
+                                       self._metrics(started, first, attempts, usage, charged, "empty_output"))
+                        return
+                    yield LLMChunk("", "stop" if message.stop_reason == "end_turn" else "length",
+                                   self._metrics(started, first, attempts, usage, charged, None))
+                    return
+            except Exception as exc:  # noqa: BLE001 -- strip SDK payloads/PII before exposing failure.
+                self._last_failure = self._failure(exc)
+                delay = self._retry_delay(exc, self.settings.anthropic_retry_backoff_secs * (2**index))
+                remaining = remaining_timeout(self.settings.anthropic_turn_timeout_secs)
+                if (first is not None or index >= self.settings.anthropic_max_retries
+                        or delay is None or delay >= remaining):
+                    break
+                await asyncio.sleep(delay)
+        yield LLMChunk(HARD_FAIL_LINE, error,
+                       self._metrics(started, first, attempts, None, charged, error))

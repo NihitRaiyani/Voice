@@ -188,3 +188,25 @@ def test_identical_context_recovery_finishes_prompt_settings_and_win_without_rea
         proc.push_frame.assert_awaited_once()
         assert proc.push_frame.await_args.args[0].delta.max_tokens == stage_max_tokens(expected)
     asyncio.run(run())
+
+
+def test_turn_budget_starts_only_on_new_context_not_pending_checkpoint_retry():
+    from unittest.mock import Mock
+
+    from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
+
+    async def run():
+        state = CallState(call_sid="CA-turn-budget", stage="open")
+        store = SimpleNamespace(save=AsyncMock(), checkpoint=AsyncMock(side_effect=[VoiceFailure(VoiceErrorCode.DB), None, None]))
+        client = SimpleNamespace(begin_turn=Mock())
+        proc = StageControllerProcessor(state, client=client, store=store, now_fn=lambda: NOW,
+                                        extract_discovery=_fake_discovery)
+        proc.push_frame = AsyncMock()
+        frame = LLMContextFrame(_ctx("open", "haan ji"))
+        with pytest.raises(VoiceFailure):
+            await proc._drive(frame)
+        await proc._drive(frame)
+        client.begin_turn.assert_called_once_with()
+        await proc._drive(LLMContextFrame(_ctx("discover", "Amit")))
+        assert client.begin_turn.call_count == 2
+    asyncio.run(run())

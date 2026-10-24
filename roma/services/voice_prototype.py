@@ -13,6 +13,7 @@ from roma.domain.appointments.timeresolve import IST
 from roma.domain.audio.turn_budget import TurnBudget
 from roma.domain.safety.audit import SafetyContext
 from roma.providers.ai.contracts import TTSRequest
+from roma.providers.reliability import provider_budget
 from roma.services.voice_pronunciation import render_voice_line
 
 
@@ -53,7 +54,7 @@ class VoicePrototype:
         remaining = 300 - (self.clock() - self._started)
         if remaining <= 0:
             raise RuntimeError("Voice session reached its five-minute limit")
-        with log_context(call_id=self.state.call_sid, correlation_id=self.correlation_id,
+        with provider_budget(remaining), log_context(call_id=self.state.call_sid, correlation_id=self.correlation_id,
                          request_id=uuid4().hex, turn_id=self.attempt + 1,
                          stage=self.state.stage.value,
                          language=self.state.language_router.current.value):

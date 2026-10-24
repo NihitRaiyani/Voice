@@ -24,6 +24,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from roma.providers.ai.contracts import ProviderUnavailable, STTRequest, STTResult
+from roma.providers.reliability import FailureKind, ProviderFailure, remaining_timeout
 
 Inference = Callable[[bytes, str | None], STTResult]
 Loader = Callable[[], Inference]
@@ -105,6 +106,8 @@ class _LocalSTT:
         self._slot = threading.BoundedSemaphore(1)
 
     async def _run(self, request: STTRequest, language: str | None) -> STTResult:
+        if remaining_timeout(self.timeout_secs) <= 0:
+            raise ProviderFailure(FailureKind.TIMEOUT)
         if not self._slot.acquire(blocking=False):
             raise ProviderUnavailable("STT worker is busy; wait for native inference to finish")
         loop = asyncio.get_running_loop()
@@ -146,7 +149,7 @@ class _LocalSTT:
             self._slot.release()
             raise ProviderUnavailable("STT worker could not start") from None
         try:
-            async with asyncio.timeout(self.timeout_secs):
+            async with asyncio.timeout(remaining_timeout(self.timeout_secs)):
                 return await future
         except TimeoutError:
             raise ProviderUnavailable(

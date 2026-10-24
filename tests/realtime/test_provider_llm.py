@@ -287,3 +287,98 @@ def test_accounting_failure_during_cancel_preserves_cancel_and_clears_stream():
         ]
 
     asyncio.run(run())
+
+
+def test_production_extraction_and_queued_wording_share_one_turn_deadline():
+    from types import SimpleNamespace
+
+    from roma.providers.reliability import remaining_timeout
+
+    async def run():
+        observed = []
+        class Budgeted(FakeProvider):
+            settings = SimpleNamespace(anthropic_turn_timeout_secs=0.08)
+            async def generate(self, request):
+                observed.append(remaining_timeout(30))
+                await asyncio.sleep(0.02)
+                async for chunk in super().generate(request):
+                    yield chunk
+        provider = CallLLMProvider(Budgeted())
+        provider.begin_turn()
+        request = LLMRequest((LLMMessage("user", "fixture"),))
+        for _purpose in ("extraction", "wording"):
+            chunks = [chunk async for chunk in provider.generate(request)]
+            assert chunks[-1].text == ""
+        assert 0 < observed[1] < observed[0] - 0.01 < 0.08
+    asyncio.run(run())
+
+
+def test_production_admission_timeout_never_starts_underlying_provider():
+    from types import SimpleNamespace
+
+    async def run():
+        raw = FakeProvider()
+        raw.settings = SimpleNamespace(anthropic_turn_timeout_secs=0.02)
+        provider = CallLLMProvider(raw)
+        provider.begin_turn()
+        await provider._lock.acquire()
+        try:
+            async def collect():
+                return [c async for c in provider.generate(LLMRequest((LLMMessage("user", "fixture"),)))]
+            chunks = await asyncio.wait_for(collect(), 0.2)
+            assert chunks[-1].text == HARD_FAIL_LINE and not raw.requests
+        finally:
+            provider._lock.release()
+    asyncio.run(run())
+
+
+def test_cancelled_production_turn_deadline_resets_only_for_a_new_turn():
+    from types import SimpleNamespace
+
+    async def run():
+        started = asyncio.Event()
+        class Slow(FakeProvider):
+            settings = SimpleNamespace(anthropic_turn_timeout_secs=0.05)
+            async def generate(self, request):
+                if not self.requests:
+                    self.requests.append(request)
+                    started.set()
+                    await asyncio.Event().wait()
+                async for chunk in super().generate(request):
+                    yield chunk
+        raw = Slow()
+        provider = CallLLMProvider(raw)
+        request = LLMRequest((LLMMessage("user", "fixture"),))
+        provider.begin_turn()
+        async def collect():
+            return [c async for c in provider.generate(request)]
+        task = asyncio.create_task(collect())
+        await started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        await asyncio.sleep(0.06)
+        expired = await collect()
+        assert expired[-1].text == HARD_FAIL_LINE and len(raw.requests) == 1
+        provider.begin_turn()
+        assert (await collect())[-1].text == "" and len(raw.requests) == 2
+    asyncio.run(run())
+
+
+def test_call_budget_does_not_cancel_downstream_consumer_between_pulls():
+    from types import SimpleNamespace
+
+    async def run():
+        raw = FakeProvider()
+        raw.settings = SimpleNamespace(anthropic_turn_timeout_secs=0.02)
+        provider = CallLLMProvider(raw)
+        provider.begin_turn()
+        generation = provider.generate(LLMRequest((LLMMessage("user", "fixture"),)))
+        try:
+            assert (await anext(generation)).text == "Namaste. "
+            await asyncio.sleep(0.08)
+            tail = [chunk async for chunk in generation]
+            assert tail[-1].text == HARD_FAIL_LINE and len(raw.requests) == 1
+        finally:
+            await generation.aclose()
+    asyncio.run(run())

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from contextlib import aclosing
 
 from pipecat.frames.frames import (
@@ -17,7 +18,8 @@ from pipecat.metrics.metrics import LLMTokenUsage, LLMUsageMetricsData, TTFBMetr
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 from roma.domain.safety.lexicon import HARD_FAIL_LINE
-from roma.providers.ai.contracts import LLMMessage, LLMRequest
+from roma.providers.ai.contracts import LLMChunk, LLMMessage, LLMRequest
+from roma.providers.reliability import bounded_stream
 
 
 class CallLLMProvider:
@@ -27,7 +29,7 @@ class CallLLMProvider:
     arrives. Persist their delta, rather than dropping those charges at interruption.
     """
 
-    def __init__(self, provider, *, ledger=None, call_sid=None):
+    def __init__(self, provider, *, ledger=None, call_sid=None) -> None:
         self.provider = provider
         self.ledger = ledger
         self.call_sid = call_sid
@@ -35,6 +37,7 @@ class CallLLMProvider:
         self.prefix_fn = None
         self._lock = asyncio.Lock()
         self.accounting_failed = False
+        self._turn_deadline: float | None = None
 
     @property
     def max_output_tokens(self):
@@ -45,7 +48,31 @@ class CallLLMProvider:
             getattr(settings, "anthropic_max_output_tokens", 512),
         )
 
+    def begin_turn(self):
+        """A new informative caller context owns one extraction/wording deadline."""
+        settings = getattr(self.provider, "settings", None)
+        duration = getattr(settings, "anthropic_turn_timeout_secs", None)
+        self._turn_deadline = time.monotonic() + duration if duration is not None else None
+
     async def generate(self, request):
+        deadline = self._turn_deadline
+        if deadline is None:
+            async with aclosing(self._generate(request)) as stream:
+                async for chunk in stream:
+                    yield chunk
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            yield LLMChunk(HARD_FAIL_LINE, "provider_timeout")
+            return
+        try:
+            async with aclosing(bounded_stream(self._generate(request), remaining)) as stream:
+                async for chunk in stream:
+                    yield chunk
+        except TimeoutError:
+            yield LLMChunk(HARD_FAIL_LINE, "provider_timeout")
+
+    async def _generate(self, request):
         async with self._lock:
             if self.accounting_failed:
                 raise RuntimeError("Call accounting unavailable")

@@ -478,3 +478,152 @@ def test_empty_completion_is_a_safe_failure_with_actual_usage_not_false_success(
     assert chunks[-1].metrics.error_code == "empty_output"
     assert chunks[-1].metrics.usage_known and chunks[-1].metrics.ttft_ms is None
     assert chunks[-1].metrics.call_tokens_used == 30
+
+
+def test_repeated_transient_failures_open_circuit_without_http_or_extra_charges():
+    from roma.providers.reliability import CircuitBreaker
+
+    async def run():
+        calls = []
+        def handler(request):
+            calls.append(request)
+            return httpx.Response(503, json={"type": "error", "error": {"type": "overloaded_error", "message": "private"}})
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            client = AsyncAnthropic(api_key="offline-secret", http_client=http)
+            provider = ClaudeLLM(settings(anthropic_max_retries=0), client=client,
+                                 circuit=CircuitBreaker(threshold=2, reset_secs=1))
+            for _ in range(2):
+                assert [c async for c in provider.generate(REQUEST)][-1].text == HARD_FAIL_LINE
+            charged = provider.spent_cents
+            blocked = [c async for c in provider.generate(REQUEST)]
+            assert len(calls) == 2 and provider.spent_cents == charged
+            assert blocked[-1].text == HARD_FAIL_LINE
+            assert blocked[-1].metrics.attempts == 0
+    asyncio.run(run())
+
+
+def test_parent_budget_covers_lock_admission_and_prevents_http_after_expiry():
+    from roma.providers.reliability import provider_budget
+
+    async def run():
+        calls = []
+        def handler(request):
+            calls.append(request)
+            return response()
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            provider = ClaudeLLM(settings(), client=AsyncAnthropic(api_key="offline-secret", http_client=http))
+            await provider._lock.acquire()
+            try:
+                with provider_budget(0.02):
+                    chunks = await asyncio.wait_for(_collect(provider), 0.2)
+                assert not calls and chunks[-1].text == HARD_FAIL_LINE
+                assert chunks[-1].metrics.attempts == 0
+            finally:
+                provider._lock.release()
+    asyncio.run(run())
+
+
+async def _collect(provider):
+    return [chunk async for chunk in provider.generate(REQUEST)]
+
+
+def test_overload_sse_before_first_text_can_retry_but_not_after_text():
+    calls = []
+    def handler(request):
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(200, headers={"content-type": "text/event-stream"},
+                                  content=event("error", {"error": {"type": "overloaded_error", "message": "private"}}))
+        return response()
+    _, chunks = asyncio.run(exercise(handler))
+    assert len(calls) == 2 and chunks[-1].finish_reason == "stop"
+
+
+def test_expired_parent_budget_never_reserves_or_sends_a_request():
+    from roma.providers.reliability import provider_budget
+
+    async def run():
+        calls = []
+        def handler(request):
+            calls.append(request)
+            return response()
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            provider = ClaudeLLM(settings(), client=AsyncAnthropic(api_key="offline-secret", http_client=http))
+            with provider_budget(0.01):
+                await asyncio.sleep(0.02)
+                chunks = await _collect(provider)
+            assert not calls and provider.spent_cents == 0
+            assert chunks[-1].metrics.attempts == 0
+    asyncio.run(run())
+
+
+def test_parent_deadline_during_request_keeps_attempt_and_conservative_charge():
+    from roma.providers.reliability import provider_budget
+
+    async def run():
+        async def handler(request):
+            await asyncio.sleep(10)
+            return response()
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            provider = ClaudeLLM(settings(), client=AsyncAnthropic(api_key="offline-secret", http_client=http))
+            with provider_budget(0.02):
+                chunks = await _collect(provider)
+            assert chunks[-1].metrics.attempts == 1
+            assert chunks[-1].metrics.charged_inr == provider.spent_cents / 100 > 0
+    asyncio.run(run())
+
+
+def test_closing_after_a_yield_immediately_closes_underlying_stream():
+    async def run():
+        stream = InterruptedStream()
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(200, headers={"content-type": "text/event-stream"}, stream=stream))) as http:
+            provider = ClaudeLLM(settings(), client=AsyncAnthropic(api_key="offline-secret", http_client=http))
+            generation = provider.generate(REQUEST)
+            assert (await anext(generation)).text == "partial"
+            await generation.aclose()
+            assert stream.closed
+    asyncio.run(run())
+
+
+def test_cancellation_before_first_token_never_retries_or_trips_circuit():
+    from roma.providers.reliability import CircuitBreaker
+
+    async def run():
+        calls, started = [], asyncio.Event()
+        async def handler(request):
+            calls.append(request)
+            if len(calls) == 1:
+                started.set()
+                await asyncio.Event().wait()
+            return response()
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            provider = ClaudeLLM(settings(), client=AsyncAnthropic(api_key="offline-secret", http_client=http),
+                                 circuit=CircuitBreaker(threshold=1))
+            task = asyncio.create_task(_collect(provider))
+            await started.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert len(calls) == 1
+            assert (await _collect(provider))[-1].finish_reason == "stop"
+            assert len(calls) == 2
+    asyncio.run(run())
+
+
+def test_claude_budget_does_not_cancel_downstream_consumer_between_pulls():
+    async def run():
+        calls = []
+        def handler(request):
+            calls.append(request)
+            return response()
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            provider = ClaudeLLM(settings(anthropic_turn_timeout_secs=0.02), client=AsyncAnthropic(api_key="offline-secret", http_client=http))
+            generation = provider.generate(REQUEST)
+            try:
+                assert (await anext(generation)).text == "Hello"
+                await asyncio.sleep(0.08)  # downstream playback/backpressure owns this wait
+                tail = [chunk async for chunk in generation]
+                assert tail[-1].text == HARD_FAIL_LINE and len(calls) == 1
+            finally:
+                await generation.aclose()
+    asyncio.run(run())

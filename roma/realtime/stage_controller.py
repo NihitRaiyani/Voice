@@ -43,6 +43,7 @@ from roma.core.voice_errors import VoiceFailure
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.confirmguard import SAFE_SIGNOFF_LINE, lead_wants_out
 from roma.domain.conversation.facts import facts_in
+from roma.domain.conversation.machine import Transition
 from roma.domain.conversation.offtopic import deflection_for
 from roma.domain.conversation.prompts import (
     assemble_system_prompt,
@@ -181,7 +182,7 @@ class StageControllerProcessor(FrameProcessor):
         self._flight = flight
         self._health = health
         self._last_driven_text: str | None = None
-        self._pending_transition = None
+        self._pending_transition: Transition | None = None
         self.repeat_skips = 0
         # Diagnostics for the prompt cache (see `_note_prefix`). `prefix_hash` is read by
         # `_UsageLogger` so each spend row carries the prefix its request was billed against.
@@ -502,6 +503,9 @@ class StageControllerProcessor(FrameProcessor):
             await self._finish_drive(context, self._pending_transition)
             self._pending_transition = None
         self._last_driven_text = user_text
+        begin_turn = getattr(self._client, "begin_turn", None)
+        if begin_turn is not None:
+            begin_turn()
         # Mark whatever Roma said LAST turn as spent, before this turn's prompt is built.
         # Done here rather than at TTS time so it reflects the line that actually reached
         # the context, and so a barge-in that truncates her turn does not mark the unsaid

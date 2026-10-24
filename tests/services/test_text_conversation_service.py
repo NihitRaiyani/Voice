@@ -184,3 +184,29 @@ def test_local_voice_discards_output_cut_off_at_token_limit():
         assert trace.provider_error == "generation-unavailable-or-invalid"
 
     asyncio.run(run())
+
+
+def test_extraction_and_wording_share_one_configured_provider_deadline():
+    from types import SimpleNamespace
+
+    from roma.providers.reliability import remaining_timeout
+    from roma.services.voice_prototype import TimedLLMProvider
+
+    class Budgeted(Scripted):
+        settings = SimpleNamespace(anthropic_turn_timeout_secs=0.08)
+        async def generate(self, request):
+            before = remaining_timeout(30)
+            assert 0 < before <= 0.08
+            await asyncio.sleep(0.02)
+            observed.append(before)
+            async for chunk in super().generate(request):
+                yield chunk
+    async def run():
+        provider = Budgeted(['{"value":"Surat","confidence":0.95}', "हम प्रैक्टिकल स्किल सीखते हैं।"])
+        state = CallState(call_sid="budgeted-text", stage="discover", lead_name="Amit",
+                          current_status="student", education="12th pass", passing_year="2024")
+        service = TextConversationService(TimedLLMProvider(provider))
+        await service.turn(state, "I live in Surat", now=NOW)
+        assert len(provider.requests) == 2 and observed[1] < observed[0] - 0.01
+    observed = []
+    asyncio.run(run())

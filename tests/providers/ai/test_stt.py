@@ -490,3 +490,20 @@ def test_whisper_missing_tokenizer_rejected_before_sdk_can_fetch_one(monkeypatch
     )
     with pytest.raises(ProviderUnavailable, match=r"tokenizer\.json"):
         asyncio.run(WhisperSTT(model_id=str(tmp_path)).transcribe(request()))
+
+
+def test_expired_parent_budget_never_starts_native_stt():
+    from roma.providers.reliability import ProviderFailure, provider_budget
+
+    async def run():
+        calls = []
+        def load():
+            calls.append(True)
+            return lambda *_: STTResult("unused")
+        provider = WhisperSTT(loader=load)
+        with provider_budget(0.01):
+            await asyncio.sleep(0.02)
+            with pytest.raises(ProviderFailure, match="timeout"):
+                await provider.transcribe(request())
+        assert not calls
+    asyncio.run(run())

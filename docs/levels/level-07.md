@@ -1,6 +1,6 @@
 # Level 7 — Real-time reliability
 
-**Roadmap sections:** 22–25. **Status:** Sections 22–24 streaming, cancellation and supervised Redis/SQL state are implemented and verified offline; real-call reliability/native gates, advanced tracks and section 25 remain pending.
+**Roadmap sections:** 22–25. **Status:** Sections 22–25 streaming, cancellation, Redis/SQL state and provider reliability are implemented and verified offline; real-call reliability/native gates and advanced tracks remain pending.
 
 ## Entry gate
 
@@ -75,6 +75,16 @@ State/lead/opener/status TTLs require exact integers from 1 to 86,400 s. Existin
 **Recovery point:** no acknowledged milestone depends on Redis for durability. A process/Redis loss may discard in-progress work since the last SQL milestone; uncommitted speech/slots are not guaranteed. Complete loss of transient cache/locks/counters is accepted and reconstructed where possible; spend and appointment authority do not move to Redis. This policy requires no Redis persistence change; existing compatibility Compose already enables AOF, and no running Redis configuration was changed. Redis Streams, replay, durable event sequencing and AOF-based replay RPO remain advanced work after the core gate, with a separate owner-approved deployment recovery target.
 
 Real disposable PostgreSQL/Redis tests demonstrate missing/expired hot keys, exact stage/slot reconstruction, successor ownership and rejection of stale writes/releases. Synthetic tests cover retry order, immutable snapshots, pending lag, safety/turn milestones, lease recovery and private metric rejection. See [verification](../12-verification.md#section-24-redis-state-and-milestone-recovery) for final counts: CI and the full suite each passed **3,078 tests**, with 22 existing dependency warnings; Ruff/mypy passed. No paid API, microphone, model, working `roma` or migration change was used; all gate checkboxes below remain pending.
+
+## Section 25 provider reliability
+
+`roma/providers/reliability.py` owns sanitized provider failure kinds, inherited absolute deadlines and a per-adapter circuit breaker. Existing authentication/state/booking/safety errors retain their own boundaries; provider bodies/tokens never become public errors. Claude extraction and wording share the existing configured turn timeout across queued production processors and the text console; the five-minute voice ceiling remains an outer bound. Lock/admission, backoff and provider I/O consume the remaining budget. A timer is active only while awaiting provider work, never across a yielded chunk, so downstream queue/playback delay cannot masquerade as caller cancellation.
+
+Claude retries existing timeout/429/5xx transient cases only before text escapes and within its current retry/token/spend bounds. Authentication, invalid requests and exhausted quota are permanent failures. Errors can occur after an HTTP 200 SSE start; pre-token overload remains eligible for the same bounded retry policy. Once any text escapes, or cancellation occurs, no retry can duplicate speech. Existing deterministic approved fallback and safety/audit gates remain authoritative. Generator close promptly closes the SDK stream. SDK retries stay disabled to avoid nested retry multiplication; model/effort/output settings are unchanged.
+
+The breaker opens after three failed logical transient requests, waits 15 s and admits one half-open probe. It is local to the adapter, not a distributed outage service. Local ASR keeps its current inference timeout and worker ownership; Indic-TTS keeps kill/reap on timeout and now bounds manifest/cache-identity waits too. Cancelled native hash work retains admission until it actually finishes. Neither native model is blindly rerun. Twilio call creation retains its 15 s HTTP timeout and zero automatic retries, because an ambiguous response may already have dialled. Existing Sarvam streaming reconnect behavior is preserved; no new cross-process circuit/native capacity claim is made.
+
+Independently verified provider/text/voice/streaming regressions passed **682 tests** with one existing dependency warning. Test-first cases cover deadline admission/expiry, transient SSE and circuit recovery, native cancellation ownership, stream closure, extraction/wording deadline sharing, and timers not cancelling downstream consumers. [Verification](../12-verification.md#section-25-provider-reliability) owns exact results. The owner deferred paid, microphone, native and advanced acceptance until sections 25–28 are completed and separately reviewed. No gate below is marked passed.
 
 ## Acceptance gate
 

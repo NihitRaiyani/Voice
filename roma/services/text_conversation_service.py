@@ -53,6 +53,7 @@ from roma.domain.safety.inputs import (
 from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS
 from roma.domain.safety.normalize import tokens
 from roma.providers.ai.contracts import LLMMessage, LLMProvider, LLMRequest, ProviderUnavailable
+from roma.providers.reliability import llm_turn_budget
 from roma.services.conversation_prompts import LANGUAGE_INSTRUCTIONS, dialogue_request
 from roma.services.live_call_state import CheckpointMilestone, save_checkpoint
 from roma.services.safety_service import SafetyService
@@ -279,6 +280,17 @@ class TextConversationService:
         self.max_tokens, self.temperature = max_tokens, temperature
 
     async def turn(
+        self, state: CallState, user_text: str, *, now: datetime, elapsed_secs: float = 0,
+        on_sentence=None, stream_config=None, stream_metrics=None, cpu_worker=None,
+    ) -> TextTurnTrace:
+        with llm_turn_budget(self.provider):
+            return await self._turn(
+                state, user_text, now=now, elapsed_secs=elapsed_secs,
+                on_sentence=on_sentence, stream_config=stream_config,
+                stream_metrics=stream_metrics, cpu_worker=cpu_worker,
+            )
+
+    async def _turn(
         self, state: CallState, user_text: str, *, now: datetime, elapsed_secs: float = 0,
         on_sentence=None, stream_config=None, stream_metrics=None, cpu_worker=None,
     ) -> TextTurnTrace:

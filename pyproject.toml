@@ -80,6 +80,7 @@ files = [
     "roma/core/tts_settings.py",
     "roma/services/tts_service.py",
     "roma/services/voice_prototype.py",
+    "roma/providers/reliability.py",
     "roma/core/async_queue.py",
     "roma/core/cpu_worker.py",
     "roma/services/streaming_text.py",

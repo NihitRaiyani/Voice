@@ -461,3 +461,51 @@ def test_gujarati_safety_replacement_uses_supported_hindi_but_raw_latin_still_fa
         assert service.stores == 1 and len(service._cache) == 1
 
     asyncio.run(run())
+
+
+def test_expired_parent_budget_never_starts_tts_worker(tmp_path, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from roma.providers.reliability import ProviderFailure, provider_budget
+
+    async def run():
+        create = AsyncMock(side_effect=AssertionError("expired work started"))
+        monkeypatch.setattr(asyncio, "create_subprocess_exec", create)
+        provider = IndicTTSProvider(manifest_path=str(manifest(tmp_path)), python_path=sys.executable)
+        with provider_budget(0.01):
+            await asyncio.sleep(0.02)
+            with pytest.raises(ProviderFailure, match="timeout"):
+                await provider.synthesize(TTSRequest("नमस्ते"))
+        create.assert_not_awaited()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("operation", ["synthesize", "cache_identity"])
+def test_manifest_wait_obeys_parent_deadline_and_retains_native_hash_admission(monkeypatch, operation):
+    import threading
+    import time
+
+    from roma.providers.reliability import ProviderFailure, provider_budget
+
+    async def run():
+        provider = IndicTTSProvider()
+        release = threading.Event()
+        calls = []
+        def slow_manifest(request):
+            calls.append(request)
+            release.wait(0.5)
+            return "synthetic-identity", {}
+        monkeypatch.setattr(provider, "_manifest", slow_manifest)
+        try:
+            started = time.monotonic()
+            with provider_budget(0.01):
+                with pytest.raises(ProviderFailure, match="timeout"):
+                    await getattr(provider, operation)(TTSRequest("नमस्ते"))
+            assert time.monotonic() - started < 0.2
+            with pytest.raises(ProviderUnavailable, match="busy"):
+                await provider.cache_identity(TTSRequest("नमस्ते"))
+            assert len(calls) == 1
+        finally:
+            release.set()
+            await asyncio.sleep(0.01)
+    asyncio.run(run())

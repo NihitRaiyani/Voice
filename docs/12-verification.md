@@ -528,3 +528,9 @@ The combined checkpoint/Redis/booking/streaming/architecture run passed **223 te
 The acknowledged-milestone recovery point comes from awaited SQL commit, not Redis persistence or replay. In-progress work since the last SQL milestone may be lost; a crashed worker's lease can delay admission until expiry. The core gate, native/reliability acceptance, deployment RPO/RTO and advanced Streams/replay remain pending. No schema/provider/model/settings change or live call was used. The sections 22–23 synthetic timing report remains historical to its source fingerprint; no fresh native capacity/latency claim is inferred from it.
 
 Final Markdown verification: **87 files / 630 local links and anchors**, zero issues; scoped diff whitespace check is clean. No core or advanced gate is marked passed.
+
+## Section 25 provider reliability
+
+Initial test-first coverage exercised missing shared reliability APIs, inherited admission/turn deadlines, transient SSE retry, circuit trip/probe/cancellation and immediate SDK stream closure. Cross-review then reproduced timers cancelling downstream consumers between yielded chunks and manifest/cache-identity waits escaping the inherited deadline. Four failing regressions now pass with per-await timers and retained native hash admission. Extraction and queued production wording share one configured turn budget; duplicate contexts do not reset it.
+
+Independent final provider/text/voice/streaming checks: **682 passed / one existing dependency warning (12.47 s)**. The adapter-focused review run passed 287 tests before four final timing cases; their targeted follow-up passed 207. Ruff and scoped mypy passed. These are offline/fake-provider checks, not paid reliability/native acceptance. Native inference/Twilio call creation are not retried. Full integration verification follows sections 26–28; no gate is passed and no provider/model/.env/working-DB change was used.

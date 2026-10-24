@@ -18,6 +18,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from roma.providers.ai.contracts import AudioFormat, ProviderUnavailable, TTSRequest, TTSResult
+from roma.providers.reliability import FailureKind, ProviderFailure, remaining_timeout
 
 FILES = (
     "tts_checkpoint",
@@ -104,6 +105,7 @@ class IndicTTSProvider:
         self.max_audio_secs = max_audio_secs
         self._verified: dict[str, tuple[str, dict, tuple]] = {}
         self._manifest_lock = threading.Lock()
+        self._manifest_slot = threading.BoundedSemaphore(1)
 
     def _manifest(self, request: TTSRequest) -> tuple[str, dict]:
         # Concurrent cache lookups must not hash the same large checkpoint repeatedly.
@@ -187,12 +189,51 @@ class IndicTTSProvider:
                 "SHA256 for acoustic checkpoint/config/speakers and vocoder checkpoint/config"
             ) from exc
 
+    async def _manifest_async(self, request):
+        if remaining_timeout(self.timeout_secs) <= 0:
+            raise ProviderFailure(FailureKind.TIMEOUT)
+        if not self._manifest_slot.acquire(blocking=False):
+            raise ProviderUnavailable("TTS manifest worker is busy")
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        def deliver(result, error):
+            if future.done():
+                return
+            if error is not None:
+                future.set_exception(error)
+            else:
+                future.set_result(result)
+        def work():
+            result = error = None
+            try:
+                result = self._manifest(request)
+            except Exception as exc:  # noqa: BLE001 -- preserve existing bounded validation errors.
+                error = exc
+            finally:
+                self._manifest_slot.release()
+            try:
+                loop.call_soon_threadsafe(deliver, result, error)
+            except RuntimeError:
+                pass  # The caller loop may close while native hashing finishes.
+        try:
+            threading.Thread(target=work, name="roma-tts-manifest", daemon=True).start()
+        except RuntimeError:
+            self._manifest_slot.release()
+            raise ProviderUnavailable("TTS manifest worker could not start") from None
+        try:
+            async with asyncio.timeout(remaining_timeout(self.timeout_secs)):
+                return await future
+        except TimeoutError:
+            raise ProviderFailure(FailureKind.TIMEOUT) from None
+
     async def cache_identity(self, request: TTSRequest) -> str:
-        identity, _ = await asyncio.to_thread(self._manifest, request)
+        identity, _ = await self._manifest_async(request)
         return "indic-tts:" + identity
 
     async def synthesize(self, request: TTSRequest) -> TTSResult:
-        _, payload = await asyncio.to_thread(self._manifest, request)
+        if remaining_timeout(self.timeout_secs) <= 0:
+            raise ProviderFailure(FailureKind.TIMEOUT)
+        _, payload = await self._manifest_async(request)
         payload = {
             **payload,
             "text": request.text,
@@ -212,6 +253,8 @@ class IndicTTSProvider:
         with tempfile.TemporaryDirectory(prefix="roma-tts-") as directory:
             output = Path(directory) / "speech.pcm"
             payload["output"] = str(output)
+            if remaining_timeout(self.timeout_secs) <= 0:
+                raise ProviderFailure(FailureKind.TIMEOUT)
             process = await asyncio.create_subprocess_exec(
                 self.python_path,
                 str(worker),
@@ -221,7 +264,7 @@ class IndicTTSProvider:
                 env=env,
             )
             try:
-                async with asyncio.timeout(self.timeout_secs):
+                async with asyncio.timeout(remaining_timeout(self.timeout_secs)):
                     await process.communicate(json.dumps(payload).encode())
                 if process.returncode != 0 or not output.is_file():
                     raise ProviderUnavailable(

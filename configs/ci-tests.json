@@ -92,6 +92,7 @@
     "tests/providers/telephony/twilio/test_twilio_auth.py",
     "tests/providers/telephony/twilio/test_twilio_serializer.py",
     "tests/providers/telephony/twilio/test_twiml.py",
+    "tests/providers/test_reliability.py",
     "tests/realtime/test_audio_vad_boundary.py",
     "tests/realtime/test_backchannel.py",
     "tests/realtime/test_barge_in_midsentence.py",
