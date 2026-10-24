@@ -54,6 +54,12 @@ from roma.domain.conversation.shortcircuit import canned_reply, guarded_category
 from roma.domain.conversation.stage import ConversationStage
 from roma.domain.conversation.state import CallState
 from roma.domain.conversation.turn import advance_turn
+from roma.domain.knowledge.routing import (
+    NO_EVIDENCE_LINE,
+    KnowledgeRoute,
+    approved_static_reply,
+    classify_turn,
+)
 from roma.domain.safety.audit import SafetyContext, activation
 from roma.domain.safety.inputs import caller_text, injection_attempt
 from roma.domain.safety.lexicon import HARD_FAIL_LINE, SUBSTITUTIONS
@@ -184,6 +190,7 @@ class StageControllerProcessor(FrameProcessor):
         self._last_driven_text: str | None = None
         self._pending_transition: Transition | None = None
         self.repeat_skips = 0
+        self._route_decision = None
         # Diagnostics for the prompt cache (see `_note_prefix`). `prefix_hash` is read by
         # `_UsageLogger` so each spend row carries the prefix its request was billed against.
         self.prefix_hash: str | None = None
@@ -244,7 +251,12 @@ class StageControllerProcessor(FrameProcessor):
             user_text = _last_user_text(frame.context)
             if user_text is None:
                 return False
+            decision = self._route_decision or classify_turn(self.state, user_text)
             line = canned_reply(self.state, user_text)
+            if line is None and decision.route in {KnowledgeRoute.SAFETY, KnowledgeRoute.NO_EVIDENCE}:
+                line = decision.reply
+            elif decision.route == KnowledgeRoute.KNOWLEDGE and line is None:
+                line = approved_static_reply(self.state, user_text) if self.state.stage not in {"pivot", "close"} else NO_EVIDENCE_LINE
             if not line:
                 # Off-topic turns are the fourth short-circuitable family: the reply does
                 # not depend on what was asked, only that it was off the script. Checked
@@ -255,7 +267,7 @@ class StageControllerProcessor(FrameProcessor):
                     self.deflections += 1
             if not line:
                 return False
-            category = guarded_category(set(tokens(user_text)))
+            category = decision.category or guarded_category(set(tokens(user_text)))
             if category is not None and line == SUBSTITUTIONS[category]:
                 event = activation(f"route.{category.value.lower()}.v2", category.value, line)
                 checked = await self.safety.check(
@@ -274,9 +286,13 @@ class StageControllerProcessor(FrameProcessor):
             await self.push_frame(LLMFullResponseEndFrame(), FrameDirection.DOWNSTREAM)
             _log.info("short-circuit: answered without a completion (#%d)", self.short_circuits)
             return True
-        except Exception:  # noqa: BLE001 — on ANY failure, fall through to the model
-            _log.exception("short-circuit failed; forwarding the turn to the LLM")
-            return False
+        except Exception:  # noqa: BLE001 — routing errors cannot authorize model knowledge
+            _log.exception("short-circuit failed; using approved fallback")
+            await self._stop_pacer()
+            await self.push_frame(LLMFullResponseStartFrame(), FrameDirection.DOWNSTREAM)
+            await self.push_frame(TextFrame(HARD_FAIL_LINE), FrameDirection.DOWNSTREAM)
+            await self.push_frame(LLMFullResponseEndFrame(), FrameDirection.DOWNSTREAM)
+            return True
 
     async def process_frame(self, frame, direction: FrameDirection) -> None:
         await super().process_frame(frame, direction)
@@ -503,6 +519,7 @@ class StageControllerProcessor(FrameProcessor):
             await self._finish_drive(context, self._pending_transition)
             self._pending_transition = None
         self._last_driven_text = user_text
+        self._route_decision = classify_turn(self.state, user_text)
         begin_turn = getattr(self._client, "begin_turn", None)
         if begin_turn is not None:
             begin_turn()
@@ -525,6 +542,7 @@ class StageControllerProcessor(FrameProcessor):
                 now=self._now_fn(),
                 store=self._store,
                 elapsed_secs=self.elapsed(),
+                controller_only=self._route_decision.route in {KnowledgeRoute.KNOWLEDGE, KnowledgeRoute.SAFETY, KnowledgeRoute.NO_EVIDENCE},
                 **self._advance_kwargs,
             )
         except VoiceFailure:

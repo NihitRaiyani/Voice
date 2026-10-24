@@ -102,7 +102,7 @@ def test_save_and_restore_state_uses_the_store_boundary():
 
 
 def test_route_intent_sends_known_paths_to_the_right_controller():
-    assert route_intent(CallState(stage="discover")) == ConversationRoute.KNOWLEDGE
+    assert route_intent(CallState(stage="discover")) == ConversationRoute.STATE
     assert (
         route_intent(CallState(stage="value"), TurnSignals(asks_to_book=True))
         == ConversationRoute.BOOKING

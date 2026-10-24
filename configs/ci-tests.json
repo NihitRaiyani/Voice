@@ -53,6 +53,7 @@
     "tests/domain/conversation/test_state_prompt_vars.py",
     "tests/domain/conversation/test_turn.py",
     "tests/domain/costs/test_spend.py",
+    "tests/domain/knowledge/test_routing.py",
     "tests/domain/safety/test_filter.py",
     "tests/domain/safety/test_lexicon.py",
     "tests/domain/safety/test_normalize.py",

@@ -69,6 +69,7 @@ files = [
     "roma/core/privacy_settings.py",
     "roma/core/privacy_paths.py",
     "roma/core/recording_consent.py",
+    "roma/domain/knowledge",
     "roma/schemas/twilio.py",
     "roma/services/privacy_service.py",
     "roma/services/recording_service.py",

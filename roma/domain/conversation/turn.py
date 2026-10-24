@@ -769,6 +769,7 @@ async def advance_turn(
     extract_discovery=extract_discovery_slot,
     extract_time=extract_time_slot,
     classify=classify_objection,
+    controller_only: bool = False,
 ) -> Transition:
     """Advance the call one user turn: mutate `state` in place, return the machine's
     `Transition` (carrying `win`/`hard_pivot`). Checkpoints to `store` on durable events.
@@ -779,6 +780,8 @@ async def advance_turn(
     every existing caller and test keeps the old behaviour exactly.
     """
     state.elapsed_secs = elapsed_secs
+    if controller_only and elapsed_secs >= 300:
+        state.lead_wants_out = True
     # Same `now` the slot resolver uses, so the prompt's "today" and the machine's "today"
     # can never disagree (live call e3237622: she called a Saturday "Wednesday").
     state.today_iso = now.date().isoformat()
@@ -834,10 +837,11 @@ async def advance_turn(
     # Counted for every stage, before the per-stage branches: the lead can start pushing for
     # a time in value and still be pushing in structure, and a counter that only ran inside one branch
     # would reset at the stage boundary — which is exactly where 0f09c8a3 crossed.
-    if raises_the_visit_time(user_text):
-        state.lead_time_asks += 1
-    else:
-        state.lead_time_asks = 0
+    if not controller_only:
+        if raises_the_visit_time(user_text):
+            state.lead_time_asks += 1
+        else:
+            state.lead_time_asks = 0
 
     # Two routes to the same pivot, at different confidence. An explicit "visit schedule kar
     # dijiye" needs no confirmation and fires at once; a bare clock word waits for a second
@@ -861,7 +865,9 @@ async def advance_turn(
     weak_route = state.lead_time_asks >= LEAD_TIME_ASKS_BEFORE_PIVOT and not defers_the_call(
         user_text
     )
-    sig["asks_to_book"] = not leaving and (wants_to_book(user_text) or weak_route)
+    sig["asks_to_book"] = not controller_only and not leaving and (
+        wants_to_book(user_text) or weak_route
+    )
     if sig["asks_to_book"] and stage not in (ConversationStage.PIVOT, ConversationStage.CLOSE):
         # States the SIGNAL, not the outcome. This line used to say "pivoting to the offer"
         # and said it twice on bde258d1 while the machine was refusing to pivot out of open —
@@ -869,7 +875,9 @@ async def advance_turn(
         # Whether the pivot happened is visible in the stage change that follows.
         _log.info("lead asked to book (stage=%s)", stage)
 
-    if stage == ConversationStage.OPEN:
+    if controller_only:
+        pass  # Factual interruptions preserve counters/pacing, never consume profile/booking input.
+    elif stage == ConversationStage.OPEN:
         # A caller asking who picked up holds open whatever else the reply contains — "haan,
         # Weltec hai?" is an affirmation AND a question, and the question is the part that
         # matters. open answers it; discover would ask them their name instead.
@@ -1030,7 +1038,7 @@ async def advance_turn(
             )
             _log.debug("slot verdict text: %r", user_text)
 
-    if not (stage == ConversationStage.DISCOVER and slot_filled):
+    if not controller_only and not (stage == ConversationStage.DISCOVER and slot_filled):
         _record_objection(user_text)
 
     transition = transition_state(state, TurnSignals(**sig))

@@ -203,7 +203,7 @@ def test_text_final_safety_events_are_retained_and_audit_failure_cannot_leak():
             MockLLMProvider(response="Fees 25000 hai."), safety=SafetyService(Down())
         )
         trace = await service.turn(
-            CallState(call_sid="synthetic", stage="value"), "practical?", now=datetime.now(UTC)
+            CallState(call_sid="synthetic", stage="value"), "haan", now=datetime.now(UTC)
         )
         assert (
             trace.final_response == HARD_FAIL_LINE

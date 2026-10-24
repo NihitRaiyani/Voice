@@ -25,6 +25,9 @@ class ConversationRoute(StrEnum):
     DETERMINISTIC = "deterministic"
     BOOKING = "booking"
     KNOWLEDGE = "knowledge"
+    STATE = "state"
+    SAFETY = "safety"
+    NO_EVIDENCE = "no_evidence"
 
 
 class InMemoryConversationStateStore:
@@ -120,12 +123,16 @@ def route_intent(
     signals: TurnSignals | None = None,
     *,
     deterministic_reply: str | None = None,
+    user_text: str | None = None,
 ) -> ConversationRoute:
     """Classify the next response path without asking the LLM.
 
-    ``knowledge`` is the model/RAG path. Level 2 still uses the existing prompt assembly;
-    Level 9 can replace that branch with retrieval without changing the stage machine.
+    Explicit knowledge questions use the bounded approved source route. Without caller
+    text this facade returns the state task, never permission for model-memory facts.
     """
+    if user_text is not None:
+        from roma.domain.knowledge.routing import classify_turn
+        return ConversationRoute(classify_turn(state, user_text, deterministic_reply=deterministic_reply).route.value)
     if deterministic_reply is not None or state.lead_wants_out:
         return ConversationRoute.DETERMINISTIC
     if state.stage in {ConversationStage.PIVOT, ConversationStage.CLOSE}:
@@ -134,7 +141,7 @@ def route_intent(
         signals.asks_to_book or signals.slot_accepted or signals.readback_confirmed
     ):
         return ConversationRoute.BOOKING
-    return ConversationRoute.KNOWLEDGE
+    return ConversationRoute.STATE
 
 
 def handle_interruption(state: CallState) -> Transition:

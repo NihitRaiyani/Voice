@@ -106,7 +106,7 @@ def test_partial_provider_error_discards_output_and_preserves_safe_reply():
 
     async def run():
         trace = await TextConversationService(Partial()).turn(
-            CallState(stage="value"), "practical?", now=NOW
+            CallState(stage="value"), "haan", now=NOW
         )
         assert "25000" in trace.raw_model_output
         assert trace.final_response == HARD_FAIL_LINE and trace.provider_error
@@ -117,7 +117,7 @@ def test_partial_provider_error_discards_output_and_preserves_safe_reply():
 def test_final_safety_filters_fee_and_conversational_lock_cannot_claim_booking():
     async def run():
         trace = await TextConversationService(MockLLMProvider(response="Fees 25000 hai.")).turn(
-            CallState(stage="value"), "practical?", now=NOW
+            CallState(stage="value"), "haan", now=NOW
         )
         assert "25000" not in trace.final_response and any(
             not v["allowed"] for v in trace.safety_result
@@ -162,7 +162,7 @@ def test_local_voice_rejects_unsupported_generated_script_with_audited_fallback(
     async def run():
         trace = await TextConversationService(
             MockLLMProvider(response=raw), dialogue_language="voice_hi"
-        ).turn(CallState(stage="value"), "What skills will I learn?", now=NOW)
+        ).turn(CallState(stage="value"), "haan", now=NOW)
         assert trace.raw_model_output == raw
         assert trace.final_response == HARD_FAIL_LINE
         assert any(v["reason"] == "unsupported-local-speech-script" for v in trace.safety_result)
@@ -178,7 +178,7 @@ def test_local_voice_discards_output_cut_off_at_token_limit():
 
     async def run():
         trace = await TextConversationService(CutOff(), dialogue_language="voice_hi").turn(
-            CallState(stage="value"), "What skills will I learn?", now=NOW
+            CallState(stage="value"), "haan", now=NOW
         )
         assert trace.final_response == HARD_FAIL_LINE
         assert trace.provider_error == "generation-unavailable-or-invalid"

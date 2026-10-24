@@ -312,7 +312,7 @@ def test_llm_error_chunk_closes_inner_stream_before_next_turn():
         from roma.domain.conversation.stage import ConversationStage
 
         voice.state.stage = ConversationStage.VALUE
-        await voice.respond(transcript("Please explain the course"))
+        await voice.respond(transcript("haan"))
         assert provider.closed >= 1
         assert voice.store.records[-1][1]["error_code"] == "LLM"
 
@@ -509,11 +509,13 @@ def test_llm_event_uses_completed_controller_stage_and_language(caplog, monkeypa
     import logging
 
     from roma.core.logging import JsonFormatter
+    from roma.domain.conversation.stage import ConversationStage
     monkeypatch.setattr(logging.getLogger("roma.events"), "disabled", False)
     caplog.set_level(logging.INFO, logger="roma.events")
     async def run():
         voice = setup()
-        result = await voice.respond(transcript())
+        voice.state.stage = ConversationStage.VALUE
+        result = await voice.respond(transcript("haan"))
         return result
     result = asyncio.run(run())
     rows = [json.loads(JsonFormatter().format(r)) for r in caplog.records]

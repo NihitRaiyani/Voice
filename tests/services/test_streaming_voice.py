@@ -31,6 +31,7 @@ class StreamLLM:
 def stream_voice(provider=None, **config):
     voice = setup()
     voice.state.stage = ConversationStage.VALUE
+    # These tests exercise provider streaming; factual questions use static replies.
     voice.streaming = StreamConfig(**config)
     if provider:
         voice.conversation.provider = TimedLLMProvider(provider)
@@ -51,7 +52,7 @@ def test_first_sentence_is_audible_before_second_sentence_is_generated():
                 first.set()
             await original(result)
         voice.speaker.play = play
-        result = await voice.respond(transcript("Please explain the practical classes", speech_end_at=perf_counter()))
+        result = await voice.respond(transcript("haan", speech_end_at=perf_counter()))
         assert result.status == "played" and len(voice.speaker.played) == 2
         assert provider.closed and result.timings["speech_to_first_audio_ms"] >= 0
         assert all(row["peak_depth"] <= row["capacity"] for row in voice.queue_metrics.values())
@@ -70,7 +71,7 @@ def test_unsafe_generated_chunks_never_reach_tts_and_provider_closes(text):
             seen.append(request.text)
             return await synthesize(request, context, **kwargs)
         voice.synthesis.synthesize = synthesis
-        await voice.respond(transcript("Please explain the practical classes"))
+        await voice.respond(transcript("haan"))
         assert seen and all("50000" not in value and "30000" not in value for value in seen)
         assert provider.closed
     asyncio.run(run())
@@ -88,7 +89,7 @@ def test_output_backpressure_fails_with_fallback_or_transport_close_not_silence(
             closed.set()
         voice.speaker.play, voice.speaker.close = blocked, close
         with pytest.raises(RuntimeError):
-            await asyncio.wait_for(voice.respond(transcript("Please explain the practical classes")), 2)
+            await asyncio.wait_for(voice.respond(transcript("haan")), 2)
         assert provider.closed and voice._poisoned
         assert closed.is_set()
         assert any(r["dropped_newest"] for r in voice.queue_metrics.values())
@@ -123,7 +124,7 @@ def test_streaming_cancellation_discards_an_unfinished_clause():
                 provider.closed = True
         provider.generate = generate
         voice = stream_voice(provider)
-        task = asyncio.create_task(voice.respond(transcript("Please explain the practical classes")))
+        task = asyncio.create_task(voice.respond(transcript("haan")))
         await started.wait()
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -169,7 +170,7 @@ def test_minimum_speech_barge_in_cancels_every_stage_and_resumes(phase):
                 finally:
                     closed.set()
             voice.speaker.play = play
-        task = asyncio.create_task(voice.respond(transcript("Please explain the practical classes")))
+        task = asyncio.create_task(voice.respond(transcript("haan")))
         await asyncio.wait_for(started.wait(), 2)
         assert not await voice.observe_speech(0.99, 599)
         assert not task.done() and not clears
@@ -202,7 +203,7 @@ def test_late_cancel_resistant_tts_result_cannot_send_after_clear():
         async def clear():
             cleared.append(True)
         voice.speaker.clear = clear
-        task = asyncio.create_task(voice.respond(transcript("Please explain the practical classes")))
+        task = asyncio.create_task(voice.respond(transcript("haan")))
         await started.wait()
         await voice.interrupt()
         with pytest.raises(asyncio.CancelledError):
@@ -275,7 +276,7 @@ def test_interrupted_call_keeps_checkpoint_and_accepts_next_final_turn():
                 provider.closed = True
         provider.generate = blocked
         voice = stream_voice(provider)
-        task = asyncio.create_task(voice.respond(transcript("Please explain the practical classes")))
+        task = asyncio.create_task(voice.respond(transcript("haan")))
         await started.wait()
         await voice.interrupt()
         with pytest.raises(asyncio.CancelledError):
@@ -283,7 +284,7 @@ def test_interrupted_call_keeps_checkpoint_and_accepts_next_final_turn():
         saved = await voice.conversation.store.load(voice.state.call_sid)
         assert saved is not None and saved.turn_count == voice.state.turn_count
         voice.conversation.provider = TimedLLMProvider(StreamLLM())
-        result = await voice.respond(transcript("Please continue with the practical classes"))
+        result = await voice.respond(transcript("haan"))
         assert result.status == "played" and result.attempt == 2
         assert voice.store.records[-1][1]["status"] == "played"
     asyncio.run(run())
@@ -377,7 +378,7 @@ def test_barge_in_on_real_vad_frames_keeps_final_transcript_consumer_alive():
         async def clear():
             clears.append(True)
         voice.speaker.clear = clear
-        speech = SpeechInputService(ScriptedSTT(("Please explain practical classes", "Please continue with classes")), ScriptedProbability(), voice.state)
+        speech = SpeechInputService(ScriptedSTT(("haan", "haan")), ScriptedProbability(), voice.state)
         async def source():
             for speaking in [1] * 5 + [0] * 20:
                 yield bytes([speaking, 0]) * 512
@@ -400,7 +401,7 @@ def test_streaming_tts_audit_failure_remains_visible_in_safe_error_code():
             speech = await original(*args, **kwargs)
             return replace(speech, audit_ok=False)
         voice.synthesis.synthesize = unavailable
-        result = await voice.respond(transcript("Please explain the practical classes"))
+        result = await voice.respond(transcript("haan"))
         assert result.error_code == "SAFETY"
     asyncio.run(run())
 
@@ -415,7 +416,7 @@ def test_no_confirmed_booking_claim_can_stream_before_database_commit():
             seen.append(request.text)
             return await original(request, context, **kwargs)
         voice.synthesis.synthesize = synthesize
-        await voice.respond(transcript("Please explain the practical classes"))
+        await voice.respond(transcript("haan"))
         assert seen and all("आपका अपॉइंटमेंट कन्फर्म है" not in line for line in seen)
         assert voice.state.appointment_id is None
     asyncio.run(run())
@@ -486,7 +487,7 @@ def test_cancel_resistant_fallback_never_plays_after_interruption():
                 await release.wait()
             return await original(*args, **kwargs)
         voice.synthesis.synthesize = synthesize
-        task = asyncio.create_task(voice.respond(transcript("Please explain practical classes")))
+        task = asyncio.create_task(voice.respond(transcript("haan")))
         await asyncio.wait_for(entered.wait(), 1)
         await voice.interrupt()
         release.set()
@@ -519,7 +520,7 @@ def test_failed_close_of_cancel_resistant_turn_still_finishes_disconnect():
         voice.conversation.turn = turn
         voice.speaker.close, voice.speaker.clear = close, clear
         voice.release_on_disconnect, voice.store.finish = release_resources, finish
-        task = asyncio.create_task(voice.respond(transcript("Please explain practical classes")))
+        task = asyncio.create_task(voice.respond(transcript("haan")))
         await entered.wait()
         try:
             await voice.disconnect()
@@ -545,12 +546,12 @@ def test_next_response_waits_until_previous_interrupt_clear_finishes():
             clearing.set()
             await release.wait()
         voice.conversation.turn, voice.speaker.clear = blocked, clear
-        first = asyncio.create_task(voice.respond(transcript("Please explain practical classes")))
+        first = asyncio.create_task(voice.respond(transcript("haan")))
         await started.wait()
         interrupt = asyncio.create_task(voice.interrupt())
         await clearing.wait()
         voice.conversation.turn = original
-        second = asyncio.create_task(voice.respond(transcript("Please continue practical classes")))
+        second = asyncio.create_task(voice.respond(transcript("haan")))
         try:
             await asyncio.sleep(0.02)
             assert not voice.speaker.played and not second.done()
@@ -575,7 +576,7 @@ def test_cancel_resistant_ready_receipt_never_plays_after_interruption():
                     await release.wait()
             await original(sid, record)
         voice.store.save = save
-        task = asyncio.create_task(voice.respond(transcript("Please explain practical classes")))
+        task = asyncio.create_task(voice.respond(transcript("haan")))
         await entered.wait()
         await voice.interrupt()
         release.set()

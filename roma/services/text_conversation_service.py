@@ -39,9 +39,14 @@ from roma.domain.conversation.state import CallState, spoken_slot
 from roma.domain.conversation.state_machine import (
     ConversationStateStore,
     InMemoryConversationStateStore,
-    route_intent,
 )
 from roma.domain.conversation.turn import advance_turn
+from roma.domain.knowledge.routing import (
+    NO_EVIDENCE_LINE,
+    KnowledgeRoute,
+    approved_static_reply,
+    classify_turn,
+)
 from roma.domain.safety.audit import SafetyActivation, SafetyContext, activation, check_sentence
 from roma.domain.safety.inputs import (
     CALLER_TEXT_LIMIT,
@@ -462,6 +467,8 @@ class TextConversationService:
         )
         controller_started = perf_counter()
         extraction_before = getattr(self.provider, "elapsed_ms", 0.0)
+        decision = classify_turn(state, user_text)
+        factual_turn = decision.route in {KnowledgeRoute.KNOWLEDGE, KnowledgeRoute.SAFETY, KnowledgeRoute.NO_EVIDENCE}
         await advance_turn(
             state,
             user_text,
@@ -470,6 +477,7 @@ class TextConversationService:
             elapsed_secs=elapsed_secs,
             extract_discovery=discovery,
             extract_time=time_slot,
+            controller_only=factual_turn,
             **booking_kwargs,
         )
         self.controller_elapsed_ms += max(0.0, (perf_counter() - controller_started) * 1000
@@ -479,7 +487,15 @@ class TextConversationService:
             with voice_boundary(VoiceErrorCode.DB):
                 await save_checkpoint(self.store, state, CheckpointMilestone.STATE_CHANGED)
         fixed = canned_reply(state, user_text)
-        route = route_intent(state, deterministic_reply=fixed)
+        route = decision.route.value
+        if fixed is None and decision.route in {KnowledgeRoute.SAFETY, KnowledgeRoute.NO_EVIDENCE}:
+            fixed = decision.reply
+        elif decision.route == KnowledgeRoute.KNOWLEDGE and fixed is None and state.stage not in {"pivot", "close"}:
+            # Existing reviewed structured course facts remain an approved source.
+            # Branch/policy questions require a governed source; no model-memory guess.
+            fixed = approved_static_reply(state, user_text)
+        elif decision.route == KnowledgeRoute.KNOWLEDGE and fixed is None:
+            fixed = NO_EVIDENCE_LINE
         narrow_task = (
             f"Ask only for {state.next_discovery_slot()} in <=20 words."
             if state.stage == "discover" and state.next_discovery_slot()
@@ -494,7 +510,7 @@ class TextConversationService:
             temperature=self.temperature,
         )
         prompt = request.messages
-        if fixed is None and state.stage == "discover":
+        if fixed is None and state.stage == "discover" and not factual_turn:
             next_field = state.next_discovery_slot()
             if next_field:
                 fixed = DISCOVERY_QUESTIONS[next_field]
@@ -545,7 +561,7 @@ class TextConversationService:
                 candidate, state,
                 require_devanagari=self.dialogue_language == "voice_hi" and fixed is None and not errors,
             )
-        category = guarded_category(set(tokens(user_text)))
+        category = decision.category or guarded_category(set(tokens(user_text)))
         if fixed is not None and category is not None and fixed == SUBSTITUTIONS[category]:
             events = (
                 *events,

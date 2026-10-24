@@ -315,7 +315,7 @@ def test_total_deadline_includes_backoff_and_budget_survives_concurrent_turns():
     [
         (
             "value",
-            "Tell me practical skills",
+            "haan",
             "Practical projects se portfolio banega. Aap kya seekhna chahenge?",
         ),
         ("discover", "I work", '{"value":"working","confidence":0.95}'),
