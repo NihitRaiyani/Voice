@@ -20,6 +20,9 @@ from .organization import Branch, BranchCourse, Counsellor, Course, Institute
 from .webhooks import WebhookReceipt
 
 __all__ = [
+    "KnowledgeDocument",
+    "KnowledgeChunk",
+    "RetrievalLog",
     "Base",
     "AuthSession",
     "AuthRefreshToken",
@@ -50,3 +53,5 @@ __all__ = [
     "BenchmarkRun",
     "BenchmarkResult",
 ]
+
+from .knowledge import KnowledgeChunk, KnowledgeDocument, RetrievalLog

@@ -1,6 +1,6 @@
 # Database migrations and separate demo data
 
-**Level 1 section 5.** SQLAlchemy 2.x defines the relational metadata; Alembic owns schema, constraints and indexes. [The schema catalog](20-relational-schema.md) explains their purpose. This workflow retains all existing revisions and the current single head. Current code head is `20261023_0004`, adding human sessions/refresh hashes. Verification uses disposable databases only. The configured `roma` database was recorded at then-head `20261004_0003` on 2026-10-04; that dated evidence is historical, and this session did not upgrade it. Every intended environment must explicitly upgrade before new schema consumers start.
+**Level 1 section 5.** SQLAlchemy 2.x defines the relational metadata; Alembic owns schema, constraints and indexes. [The schema catalog](20-relational-schema.md) explains their purpose. This workflow retains all existing revisions and the current single head. Current code head is `20261024_0006`, following authentication `0004`, privacy `0005` and knowledge governance `0006`. Verification uses disposable databases only. The configured `roma` database was recorded at then-head `20261004_0003` on 2026-10-04; that dated evidence is historical, and this session did not upgrade it. Every intended environment must explicitly upgrade before new schema consumers start.
 
 ## Preserved revision history
 
@@ -10,6 +10,8 @@
 | `20260930_0002` | `20260920_0001` | Atomic answer-webhook receipts and replay protection |
 | `20261004_0003` | `20260930_0002` | Conversation checkpoints, model registry, benchmark runs/results and nullable turn language |
 | `20261023_0004` | `20261004_0003` | Human sessions and unique hashed rotating refresh credentials; no accounts/seeds |
+| `20261024_0005` | `20261023_0004` | Selected encrypted-field storage, recording disclosure evidence and durable privacy tombstones; no automatic backfill |
+| `20261024_0006` | `20261024_0005` | Governed knowledge documents/chunks/retrieval metadata and immutable approval controls; no model/vector inference |
 
 The roadmap's five numbered examples illustrate ordered migrations; they do not require splitting or renumbering history already present in this project. All three revision files remain unchanged in section 5. Section 5 originally added no empty fourth migration. Section 28 now appends a real fourth migration for authentication; prior revisions remain unchanged. Future schema/index changes append a reviewed revision to the current head. Never edit an applied revision to make a new model match it.
 
@@ -27,7 +29,7 @@ alembic current
 alembic check
 ```
 
-`heads`/`history` inspect files; `current` and `check` require PostgreSQL. The expected code head is `20261023_0004`. The configured `roma` database was confirmed at the earlier then-head `20261004_0003` on 2026-10-04; no current working-DB head claim or upgrade is made by this increment. `check` confirms no proposed metadata operations, not data integrity, service readiness or performance. Upgrade every other intended environment before code queries the new turn-language column. Alembic's [migration tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration) describes revision ordering and upgrade execution.
+`heads`/`history` inspect files; `current` and `check` require PostgreSQL. The expected code head is `20261024_0006`. The configured `roma` database was confirmed at the earlier then-head `20261004_0003` on 2026-10-04; no current working-DB head claim or upgrade is made by this increment. `check` confirms no proposed metadata operations, not data integrity, service readiness or performance. Upgrade every other intended environment before code queries the new turn-language column. Alembic's [migration tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration) describes revision ordering and upgrade execution.
 
 Preview SQL without connecting to PostgreSQL:
 
@@ -90,6 +92,8 @@ Students should explain why applied history is immutable, why generated migratio
 
 Return to the [documentation index](README.md).
 
-## Privacy revision 0005
+## Privacy and knowledge revisions 0005–0006
 
-20261024_0005 appends after auth0004, adding disclosure/tombstone schema and widening Caller.name to TEXT. Downgrade removes privacy schema but intentionally retains TEXT to avoid ciphertext truncation. It never decrypts rows or generates keys. Backup/restore must preserve deletion instructions; intended-environment migration/backfill remain explicit.
+The forward chain appends 20261024_0005 after 20261023_0004, then 20261024_0006. Privacy adds disclosure evidence/tombstones and TEXT name storage; knowledge adds documents/chunks/retrieval metadata and approved-version enforcement. Neither revision generates keys, seeds users/documents, encrypts existing rows, touches models or calls providers.
+
+Review privacy tombstone/audit preservation and backup policy before any downgrade. Downgrading knowledge removes its evidence metadata; privacy downgrade removes tombstones/disclosure evidence. Caller.name intentionally remains TEXT on privacy downgrade so ciphertext cannot be truncated into a former 255-character column. A downgrade does not decrypt ciphertext or make deletion/consent policy disappear. Keep keys and reapply durable deletion instructions before restored data serves traffic. Use only disposable databases to rehearse upgrade/downgrade; intended-environment migration and encrypted legacy backfill remain explicit operator actions.

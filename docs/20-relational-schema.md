@@ -1,6 +1,6 @@
 # Relational schema and key rationale
 
-**Level 1 section 4.** This catalog describes the current 27-table PostgreSQL metadata, including additive migrations `20261004_0003` and section 28 `20261023_0004`. Existing definitions, indexes and applied migrations are preserved; `call_turns.language` is the only additive column on an old table. No existing values are guessed/backfilled. `knowledge_documents`, `knowledge_chunks` and `retrieval_logs` remain Level 9, including pgvector.
+**Level 1 section 4.** This catalog describes the current 31-table PostgreSQL metadata through `20261024_0006`. Existing applied revisions remain intact; new forward revisions add auth, privacy evidence/tombstones and governed knowledge metadata. Selected field encryption is explicit, legacy values are not guessed/backfilled, and actual embedding vectors/pgvector remain later Level 9 work.
 
 ## Relationships and ownership
 
@@ -401,6 +401,8 @@ Section 5 preserves this entire schema and all revision files. See the [migratio
 
 Retain consumed hashes through the usable family lifetime so reuse can revoke successors. Expiry is checked at authorization; it does not automatically delete data. Cleanup/retention policy is still to be approved. Downgrading 0004 drops both credential tables and logs out all such sessions, retaining users/roles and other business records. No migration seeds identities or role assignments. [Migration workflow](21-database-migrations.md) owns execution and rollback.
 
-## Section 31 privacy schema
+## Sections 31 and 33 privacy and knowledge schema
 
-Revision 20261024_0005 adds privacy_tombstones, recording disclosure evidence and TEXT name storage for explicitly activated selected-field encryption. There are 28 application tables through this revision. No key generation, data encryption/backfill or working-environment upgrade runs automatically. See Level 8 and migration guidance.
+Revision 20261024_0005 adds privacy_tombstones and recording disclosure evidence and widens Caller.name to TEXT for authenticated ciphertext. Existing CallTurn.transcript TEXT stores the selected encrypted representation when explicitly activated. Tombstones retain minimized call/provider identity and retry status to prevent post-deletion queued effects; they are not transcript journals.
+
+Revision 20261024_0006 adds knowledge_documents (versioned approved content/scope/provenance), knowledge_chunks (bounded future ingestion/embedding metadata) and retrieval_logs (bounded non-content retrieval telemetry). Approval/content identity, lifecycle and effective-scope checks precede eligibility. No embedding model or fixed vector dimension is selected here. The application metadata now contains 31 tables: 27 through auth 0004, one privacy tombstone table, and three knowledge tables. See [Level 8](levels/level-08.md) and [Level 9](levels/level-09.md) for actual implementation versus remaining acceptance.

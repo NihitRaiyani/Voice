@@ -34,6 +34,7 @@ from roma.repositories.redis.webhook_window import RedisWebhookWindow
 from roma.services.auth_service import AuthService
 from roma.services.booking_service import BookingService
 from roma.services.booking_session import BookingSession
+from roma.services.knowledge_service import KnowledgeService
 from roma.services.live_call_state import LiveCallStateStore
 from roma.services.privacy_service import PrivacyService
 from roma.services.recording_service import RecordingService
@@ -130,6 +131,9 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestRateLimitMiddleware)
     app.add_middleware(RequestLogMiddleware)
+    app.state.knowledge_service = (
+        KnowledgeService(database.session_factory) if database else None
+    )
     app.state.privacy_settings = privacy_settings
     privacy_repository = SQLPrivacyRepository(database.session_factory) if database else None
     app.state.recording_service = (

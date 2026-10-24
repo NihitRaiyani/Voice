@@ -25,8 +25,9 @@ def test_existing_history_is_linear_and_offline_sql_contains_schema_indexes_only
     config = Config("alembic.ini", output_buffer=output)
     config.set_main_option("sqlalchemy.url", "postgresql://demo@localhost/roma")
     directory = ScriptDirectory.from_config(config)
-    assert directory.get_heads() == ["20261024_0005"]
+    assert directory.get_heads() == ["20261024_0006"]
     assert [revision.revision for revision in directory.walk_revisions()] == [
+        "20261024_0006",
         "20261024_0005",
         "20261023_0004",
         "20261004_0003",
@@ -38,8 +39,9 @@ def test_existing_history_is_linear_and_offline_sql_contains_schema_indexes_only
     assert "CREATE TABLE users" in sql
     assert "CREATE TABLE benchmark_results" in sql
     assert "ALTER TABLE recordings ADD COLUMN disclosure_version VARCHAR(128)" in sql
-    for table in ("privacy_tombstones",):
+    for table in ("privacy_tombstones", "knowledge_documents", "knowledge_chunks", "retrieval_logs"):
         assert f"CREATE TABLE {table}" in sql
+    assert "CREATE TRIGGER knowledge_approval_immutable" in sql
     assert "CREATE INDEX ix_benchmark_results_model_id_language_metric" in sql
     assert "roma-demo" not in sql
     assert "INSERT INTO institutes" not in sql

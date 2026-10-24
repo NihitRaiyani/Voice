@@ -33,7 +33,7 @@ def test_demo_database_native_lifecycle_migrations_and_future_test_only_data(tmp
             engine = create_async_engine(url)
             try:
                 async with async_sessionmaker(engine)() as session:
-                    assert await session.scalar(text('SELECT version_num FROM alembic_version')) == '20261024_0005'
+                    assert await session.scalar(text('SELECT version_num FROM alembic_version')) == '20261024_0006'
                     for model in (Institute, Branch, Course):
                         rows = (await session.scalars(select(model))).all()
                         assert rows and all(row.code.startswith('TEST_ONLY') for row in rows)

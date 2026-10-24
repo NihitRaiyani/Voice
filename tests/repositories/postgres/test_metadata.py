@@ -45,6 +45,9 @@ TABLES = {
     "benchmark_runs",
     "benchmark_results",
     "privacy_tombstones",
+    "knowledge_documents",
+    "knowledge_chunks",
+    "retrieval_logs",
 }
 
 
