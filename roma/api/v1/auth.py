@@ -11,6 +11,7 @@ from redis.exceptions import RedisError
 from roma.api.v1.responses import ApiError, success_response
 from roma.core.auth_settings import AuthSettings
 from roma.core.config import get_settings
+from roma.core.rate_limit import limit_authenticated
 from roma.schemas.auth import CreateUserRequest, LoginRequest, RefreshRequest, UpdateUserRequest
 from roma.services.auth_service import AuthError, Permission, Principal
 
@@ -40,6 +41,7 @@ async def current_principal(request: Request) -> Principal:
         principal = await service.authenticate(token.strip())
     except AuthError as error:
         raise _error(error) from None
+    await limit_authenticated(request, "user:" + str(principal.user_id))
     request.state.principal = principal
     return principal
 
@@ -101,6 +103,7 @@ async def resource_principal(request: Request):
                 token.encode("ascii"), static.get_secret_value().encode("utf-8")
             )
         ):
+            await limit_authenticated(request, "machine:" + token)
             return MachinePrincipal()
         if getattr(request.app.state, "auth_service", None) is None:
             if static is None or not static.get_secret_value():

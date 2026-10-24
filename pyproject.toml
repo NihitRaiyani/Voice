@@ -63,7 +63,9 @@ markers = [
 python_version = "3.11"
 files = [
     "roma/core/call_capabilities.py",
+    "roma/core/rate_limit.py",
     "roma/schemas/twilio.py",
+    "roma/repositories/redis/request_rate_limit.py",
     "roma/providers/ai",
     "roma/core/openai_llm_settings.py",
     "roma/core/claude_llm_settings.py",

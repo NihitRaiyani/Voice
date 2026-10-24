@@ -156,6 +156,7 @@
     "tests/repositories/redis/test_call_status.py",
     "tests/repositories/redis/test_conversation_state.py",
     "tests/repositories/redis/test_postcall_storage.py",
+    "tests/repositories/redis/test_request_rate_limit.py",
     "tests/repositories/redis/test_webhook_window.py",
     "tests/services/test_auth_bootstrap.py",
     "tests/services/test_auth_service.py",

@@ -5,6 +5,7 @@ realtime pipeline. Lower layers remain importable without starting the server.
 """
 
 from contextlib import asynccontextmanager
+from hashlib import sha256
 
 from fastapi import FastAPI
 from redis.asyncio import Redis
@@ -14,6 +15,7 @@ from roma.core.auth_settings import AuthSettings
 from roma.core.config import get_settings, require_reachable_base_url
 from roma.core.database import Database
 from roma.core.logging import RequestLogMiddleware, configure_logging
+from roma.core.rate_limit import RequestRateLimitMiddleware
 from roma.core.tokenizer import require_nltk_data
 from roma.realtime.pipeline import build_media_app
 from roma.repositories.postgres.booking import PostgresBookingStore
@@ -24,6 +26,7 @@ from roma.repositories.redis.appointment_holds import RedisAppointmentHolds
 from roma.repositories.redis.auth_rate_limit import AuthRateLimiter
 from roma.repositories.redis.call_lease import RedisCallLease
 from roma.repositories.redis.conversation_state import RedisCallStateStore
+from roma.repositories.redis.request_rate_limit import RequestRateLimiter
 from roma.repositories.redis.webhook_window import RedisWebhookWindow
 from roma.services.auth_service import AuthService
 from roma.services.booking_service import BookingService
@@ -111,6 +114,13 @@ def create_app() -> FastAPI:
         if database
         else UnavailableSafetyEventStore(),
     )
+    rate_secret = settings.pii_hash_key.get_secret_value().encode()
+    app.state.request_rate_limiter = (
+        RequestRateLimiter(redis, sha256(b"roma-rate-limit-v1:" + rate_secret).digest())
+        if len(rate_secret) >= 32
+        else None
+    )
+    app.add_middleware(RequestRateLimitMiddleware)
     app.add_middleware(RequestLogMiddleware)
     app.state.booking_service = booking
     app.state.auth_settings = auth_settings

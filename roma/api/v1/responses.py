@@ -47,7 +47,11 @@ def error_response(status_code: int, code: str, message: str) -> JSONResponse:
 
 
 async def api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
-    return error_response(exc.status_code, exc.code, exc.message)
+    response = error_response(exc.status_code, exc.code, exc.message)
+    if exc.status_code == 429:
+        response.headers["Retry-After"] = "60"
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 async def validation_error_handler(

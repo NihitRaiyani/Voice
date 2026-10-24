@@ -93,3 +93,19 @@ Twilio SDK signatures cover the exact configured external URL and all supplied f
 Twilio does not supply a timestamp in its signature. Roma therefore issues an outbound answer intent valid for 300 seconds, bound to its configured account and lead capability. The outbound dial paths include it; expired or forged intents fail before SQL effects. Signed inbound requests retain the provider's signature semantics: old signed inbound requests have no invented freshness guarantee. SQL receipts remain the permanent duplicate-effect authority.
 
 Every live stream additionally needs a signed 120-second capability, delivered through TwiML custom parameters and bound to the account, Call SID and lead. Signature/account/capability validation and shared Redis admission precede model/media construction. Redis admits one stream per call for 600 seconds, exceeding the outbound callback/stream windows; missing Redis denies admission. The bounded start prelude cannot keep unauthenticated resources alive indefinitely. No provider console/retry configuration or live call was changed.
+
+## Section 30 shared request limits
+
+Production composition installs Redis-backed request admission before body parsing and a second budget keyed to the authenticated SQL user (or explicitly enabled machine credential). Keys are HMAC-derived; peer addresses, bearer tokens and caller text are not stored in Redis key names or logs. Client-supplied identity and forwarded-IP headers do not choose a budget.
+
+| Admission category | Default limit |
+|---|---|
+| Login/refresh, shared peer budget | 10 / 300 seconds |
+| Administrative routes, peer budget | 30 / 60 seconds |
+| Analytics routes, peer budget | 60 / 60 seconds |
+| Provider callbacks including pre-accept /ws, shared peer budget | 120 / 60 seconds |
+| AI-test/lab HTTP namespace, peer budget | 5 / 60 seconds |
+| Other API requests, peer perimeter | 1,000 / 60 seconds |
+| Authenticated user across protected routes | 100 / 60 seconds |
+
+The AI-test namespace is protected if mounted; this section creates no paid/GPU HTTP endpoint and grants no CLI spend permission. The existing auth-service limiter remains an additional configurable bound; its default window is now 300 seconds. Fixed windows use atomic increment/expiry transactions with bounded Redis I/O. Over-limit responses are sanitized 429 with Retry-After; Redis admission failure is 503 and never invokes the protected handler. Health checks remain available. Shared NAT peers share the perimeter budget; proxy trust and production sizing require deployment review.

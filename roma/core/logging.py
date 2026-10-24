@@ -201,6 +201,7 @@ class LogEvent(StrEnum):
 
     SECURITY_REJECTED = "security_rejected"
     SECURITY_ACCEPTED = "security_accepted"
+    RATE_LIMITED = "rate_limited"
     CHECKPOINT_COMPLETED = "checkpoint_completed"
     CHECKPOINT_FAILED = "checkpoint_failed"
     STATE_CACHE_FAILED = "state_cache_failed"

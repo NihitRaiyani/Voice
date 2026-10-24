@@ -11,7 +11,7 @@ class AuthSettings(BaseSettings):
 
     auth_allow_legacy_api_token: bool = False
     auth_rate_limit: int = Field(default=10, ge=1, le=1000)
-    auth_rate_window_secs: int = Field(default=60, ge=1, le=3600)
+    auth_rate_window_secs: int = Field(default=300, ge=1, le=3600)
     auth_jwt_secret: SecretStr | None = None
     auth_jwt_issuer: str = Field(default="roma", min_length=1, max_length=128)
     auth_jwt_audience: str = Field(default="roma-api", min_length=1, max_length=128)

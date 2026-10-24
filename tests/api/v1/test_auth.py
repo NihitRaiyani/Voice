@@ -236,14 +236,10 @@ def test_actual_rest_permissions_separate_recordings_leads_and_appointments(monk
         auth = {"Authorization": "Bearer synthetic-jwt"}
         listing = client.get("/api/v1/calls", headers=auth)
         assert listing.status_code == 200
-        assert listing.json()["data"][0]["recording_url"] == (
-            None if role == "viewer" else "private/recording.wav"
-        )
+        assert listing.json()["data"][0]["recording_url"] == (None if role == "viewer" else "private/recording.wav")
         detail = client.get(f"/api/v1/calls/{CALL_ID}", headers=auth)
         assert detail.status_code == 200
-        assert detail.json()["data"]["recording_url"] == (
-            None if role == "viewer" else "private/recording.wav"
-        )
+        assert detail.json()["data"]["recording_url"] == (None if role == "viewer" else "private/recording.wav")
         assert client.get("/api/v1/leads", headers=auth).status_code == (
             403 if role == "viewer" else 200
         )
@@ -383,6 +379,8 @@ def test_production_auth_is_explicit_and_closes_before_database(monkeypatch, wit
         lambda: SimpleNamespace(
             database_url=SecretStr("postgresql+asyncpg://unused" if with_database else ""),
             redis_url=SecretStr("redis://unused"),
+            pii_hash_key=SecretStr("synthetic-only-pii-key-" * 3),
+            roma_data_dir="var/roma",
             booking_hold_ttl_secs=90,
             booking_db_timeout_secs=3,
             booking_redis_timeout_secs=1,
