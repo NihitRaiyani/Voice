@@ -2,7 +2,7 @@
 
 ## Existing trust boundaries
 
-Validate `X-Twilio-Signature` against the exact configured external HTTP/WebSocket URL and verify start-event Account SID before constructing media. Human/client bearer authentication is distinct from carrier signature validation and worker access. Malformed/non-ASCII bearer credentials fail authentication with 401 before any resource/provider action. The current service has no frontend; its static bearer API token is not a user/role/session system.
+Validate `X-Twilio-Signature` against the exact configured external HTTP/WebSocket URL and verify start-event Account SID before constructing media. Human/client bearer authentication is distinct from carrier signature validation and worker access. Malformed/non-ASCII bearer credentials fail authentication with 401 before any resource/provider action. The current service has no frontend. Section 28 adds SQL-backed JWT sessions and role checks; the old static bearer is an explicit compatibility option, disabled by default. See [the implemented access contract](levels/level-08.md#section-28-authentication-and-role-permissions).
 
 Keep secrets in environment-backed secret settings, hide SQL parameters and redact errors/logs. Full phone numbers, transcripts and authorization tokens do not belong in ordinary logs, metrics or fixtures. `var/roma`, Redis dumps and credentials remain ignored and access-controlled.
 
@@ -14,9 +14,9 @@ The current API validates Indian mobiles, calling window (09:00–21:00 IST), co
 
 Owner-approved contact/recording policy is required before real lead/production traffic. These code defaults do not establish legal clearance. Pending recording wording/audio causes capture discard rather than retained storage.
 
-## Level 8 target
+## Level 8 access and remaining security work
 
-Implement user identity, short-lived JWT/session expiry, refresh/revocation and role permissions. Validate issuer/audience and deny access by default. Keep callback signing separate and define replay behavior using actual provider capabilities; Twilio signatures alone do not impose a timestamp freshness window.
+Section 28 implements user identity, issuer/audience-validated JWT expiry, rotating refresh-family revocation and deny-by-default roles. Operational secret/account setup and institute approval remain explicit. Recording access auditing, complete privacy/deletion and callback freshness are still later work. Keep callback signing separate and define replay behavior using actual provider capabilities; Twilio signatures alone do not impose a timestamp freshness window.
 
 Current `/answer` already has atomic durable receipt/call/event acceptance. Extend identity/lease/completion semantics only to required callbacks. A processing claim cannot mark an effect completed before its transaction commits. Signature verification and idempotency solve distinct problems.
 
@@ -31,4 +31,4 @@ CI uses synthetic/redacted fixtures and fake paid providers. L12 adds security s
 
 ## Section 12 prompt and safety boundary
 
-The [safety contract](04-guardrails.md#untrusted-inputs-and-limits) defines bounded caller/slot characters, length and enum validation, instruction-override canaries and the final deterministic output gate. Rejected utterances never become live model history. Structured events omit raw text and preserve call/turn correlation; API serialization exposes only approved audit metadata. Database write failures produce a safe line and an explicit structured failure signal. This is not complete semantic injection prevention, universal PII detection or Level 8 user authorization.
+The [safety contract](04-guardrails.md#untrusted-inputs-and-limits) defines bounded caller/slot characters, length and enum validation, instruction-override canaries and the final deterministic output gate. Rejected utterances never become live model history. Structured events omit raw text and preserve call/turn correlation; API serialization exposes only approved audit metadata. Database write failures produce a safe line and an explicit structured failure signal. This is not complete semantic injection prevention, universal PII detection or complete semantic/production security acceptance. Section 28 separately adds user authorization.

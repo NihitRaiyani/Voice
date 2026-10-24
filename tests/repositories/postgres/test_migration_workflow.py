@@ -25,8 +25,9 @@ def test_existing_history_is_linear_and_offline_sql_contains_schema_indexes_only
     config = Config("alembic.ini", output_buffer=output)
     config.set_main_option("sqlalchemy.url", "postgresql://demo@localhost/roma")
     directory = ScriptDirectory.from_config(config)
-    assert directory.get_heads() == ["20261004_0003"]
+    assert directory.get_heads() == ["20261023_0004"]
     assert [revision.revision for revision in directory.walk_revisions()] == [
+        "20261023_0004",
         "20261004_0003",
         "20260930_0002",
         "20260920_0001",

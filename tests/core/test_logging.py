@@ -98,3 +98,38 @@ def test_redaction_filter_scrubs_secret_in_traceback():
     assert record.exc_text is not None
     assert secret not in record.exc_text
     assert "***REDACTED***" in record.exc_text
+
+
+def test_jwt_signing_secret_is_redacted_in_records_for_both_configuration_paths(monkeypatch):
+    from roma.core.logging import _LoggingSettings
+
+    secret = 'synthetic-jwt-signing-key-for-redaction-only'
+    monkeypatch.setenv('AUTH_JWT_SECRET', secret)
+    monkeypatch.setitem(_LoggingSettings.model_config, 'env_file', None)
+    explicit = Settings(
+        _env_file=None,
+        sarvam_api_key='synthetic-sarvam-key',
+        openai_api_key='synthetic-openai-key',
+        redis_url='redis://unused',
+    )
+    root = logging.getLogger()
+    saved_handlers, saved_level = root.handlers[:], root.level
+    try:
+        for settings in (None, explicit):
+            configure_logging(settings)
+            try:
+                raise RuntimeError(f'synthetic failure involving {secret}')
+            except RuntimeError:
+                exc_info = sys.exc_info()
+            record = logging.LogRecord('test', logging.ERROR, __file__, 1,
+                                       'JWT signing key=%s', (secret,), exc_info)
+            # Inspect actual record mutation before any JSON formatter can omit text.
+            for handler in root.handlers:
+                for filter_ in handler.filters:
+                    assert filter_.filter(record)
+            assert secret not in record.getMessage()
+            assert '***REDACTED***' in record.getMessage()
+            assert record.exc_text is not None and secret not in record.exc_text
+    finally:
+        root.handlers = saved_handlers
+        root.setLevel(saved_level)

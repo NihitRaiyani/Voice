@@ -5,8 +5,10 @@ description = "Roma — outbound code-mix voice agent for Weltec"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.16,<2",
+    "argon2-cffi>=23.1,<26",
     "asyncpg>=0.30,<1",
     "pydantic-settings>=2.5",
+    "pyjwt>=2.10,<3",
     "sqlalchemy[asyncio]>=2.0,<3",
 ]
 
@@ -82,6 +84,13 @@ files = [
     "roma/services/voice_prototype.py",
     "roma/providers/reliability.py",
     "roma/providers/jobs/claude_summary.py",
+    "roma/core/auth_settings.py",
+    "roma/core/security.py",
+    "roma/services/auth_service.py",
+    "roma/repositories/postgres/auth.py",
+    "roma/api/v1/auth.py",
+    "roma/schemas/auth.py",
+    "roma/repositories/redis/auth_rate_limit.py",
     "roma/repositories/redis/webhook_window.py",
     "roma/services/webhook_service.py",
     "roma/core/async_queue.py",

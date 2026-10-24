@@ -1,6 +1,7 @@
 """Importing this package registers the complete durable relational schema."""
 
 from .appointments import Appointment, AppointmentSlot
+from .auth import AuthRefreshToken, AuthSession
 from .base import Base
 from .benchmarks import BenchmarkResult, BenchmarkRun, ModelRegistry
 from .calls import Call, Caller, CallEvent, CallTurn
@@ -12,6 +13,8 @@ from .webhooks import WebhookReceipt
 
 __all__ = [
     "Base",
+    "AuthSession",
+    "AuthRefreshToken",
     "Institute",
     "Branch",
     "Course",

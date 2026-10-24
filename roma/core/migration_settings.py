@@ -33,3 +33,19 @@ class MigrationSettings(BaseSettings):
         if not raw:
             raise RuntimeError("DATABASE_URL is required for database operations")
         return raw
+
+
+def current_schema_head() -> str:
+    """Read the repository's Alembic head without connecting to a database."""
+    from pathlib import Path
+
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    root = Path(__file__).resolve().parents[2]
+    config = Config(str(root / 'alembic.ini'))
+    config.set_main_option('script_location', str(root / 'migrations'))
+    head = ScriptDirectory.from_config(config).get_current_head()
+    if head is None:
+        raise RuntimeError('No migration head is configured')
+    return head

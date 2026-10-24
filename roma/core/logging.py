@@ -125,12 +125,19 @@ class _LoggingSettings(BaseSettings):
     sarvam_api_key: SecretStr = SecretStr("")
     openai_api_key: SecretStr = SecretStr("")
     anthropic_api_key: SecretStr = SecretStr("")
+    auth_jwt_secret: SecretStr = SecretStr("")
     redis_url: SecretStr = SecretStr("")
 
 
 def _secret_values(settings: Settings | _LoggingSettings):
     """Every value that must never appear in a log line (CLAUDE.md gate 2, docs/07)."""
+    # Provider Settings deliberately does not own human-auth configuration. Read the
+    # separate secret source too when logging receives explicit provider settings.
+    auth_secret = getattr(settings, "auth_jwt_secret", None)
+    if auth_secret is None:
+        auth_secret = _LoggingSettings().auth_jwt_secret
     return [
+        auth_secret.get_secret_value(),
         settings.twilio_account_sid.get_secret_value(),
         settings.twilio_auth_token.get_secret_value(),
         settings.twilio_from_number.get_secret_value(),

@@ -78,6 +78,10 @@ def _app(monkeypatch, **overrides):
     # themselves and the config the server actually runs on had drifted apart, and nothing
     # compared them. A test that deletes a setting must control the whole settings source.
     monkeypatch.setitem(Settings.model_config, "env_file", None)
+    from roma.core.auth_settings import AuthSettings
+
+    monkeypatch.setitem(AuthSettings.model_config, "env_file", None)
+    monkeypatch.setenv("AUTH_ALLOW_LEGACY_API_TOKEN", "true")
 
     # The endpoint judges the TRAI calling window against the REAL wall clock, so until
     # 2026-08-08 this suite silently only passed between 09:00 and 21:00 IST — every dial

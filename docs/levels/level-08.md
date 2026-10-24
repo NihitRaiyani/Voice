@@ -1,6 +1,6 @@
 # Level 8 — Secure jobs and access
 
-**Roadmap sections:** 26–31. **Status:** Sections 26–27 durable jobs and webhook idempotency extensions verified offline; section 28 human access follows; privacy/replay/publication and full gate pending.
+**Roadmap sections:** 26–31. **Status:** Sections 26–28 durable jobs, webhook idempotency and human authentication/RBAC implemented with offline verification; privacy/replay/publication and full gate pending.
 
 ## Entry gate
 
@@ -41,6 +41,33 @@ An identical active processing lease returns retryable 503 without a second SQL 
 Failure/cancellation releases only the matching processing token. A crashed API leaves a short lease which expires; a successor retries the SQL identity. A lost acknowledgement after SQL commit is safe, including a crash before Redis done. Completion/release compares ownership, so late old work cannot delete or finish its successor. SQL independently rejects changed-input identity reuse and protects concurrent delivery even when Redis is unavailable. Scheduled worker effects retain their unique SQL identities and settlement transactions from section 26. Exactly-once business effects do not mean exactly-once delivery or arbitrary external messaging.
 
 Tests exercise pending/done TTLs, expiry/stale ownership, release on failed/cancelled work, cache outages, stale done digests and actual disposable SQL commit-before-done crash recovery. Existing concurrent SQL tests still prove one receipt/call/event. [Verification](../12-verification.md#section-27-webhook-idempotency) owns results. No signed transport/provider retry setting, schema or working database changed; broader callback freshness/privacy/replay acceptance remains pending.
+
+## Section 28 authentication and role permissions
+
+Human access now uses `AuthService`, separate `AuthSettings`, the `/api/v1/auth` router and route-level permissions. Argon2id hashes passwords; creation requires 12–256 characters and at most 1,024 UTF-8 bytes. Unknown-user login performs dummy verification. Native password work has two owned admission slots; cancellation does not release capacity before the hash finishes. No default account, registration endpoint or startup seed exists.
+
+Access tokens use PyJWT with fixed HS256, required typed claims, issuer `roma`, audience `roma-api` and a private signing secret of at least 32 bytes. Default access expiry is 900 seconds; refresh-family lifetime is 604,800 seconds. JWTs contain opaque identifiers, not email/caller data. Every authenticated request checks the current SQL session, user activity and roles. Role changes take effect on the next request; disabling a user revokes families, and reactivation cannot resurrect them. SQL failure denies access with a sanitized unavailable response.
+
+Refresh credentials are random 384-bit opaque values; only SHA-256 hashes are stored. Short row-locked transactions rotate one-use credentials. Concurrent reuse revokes the family, including a successor issued to a racing request. Logout revokes the whole family and therefore its access tokens. Expiry rejects access without relying on row cleanup. Keep consumed refresh hashes until their family can no longer be used; no automatic purge or approved identity-retention policy is implied.
+
+| Operation | Admin | Counsellor | Viewer |
+|---|---|---|---|
+| View calls / analytics / safe safety-event metadata | Yes | Yes | Yes |
+| Read recording references | Yes | Yes | No |
+| View/manage appointments and leads | Yes | Yes | No |
+| Create call records / dial | Yes | No | No |
+| Manage users | Yes | No | No |
+| Change safety rules (permission only) | Yes | No | No |
+| Upload/approve knowledge (future permission) | Yes | No | No |
+| Search knowledge debug API (future permission) | Yes | Yes | No |
+
+Viewer call/list/detail responses redact `recording_url` to null. There is no new recording-download endpoint; expiring object access and access auditing remain privacy work. Safety rules remain code-reviewed, and Level 9 knowledge endpoints are not created by assigning permissions. This implements the proposed baseline with additional Admin-only outbound dialing; institute policy still needs approval before production.
+
+Routes: `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, Admin-only `POST /api/v1/users` and `PATCH /api/v1/users/{user_id}`. Login/refresh responses forbid caching. Login/refresh share Redis-backed HMAC-keyed peer-IP admission: ten attempts per 60 seconds by default, explicit expiry, 429 when exceeded and 503 if the limiter is unavailable. Proxy headers are not trusted. Missing authentication configuration is 503; bad/expired credentials are 401 and insufficient permission is 403.
+
+Existing resources and legacy dial/status routes now require these permissions. `AUTH_ALLOW_LEGACY_API_TOKEN=false` by default; an explicit compatibility opt-in permits the old machine token only for pre-existing resource permissions, never user administration, safety mutation or knowledge management. Invalid/JWT-shaped credentials never downgrade to that token. Signed Twilio `/answer` and `/ws` remain a separate trust boundary.
+
+Migration `20261023_0004` appends two tables to the preserved chain. [Schema rationale](../20-relational-schema.md#section-28-human-session-tables) and [operator setup](../runbook.md#section-28-human-authentication-setup) cover keys, expiry, rollback and explicit bootstrap. This session migrated disposable databases only; configure a private secret, upgrade the intended environment and provision an Admin explicitly before real API use. [Verification](../12-verification.md#section-28-authentication-and-final-integration) records offline evidence. Paid/microphone/native acceptance and all advanced tracks remain deferred; no gate checkbox changes.
 
 ## Acceptance gate
 

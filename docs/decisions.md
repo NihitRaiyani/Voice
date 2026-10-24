@@ -71,7 +71,7 @@ D3 in older source comments refers to Gujarati-script recognition observations. 
 
 ## Remaining engineering gaps
 
-Section 13 connects transactional booking and same-SID appointment reconciliation. Provider-neutral local AI, conditional RAG, user/RBAC/replay/privacy controls, publication/dead-letter bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; the new Claude provider/text seam is section 11; section 12 provides structured safety audit in the text and existing pre-TTS paths, with protected query endpoints. Full local-stack voice approval and native quality remain pending. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
+Section 13 connects transactional booking and same-SID appointment reconciliation. Provider-neutral local AI, conditional RAG, operational RBAC acceptance/replay/privacy controls, publication/dead-letter retention bounds, complete durable telemetry, broader restore drills and measured capacity remain open at their respective levels. Level 2 section 10 now provides the durable latest conversation checkpoint adapter; the new Claude provider/text seam is section 11; section 12 provides structured safety audit in the text and existing pre-TTS paths, with protected query endpoints. Full local-stack voice approval and native quality remain pending. Fresh verification/limitations are in [baseline evidence](roadmaps/level-00-baseline.md).
 
 ## Section 13 booking decisions
 
@@ -219,3 +219,7 @@ Keep Dramatiq/Redis UUID delivery with PostgreSQL business ownership and one rec
 ## Section 27 — Advisory webhook windows with permanent SQL authority
 
 Keep atomic SQL receipt/effect unchanged. Add shared owner-checked processing60 s/done86,400 s windows, complete only after SQL success, and let stale/failed work expire or release safely. Redis done and cache digest mismatch still defer to SQL. Redis failure cannot undo acceptance, fabricate success or authoritatively reject a payload. Do not alter provider retry settings or claim freshness/exactly-once delivery. Broader callback/privacy gates remain pending.
+
+## Section 28 human access decision
+
+Adopt the proposed Admin/Counsellor/Viewer baseline with Admin-only call creation/dialing, Counsellor appointment/lead access and Viewer recording redaction. Reuse users/roles and append session/refresh tables; preserve applied history. Use maintained Argon2id/PyJWT libraries, fixed HS256, live SQL authorization, rotating one-use refresh families and shared HMAC-keyed login admission. Static-token compatibility defaults off and never falls back from JWT failure. No automatic Admin/secret/working-DB upgrade. Institute permission approval, operational provisioning, privacy/access auditing and native/live acceptance remain explicit; RAG/safety-management permission names do not authorize new endpoints or mutable rules. See [access contract](levels/level-08.md#section-28-authentication-and-role-permissions).

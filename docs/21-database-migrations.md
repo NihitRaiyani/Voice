@@ -1,6 +1,6 @@
 # Database migrations and separate demo data
 
-**Level 1 section 5.** SQLAlchemy 2.x defines the relational metadata; Alembic owns schema, constraints and indexes. [The schema catalog](20-relational-schema.md) explains their purpose. This workflow retains all existing revisions and the current single head. Verification still uses disposable databases, while the configured `roma` database was upgraded to `20261004_0003 (head)` on 2026-10-04; every other intended environment must run the same upgrade before new schema consumers start.
+**Level 1 section 5.** SQLAlchemy 2.x defines the relational metadata; Alembic owns schema, constraints and indexes. [The schema catalog](20-relational-schema.md) explains their purpose. This workflow retains all existing revisions and the current single head. Current code head is `20261023_0004`, adding human sessions/refresh hashes. Verification uses disposable databases only. The configured `roma` database was recorded at then-head `20261004_0003` on 2026-10-04; that dated evidence is historical, and this session did not upgrade it. Every intended environment must explicitly upgrade before new schema consumers start.
 
 ## Preserved revision history
 
@@ -9,8 +9,9 @@
 | `20260920_0001` | base | Initial durable schema, including users/roles, callers/calls/turns, appointments, safety, costs, reference data and operational records |
 | `20260930_0002` | `20260920_0001` | Atomic answer-webhook receipts and replay protection |
 | `20261004_0003` | `20260930_0002` | Conversation checkpoints, model registry, benchmark runs/results and nullable turn language |
+| `20261023_0004` | `20261004_0003` | Human sessions and unique hashed rotating refresh credentials; no accounts/seeds |
 
-The roadmap's five numbered examples illustrate ordered migrations; they do not require splitting or renumbering history already present in this project. All three revision files remain unchanged in section 5. There is no empty fourth migration: this increment changes tooling and documentation, not schema. Future schema/index changes append a reviewed revision to the current head. Never edit an applied revision to make a new model match it.
+The roadmap's five numbered examples illustrate ordered migrations; they do not require splitting or renumbering history already present in this project. All three revision files remain unchanged in section 5. Section 5 originally added no empty fourth migration. Section 28 now appends a real fourth migration for authentication; prior revisions remain unchanged. Future schema/index changes append a reviewed revision to the current head. Never edit an applied revision to make a new model match it.
 
 ## Configuration and operator workflow
 
@@ -26,7 +27,7 @@ alembic current
 alembic check
 ```
 
-`heads`/`history` inspect files; `current` and `check` require PostgreSQL. The expected head is `20261004_0003`; the configured `roma` database was confirmed at that head on 2026-10-04. `check` confirms no proposed metadata operations, not data integrity, service readiness or performance. Upgrade every other intended environment before code queries the new turn-language column. Alembic's [migration tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration) describes revision ordering and upgrade execution.
+`heads`/`history` inspect files; `current` and `check` require PostgreSQL. The expected code head is `20261023_0004`. The configured `roma` database was confirmed at the earlier then-head `20261004_0003` on 2026-10-04; no current working-DB head claim or upgrade is made by this increment. `check` confirms no proposed metadata operations, not data integrity, service readiness or performance. Upgrade every other intended environment before code queries the new turn-language column. Alembic's [migration tutorial](https://alembic.sqlalchemy.org/en/latest/tutorial.html#running-our-first-migration) describes revision ordering and upgrade execution.
 
 Preview SQL without connecting to PostgreSQL:
 
@@ -52,6 +53,7 @@ Choose the exact known revision and coordinate code compatibility before any wor
 
 | Downgrade | Effect and required decision |
 |---|---|
+| `20261023_0004` → `20261004_0003` | Drops session/refresh credentials, logging out all affected sessions. Users, roles and business records remain. Coordinate compatible code and re-login; dropped credentials are not restored by re-upgrade. |
 | `20261004_0003` → `20260930_0002` | Drops checkpoints, model registry and benchmark evidence plus turn language. Legacy rows/keys remain, but new records/language are lost; export/backup them and deploy code that does not query removed columns/tables. |
 | `20260930_0002` → `20260920_0001` | Removes webhook receipts and durable replay protection. Stop callback intake and review receipt preservation/replay controls before considering this rollback. |
 | `20260920_0001` → base | Removes the durable business schema and its data. Use only for disposable fixtures or a planned destructive reset with restore, never routine recovery. |
@@ -59,7 +61,7 @@ Choose the exact known revision and coordinate code compatibility before any wor
 For a **disposable database**, the current-head rollback/re-upgrade exercise is:
 
 ```bash
-alembic downgrade 20260930_0002
+alembic downgrade 20261004_0003
 alembic upgrade head
 alembic check
 ```

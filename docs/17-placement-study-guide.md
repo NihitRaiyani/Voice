@@ -104,8 +104,8 @@ configured database access is 503.
 Explain why `/api/call` stays separate from `POST /api/v1/calls`: the legacy
 route performs the explicit carrier dial side effect, while the v1 call resource
 creates durable business records. Joining those flows needs a later tested
-client migration. Also state the current security limit clearly: Level 8 RBAC,
-sessions, revocation and callback replay policy are still pending.
+client migration. Section 28 subsequently adds JWT/RBAC, refresh sessions and
+revocation; complete callback freshness/privacy acceptance is still pending.
 
 ## Level 1 section 9 explanation
 
@@ -281,3 +281,12 @@ An HF token solves identity, not unlimited inference capacity. Hosted ASR is a u
 - **Why both TTL and SQL UNIQUE?** A short lease recovers crashed workers; retained SQL receipts protect duplicates after the cache window expires.
 - **Can Redis done skip SQL?** No. Cache loss, stale digests and ambiguous commit replies must still resolve through durable identity.
 - **What is exactly once here?** One committed business effect under at-least-once delivery; external providers need their own stable idempotency contract.
+
+## Level 8 section 28 explanation
+
+- **Why hash passwords but sign access tokens?** Argon2id makes password guessing costly; a signed JWT proves issuer integrity and expiry, not confidentiality.
+- **Why look up SQL on every request?** Logout, disabled users and role changes must take effect before an old access token expires.
+- **Why rotate refresh tokens?** One-use hashes and family row locks expose reuse; a consumed token revokes its successor too.
+- **Why is a valid login not enough?** Route permissions decide access: a Viewer sees calls/analytics but not recording URLs or appointment writes.
+- **Why retain the old API token only by opt-in?** A shared machine credential cannot represent a human role or administer users safely.
+- **What remains?** Explicit operator setup and institute policy, complete access/privacy audits, representative/native acceptance and later knowledge endpoints; no gate is passed.

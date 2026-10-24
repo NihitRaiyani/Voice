@@ -17,6 +17,10 @@ from roma.services.rest_api_service import RestApiService
 def client(monkeypatch):
     # A clean CI checkout has no owner .env; these HTTP tests never call a provider.
     monkeypatch.setitem(Settings.model_config, "env_file", None)
+    from roma.core.auth_settings import AuthSettings
+
+    monkeypatch.setitem(AuthSettings.model_config, "env_file", None)
+    monkeypatch.setenv("AUTH_ALLOW_LEGACY_API_TOKEN", "true")
     monkeypatch.setenv("OPENAI_API_KEY", "offline-unused-key")
     monkeypatch.setenv("SARVAM_API_KEY", "offline-unused-key")
     monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")

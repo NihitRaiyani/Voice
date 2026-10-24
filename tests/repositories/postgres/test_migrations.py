@@ -146,7 +146,10 @@ def disposable_postgres_url() -> Iterator[str]:
 
 
 @pytest.fixture()
-def alembic_config(disposable_postgres_url: str) -> Config:
+def alembic_config(disposable_postgres_url: str, monkeypatch) -> Config:
+    # Embedded Alembic must not replace pytest handlers or disable application
+    # loggers for subsequent tests. Standalone migration logging stays unchanged.
+    monkeypatch.setattr("logging.config.fileConfig", lambda *_args, **_kwargs: None)
     config = Config("alembic.ini")
     config.set_main_option("sqlalchemy.url", disposable_postgres_url)
     return config

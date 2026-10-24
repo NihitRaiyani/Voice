@@ -387,3 +387,7 @@ were stopped. Hosted GitHub Actions passed for commit `ac99270` on 2026-10-05.
 
 
 Return to the [documentation index](../README.md).
+
+## Subsequent schema addition — section 28
+
+The dated 2026-10-04 evidence above records then-head `20261004_0003` and its 25-table schema; preserve it as historical evidence. Section 28 appends `20261023_0004` with two human-session/refresh tables, making current metadata 27 tables. Prior revisions remain unchanged. This increment migrates disposable databases only and makes no new working `roma` head claim. See [current migration history](../21-database-migrations.md) and [explicit auth setup](../runbook.md#section-28-human-authentication-setup). No Level 1 gate is newly passed.

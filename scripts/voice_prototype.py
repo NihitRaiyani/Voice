@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT))
 from roma.core.claude_llm_settings import ClaudeLLMSettings  # noqa: E402
 from roma.core.cpu_worker import CpuWorker  # noqa: E402
 from roma.core.logging import configure_logging  # noqa: E402
-from roma.core.migration_settings import MigrationSettings  # noqa: E402
+from roma.core.migration_settings import MigrationSettings, current_schema_head  # noqa: E402
 from roma.core.speech_settings import SpeechSettings  # noqa: E402
 from roma.core.tokenizer import require_nltk_data  # noqa: E402
 from roma.core.tts_settings import TTSSettings  # noqa: E402
@@ -248,7 +248,7 @@ async def _local_run(args):
         async with engine.connect() as connection:
             if (
                 await connection.scalar(text("SELECT version_num FROM alembic_version"))
-                != "20261004_0003"
+                != current_schema_head()
             ):
                 raise ValueError("Schema head prerequisite is missing; no migration attempted")
         await require_booking_data(factory, branch=state.branch)

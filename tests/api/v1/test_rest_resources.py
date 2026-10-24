@@ -179,6 +179,10 @@ def client(monkeypatch):
     from roma.core.config import Settings, get_settings
 
     monkeypatch.setitem(Settings.model_config, "env_file", None)
+    from roma.core.auth_settings import AuthSettings
+
+    monkeypatch.setitem(AuthSettings.model_config, "env_file", None)
+    monkeypatch.setenv("AUTH_ALLOW_LEGACY_API_TOKEN", "true")
     monkeypatch.setenv("SARVAM_API_KEY", "sarvam-test")
     monkeypatch.setenv("OPENAI_API_KEY", "openai-test")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")

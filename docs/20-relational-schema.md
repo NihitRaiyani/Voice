@@ -1,6 +1,6 @@
 # Relational schema and key rationale
 
-**Level 1 section 4.** This catalog describes the current 25-table PostgreSQL metadata and additive migration `20261004_0003`. Existing definitions, indexes and applied migrations are preserved; `call_turns.language` is the only additive column on an old table. No existing values are guessed/backfilled. `knowledge_documents`, `knowledge_chunks` and `retrieval_logs` remain Level 9, including pgvector.
+**Level 1 section 4.** This catalog describes the current 27-table PostgreSQL metadata, including additive migrations `20261004_0003` and section 28 `20261023_0004`. Existing definitions, indexes and applied migrations are preserved; `call_turns.language` is the only additive column on an old table. No existing values are guessed/backfilled. `knowledge_documents`, `knowledge_chunks` and `retrieval_logs` remain Level 9, including pgvector.
 
 ## Relationships and ownership
 
@@ -53,7 +53,7 @@ Model rows describe candidate versions rather than deploying models. Future prod
 | Organization, users/roles and memberships | Preserve activity/deletion/reference behavior; deactivate referenced masters and use approved identity cleanup rather than broad cascades. |
 | Slots/appointments | Preserve business history and one-active-booking rule; section 13 cancellation/release is atomic, never inferred from Redis/checkpoint JSON. |
 
-Creating these tables alone adds no purge task, login/RBAC, local inference, benchmark executor, recording-retention approval or live booking integration. Section 13 subsequently implements booking integration without changing the schema; see [Level 3](levels/level-03.md). Existing SQL defaults/checks are retained even where stronger future policy needs an additive migration. No arbitrary wall-clock expiry check uses `now()`; expiry remains a consumer/cleanup decision.
+Creating the Level 1 tables alone added no purge task, login/RBAC, local inference, benchmark executor, recording-retention approval or live booking integration. Section 13 subsequently implements booking integration without changing the schema; see [Level 3](levels/level-03.md). Existing SQL defaults/checks are retained even where stronger future policy needs an additive migration. No arbitrary wall-clock expiry check uses `now()`; expiry remains a consumer/cleanup decision.
 
 ## Complete table/key/constraint/index catalog
 
@@ -392,3 +392,11 @@ Columns: `provider_event_id`, `payload_digest`, `id`, `created_at`.
 Use the [runbook](runbook.md) for migration and rollback commands, [data contracts](14-data-and-concurrency.md) for business integration, [state boundaries](06-state-and-cache.md) for ownership and [decisions](decisions.md) for pending policy. PostgreSQL reference: [constraint semantics](https://www.postgresql.org/docs/18/ddl-constraints.html) and [numeric behavior](https://www.postgresql.org/docs/18/datatype-numeric.html).
 
 Section 5 preserves this entire schema and all revision files. See the [migration/separate-demo workflow](21-database-migrations.md) for upgrades, data-loss-aware rollback and inactive synthetic reference seeds outside schema history.
+
+## Section 28 human session tables
+
+`auth_sessions`: opaque UUID primary key, `created_at`, `user_id`, `expires_at`, nullable `revoked_at`. The user FK cascades because credentials must not survive deletion of their identity. `expires_at > created_at` rejects malformed lifetimes. Indexes on `user_id` support account-wide revocation and on `expires_at` support future expiry cleanup; the PK supports per-request session lookup. Existing `users`, `roles` and `user_roles` remain unchanged and are reused for password hashes and live memberships.
+
+`auth_refresh_tokens`: opaque UUID primary key, `created_at`, `session_id`, unique `token_hash`, `expires_at`, nullable `consumed_at`. Session deletion cascades its credentials; session_id is indexed for family operations. Unique token_hash supports safe direct credential lookup; a named check requires exactly 64 lowercase hexadecimal SHA-256 characters. Expiry must be later than creation. Plaintext credentials are never stored. Row locks on the family/token serialize rotation and reuse revocation; SQL is authoritative across API processes.
+
+Retain consumed hashes through the usable family lifetime so reuse can revoke successors. Expiry is checked at authorization; it does not automatically delete data. Cleanup/retention policy is still to be approved. Downgrading 0004 drops both credential tables and logs out all such sessions, retaining users/roles and other business records. No migration seeds identities or role assignments. [Migration workflow](21-database-migrations.md) owns execution and rollback.

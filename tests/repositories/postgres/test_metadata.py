@@ -17,6 +17,8 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
 TABLES = {
+    "auth_sessions",
+    "auth_refresh_tokens",
     "callers",
     "institutes",
     "branches",

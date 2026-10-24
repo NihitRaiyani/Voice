@@ -167,6 +167,7 @@ def test_a_redis_outage_surfaces_as_503_not_carrier_refused(monkeypatch):
         "ROMA_DATA_DIR": tempfile.mkdtemp(prefix="roma-midcall-"),
         "OPENAI_BUDGET_INR": "1000000",
         "API_TOKEN": "test-token-abc",
+        "AUTH_ALLOW_LEGACY_API_TOKEN": "true",
     }
     for key, value in env.items():
         monkeypatch.setenv(key, value)

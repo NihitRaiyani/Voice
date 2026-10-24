@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from redis.asyncio import Redis
 
 from roma.api.v1.calls import mount_web_api
+from roma.core.auth_settings import AuthSettings
 from roma.core.config import get_settings, require_reachable_base_url
 from roma.core.database import Database
 from roma.core.logging import RequestLogMiddleware, configure_logging
@@ -20,9 +21,11 @@ from roma.repositories.postgres.conversation_state import PostgresConversationSt
 from roma.repositories.postgres.safety import PostgresSafetyEventStore
 from roma.repositories.postgres.webhooks import WebhookRepository
 from roma.repositories.redis.appointment_holds import RedisAppointmentHolds
+from roma.repositories.redis.auth_rate_limit import AuthRateLimiter
 from roma.repositories.redis.call_lease import RedisCallLease
 from roma.repositories.redis.conversation_state import RedisCallStateStore
 from roma.repositories.redis.webhook_window import RedisWebhookWindow
+from roma.services.auth_service import AuthService
 from roma.services.booking_service import BookingService
 from roma.services.booking_session import BookingSession
 from roma.services.live_call_state import LiveCallStateStore
@@ -41,6 +44,24 @@ def create_app() -> FastAPI:
     )
 
     redis = Redis.from_url(settings.redis_url.get_secret_value())
+    auth_settings = AuthSettings()
+    auth_secret = auth_settings.auth_jwt_secret
+    auth = (
+        AuthService(database.session_factory, auth_settings)
+        if database is not None and auth_secret is not None
+        else None
+    )
+    auth_limiter = (
+        AuthRateLimiter(
+            redis,
+            auth_secret.get_secret_value().encode("utf-8"),
+            limit=auth_settings.auth_rate_limit,
+            window=auth_settings.auth_rate_window_secs,
+        )
+        if auth is not None and auth_secret is not None
+        else None
+    )
+
     booking = BookingService(
         PostgresBookingStore(database.session_factory) if database else None,
         RedisAppointmentHolds(redis, ttl_seconds=settings.booking_hold_ttl_secs),
@@ -64,14 +85,22 @@ def create_app() -> FastAPI:
             yield
         finally:
             try:
-                await redis.aclose()
+                if auth is not None:
+                    await auth.aclose()
             finally:
-                if database is not None:
-                    await database.close()
+                try:
+                    await redis.aclose()
+                finally:
+                    if database is not None:
+                        await database.close()
 
-    service = WebhookService(
-        WebhookRepository(database.session_factory), window=RedisWebhookWindow(redis)
-    ) if database else None
+    service = (
+        WebhookService(
+            WebhookRepository(database.session_factory), window=RedisWebhookWindow(redis)
+        )
+        if database
+        else None
+    )
     app = build_media_app(
         auto_hang_up=True,
         build_store_fn=build_call_store,
@@ -84,6 +113,9 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestLogMiddleware)
     app.state.booking_service = booking
+    app.state.auth_settings = auth_settings
+    app.state.auth_service = auth
+    app.state.auth_rate_limiter = auth_limiter
     mount_web_api(app, session_factory=database.session_factory if database else None)
     return app
 
