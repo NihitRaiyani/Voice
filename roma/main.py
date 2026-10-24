@@ -22,6 +22,7 @@ from roma.repositories.postgres.webhooks import WebhookRepository
 from roma.repositories.redis.appointment_holds import RedisAppointmentHolds
 from roma.repositories.redis.call_lease import RedisCallLease
 from roma.repositories.redis.conversation_state import RedisCallStateStore
+from roma.repositories.redis.webhook_window import RedisWebhookWindow
 from roma.services.booking_service import BookingService
 from roma.services.booking_session import BookingSession
 from roma.services.live_call_state import LiveCallStateStore
@@ -68,7 +69,9 @@ def create_app() -> FastAPI:
                 if database is not None:
                     await database.close()
 
-    service = WebhookService(WebhookRepository(database.session_factory)) if database else None
+    service = WebhookService(
+        WebhookRepository(database.session_factory), window=RedisWebhookWindow(redis)
+    ) if database else None
     app = build_media_app(
         auto_hang_up=True,
         build_store_fn=build_call_store,

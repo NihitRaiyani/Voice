@@ -215,3 +215,7 @@ Keep existing Claude settings and approved fallback. Share its configured turn d
 ## Section 26 — Reuse durable jobs and make optional effects explicit
 
 Keep Dramatiq/Redis UUID delivery with PostgreSQL business ownership and one recording consumer. Preserve default metadata summaries; explicit paid opt-in selects a separate capped Claude instance on a lower-priority queue. Followup processing requires consent plus an injected provider-idempotent sender; no sender/CRM/contact is configured automatically. Record exhausted processing reasons/attempts instead of silently losing intent. Ordinary Messages is implemented; Message Batches/discount is only a documented future option. Live/paid/native/advanced acceptance remains deferred.
+
+## Section 27 — Advisory webhook windows with permanent SQL authority
+
+Keep atomic SQL receipt/effect unchanged. Add shared owner-checked processing60 s/done86,400 s windows, complete only after SQL success, and let stale/failed work expire or release safely. Redis done and cache digest mismatch still defer to SQL. Redis failure cannot undo acceptance, fabricate success or authoritatively reject a payload. Do not alter provider retry settings or claim freshness/exactly-once delivery. Broader callback/privacy gates remain pending.

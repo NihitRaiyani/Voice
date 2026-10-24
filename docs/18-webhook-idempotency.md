@@ -4,7 +4,7 @@
 
 ## Flow and source
 
-Signed form POST `/answer` → validate signature/account/input → normalize logical identity/digest → three-second service bound → one PostgreSQL transaction → repeatable Redis status projection → valid TwiML.
+Signed form POST `/answer` → validate signature/account/input → normalize identity/digest → optional bounded Redis processing window → three-second SQL acceptance → one PostgreSQL receipt/effect transaction → owner-checked Redis done/status projection → valid TwiML.
 
 | Source | Responsibility |
 |---|---|
@@ -34,3 +34,9 @@ In a disposable test, send the same synthetic signed form twice, then concurrent
 Explain why SELECT-then-insert races, why receipt/effect must share a transaction, why Redis SET NX cannot replace SQL authority, why Call SID alone is insufficient for every callback, and how lost acknowledgements and retention alter guarantees.
 
 L8 still needs complete user access, replay/privacy policy, rate-limit coverage and new callback controls where required. See [security](07-security.md), [jobs](19-background-task-framework.md) and [L8](levels/level-08.md).
+
+## Section 27 advisory processing window
+
+`roma/repositories/redis/webhook_window.py` uses `roma:webhook:<sha256(event identity)>`; values contain only the business digest and random ownership token. Initial processing TTL is 60 s; completed marker TTL is 86,400 s, versus the live-call lease's 360 s. SQL uniqueness/retention remain final authority. Mark done only after SQL success, compare ownership on completion/release, and allow failed/crashed work to retry after release/expiry. Same-digest active work returns retryable 503; provider retry policy must be configured separately.
+
+Even done or mismatching Redis digests pass through SQL verification. Cache outages are bounded/countable and fall back to SQL; a stale cache cannot invent acceptance or rejection. Native disposable tests simulate commit then crash before done and prove one durable effect on retry. [Level 8](levels/level-08.md#section-27-idempotency) records exact limits. Timestamp freshness and new callback kinds remain later sections; no Twilio configuration was changed.

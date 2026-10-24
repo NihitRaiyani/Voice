@@ -274,3 +274,10 @@ An HF token solves identity, not unlimited inference capacity. Hosted ASR is a u
 - **Why a second summary queue?** AI summary waits behind ordinary work and has a separate token/spend budget. Priority is not preemption.
 - **Does a followup job mean sent?** No. Persisted consent, a configured idempotent sender and acknowledged delivery are required; missing prerequisites become visible dead letters.
 - **Why retain dead letters?** Reason, attempts and due/lease data make failure review possible before any authorized replay.
+
+## Level 8 section 27 explanation
+
+- **Why not mark done first?** A crash before the business effect would lose valid work. Claim processing, commit SQL, then mark done.
+- **Why both TTL and SQL UNIQUE?** A short lease recovers crashed workers; retained SQL receipts protect duplicates after the cache window expires.
+- **Can Redis done skip SQL?** No. Cache loss, stale digests and ambiguous commit replies must still resolve through durable identity.
+- **What is exactly once here?** One committed business effect under at-least-once delivery; external providers need their own stable idempotency contract.

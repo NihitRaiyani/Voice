@@ -82,6 +82,8 @@ files = [
     "roma/services/voice_prototype.py",
     "roma/providers/reliability.py",
     "roma/providers/jobs/claude_summary.py",
+    "roma/repositories/redis/webhook_window.py",
+    "roma/services/webhook_service.py",
     "roma/core/async_queue.py",
     "roma/core/cpu_worker.py",
     "roma/services/streaming_text.py",

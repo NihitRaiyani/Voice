@@ -1,6 +1,6 @@
 # Level 8 — Secure jobs and access
 
-**Roadmap sections:** 26–31. **Status:** Section 26 durable job extensions verified offline; sections 27–28 identity/idempotency follow; privacy/replay/publication and full gate pending.
+**Roadmap sections:** 26–31. **Status:** Sections 26–27 durable jobs and webhook idempotency extensions verified offline; section 28 human access follows; privacy/replay/publication and full gate pending.
 
 ## Entry gate
 
@@ -31,6 +31,16 @@ Statistics and linked-caller status updates retain their idempotent SQL effects.
 Summary UUIDs use `roma_background_summary` / `summarize_background_call`, actor priority 100 versus normal priority 0. SQL dispatch favors normal jobs. This is lower-priority scheduling, not preemption or a measured capacity guarantee; workers remain separate from live-call processes. The default summary is deterministic metadata. Explicit `--allow-paid-summary` selects a separate Claude instance: 128 output tokens, 2,048 reserved tokens and INR0.25 per attempt, with at most five business attempts (planned ceilings 10,240 tokens/INR1.25 per job). Only allowlisted stage/outcome/duration/audio/turn metadata is sent, with no transcript, caller identity or live provider budget shared.
 
 [Message Batches](https://platform.claude.com/docs/en/build-with-claude/batch-processing) is an optional later transport for delayed work; its advertised 50% discount is not used or claimed by the implemented ordinary Messages summary adapter. No batch or paid request was submitted. Offline worker/SQL/Redis tests cover due scheduling, effects, duplicate notifications, permanent/transient failure, exhausted recording handoff, queue routing and paid opt-in refusal. [Verification](../12-verification.md#section-26-background-processing) owns results. Acceptance checkboxes remain pending.
+
+## Section 27 idempotency
+
+Preserve the existing SQL `UNIQUE(provider_event_id)` receipt and call/event effect in one transaction. Shared Redis `RedisWebhookWindow` adds a hashed-identity advisory window: `processing` has a cryptographic owner token and explicit `SET NX EX 60`; only a successful SQL result may atomically replace that owner's marker with `done EX 86400`. Twenty-four-hour completion coverage is longer than the 360-second live-call lease because webhook redeliveries can outlive the call. SQL receipts still survive independently and have no new automatic purge.
+
+An identical active processing lease returns retryable 503 without a second SQL operation. A cached done marker still checks SQL and its digest before returning a duplicate; missing/expired/corrupt or conflicting Redis content never replaces durable authority. A mismatching cache digest also defers to SQL instead of incorrectly rejecting valid durable input. Redis I/O has a 200 ms bound and counted, metadata-only failure logging; SQL acceptance retains its three-second bound. Each advisory operation adds at most its own bound, not an unbounded wait. Provider retry configuration is separate: do not assume any 503 alone enables Twilio redelivery.
+
+Failure/cancellation releases only the matching processing token. A crashed API leaves a short lease which expires; a successor retries the SQL identity. A lost acknowledgement after SQL commit is safe, including a crash before Redis done. Completion/release compares ownership, so late old work cannot delete or finish its successor. SQL independently rejects changed-input identity reuse and protects concurrent delivery even when Redis is unavailable. Scheduled worker effects retain their unique SQL identities and settlement transactions from section 26. Exactly-once business effects do not mean exactly-once delivery or arbitrary external messaging.
+
+Tests exercise pending/done TTLs, expiry/stale ownership, release on failed/cancelled work, cache outages, stale done digests and actual disposable SQL commit-before-done crash recovery. Existing concurrent SQL tests still prove one receipt/call/event. [Verification](../12-verification.md#section-27-webhook-idempotency) owns results. No signed transport/provider retry setting, schema or working database changed; broader callback freshness/privacy/replay acceptance remains pending.
 
 ## Acceptance gate
 
