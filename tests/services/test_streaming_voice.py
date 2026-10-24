@@ -583,3 +583,28 @@ def test_cancel_resistant_ready_receipt_never_plays_after_interruption():
         await asyncio.gather(task, return_exceptions=True)
         assert not voice.speaker.played
     asyncio.run(run())
+
+
+def test_four_call_streaming_lab_exercises_fake_llm_and_every_output_queue():
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    completed = subprocess.run(
+        [sys.executable, str(root / "scripts/streaming_lab.py")],
+        cwd=root, capture_output=True, text=True, timeout=60, check=True,
+    )
+    report = json.loads(completed.stdout)
+    assert report["synthetic_only"] and not report["gate_passed"]
+    assert report["fake_llm_requests"] == report["concurrent_calls"] == 4
+    assert report["fake_llm_chunks"] == 8
+    for call in report["calls"]:
+        assert call["status"] == "played"
+        assert call["fake_llm_requests"] == 1 and call["fake_llm_chunks"] == 2
+        assert call["timings"]["llm_ms"] > 0
+        assert set(call["queues"]) == {
+            "tokens", "chunks", "safe_chunks", "tts_text", "tts_audio",
+        }
+        assert all(row["peak_depth"] <= row["capacity"] for row in call["queues"].values())

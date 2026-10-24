@@ -1,0 +1,32 @@
+{
+  "schema": "roma-local-operations-summary-v1",
+  "setup_date": "2026-10-24",
+  "independent_recheck_date": "2026-10-25",
+  "source_revision": "c6a9487616857867d397e03e381699420a385bff",
+  "environment": "owner-authorized local working roma, following isolated rehearsal",
+  "original_head": "20261004_0003",
+  "current_head": "20261024_0006",
+  "application_tables": 31,
+  "active_admins": 1,
+  "selected_plaintext_names": 0,
+  "selected_plaintext_turn_transcripts": 0,
+  "isolated_first": true,
+  "saved_encrypted_artifacts_restored": true,
+  "real_sql_auth_refresh_reuse_logout_roles": true,
+  "backfill_synthetic_roundtrip": true,
+  "working_backfill_rows": 0,
+  "approved_private_fields_changed": 4,
+  "unrelated_private_configuration_preserved": true,
+  "owner_only_ignored_secrets_and_backups": true,
+  "new_keys_independent": true,
+  "retention_policy_enabled": false,
+  "recording_disclosure_approved": false,
+  "production_acceptance_gate_passed": false,
+  "limitations": [
+    "service auth checks are not HTTP deployment acceptance",
+    "encryption covers selected fields only",
+    "rollback proof covers original 0003 rows",
+    "off-host backup and independent key escrow unverified",
+    "legal, retention, consent and account-specific ZDR approval pending"
+  ]
+}

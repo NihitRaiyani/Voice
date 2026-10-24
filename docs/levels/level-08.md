@@ -1,6 +1,6 @@
 # Level 8 — Secure jobs and access
 
-**Roadmap sections:** 26–31. **Status:** Sections 26–28 durable jobs, webhook idempotency and human authentication/RBAC implemented with offline verification; sections 29–31 callback security, shared admission and managed privacy are implemented; operational/privacy/publication acceptance and the full gate remain pending.
+**Roadmap sections:** 26–31. **Status:** Sections 26–28 durable jobs, webhook idempotency and human authentication/RBAC implemented with offline verification; sections 29–31 callback security, shared admission and managed privacy are implemented; local operational setup is verified after isolated rehearsal; privacy/live acceptance and the full gate remain pending.
 
 ## Entry gate
 
@@ -121,3 +121,19 @@ Recording URL issuance and playback require a current human JWT with recordings.
 Admin-only disposal previews before apply. Both delete/anonymize scrub managed call transcripts, checkpoints, event/job metadata, recording references and linked caller fields, retaining minimized aggregate/audit/idempotency facts and a permanent tombstone. Local artifacts and attributable Redis state/queued jobs are cleaned with explicit retry status; cleanup failures are not reported as completion. Shared caller profiles are disclosed in preview: sibling-call transcripts are not included, so this is call-scoped disposal, not whole-person erasure. Expired stored call/recording/turn records can be selected in bounded batches. Unmapped lead caches, operator exports, providers and backups remain explicit operational work; null legacy expiries are not silently assigned a policy.
 
 Recognized phone/email identifiers are masked in ordinary logs; signed query credentials and private encryption/signing/hash/database secrets are scrubbed. The final JSON logging boundary retains reviewed metadata only. Claude receives minimized recognized identifiers as before; [current provider terms and legal review limits](../07-security.md#claude-api-retention-review--2026-10-24) remain operator gates. No ZDR account entitlement or legal compliance is inferred from these controls.
+
+## Local operational setup — 2026-10-24
+
+[Sanitized operational summary](../../benchmarks/security/local-operations-20261024.json); [integrated verification](../12-verification.md#operational-and-supervised-acceptance-follow-up--2026-10-25).
+
+The owner approved an isolated-first rehearsal followed by local working rollout, and the account Roma Local Admin (`admin@roma.local`). Working `roma` moved from `20261004_0003` / 25 application tables to `20261024_0006` / 31. One approved active Admin exists. Login, refresh rotation/reuse rejection, logout and live-role changes were exercised with the production AuthService and real SQL; smoke sessions were revoked afterward. These are service-level checks, not HTTP startup or deployment acceptance.
+
+Only the approved private JWT, AES field key, recording-link key and field-encryption-enable assignments changed. Keys are independently generated; credentials/key files and encrypted backups are owner-only and excluded from Git. The original PII hash key and unrelated private configuration were preserved. Selected-field backfill preview/apply found zero working plaintext caller names or turn transcripts. Synthetic isolated name/transcript round trips proved encryption/decryption and backfill; this does not encrypt checkpoints, every SQL field, Redis or audio.
+
+Both saved encrypted custom-format pre-upgrade backups were read from disk with the separately stored key, authenticated/decrypted and restored into disposable PostgreSQL. Original revision, counts and row equality were verified. Isolated upgrade/downgrade/reupgrade preserved pre-existing `0003` rows; this is not evidence that downgrades preserve newer auth/knowledge/privacy records. No real working rollback was performed. Keys/backups on one machine are not off-host disaster recovery or independent key escrow.
+
+On 2026-10-25 an independent read-only recheck confirmed head `0006`, the approved Admin, zero active calls, no selected plaintext fields, valid independent key configuration and owner-only permissions. Recording disclosure remains pending and retention unset. [Privacy recommendations](../07-security.md#recommended-policy-before-production-acceptance) and legal/provider/account approval remain separate; no Level 8 gate was marked passed.
+
+### Restore-erasure rehearsal — 2026-10-25
+
+The [synthetic disk restore/disposal drill](../../benchmarks/security/restore-erasure-20261025.json) verified pre-disposal SQL/files/Redis resurrection, separate ledger import, preview/apply re-scrubbing of completed tombstones before traffic, repeated cleanup and queued post-call replay suppression. Working `roma` and supervised voice fixtures were untouched. Unknown exports/providers/replicas, sibling calls and off-host disaster recovery remain outside this proof; runtime retention and disclosure remain unapproved.

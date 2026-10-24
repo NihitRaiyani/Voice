@@ -85,3 +85,11 @@ The [actual safety report](../../benchmarks/tts/section19-safety-report.json) re
 | Permitted EMI | 2.718 s | 8.007 s |
 
 Result metadata distinguishes pre-render canonical text/hash, emitted canonical text, actual spoken text/hash, requested/actual language and voice. On rendering-audit outage the emitted canonical can differ from the initial canonical; callers must inspect `audit_ok`. Cache identity includes actual spoken text/language/voice/model and pronunciation version/hash. Native intelligibility review and complete voice integration remain later gates.
+
+## Cold-start profile and owner review — 2026-10-25
+
+One SafetyService-approved synthetic line, “आपका नाम क्या है?”, used the unchanged pinned Indic-TTS female model and existing segmentation/padding. A temporary isolated worker measured **5.183 s heavy imports**, **1.942 s model load**, **0.364 ms vocabulary validation**, **273 ms combined acoustic inference/vocoder**, and **8.060 s process elapsed**, plus **1.149 s manifest verification**. No paid API, microphone, model download or production edit ran. Imports and model loading dominate this short cache miss; one sample is not a latency distribution or capacity result.
+
+The same 22.05 kHz native waveform produced 8 kHz/16 kHz PCM WAVs, controlling synthesis variation. The owner reported **no improvement**; neither sample received a new numerical score. The separate microphone response received **2.5/5 naturalness**, with correctness unscored. Keep current playback/provider/model configuration and the native gate open. [Sanitized profile, identities, hashes and timings](../../benchmarks/tts/local-profile-20261025.json) preserves evidence; generated audio remains owner-only under ignored runtime storage.
+
+Static follow-up identified that each uncached line starts a fresh worker and loads FastPitch/HiFiGAN; startup readiness does not keep that worker alive or populate the later phrase cache. Coqui's default English sentence segmenter and appended per-sentence silence are candidates for a separate controlled pause/segmentation experiment, not established causes of the score. Number/date cardinal prosody is also a separate reviewed change. Persistent model serving and changes to fixed spoken assets require their own scoped implementation and verification.

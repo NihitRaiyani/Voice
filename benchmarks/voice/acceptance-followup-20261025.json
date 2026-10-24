@@ -1,0 +1,71 @@
+{
+  "schema": "roma-supervised-acceptance-followup-v1",
+  "date": "2026-10-25",
+  "base_revision": "c6a9487616857867d397e03e381699420a385bff",
+  "environment": "isolated TEST ONLY native SQL/Redis with cached local speech",
+  "caller_audio_retained": false,
+  "transcripts_retained": false,
+  "working_db_demo_data": false,
+  "model_provider_weights_changed": false,
+  "downloads": false,
+  "gate_passed": false,
+  "invocations": [
+    {
+      "index": 1,
+      "outcome": "interrupted; later failed terminal with zero durable turns",
+      "reserved_inr": 2
+    },
+    {
+      "index": 2,
+      "outcome": "one played discovery turn; next native capture failed; exit1",
+      "successful_turns": 1,
+      "speech_to_first_software_audio_ms": 11554.941500071436,
+      "tts_ms": 9133.912042016163,
+      "asr_ms": 1260.4313339106739,
+      "llm_ms": 0,
+      "reserved_inr": 2
+    },
+    {
+      "index": 3,
+      "outcome": "one played discovery turn; two no-speech 30-second attempts; exit0 does not pass conversation",
+      "successful_turns": 1,
+      "silent_attempts": 2,
+      "speech_to_first_software_audio_ms": 10323.955625062808,
+      "tts_ms": 7895.374209037982,
+      "asr_ms": 1269.5148329949006,
+      "llm_ms": 0,
+      "original_immediate_capture_exception_reproduced": false,
+      "reserved_inr": 2
+    }
+  ],
+  "budget": {
+    "aggregate_cap_inr": 50,
+    "conservative_reserved_inr": 6,
+    "refunds": 0,
+    "actual_provider_invoice_cost_verified": false,
+    "preserved_private_ledger": "var/roma/ops-20261024/acceptance-session-reservations.jsonl"
+  },
+  "owner_feedback": {
+    "naturalness": 2.5,
+    "scale_max": 5,
+    "correctness": null,
+    "reviewer_initials": null,
+    "formal_multilingual_native_review_complete": false,
+    "same_waveform_8k_16k_comparison": "No improvement"
+  },
+  "measurement_limits": {
+    "acoustic_onset_measured": false,
+    "p95_established": false,
+    "representative_corpus_collected": false,
+    "full_discovery_to_booking_completed": false,
+    "paid_claude_turn_exercised_in_successful_turns": false
+  },
+  "remaining": [
+    "unexplained immediate second-capture failure; subsequent diagnostic did not reproduce",
+    "owner naturalness2.5/5; formal voice acceptance pending",
+    "cold TTS startup; profile evidence separate",
+    "full multilingual/booking/interruption/cancellation/recovery live acceptance",
+    "representative ASR and acoustic latency/p95 evidence"
+  ],
+  "isolated_fixture_services_and_runtime_removed": true
+}

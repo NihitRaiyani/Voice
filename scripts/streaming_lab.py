@@ -44,9 +44,16 @@ class SlowCpu(CpuWorker):
 
 
 class ScriptedLLM:
+    def __init__(self):
+        self.requests = 0
+        self.chunks = 0
+
     async def generate(self, request):
+        self.requests += 1
+        self.chunks += 1
         yield LLMChunk("हम प्रैक्टिकल स्किल सीखते हैं।")
         await asyncio.sleep(0.2)
+        self.chunks += 1
         yield LLMChunk("आपको किस विषय में रुचि है?", finish_reason="stop")
 
 
@@ -87,13 +94,17 @@ async def run_lab():
         state = CallState(call_sid=f"voice-lab-streaming-{index}")
         state.stage = ConversationStage.VALUE
         safety = SafetyService()
-        conversation = TextConversationService(TimedLLMProvider(ScriptedLLM()), safety=safety, dialogue_language="voice_hi")
+        provider = ScriptedLLM()
+        conversation = TextConversationService(TimedLLMProvider(provider), safety=safety, dialogue_language="voice_hi")
         synthesis = SpeechSynthesisService(SlowTTS(), safety, model_version="synthetic-pcm-v1")
         voice = VoicePrototype(state, conversation, synthesis, Speaker(), InMemoryVoiceTurnStore(),
                                streaming=StreamConfig(), cpu_worker=cpu)
-        result = await voice.respond(SpeechTranscript("Please explain practical classes", "en", 500, "silence", 0,
+        result = await voice.respond(SpeechTranscript("haan", "en", 500, "silence", 0,
                                                        speech_end_at=time.perf_counter()))
+        if provider.requests != 1 or provider.chunks != 2:
+            raise RuntimeError("Synthetic LLM streaming coverage was not exercised")
         return {"call": index, "status": result.status, "timings": result.timings,
+                "fake_llm_requests": provider.requests, "fake_llm_chunks": provider.chunks,
                 "queues": voice.queue_metrics, "fallbacks": voice.stream_fallbacks}
     try:
         results = await asyncio.gather(*(one(index) for index in range(4)))
@@ -106,11 +117,14 @@ async def run_lab():
         "roma/core/async_queue.py", "roma/core/cpu_worker.py", "roma/services/streaming_text.py",
         "roma/services/streaming_voice.py", "roma/services/voice_prototype.py",
         "roma/services/text_conversation_service.py", "roma/services/tts_service.py",
+        "scripts/streaming_lab.py",
     )]
     return {"schema": "section22-23-offline-v1", "created_at": datetime.now(UTC).isoformat(),
             "synthetic_only": True, "microphone_used": False, "paid_api_calls": False,
             "model_downloads": False, "durable_database": False, "gate_passed": False,
             "advanced_epochs": False, "concurrent_calls": 4, "cpu_workers": 2,
+            "fake_llm_requests": sum(row["fake_llm_requests"] for row in results),
+            "fake_llm_chunks": sum(row["fake_llm_chunks"] for row in results),
             "cpu_delay_per_job_ms": 30, "scripted_tts_delay_ms": 20,
             "heartbeat_target_interval_ms": 5, "heartbeat_samples": len(stalls),
             "max_event_loop_stall_ms": max(stalls, default=0), "websocket_writes": writes,

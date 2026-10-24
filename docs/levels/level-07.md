@@ -102,3 +102,9 @@ Advanced turn epochs, state event log/Redis streams/outbox and replay start afte
 Record revision, reproducible commands, environment/data/configuration identity, actual outcomes, demo/reviewer result and limitations here when this level is implemented. Existing foundations do not automatically pass the full gate. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
 
 Return to the [documentation index](../README.md).
+
+## Reliability follow-up — 2026-10-25
+
+The four-call lab now proves it traverses fake token generation: an existing stage acknowledgement replaces a factual question that section32 correctly routed deterministically. Every call must produce one fake request and two chunks; a regression test fails if that coverage is bypassed. The [fresh standalone report](../../benchmarks/voice/reliability-followup-20261025.json) records four played calls, four requests/eight chunks, first software audio **557.96–589.08 ms**, maximum excess heartbeat lag **2.383 ms**, all five queues bounded and no fallback. All input, generation, synthesis and playback are synthetic; these numbers are not a carrier capacity/SLO or acoustic measurement.
+
+The local supervised CLI also gained explicit SQL-authoritative pause/resume, privacy-tombstone denial and sleep-aware input/output deadline checks. Disposable SQL and fake-device tests cover ownership exclusion, retained attempts/deadlines, terminal rejection and late-audio suppression. Full physical concurrency/interruption/cancellation/recovery and representative quality remain unaccepted. Epochs/Streams replay and adaptive jitter/PLC keep their documented prerequisites; no advanced gate is passed by these controls.

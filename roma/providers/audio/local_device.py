@@ -12,11 +12,16 @@ from roma.providers.ai.contracts import TTSResult
 
 
 class LocalAudioDevice:
-    def __init__(self, *, input_device=None, output_device=None, backend=None, policy=None):
+    def __init__(self, *, input_device=None, output_device=None, backend=None, policy=None, check_active=None):
         self.input_device, self.output_device = input_device, output_device
         self._backend = backend
         self.policy = policy or TurnPolicy()
         self.first_write_at = None
+        self.check_active = check_active
+
+    def _check_active(self):
+        if self.check_active is not None:
+            self.check_active()
 
     def _audio(self):
         if sys.byteorder != "little":
@@ -27,9 +32,10 @@ class LocalAudioDevice:
             self._backend = sounddevice
         return self._backend
 
-    async def listen(self, speech, *, max_seconds=30):
+    async def listen(self, speech, *, max_seconds=30, on_capture_started=None):
         if not 0 < max_seconds <= self.policy.max_utterance_ms / 1000:
             raise ValueError("Capture limit must be in (0,30] seconds")
+        self._check_active()
         started = perf_counter()
         processing_ms = 0.0
         stream = self._audio().RawInputStream(
@@ -59,12 +65,16 @@ class LocalAudioDevice:
             read_task = asyncio.create_task(asyncio.to_thread(stream.start))
             await asyncio.shield(read_task)
             read_task = None
+            self._check_active()
+            if on_capture_started is not None:
+                on_capture_started()
             async with asyncio.timeout(max_seconds + 120):
                 while perf_counter() - started < max_seconds and samples_read < sample_limit:
                     count = min(320, sample_limit - samples_read)
                     read_task = asyncio.create_task(asyncio.to_thread(stream.read, count))
                     block, overflow = await asyncio.shield(read_task)
                     read_task = None
+                    self._check_active()
                     if overflow:
                         raise ValueError("Microphone overflow: incomplete utterance discarded")
                     block = bytes(block)
@@ -75,6 +85,7 @@ class LocalAudioDevice:
                     read_marks.append((samples_read, perf_counter()))
                     tick = perf_counter()
                     results = await speech.feed(block)
+                    self._check_active()
                     processing_ms += (perf_counter() - tick) * 1000
                     if results:
                         if len(results) != 1:
@@ -87,8 +98,10 @@ class LocalAudioDevice:
                             ),
                             "vad_endpoint_ms": max(0.0, processing_ms - result.asr_ms),
                         }
+            self._check_active()
             tick = perf_counter()
             results = await speech.finish(pad_tail=True, endpoint_reason="deadline")
+            self._check_active()
             processing_ms += (perf_counter() - tick) * 1000
             if results:
                 if len(results) != 1:
@@ -114,6 +127,7 @@ class LocalAudioDevice:
             speech.reset()
 
     async def play(self, result: TTSResult):
+        self._check_active()
         validate_pcm16(result.audio)
         if (
             not result.audio
@@ -131,6 +145,7 @@ class LocalAudioDevice:
         self.first_write_at = None
 
         def write(block):
+            self._check_active()
             if self.first_write_at is None:
                 self.first_write_at = perf_counter()
             return stream.write(block)
@@ -143,9 +158,11 @@ class LocalAudioDevice:
                 write_task = asyncio.create_task(
                     asyncio.to_thread(write, result.audio[offset : offset + 3200])
                 )
-                if await asyncio.shield(write_task):
-                    raise ValueError("Speaker underflow")
+                underflow = await asyncio.shield(write_task)
                 write_task = None
+                self._check_active()
+                if underflow:
+                    raise ValueError("Speaker underflow")
             write_task = asyncio.create_task(asyncio.to_thread(stream.stop))
             await asyncio.shield(write_task)
             write_task = None

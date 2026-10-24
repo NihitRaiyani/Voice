@@ -4,9 +4,11 @@ import argparse
 import asyncio
 import importlib.util
 import json
+import re
 import sys
 from contextlib import AsyncExitStack
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
@@ -194,6 +196,124 @@ def initial_lab_state(language, branch):
     return state
 
 
+def lab_call_sid(value):
+    if not re.fullmatch(r"voice-lab-[A-Za-z0-9_-]{1,90}", value):
+        raise argparse.ArgumentTypeError("Expected an isolated voice-lab call identity")
+    return value
+
+
+class LabDeadline:
+    """The original five minutes include suspension; timing metrics stay monotonic."""
+    def __init__(self, started_at, *, wall_clock=None, clock=perf_counter):
+        self.started_at = started_at
+        self.wall_clock = wall_clock or (lambda: datetime.now(UTC))
+        self.clock = clock
+        elapsed = max(0.0, (self.wall_clock() - started_at).total_seconds())
+        self.started_tick = clock() - elapsed
+
+    def remaining(self):
+        elapsed = max(
+            (self.wall_clock() - self.started_at).total_seconds(),
+            self.clock() - self.started_tick,
+        )
+        return max(0.0, 300 - elapsed)
+
+    def require_remaining(self):
+        remaining = self.remaining()
+        if remaining <= 0:
+            raise VoiceFailure(VoiceErrorCode.CAPTURE)
+        return remaining
+
+
+def capture_started(sid, attempt):
+    print(json.dumps({"event": "CAPTURE_STARTED", "call_sid": sid, "attempt": attempt}), flush=True)
+
+
+async def capture_turn(device, speech, voice, policy, deadline):
+    """Never turn a stale capture into a new controller or paid-provider request."""
+    def opened():
+        deadline.require_remaining()
+        capture_started(voice.state.call_sid, voice.attempt + 1)
+
+    with voice_boundary(VoiceErrorCode.CAPTURE):
+        remaining = deadline.require_remaining()
+        transcript, timings = await asyncio.wait_for(
+            device.listen(
+                speech,
+                max_seconds=min(policy.max_utterance_ms / 1000, remaining),
+                on_capture_started=opened,
+            ),
+            timeout=remaining,
+        )
+        # Native capture may have returned after the computer resumed. Re-read
+        # wall time before the controller can perform extraction or generation.
+        remaining = deadline.require_remaining()
+        if transcript is None:
+            from roma.services.speech_input import SpeechTranscript
+            transcript = SpeechTranscript("", None, 0, "listen_limit", 0, "listen-timeout")
+        return await asyncio.wait_for(voice.respond(transcript, timings), timeout=remaining)
+
+
+async def resume_lab_call(factory, live_state, sid, *, now=None, data_root=None):
+    """Claim an unfinished lab and restore SQL truth without extending its lifetime."""
+    from roma.core.privacy_paths import safe_runtime_path
+    from roma.repositories.postgres.models import Call, CallEvent, PrivacyTombstone
+    from roma.repositories.postgres.privacy import SQLPrivacyRepository
+    from sqlalchemy import func, select
+
+    lab_call_sid(sid)
+    if data_root is not None and safe_runtime_path(
+        data_root, f"privacy/tombstones/{sid}.json"
+    ).exists():
+        raise VoiceFailure(VoiceErrorCode.DB)
+    # Deny a restored pre-deletion checkpoint before it can repopulate Redis.
+    async with asyncio.timeout(3):
+        if await SQLPrivacyRepository(factory).is_deleted(sid):
+            raise VoiceFailure(VoiceErrorCode.DB)
+    # load() claims distributed ownership before reading the durable checkpoint.
+    state = await live_state.load(sid)
+    now = now or datetime.now(UTC)
+    async with asyncio.timeout(3):
+        async with factory() as session:
+            if await session.scalar(select(PrivacyTombstone.id).where(
+                PrivacyTombstone.provider_call_id == sid
+            )):
+                raise VoiceFailure(VoiceErrorCode.DB)
+            call = await session.scalar(select(Call).where(Call.provider_call_id == sid))
+            if (call is None or state is None or state.call_sid != sid
+                    or call.status != "in_progress" or call.deleted_at is not None
+                    or call.ended_at is not None or call.retention_until is None
+                    or call.retention_until <= now or call.started_at is None
+                    or not 0 <= (now - call.started_at).total_seconds() < 300):
+                raise VoiceFailure(VoiceErrorCode.DB)
+            attempts = await session.scalar(select(
+                func.coalesce(func.max(CallEvent.payload["attempt"].as_integer()), 0)
+            ).where(CallEvent.call_id == call.id, CallEvent.event_type == "voice_lab.turn"))
+            started_at = call.started_at
+    return state, started_at, attempts
+
+
+async def pause_lab_call(factory, live_state, state, attempt):
+    """An explicit operator pause is unfinished, unlike error/disconnect/completion."""
+    from roma.repositories.postgres.models import Call, CallEvent
+    from sqlalchemy import select
+    from sqlalchemy.dialects.postgresql import insert
+
+    await live_state.checkpoint(state, CheckpointMilestone.STATE_CHANGED)
+    async with asyncio.timeout(3):
+        async with factory() as session, session.begin():
+            call_id = select(Call.id).where(
+                Call.provider_call_id == state.call_sid, Call.status == "in_progress",
+                Call.deleted_at.is_(None), Call.ended_at.is_(None),
+            ).scalar_subquery()
+            await session.execute(insert(CallEvent).values(
+                id=uuid4(), call_id=call_id, event_type="voice_lab.paused",
+                conversation_stage=state.stage.value,
+                payload={"status": "paused", "attempt": attempt, "source": "microphone_lab"},
+                occurred_at=datetime.now(UTC),
+            ))
+
+
 async def ready_local_models(stt, tts, scorer):
     # Synthetic readiness only: no participant audio, microphone, paid LLM or DB.
     for language in ("gu", "hi", "en"):
@@ -242,7 +362,8 @@ async def _local_run(args):
     )
     llm, booking, store = None, None, None
     state = initial_lab_state(cfg.stt_language, args.branch)
-    failed = True
+    failed, paused = True, False
+    started_at, previous_attempts = None, 0
     cleanup = AsyncExitStack()
     cleanup.push_async_callback(engine.dispose)
     cleanup.push_async_callback(redis.aclose)
@@ -253,8 +374,39 @@ async def _local_run(args):
                 != current_schema_head()
             ):
                 raise ValueError("Schema head prerequisite is missing; no migration attempted")
-        await require_booking_data(factory, branch=state.branch)
+        if not args.resume_call:
+            await require_booking_data(factory, branch=state.branch)
         await redis.ping()
+        live_state = LiveCallStateStore(
+            RedisCallStateStore(redis_url=RedisSettings().redis_url.get_secret_value()),
+            PostgresConversationStateStore(factory),
+            lease_factory=lambda sid: RedisCallLease(redis, sid),
+        )
+        cleanup.push_async_callback(live_state.aclose)
+        privacy_cfg = PrivacySettings()
+        configure_field_encryption(privacy_cfg)
+        store = PostgresVoiceLabStore(factory, persist_transcripts=args.persist_transcripts)
+        if args.resume_call:
+            state, started_at, previous_attempts = await resume_lab_call(
+                factory, live_state, args.resume_call, data_root=privacy_cfg.roma_data_dir
+            )
+        booking = BookingSession(
+            BookingService(PostgresBookingStore(factory), RedisAppointmentHolds(redis)), state
+        )
+        cleanup.push_async_callback(booking.aclose)
+        if args.resume_call:
+            await booking.restore()
+            if state.booking_error == "BOOKING_UNAVAILABLE":
+                raise VoiceFailure(VoiceErrorCode.DB)
+            if state.appointment_id:
+                # Reconcile a commit whose confirmation/playback was interrupted.
+                # SQL truth is reported without capturing consent or committing again.
+                await live_state.checkpoint(state, CheckpointMilestone.CALL_ENDED)
+                await store.finish(state.call_sid)
+                print(json.dumps({"event": "BOOKING_RESTORED", "call_sid": state.call_sid,
+                                  "status": "completed", "appointment_id": state.appointment_id}), flush=True)
+                return
+            await require_booking_data(factory, branch=state.branch)
         with voice_boundary(VoiceErrorCode.ASR):
             stt = build_stt_provider(cfg)
         with voice_boundary(VoiceErrorCode.TTS):
@@ -265,33 +417,26 @@ async def _local_run(args):
             await tts.cache_identity(TTSRequest("नमस्ते", language="hi"))
         scorer = SileroFrameProbability()
         await ready_local_models(stt, tts, scorer)
-        configure_field_encryption(PrivacySettings())
-        store = PostgresVoiceLabStore(factory, persist_transcripts=args.persist_transcripts)
-        await store.start(state.call_sid)
+        if started_at is None:
+            started_at = datetime.now(UTC)
+            await store.start(state.call_sid)
 
         async def finish_call():
-            await store.finish(state.call_sid, failed=failed)
+            if not paused:
+                await store.finish(state.call_sid, failed=failed)
 
         cleanup.push_async_callback(finish_call)
-        live_state = LiveCallStateStore(
-            RedisCallStateStore(redis_url=RedisSettings().redis_url.get_secret_value()),
-            PostgresConversationStateStore(factory),
-            lease_factory=lambda sid: RedisCallLease(redis, sid),
-        )
+
         async def finish_state():
-            try:
+            if not paused:
                 await live_state.checkpoint(state, CheckpointMilestone.CALL_ENDED)
-            finally:
-                await live_state.aclose()
+
         cleanup.push_async_callback(finish_state)
-        await live_state.checkpoint(state, CheckpointMilestone.CALL_STARTED)
+        if not args.resume_call:
+            await live_state.checkpoint(state, CheckpointMilestone.CALL_STARTED)
         safety = SafetyService(CheckpointSafetyEventStore(
             PostgresSafetyEventStore(factory, source="voice"), live_state, state
         ))
-        booking = BookingSession(
-            BookingService(PostgresBookingStore(factory), RedisAppointmentHolds(redis)), state
-        )
-        cleanup.push_async_callback(booking.aclose)
         with voice_boundary(VoiceErrorCode.LLM):
             llm = (
                 MockLLMProvider(response="नमस्ते।")
@@ -333,6 +478,12 @@ async def _local_run(args):
         voice = VoicePrototype(state, conversation, synthesis, device, store, budget=budget,
                                streaming=StreamConfig() if args.streaming else None, cpu_worker=cpu_worker)
         voice.release_on_disconnect = booking.aclose
+        voice.attempt = previous_attempts
+        # The persisted SQL start includes downtime and resumed model readiness.
+        # Neither controller nor provider deadlines receive a fresh five minutes.
+        deadline = LabDeadline(started_at)
+        device.check_active = deadline.require_remaining
+        voice._started = deadline.started_tick
         if args.streaming:
             await voice.prime_filler()
         print(
@@ -344,25 +495,22 @@ async def _local_run(args):
             )
             + " Ctrl+C stops. No audio recording."
         )
-        print("Voice lab id: " + state.call_sid)
-        tick = perf_counter()
-        for _ in range(args.max_turns):
-            if perf_counter() - tick >= 300 or state.lead_wants_out:
+        print("Voice lab id: " + state.call_sid, flush=True)
+        for invocation_attempt in range(1, args.max_turns + 1):
+            if deadline.remaining() <= 0 or state.lead_wants_out:
                 break
-            with voice_boundary(VoiceErrorCode.CAPTURE):
-                transcript, timings = await asyncio.wait_for(
-                    device.listen(speech, max_seconds=min(cfg.turn_policy().max_utterance_ms / 1000, 300 - (perf_counter() - tick))),
-                    timeout=max(0.01, 300 - (perf_counter() - tick)),
-                )
-            if transcript is None:
-                # Silent attempts are recorded without feeding silence into the controller.
-                from roma.services.speech_input import SpeechTranscript
-
-                transcript = SpeechTranscript("", None, 0, "listen_limit", 0, "listen-timeout")
-            outcome = await voice.respond(transcript, timings)
+            outcome = await capture_turn(device, speech, voice, cfg.turn_policy(), deadline)
             print(
-                json.dumps({"call_sid": state.call_sid, **asdict(outcome)}, ensure_ascii=False)
+                json.dumps({"call_sid": state.call_sid, **asdict(outcome)}, ensure_ascii=False),
+                flush=True,
             )
+            if (args.pause_after_turn == invocation_attempt and not state.lead_wants_out
+                    and deadline.remaining() > 0):
+                await pause_lab_call(factory, live_state, state, voice.attempt)
+                paused = True
+                print(json.dumps({"event": "CALL_PAUSED", "call_sid": state.call_sid,
+                                  "attempt": voice.attempt}), flush=True)
+                break
         failed = False
     finally:
         await cleanup.aclose()
@@ -377,6 +525,8 @@ def parser():
     p.add_argument("--allow-paid-api", action="store_true")
     p.add_argument("--allow-database-write", action="store_true")
     p.add_argument("--persist-transcripts", action="store_true")
+    p.add_argument("--resume-call", type=lab_call_sid, help="Resume one unfinished lab within its original five-minute limit")
+    p.add_argument("--pause-after-turn", type=int, choices=range(1, 61), metavar="1..60", help="Leave the call resumable after N attempts in this invocation")
     p.add_argument("--branch", choices=("Vadodara", "Ahmedabad"), default="Vadodara")
     p.add_argument("--input-device", type=int)
     p.add_argument("--output-device", type=int)

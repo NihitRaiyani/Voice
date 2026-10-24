@@ -574,3 +574,25 @@ Final verification on **2026-10-24**:
 - Tracked Markdown and local-link checks, staged whitespace/syntax checks and configured-private-credential diff scans passed. No private credential values were printed.
 
 These are local offline verification results, not a hosted Actions result or production/privacy/native gate approval. Private .env, working roma, speech weights/providers/settings and the Hindi-base Hinglish policy were preserved. The cryptography library was added under the lockfile; it is not a speech model download. Intended-environment migrations, private key/account activation, consent/retention/legal and Anthropic account-specific terms, backup/export erasure, representative ASR/native scores/latency and live reliability remain pending. Twilio supplies no signature timestamp; inbound freshness is not fabricated. Sections 34 onward and advanced tracks remain separately requested work.
+
+## Operational and supervised acceptance follow-up — 2026-10-25
+
+Base revision: `c6a9487616857867d397e03e381699420a385bff`; the follow-up contains local CLI/device controls, the streaming coverage repair, new catalogued tests, canonical documentation and sanitized evidence. It introduces no migration, model/provider switch, weight download or fixed spoken-asset change.
+
+| Verification | Fresh outcome |
+|---|---|
+| `make -o services-up -o db-upgrade ci` | **3,378 passed**, 22 existing dependency warnings, **127.64 s**; Ruff passed; mypy **119 files** passed |
+| CI catalog | All **191 test modules**, no exclusions; includes new CLI/disposable-SQL resume tests |
+| Focused CLI/device/voice/stream/corpus/state checks | 122 passed; separate disposable SQL/Redis resume/booking/recovery slice6 passed |
+| `uv run --no-sync python scripts/streaming_lab.py` | Four fake requests/eight chunks; four played calls; all five bounded queues; no fallback |
+| Operational rollout | Isolated-first encrypted disk restore/migration/auth/backfill rehearsal, then authorized local0006/Admin/key activation; independent read-only recheck |
+| Synthetic backup restore/disposal | Restored private data deliberately proved present, latest deletion ledger reapplied before traffic, SQL/files/Redis scrub and repeated/replay protection passed |
+| Supervised voice | Two discovery replies played; 11.555/10.324 s first software audio; one unexplained next-capture failure; later diagnostic had two no-speech attempts |
+| Owner listening | Naturalness **2.5/5**; correctness unscored; same-waveform8k/16k **no improvement** |
+| Cold TTS profile | 5.183 s imports,1.942 s model load,273 ms combined inference/vocoder; one synthetic phrase, not a percentile result |
+
+The first integrated run had three failures/two errors before native PostgreSQL setup completed. An isolated diagnostic captured `shmget(size=56)` / shared-memory-ID exhaustion (kernel limit32), not disk exhaustion. A temporary diagnostic wrapper also caused a child-process re-entry failure; it was discarded and is not part of the source/verification path. Thirteen exact owned, unused, approximately16-hour-old native test clusters were revalidated and gracefully stopped; their data directories were preserved. Shared-memory segments fell18→5, working PostgreSQL and unrelated clusters were left running, no host settings changed, and the **normal** CI command above then passed. No failing tests were excluded or weakened.
+
+Evidence: [local operational summary](../benchmarks/security/local-operations-20261024.json), [synthetic restore erasure](../benchmarks/security/restore-erasure-20261025.json), [voice observations](../benchmarks/voice/acceptance-followup-20261025.json), [TTS profile](../benchmarks/tts/local-profile-20261025.json), [synthetic streaming](../benchmarks/voice/reliability-followup-20261025.json). Private credentials, configuration, encrypted backups/keys and runtime audio remain ignored and owner-only. Owned supervised SQL/Redis/runtime were removed after exporting metadata; the INR6 conservative reservation ledger survives outside that fixture against the aggregate INR50 ceiling.
+
+No full acceptance gate changed. Real multilingual discovery-to-booking, representative ASR, formal native correctness/naturalness, acoustic onset/p95 and agreed budgets, actual carrier/native interruption/concurrency/recovery, institute disclosure/retention/legal and Anthropic organization-specific retention evidence, external/whole-person erasure and advanced prerequisites remain pending. Successful deterministic discovery replies did not exercise a paid Claude conversation.

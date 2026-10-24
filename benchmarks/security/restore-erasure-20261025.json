@@ -1,0 +1,45 @@
+{
+  "complete": true,
+  "drill_redis_stopped": true,
+  "limitations": [
+    "Call-scoped managed disposal only; whole-person/sibling-call data, operator exports, actual provider copies and unknown backups remain outside proof.",
+    "Persisted encrypted pre-disposal artifact intentionally retains synthetic data; every restore requires the separately protected deletion ledger before traffic.",
+    "This local drill does not establish legal retention policy, production RPO/RTO or external erasure."
+  ],
+  "private_file_modes_valid": true,
+  "production_traffic_started": false,
+  "steps": {
+    "deletion_ledger_reapplied_before_traffic": {
+      "completed_tombstone_imported_before_apply": true,
+      "durable_and_disk_tombstones_persist": true,
+      "external_pending": [
+        "backups_and_restore_tombstone_reapplication",
+        "external_provider_and_operator_exports",
+        "unmapped_lead_cache_until_ttl"
+      ],
+      "managed_files_and_spool_removed": true,
+      "preview_before_apply": true,
+      "queued_postcall_replay_suppressed": true,
+      "redis_state_lease_and_three_queues_scrubbed": true,
+      "repeated_apply_completed_tombstone_rescrubs": true,
+      "sql_caller_turn_checkpoint_job_event_recording_scrub": true,
+      "unrelated_synthetic_sentinels_preserved": true
+    },
+    "disk_restore_initially_resurrected_synthetic_pii": {
+      "managed_files": true,
+      "redis_state_and_queued_jobs": true,
+      "sql_caller_transcript_checkpoint_job": true,
+      "traffic_started": false
+    },
+    "encrypted_pre_disposal_sql_file_redis_disk_backup": true,
+    "original_managed_disposal_and_separate_protected_minimal_ledger": true
+  },
+  "supervised_fixture_untouched": true,
+  "synthetic_drill_runtime_removed": true,
+  "synthetic_only": true,
+  "working_database_untouched": true,
+  "schema": "roma-synthetic-restore-erasure-v1",
+  "date": "2026-10-25",
+  "source_revision": "c6a9487616857867d397e03e381699420a385bff",
+  "gate_passed": false
+}
