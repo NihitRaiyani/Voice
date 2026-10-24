@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 
 async def dispatch_due_jobs(store, publisher, *, limit: int = 100) -> int:
-    job_ids = await store.dispatchable_ids(now=datetime.now(UTC), limit=limit)
-    for job_id in job_ids:
-        await publisher.publish(job_id)
-    return len(job_ids)
+    jobs = await store.dispatchable_jobs(now=datetime.now(UTC), limit=limit)
+    for job_id, job_type in jobs:
+        await publisher.publish(job_id, job_type=job_type)
+    return len(jobs)

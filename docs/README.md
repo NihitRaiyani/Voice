@@ -16,7 +16,7 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 5 | [Local TTS](levels/level-05.md) | Section 19 local Indic-TTS: 18 general and 24 approved-line cases passed; native approval pending |
 | 6 | [Local voice prototype](levels/level-06.md) | Section 21 JSON request/call/turn logging added; four language-labelled local checks and TEST ONLY booking/restore recorded; formal acceptance pending |
 | 7 | [Real-time reliability](levels/level-07.md) | Sections 22–25 streaming/cancellation, Redis/SQL recovery and provider reliability verified offline; native reliability and full gate pending |
-| 8 | [Secure jobs/access](levels/level-08.md) | Signed answer/durable jobs present; full gate pending |
+| 8 | [Secure jobs/access](levels/level-08.md) | Section 26 durable jobs, consent-gated followup seam and capped low-priority summaries verified offline; access/privacy and full gate pending |
 | 9 | [Governed retrieval](levels/level-09.md) | Planned |
 | 10 | [Telephony/model serving](levels/level-10.md) | Twilio cloud baseline; local integration planned |
 | 11 | [Observability/analytics](levels/level-11.md) | Structured logging foundation; full telemetry planned |

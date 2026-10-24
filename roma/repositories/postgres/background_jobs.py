@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, case, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -19,7 +19,13 @@ from roma.domain.persistence import CallRecord, FollowupJobRecord
 
 from .models import Call, Caller, CallEvent, FollowupJob
 
-ACTIVE_JOB_TYPES = ("compute_statistics", "summarize_call", "update_lead")
+ACTIVE_JOB_TYPES = (
+    "compute_statistics",
+    "summarize_call",
+    "update_lead",
+    "send_followup",
+    "process_recording",
+)
 LEASE_SECS = 300
 MAX_ATTEMPTS = 5
 
@@ -89,11 +95,11 @@ class BackgroundJobStore:
                 created_at=call.created_at,
                 updated_at=call.updated_at,
             )
-            statement = statement.on_conflict_do_update(
+            returning = statement.on_conflict_do_update(
                 index_elements=[Call.provider_call_id],
                 set_=updates,
             ).returning(Call.id)
-            call_id = (await session.execute(statement)).scalar_one()
+            call_id = (await session.execute(returning)).scalar_one()
             for job in jobs:
                 await session.execute(
                     insert(FollowupJob)
@@ -103,7 +109,8 @@ class BackgroundJobStore:
                         job_type=job.job_type,
                         payload=dict(job.payload),
                         status=job.status,
-                        attempts=0,
+                        attempts=job.attempts,
+                        last_error=job.last_error,
                         available_at=job.available_at,
                         idempotency_key=job.idempotency_key,
                         created_at=job.created_at,
@@ -119,12 +126,21 @@ class BackgroundJobStore:
         Republishing is safe. Only the consumer's database claim advances job attempts.
         Failed publishing or Redis data loss therefore leaves the durable work retryable.
         """
+        return [job_id for job_id, _ in await self.dispatchable_jobs(now=now, limit=limit)]
+
+    async def dispatchable_jobs(
+        self, *, now: datetime, limit: int = 100
+    ) -> list[tuple[UUID, str]]:
+        """Return ID/type routing metadata only; scheduled jobs stay in PostgreSQL."""
+        if type(limit) is not int or not 1 <= limit <= 1000:
+            raise ValueError("Dispatch limit must be an integer from 1 to 1000")
         async with self._session_factory() as session:
-            return list(
-                await session.scalars(
-                    _eligible_jobs(now).with_only_columns(FollowupJob.id).limit(limit)
-                )
+            rows = await session.execute(
+                _eligible_jobs(now)
+                .with_only_columns(FollowupJob.id, FollowupJob.job_type)
+                .limit(limit)
             )
+            return [(job_id, job_type) for job_id, job_type in rows]
 
     async def claim(
         self, *, now: datetime, owner: str, job_id: UUID | None = None
@@ -203,13 +219,23 @@ class BackgroundJobStore:
             row.last_error = "caller_not_linked" if needs_identity else None
             return True
 
-    async def fail(self, job: ClaimedJob, *, owner: str, now: datetime, error_type: str) -> str:
+    async def fail(
+        self,
+        job: ClaimedJob,
+        *,
+        owner: str,
+        now: datetime,
+        error_type: str,
+        permanent: bool = False,
+    ) -> str:
         """Exponential retry with a capped delay; terminal failures remain queryable."""
         async with self._session_factory() as session, session.begin():
             row = await _owned_job(session, job.id, owner)
             if row is None:
                 return "lost_lease"
-            row.status = "dead_letter" if row.attempts >= MAX_ATTEMPTS else "failed"
+            row.status = (
+                "dead_letter" if permanent or row.attempts >= MAX_ATTEMPTS else "failed"
+            )
             row.available_at = now + timedelta(seconds=min(300, 2**row.attempts))
             row.last_error = error_type[:128]
             row.lock_owner = None
@@ -235,7 +261,12 @@ def _eligible_jobs(now: datetime):
                 ),
             ),
         )
-        .order_by(FollowupJob.available_at, FollowupJob.created_at, FollowupJob.job_type)
+        .order_by(
+            case((FollowupJob.job_type == "summarize_call", 1), else_=0),
+            FollowupJob.available_at,
+            FollowupJob.created_at,
+            FollowupJob.job_type,
+        )
     )
 
 

@@ -355,3 +355,24 @@ def test_the_job_always_leaves_the_queue(tmp_path, consent):
         return deps.queue.depth(), deps.queue.inflight_depth()
 
     assert asyncio.run(run()) == (0, 0)
+
+
+def test_exhausted_recording_hands_off_terminal_reason_before_dead_letter(tmp_path):
+    deps = _deps(tmp_path, store=_FailingStore(tmp_path / "recordings"))
+    job = _job(attempts=4)
+    _capture(deps, job)
+    persisted = []
+
+    async def persist(message, recording_outcome):
+        persisted.append((message.attempts + 1, recording_outcome))
+        assert deps.queue.inflight_depth() == 1
+
+    deps.persist = persist
+
+    async def run():
+        await deps.queue.push(job)
+        return await run_worker(deps, max_jobs=1)
+
+    stats = asyncio.run(run())
+    assert persisted == [(5, "processing_failed")]
+    assert stats.dead_lettered == 1 and deps.queue.inflight_depth() == 0

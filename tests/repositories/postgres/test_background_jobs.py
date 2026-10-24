@@ -19,6 +19,7 @@ from roma.workers.background import run_background_worker
 from roma.workers.postcall.job import PostcallJob
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 from tests.repositories.postgres.test_migrations import alembic_config, disposable_postgres_url
 
 __all__ = ["alembic_config", "disposable_postgres_url"]
@@ -29,7 +30,7 @@ pytestmark = pytest.mark.postgres
 @pytest.fixture()
 def session_factory(alembic_config, disposable_postgres_url):
     command.upgrade(alembic_config, "head")
-    engine = create_async_engine(disposable_postgres_url)
+    engine = create_async_engine(disposable_postgres_url, poolclass=NullPool)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     yield factory
     asyncio.run(engine.dispose())
@@ -233,3 +234,86 @@ def test_expired_lease_is_reclaimed_and_failure_eventually_dead_letters(session_
         "TimeoutError",
         None,
     )
+
+
+def test_terminal_recording_preserves_reason_and_attempt_count(session_factory):
+    async def run():
+        message = replace(_message(), recording_ref="synthetic-capture.s16le", attempts=4)
+        await PostcallService(BackgroundJobStore(session_factory)).persist(
+            message, "processing_failed"
+        )
+        async with session_factory() as session:
+            job = await session.scalar(
+                select(FollowupJob).where(FollowupJob.job_type == "process_recording")
+            )
+            assert job.status == "dead_letter"
+            assert job.attempts == 5
+            assert job.last_error == "processing_failed"
+
+    asyncio.run(run())
+
+
+def test_due_followup_with_explicit_consent_and_sender_has_one_effect(session_factory):
+    from unittest.mock import AsyncMock
+
+    from roma.workers.background import BackgroundHandlers, process_background_job
+
+    async def run():
+        store = BackgroundJobStore(session_factory)
+        await PostcallService(store).persist(_message(locked=True), followup_consent=True)
+        async with session_factory() as session, session.begin():
+            job = await session.scalar(
+                select(FollowupJob).where(FollowupJob.job_type == "send_followup")
+            )
+            job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+            job_id, key = job.id, job.idempotency_key
+        sender = AsyncMock()
+        sender.send.return_value = True
+        handlers = BackgroundHandlers(followup=sender)
+        await asyncio.gather(
+            *(process_background_job(store, job_id, handlers=handlers) for _ in range(20))
+        )
+        sender.send.assert_awaited_once_with(call_id=job.call_id, idempotency_key=key)
+        async with session_factory() as session:
+            settled = await session.get(FollowupJob, job_id)
+            assert settled.status == "succeeded" and settled.attempts == 1
+            assert (
+                await session.scalar(
+                    select(func.count())
+                    .select_from(CallEvent)
+                    .where(CallEvent.event_type == "followup_sent")
+                )
+                == 1
+            )
+
+    asyncio.run(run())
+
+
+def test_due_followup_without_consent_is_visible_and_never_sent(session_factory):
+    from unittest.mock import AsyncMock
+
+    from roma.workers.background import BackgroundHandlers, process_background_job
+
+    async def run():
+        store = BackgroundJobStore(session_factory)
+        await PostcallService(store).persist(_message(locked=True))
+        async with session_factory() as session, session.begin():
+            job = await session.scalar(
+                select(FollowupJob).where(FollowupJob.job_type == "send_followup")
+            )
+            job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+            job_id = job.id
+        sender = AsyncMock()
+        await process_background_job(
+            store, job_id, handlers=BackgroundHandlers(followup=sender)
+        )
+        sender.send.assert_not_awaited()
+        async with session_factory() as session:
+            settled = await session.get(FollowupJob, job_id)
+            assert (settled.status, settled.attempts, settled.last_error) == (
+                "dead_letter",
+                1,
+                "followup_consent_required",
+            )
+
+    asyncio.run(run())

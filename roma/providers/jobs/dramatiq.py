@@ -9,6 +9,8 @@ from dramatiq.middleware import AsyncIO, Retries
 
 QUEUE_NAME = "roma_background"
 ACTOR_NAME = "process_background_job"
+SUMMARY_QUEUE_NAME = "roma_background_summary"
+SUMMARY_ACTOR_NAME = "summarize_background_call"
 BROKER_NAMESPACE = "roma:dramatiq:v1"
 
 
@@ -27,11 +29,12 @@ class DramatiqPublisher:
     def __init__(self, broker) -> None:
         self._broker = broker
         broker.declare_queue(QUEUE_NAME)
+        broker.declare_queue(SUMMARY_QUEUE_NAME)
 
-    async def publish(self, job_id: UUID) -> None:
-        message = Message(
-            queue_name=QUEUE_NAME,
-            actor_name=ACTOR_NAME,
+    async def publish(self, job_id: UUID, *, job_type: str | None = None) -> None:
+        message: Message = Message(
+            queue_name=SUMMARY_QUEUE_NAME if job_type == "summarize_call" else QUEUE_NAME,
+            actor_name=SUMMARY_ACTOR_NAME if job_type == "summarize_call" else ACTOR_NAME,
             args=(str(job_id),),
             kwargs={},
             options={},

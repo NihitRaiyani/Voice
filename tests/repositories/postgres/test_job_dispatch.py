@@ -21,7 +21,7 @@ __all__ = ["alembic_config", "disposable_postgres_url", "session_factory"]
 pytestmark = pytest.mark.postgres
 
 
-def test_dispatch_does_not_claim_and_excludes_scheduled_followup(session_factory):
+def test_dispatch_does_not_claim_and_excludes_followup_until_due(session_factory):
     async def run():
         store = BackgroundJobStore(session_factory)
         await PostcallService(store).persist(_message(locked=True))
@@ -32,8 +32,16 @@ def test_dispatch_does_not_claim_and_excludes_scheduled_followup(session_factory
         async with session_factory() as session:
             jobs = (await session.scalars(select(FollowupJob))).all()
             assert all(job.status == "pending" and job.attempts == 0 for job in jobs)
-        # Follow-up delivery remains inactive even after its scheduled time.
-        assert await store.dispatchable_ids(now=now + timedelta(days=1)) == ids
+        due_ids = await store.dispatchable_ids(now=now + timedelta(days=1))
+        assert set(ids) < set(due_ids) and len(due_ids) == 4
+        routed = await store.dispatchable_jobs(now=now + timedelta(days=1))
+        assert {kind for _, kind in routed} == {
+            "compute_statistics",
+            "summarize_call",
+            "update_lead",
+            "send_followup",
+        }
+        assert routed[-1][1] == "summarize_call"
 
     asyncio.run(run())
 

@@ -18,7 +18,7 @@ Callback authenticity already exists. Answer idempotency already atomically comm
 
 Recording transport remains Redis/local spool with one consumer. It performs permitted file handling, commits call/job intents in PostgreSQL and only then acks. Dramatiq/Redis sends job IDs; targeted row claims and effect/settlement transactions protect redelivery. See [worker framework](19-background-task-framework.md).
 
-Keep payload version, identity, timeout, attempts, available time, lease and reason visible. `compute_statistics`, `summarize_call` and `update_lead` run today; summaries are deterministic metadata. `send_followup` is scheduled but excluded from eligible execution. Scheduling does not authorize SMS/contact or paid AI.
+Keep payload version, identity, timeout, attempts, available time, lease and reason visible. `compute_statistics`, `summarize_call` and `update_lead` run today. Section 26 preserves deterministic default summaries and adds explicit opt-in capped Claude summaries on a lower-priority queue. `send_followup` can execute only with persisted consent and an injected idempotent sender; none is configured by default. Scheduling does not authorize contact or paid AI.
 
 L8 completes bounded publication/dead-letter retention, authorized replay, user security, shared rate limits and PII/access/deletion. A queue framework alone does not complete those controls.
 

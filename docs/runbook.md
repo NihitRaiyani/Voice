@@ -102,7 +102,7 @@ SELECT job_type, status, attempts, available_at, last_error
 FROM followup_jobs ORDER BY created_at DESC LIMIT 20;
 ```
 
-Do not replay dead letters until the business effect/idempotency/privacy consequences are understood. `send_followup` remains ineligible; these processes do not authorize messaging.
+Do not replay dead letters until business effect/idempotency/privacy consequences are understood. Section 26 followup execution requires persisted consent and a configured idempotent sender; the default has neither and sends no message.
 
 ## Offline checks
 
@@ -556,3 +556,9 @@ Observe `checkpoint_failed`/`state_cache_failed` plus numeric `checkpoint.pendin
 ## Provider reliability (section 25)
 
 Existing commands/settings remain. Diagnose reviewed provider failure kinds and stage codes; raw upstream response bodies must not enter logs. A transient Claude outage retries only before output and within the inherited turn deadline; repeated failures open the per-adapter circuit for 15 s, then one probe is allowed. Do not retry a partial spoken answer or an ambiguous Twilio dial. Native model/hash cancellation retains capacity until actual work finishes. Reproduce offline with `uv run pytest -q tests/providers/test_reliability.py tests/providers/ai/test_claude_llm.py tests/realtime/test_provider_llm.py`; full evidence is in [Level 7](levels/level-07.md#section-25-provider-reliability). No paid/microphone test is required for this command.
+
+## Background job extensions (section 26)
+
+Existing recording/dispatcher/worker commands remain. Keep one recording consumer. Default summaries are deterministic metadata; summary jobs route to the lower-priority `roma_background_summary` queue. Later explicit paid opt-in is `uv run --extra telephony --extra workers python scripts/run_background_worker.py --allow-paid-summary`; do not run it during deferred paid testing. To isolate worker resources further, use Dramatiq's `--queues`/process settings for separate normal/summary workers; no preemption or live-call latency guarantee is claimed.
+
+Inspect `followup_jobs.status`, attempts, last_error, available_at and lease owner/expiry using the existing SQL inspection query. Missing consent/sender and exhausted failures remain dead_letter with reviewed reasons; scheduling is not delivery. Configure an external sender only after contact policy and provider idempotency are approved. No concrete sender/CRM transport or Message Batches adapter is installed. [Level 8](levels/level-08.md#section-26-background-processing) owns the exact summary/token/spend and retry bounds.

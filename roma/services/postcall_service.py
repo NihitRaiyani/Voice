@@ -14,8 +14,22 @@ class PostcallService:
         self._store = store
 
     async def persist(
-        self, message: CompletedCall, recording_outcome: str = "not_requested"
+        self,
+        message: CompletedCall,
+        recording_outcome: str = "not_requested",
+        *,
+        followup_consent: bool = False,
     ) -> None:
+        if type(followup_consent) is not bool:
+            raise ValueError("Followup consent must be explicit boolean evidence")
+        if recording_outcome not in {
+            "not_requested",
+            "stored",
+            "blocked_by_consent",
+            "missing_capture",
+            "processing_failed",
+        }:
+            raise ValueError("Invalid recording outcome")
         ended_at = datetime.fromisoformat(message.ended_at)
         started_at = datetime.fromisoformat(message.started_at)
         if ended_at.tzinfo is None or started_at.tzinfo is None:
@@ -53,7 +67,10 @@ class PostcallService:
                 payload={
                     **facts,
                     **(
-                        {"locked_slot": message.locked_slot}
+                        {
+                            "locked_slot": message.locked_slot,
+                            "consent_confirmed": followup_consent,
+                        }
                         if job_type == "send_followup"
                         else {}
                     ),
@@ -62,11 +79,19 @@ class PostcallService:
                     ),
                 },
                 status=(
-                    "dead_letter" if recording_outcome == "missing_capture" else "succeeded"
+                    "dead_letter"
+                    if recording_outcome in {"missing_capture", "processing_failed"}
+                    else "succeeded"
                 )
                 if job_type == "process_recording"
                 else "pending",
-                attempts=0,
+                attempts=max(1, getattr(message, "attempts", 0) + 1)
+                if job_type == "process_recording"
+                else 0,
+                last_error=recording_outcome
+                if job_type == "process_recording"
+                and recording_outcome in {"missing_capture", "processing_failed"}
+                else None,
                 available_at=(
                     ended_at + timedelta(hours=1) if job_type == "send_followup" else ended_at
                 ),

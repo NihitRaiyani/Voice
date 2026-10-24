@@ -24,7 +24,13 @@ from dramatiq.brokers.stub import StubBroker
 from dramatiq.middleware import AsyncIO, Retries
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-from roma.providers.jobs.dramatiq import QUEUE_NAME, DramatiqPublisher, build_broker
+from roma.providers.jobs.dramatiq import (
+    QUEUE_NAME,
+    SUMMARY_ACTOR_NAME,
+    SUMMARY_QUEUE_NAME,
+    DramatiqPublisher,
+    build_broker,
+)
 from roma.repositories.postgres.background_jobs import BackgroundJobStore
 from roma.repositories.postgres.models import CallEvent, FollowupJob
 from roma.services.job_dispatcher import dispatch_due_jobs
@@ -99,7 +105,7 @@ def test_dispatch_failure_can_be_retried_without_consuming_business_attempts():
     async def run():
         store = AsyncMock()
         job_id = uuid4()
-        store.dispatchable_ids.return_value = [job_id]
+        store.dispatchable_jobs.return_value = [(job_id, "compute_statistics")]
         publisher = AsyncMock()
         publisher.publish.side_effect = ConnectionError("redis unavailable")
         with pytest.raises(ConnectionError):
@@ -132,6 +138,7 @@ def test_redis_framework_duplicate_delivery_commits_one_effect(session_factory, 
         worker.start()
         try:
             await asyncio.to_thread(broker.join, QUEUE_NAME, timeout=10000)
+            await asyncio.to_thread(broker.join, SUMMARY_QUEUE_NAME, timeout=10000)
             await asyncio.to_thread(worker.join)
             async with session_factory() as session:
                 jobs = (await session.scalars(select(FollowupJob))).all()
@@ -232,3 +239,34 @@ def test_production_cli_process_owns_and_closes_its_async_database(
         assert "Unexpected failure" not in output
 
     asyncio.run(run())
+
+
+def test_summary_has_a_separate_low_priority_id_only_queue():
+    async def run():
+        broker = StubBroker()
+        normal = create_background_actor(broker, lambda: None)
+        summary = broker.get_actor(SUMMARY_ACTOR_NAME)
+        assert summary.priority > normal.priority
+        assert summary.queue_name == SUMMARY_QUEUE_NAME
+        job_id = uuid4()
+        await DramatiqPublisher(broker).publish(job_id, job_type="summarize_call")
+        message = next(iter(broker.consume(SUMMARY_QUEUE_NAME)))
+        assert message.actor_name == SUMMARY_ACTOR_NAME
+        assert message.args == (str(job_id),) and message.kwargs == {}
+        assert not broker.queues[QUEUE_NAME].qsize()
+        broker.close()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("paid", [False, True])
+def test_cli_requires_explicit_summary_opt_in(monkeypatch, paid):
+    from scripts import run_background_worker
+
+    selected = []
+    monkeypatch.setattr(
+        run_background_worker, "dramatiq_main", lambda args: selected.append(args.broker) or 0
+    )
+    assert run_background_worker.main(["--allow-paid-summary"] if paid else []) == 0
+    expected = "configure_paid_summary_broker" if paid else "configure_worker_broker"
+    assert selected == [f"roma.workers.dramatiq_worker:{expected}"]

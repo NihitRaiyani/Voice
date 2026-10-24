@@ -16,7 +16,7 @@ Call end → Redis recording queue/local spool → one recording consumer handle
 | `roma/repositories/postgres/background_jobs.py` | Claims, leases, idempotency, effect/status transactions |
 | `scripts/dispatch_background_jobs.py`, `scripts/run_background_worker.py` | Process entry points |
 
-`followup_jobs` is the physical ledger. Active handlers are statistics, deterministic metadata summary and linked-lead update. Unlinked callers remain visible for review. Follow-up intents may be scheduled but `send_followup` is excluded from execution; no SMS or paid AI is sent by these handlers.
+`followup_jobs` is the physical ledger. Statistics, deterministic metadata summary and linked-lead update remain active. Section 26 adds explicit consent/sender-gated followup execution, lower-priority summary routing and terminal recording reason/attempt evidence. Unlinked callers and unconfigured/unconsented followups stay visible as dead letters. No SMS/email/CRM sender is configured; default summary makes no paid call.
 
 ## Retry and failure boundaries
 
@@ -37,3 +37,7 @@ Tests are `tests/workers/test_dramatiq_worker.py`, `tests/repositories/postgres/
 Explain why intent is not stored only in Redis, why messages contain UUIDs, why publish and claim are separate, how ambiguous acknowledgements are recovered, why broker and business retries differ, and why scheduling does not authorize contact. Compare a more complex outbox/publication strategy only after measurement shows need.
 
 See [concurrency](08-concurrency.md), [recordings](09-recording-storage.md), [API/jobs](15-api-security-and-jobs.md) and [L8](levels/level-08.md).
+
+## Section 26 extension
+
+Reuse the existing claims/lease/settlement boundary through `BackgroundHandlers`. Future schedules remain SQL rows; dispatcher routing carries ID/type only. Summary actor priority100 uses `roma_background_summary`; ordinary work priority0 stays preferred. Normal startup remains deterministic; `scripts/run_background_worker.py --allow-paid-summary` is explicit paid opt-in for a separate metadata-only capped Claude instance. External followups require persisted consent and an injected sender honoring stable provider idempotency; no automatic messages are sent. Recording terminal intents retain reason/attempts, and completed conversion is never duplicated. [Level 8](levels/level-08.md#section-26-background-processing) owns bounds and limits. Optional Message Batches is documented, not implemented or billed.

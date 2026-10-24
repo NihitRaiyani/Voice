@@ -1,6 +1,6 @@
 # Level 8 — Secure jobs and access
 
-**Roadmap sections:** 26–31. **Status:** Signed answer and durable jobs implemented; identity/privacy/replay/publication gate pending.
+**Roadmap sections:** 26–31. **Status:** Section 26 durable job extensions verified offline; sections 27–28 identity/idempotency follow; privacy/replay/publication and full gate pending.
 
 ## Entry gate
 
@@ -19,6 +19,18 @@ Reuse existing signed Twilio answer handling and atomic SQL receipt/effect. Twil
 ## Existing reuse in Voice_Agent
 
 Twilio signature/account checks, atomic answer receipt/call/event, PostgreSQL job ledger, Dramatiq, keyed caller linkage, local bearer guard and consent-gated recording.
+
+## Section 26 background processing
+
+Retain the existing producer/consumer architecture: recording queue/local spool and one recording consumer handle consent-gated file work; `PostcallService` commits the call and unique SQL job intents; the dispatcher publishes UUIDs; Dramatiq workers claim and settle short SQL units. No file conversion, summary, CRM or followup network wait runs in a live-call transaction. `process_recording` intent records the recording consumer's actual outcome; it does not run conversion twice.
+
+Statistics and linked-caller status updates retain their idempotent SQL effects. Future-due jobs stay in PostgreSQL until eligible. Terminal recording failure/missing capture now records `dead_letter`, reviewed reason and attempt count before queue dead-lettering when the durable handoff is available. Business jobs retain five attempts, 60 s execution limit, 300 s lease and capped retry delay; permanent consent/configuration failures terminate visibly rather than spinning. Dead letters are inspectable, not silently deleted or automatically replayed.
+
+`BackgroundHandlers` supports a supplied followup sender only with explicit `consent_confirmed=True`, a stable job idempotency key and positively acknowledged delivery. Default production handoff retains consent=False; no concrete SMS/email/CRM sender is configured and no contact is authorized by scheduling. `update_lead` updates the existing linked local caller, not an external CRM. A sender must honor provider idempotency to avoid repeats after a lost acknowledgement; SQL alone cannot promise exactly-once remote delivery.
+
+Summary UUIDs use `roma_background_summary` / `summarize_background_call`, actor priority 100 versus normal priority 0. SQL dispatch favors normal jobs. This is lower-priority scheduling, not preemption or a measured capacity guarantee; workers remain separate from live-call processes. The default summary is deterministic metadata. Explicit `--allow-paid-summary` selects a separate Claude instance: 128 output tokens, 2,048 reserved tokens and INR0.25 per attempt, with at most five business attempts (planned ceilings 10,240 tokens/INR1.25 per job). Only allowlisted stage/outcome/duration/audio/turn metadata is sent, with no transcript, caller identity or live provider budget shared.
+
+[Message Batches](https://platform.claude.com/docs/en/build-with-claude/batch-processing) is an optional later transport for delayed work; its advertised 50% discount is not used or claimed by the implemented ordinary Messages summary adapter. No batch or paid request was submitted. Offline worker/SQL/Redis tests cover due scheduling, effects, duplicate notifications, permanent/transient failure, exhausted recording handoff, queue routing and paid opt-in refusal. [Verification](../12-verification.md#section-26-background-processing) owns results. Acceptance checkboxes remain pending.
 
 ## Acceptance gate
 

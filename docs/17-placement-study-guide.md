@@ -266,3 +266,11 @@ An HF token solves identity, not unlimited inference capacity. Hosted ASR is a u
 - **What happens after a worker crashes?** Its token lease expires; a new owner restores SQL stage/slots and rebuilds Redis. Uncommitted in-progress work can be lost.
 - **Why can booking continue when a hold fails?** A hold is advisory. Fresh SQL availability guides offers, and the short SQL transaction/unique constraint decides confirmation. Foreign ownership still conflicts.
 - **Is event replay implemented?** No. Redis Streams and crash-window replay wait for the core gate.
+
+## Level 8 section 26 explanation
+
+- **Why queue after a call?** Recording/statistics/summaries/followups must not hold live audio or its SQL transaction.
+- **Who owns retries?** SQL owns business attempts/leases/status; Dramatiq retries delivery. Duplicate UUID messages do not repeat a committed SQL effect.
+- **Why a second summary queue?** AI summary waits behind ordinary work and has a separate token/spend budget. Priority is not preemption.
+- **Does a followup job mean sent?** No. Persisted consent, a configured idempotent sender and acknowledged delivery are required; missing prerequisites become visible dead letters.
+- **Why retain dead letters?** Reason, attempts and due/lease data make failure review possible before any authorized replay.

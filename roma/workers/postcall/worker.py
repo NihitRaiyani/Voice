@@ -32,16 +32,19 @@ class JobResult(Enum):
     RETRY = "retry"
     DEAD = "dead"
 
+
 # This is a metrics counter dataclass
 @dataclass
 class WorkerStats:
-    processed: int = 0 # Total jobs picked up from the queue.
-    stored: int = 0 # Total calls successfully written and committed to storage.
-    blocked_by_consent: int = 0 # Total calls discarded due to consent not being granted.
-    retried: int = 0 # Transient failures put back into the queue for another attempt.
+    processed: int = 0  # Total jobs picked up from the queue.
+    stored: int = 0  # Total calls successfully written and committed to storage.
+    blocked_by_consent: int = 0  # Total calls discarded due to consent not being granted.
+    retried: int = 0  # Transient failures put back into the queue for another attempt.
     dead_lettered: int = 0
     pruned_days: int = 0
-    queue_errors: int = 0 # Connection drops, timeouts, or unexpected crashes talking to Redis/queue.
+    queue_errors: int = (
+        0  # Connection drops, timeouts, or unexpected crashes talking to Redis/queue.
+    )
 
 
 @dataclass
@@ -180,13 +183,15 @@ async def run_worker(
         result = await handle_job(job, deps)
         recording_outcome = "not_requested"
         if job.recording_ref is not None:
-            if not consent_before:
+            if result is JobResult.DEAD:
+                recording_outcome = "processing_failed"
+            elif not consent_before:
                 recording_outcome = "blocked_by_consent"
             elif deps.store.already_stored(job):
                 recording_outcome = "stored"
             else:
                 recording_outcome = "missing_capture"
-        if result is JobResult.ACK and deps.persist is not None:
+        if result in (JobResult.ACK, JobResult.DEAD) and deps.persist is not None:
             try:
                 await deps.persist(job, recording_outcome)
             except Exception as exc:  # noqa: BLE001 — keep the job recoverable
@@ -207,7 +212,7 @@ async def run_worker(
             elif result is JobResult.RETRY:
                 await deps.queue.retry(job)
                 stats.retried += 1
-                await asyncio.sleep(min(30, 2 ** job.attempts))
+                await asyncio.sleep(min(30, 2**job.attempts))
             else:
                 await deps.queue.dead(job)
                 stats.dead_lettered += 1

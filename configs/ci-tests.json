@@ -164,6 +164,8 @@
     "tests/services/test_voice_prototype.py",
     "tests/workers/postcall/test_job_and_spool.py",
     "tests/workers/postcall/test_worker.py",
+    "tests/workers/test_background_handlers.py",
+    "tests/workers/test_claude_summary.py",
     "tests/workers/test_dramatiq_worker.py"
   ],
   "excluded": {}

@@ -211,3 +211,7 @@ Accepted teaching recovery point: acknowledged SQL milestones survive Redis loss
 ## Section 25 — Inherited provider budgets and safe retries
 
 Keep existing Claude settings and approved fallback. Share its configured turn deadline across extraction and wording, including admission/backoff; isolate timers to individual provider awaits. Retry only known transient failures before any output and within budget. Add a local adapter circuit, not distributed infrastructure. Retain native work ownership and telephony zero-retry semantics. Preserve Sarvam streaming and model/provider choices. User acceptance activities and advanced work wait until sections 25–28 are complete and separately reviewed.
+
+## Section 26 — Reuse durable jobs and make optional effects explicit
+
+Keep Dramatiq/Redis UUID delivery with PostgreSQL business ownership and one recording consumer. Preserve default metadata summaries; explicit paid opt-in selects a separate capped Claude instance on a lower-priority queue. Followup processing requires consent plus an injected provider-idempotent sender; no sender/CRM/contact is configured automatically. Record exhausted processing reasons/attempts instead of silently losing intent. Ordinary Messages is implemented; Message Batches/discount is only a documented future option. Live/paid/native/advanced acceptance remains deferred.
