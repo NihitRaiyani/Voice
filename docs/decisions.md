@@ -227,3 +227,7 @@ Adopt the proposed Admin/Counsellor/Viewer baseline with Admin-only call creatio
 ## Sections 29–30 callback capabilities and shared admission
 
 Retain Twilio SDK signing/account checks and permanent SQL idempotency. Because provider signatures have no freshness timestamp, add Roma-issued outbound answer/stream capabilities instead of requiring a fictitious provider timestamp. Keep inbound signature replay limitations explicit. Use shared, fail-closed Redis stream admission and bounded prelude parsing before expensive resources. Extend admission to protected APIs using separate peer/category and verified-user budgets; never accept an unverified provider/user/IP identifier as authority. Current limits and operational caveats live in Level 8 and the runbook.
+
+## Section 31 selected encryption and managed disposal
+
+Use audited authenticated recording access rather than exposing permanent storage URLs. Keep field encryption explicit and selected, with externally supplied keys and a guarded legacy backfill. Per-call consent evidence is required in addition to wording approval; installation does not approve recording. Delete/anonymize requests scrub managed call PII and retain durable tombstones, with explicit pending cleanup across filesystem/Redis boundaries. Call-scoped disposal is not whole-person or backup/provider erasure. The institute still owns actual privacy/legal/retention policy, account-specific Claude retention verification, key operations and production acceptance.

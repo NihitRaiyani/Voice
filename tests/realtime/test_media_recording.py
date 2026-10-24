@@ -278,3 +278,27 @@ def test_finalize_records_explicit_call_ended_milestone_without_duplicate_save()
     store.checkpoint.assert_awaited_once_with(state, CheckpointMilestone.CALL_ENDED)
     store.save.assert_not_awaited()
     store.aclose.assert_awaited_once()
+
+
+def test_finalize_preserves_explicit_recording_consent_evidence(tmp_path):
+    evidence = {
+        "granted_at": STARTED.isoformat(),
+        "disclosure_version": "approved-disclosure-v1",
+        "retention_until": "2026-08-01T10:00:00+00:00",
+    }
+    queue = _Queue()
+    assert (
+        _finalize(
+            state=_state(),
+            store=InMemoryCallStateStore(),
+            recorder=_recorder(tmp_path),
+            queue=queue,
+            media_root=tmp_path / "media",
+            recording_consent=evidence,
+        )
+        == "queued"
+    )
+    (job,) = queue.pushed
+    assert job.recording_consent_at == evidence["granted_at"]
+    assert job.recording_disclosure_version == evidence["disclosure_version"]
+    assert job.recording_retention_until == evidence["retention_until"]

@@ -36,6 +36,9 @@ EXPECTED_KEYS = {
     "final_stage",
     "turn_count",
     "caller_digest",
+    "recording_consent_at",
+    "recording_disclosure_version",
+    "recording_retention_until",
 }
 
 

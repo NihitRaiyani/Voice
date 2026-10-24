@@ -260,6 +260,7 @@ class RecordingRecord:
     consent_at: datetime | None = None
     deleted_at: datetime | None = None
     deletion_metadata: Mapping[str, object] = field(default_factory=dict)
+    disclosure_version: str | None = None
 
     def __post_init__(self) -> None:
         _freeze_mapping_fields(self, "deletion_metadata")

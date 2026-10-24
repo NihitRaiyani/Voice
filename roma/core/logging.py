@@ -31,6 +31,15 @@ _MIN_SECRET_LEN = 6
 # grammar instead of on any known value. Deliberately NOT `\w`/`\b` — this is a
 # hand-written character class for the same reason the guardrail matchers avoid them.
 _LEAD_TOKEN_RE = re.compile(r"([?&](?:lead|intent|token|capability|access_token)=)[A-Za-z0-9_\-%.~]+", re.I)
+_PHONE_PII_RE = re.compile(r"(?<![\w])\+?\d[\d ()-]{7,}\d(?![\w])")
+_EMAIL_PII_RE = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
+
+
+def mask_log_pii(value: str) -> str:
+    def phone(match):
+        digits = "".join(c for c in match[0] if c.isdecimal())
+        return "*" * (len(digits) - 4) + digits[-4:] if len(digits) >= 10 else match[0]
+    return _EMAIL_PII_RE.sub("[email]", _PHONE_PII_RE.sub(phone, value))
 
 # uvicorn's own loggers are configured by its CLI with `propagate: False` and their own
 # handlers, so a filter installed on the root handler never sees a single one of their
@@ -70,7 +79,7 @@ class RedactionFilter(logging.Filter):
         for secret in self._secrets:
             if secret in text:
                 text = text.replace(secret, _REDACTED)
-        return text
+        return mask_log_pii(text)
 
     def filter(self, record: logging.LogRecord) -> bool:
         _scrub_record(record, self._scrub)
@@ -126,6 +135,10 @@ class _LoggingSettings(BaseSettings):
     openai_api_key: SecretStr = SecretStr("")
     anthropic_api_key: SecretStr = SecretStr("")
     auth_jwt_secret: SecretStr = SecretStr("")
+    pii_hash_key: SecretStr = SecretStr("")
+    pii_encryption_key: SecretStr = SecretStr("")
+    recording_url_signing_key: SecretStr = SecretStr("")
+    database_url: SecretStr = SecretStr("")
     redis_url: SecretStr = SecretStr("")
 
 
@@ -136,7 +149,12 @@ def _secret_values(settings: Settings | _LoggingSettings):
     auth_secret = getattr(settings, "auth_jwt_secret", None)
     if auth_secret is None:
         auth_secret = _LoggingSettings().auth_jwt_secret
+    privacy_secrets = _LoggingSettings()
     return [
+        privacy_secrets.pii_hash_key.get_secret_value(),
+        privacy_secrets.pii_encryption_key.get_secret_value(),
+        privacy_secrets.recording_url_signing_key.get_secret_value(),
+        privacy_secrets.database_url.get_secret_value(),
         auth_secret.get_secret_value(),
         settings.twilio_account_sid.get_secret_value(),
         settings.twilio_auth_token.get_secret_value(),
@@ -202,6 +220,7 @@ class LogEvent(StrEnum):
     SECURITY_REJECTED = "security_rejected"
     SECURITY_ACCEPTED = "security_accepted"
     RATE_LIMITED = "rate_limited"
+
     CHECKPOINT_COMPLETED = "checkpoint_completed"
     CHECKPOINT_FAILED = "checkpoint_failed"
     STATE_CACHE_FAILED = "state_cache_failed"

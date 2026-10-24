@@ -78,6 +78,7 @@ from roma.api.v1.twilio_webhooks import mount_answer_route
 from roma.core.call_capabilities import CallCapabilities, RedisStreamReplay
 from roma.core.config import get_settings
 from roma.core.logging import LogEvent, RedactionFilter, current_call_sid, log_event
+from roma.core.recording_consent import verified_recording_consent
 from roma.core.voice_errors import VoiceFailure
 from roma.domain.calls import consent_signed_off
 from roma.domain.conversation import CallState, ConversationStage
@@ -321,6 +322,7 @@ async def finalize_call(
     started_at=None,
     direction="inbound",
     caller_digest=None,
+    recording_consent=None,
 ) -> str:
     """Everything that must happen once a call ends. Returns the post-call status string.
 
@@ -376,6 +378,11 @@ async def finalize_call(
                 final_stage=state.stage.value,
                 turn_count=state.turn_count,
                 caller_digest=caller_digest,
+                recording_consent_at=(recording_consent or {}).get("granted_at"),
+                recording_disclosure_version=(recording_consent or {}).get(
+                    "disclosure_version"
+                ),
+                recording_retention_until=(recording_consent or {}).get("retention_until"),
             )
             status = await queue.push(job) or "queued"
         except Exception:  # noqa: BLE001 — post-call bookkeeping never fails a teardown
@@ -1357,7 +1364,12 @@ def build_media_app(
 
         recorder = capture = None
         queue = build_queue_fn(settings)
+        recording_consent = None
         if settings.recording_enabled:
+            recording_consent = await verified_recording_consent(
+                getattr(app.state, "recording_consent_provider", None), call_sid
+            )
+        if recording_consent is not None:
             recorder = build_recorder(settings, call_sid or stream_sid)
             capture = attach_recorder(recorder)
 
@@ -1574,6 +1586,7 @@ def build_media_app(
                     started_at=call_started_at,
                     direction="outbound" if is_outbound else "inbound",
                     caller_digest=caller_digest,
+                    recording_consent=recording_consent,
                 )
                 _log.info(
                     "media stream ended: stream_sid=%s inbound_frames=%d inbound_bytes=%d "

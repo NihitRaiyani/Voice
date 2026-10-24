@@ -274,6 +274,7 @@ def _recording_record(row: Recording) -> RecordingRecord:
         checksum=row.checksum,
         status=row.status,
         consent_at=row.consent_at,
+        disclosure_version=row.disclosure_version,
         retention_until=row.retention_until,
         deleted_at=row.deleted_at,
         deletion_metadata=row.deletion_metadata,
@@ -512,6 +513,7 @@ class CallPostgresRepository:
         return _call_record(row)
 
     async def add_turn(self, record: CallTurnRecord) -> CallTurnRecord:
+        await self._lock_call(record.call_id)
         row = CallTurn(
             id=record.id,
             call_id=record.call_id,
@@ -539,6 +541,7 @@ class CallPostgresRepository:
         return tuple(_turn_record(row) for row in rows)
 
     async def add_event(self, record: CallEventRecord) -> CallEventRecord:
+        await self._lock_call(record.call_id)
         row = CallEvent(
             id=record.id,
             call_id=record.call_id,
@@ -556,7 +559,7 @@ class CallPostgresRepository:
         row = await self._session.scalar(
             select(Call).where(Call.id == call_id).with_for_update()
         )
-        if row is None:
+        if row is None or row.deleted_at is not None:
             raise RecordNotFound("call does not exist")
         return row
 
@@ -577,13 +580,16 @@ class ConversationStatePostgresRepository:
         row = await self._session.scalar(
             select(ConversationState)
             .join(Call, ConversationState.call_id == Call.id)
-            .where(Call.provider_call_id == provider_call_id)
+            .where(Call.provider_call_id == provider_call_id, Call.deleted_at.is_(None))
         )
         return None if row is None else _conversation_state_record(row)
 
     async def save_latest(
         self, record: ConversationStateRecord, *, expected_revision: int | None = None
     ) -> ConversationStateRecord:
+        call = await self._session.scalar(select(Call).where(Call.id == record.call_id).with_for_update())
+        if call is None or call.deleted_at is not None:
+            raise RecordNotFound("call does not exist")
         row = await self._session.scalar(
             select(ConversationState)
             .where(ConversationState.call_id == record.call_id)
@@ -862,6 +868,7 @@ class EvidencePostgresRepository:
             checksum=record.checksum,
             status=record.status,
             consent_at=record.consent_at,
+            disclosure_version=record.disclosure_version,
             retention_until=record.retention_until,
             deleted_at=record.deleted_at,
             deletion_metadata=_json(record.deletion_metadata),

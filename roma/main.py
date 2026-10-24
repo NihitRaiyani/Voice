@@ -14,12 +14,15 @@ from roma.api.v1.calls import mount_web_api
 from roma.core.auth_settings import AuthSettings
 from roma.core.config import get_settings, require_reachable_base_url
 from roma.core.database import Database
+from roma.core.field_encryption import configure_field_encryption
 from roma.core.logging import RequestLogMiddleware, configure_logging
+from roma.core.privacy_settings import PrivacySettings
 from roma.core.rate_limit import RequestRateLimitMiddleware
 from roma.core.tokenizer import require_nltk_data
 from roma.realtime.pipeline import build_media_app
 from roma.repositories.postgres.booking import PostgresBookingStore
 from roma.repositories.postgres.conversation_state import PostgresConversationStateStore
+from roma.repositories.postgres.privacy import SQLPrivacyRepository
 from roma.repositories.postgres.safety import PostgresSafetyEventStore
 from roma.repositories.postgres.webhooks import WebhookRepository
 from roma.repositories.redis.appointment_holds import RedisAppointmentHolds
@@ -32,8 +35,11 @@ from roma.services.auth_service import AuthService
 from roma.services.booking_service import BookingService
 from roma.services.booking_session import BookingSession
 from roma.services.live_call_state import LiveCallStateStore
+from roma.services.privacy_service import PrivacyService
+from roma.services.recording_service import RecordingService
 from roma.services.safety_service import UnavailableSafetyEventStore
 from roma.services.webhook_service import WebhookService
+from roma.workers.postcall.paths import recordings_dir
 
 
 def create_app() -> FastAPI:
@@ -42,6 +48,8 @@ def create_app() -> FastAPI:
     configure_logging()
     require_reachable_base_url()
     settings = get_settings()
+    privacy_settings = PrivacySettings()
+    configure_field_encryption(privacy_settings)
     database = (
         Database.from_settings(settings) if settings.database_url.get_secret_value() else None
     )
@@ -122,6 +130,18 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestRateLimitMiddleware)
     app.add_middleware(RequestLogMiddleware)
+    app.state.privacy_settings = privacy_settings
+    privacy_repository = SQLPrivacyRepository(database.session_factory) if database else None
+    app.state.recording_service = (
+        RecordingService(privacy_repository, recordings_dir(settings), privacy_settings)
+        if privacy_repository
+        else None
+    )
+    app.state.privacy_service = (
+        PrivacyService(privacy_repository, settings.roma_data_dir, redis=redis)
+        if privacy_repository
+        else None
+    )
     app.state.booking_service = booking
     app.state.auth_settings = auth_settings
     app.state.auth_service = auth

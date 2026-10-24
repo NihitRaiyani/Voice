@@ -120,6 +120,7 @@ class Recording(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     checksum: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(32))
     consent_at: Mapped[datetime | None]
+    disclosure_version: Mapped[str | None] = mapped_column(String(128))
     retention_until: Mapped[datetime]
     deleted_at: Mapped[datetime | None]
     deletion_metadata: Mapped[dict[str, object]] = mapped_column(
@@ -177,3 +178,14 @@ class AuditLog(UUIDPrimaryKeyMixin, Base):
     )
     occurred_at: Mapped[datetime] = mapped_column(server_default=func.now())
     retention_until: Mapped[datetime | None]
+
+
+class PrivacyTombstone(UUIDPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base):
+    """Permanent anti-resurrection identity; no caller text or phone digest."""
+    __tablename__ = "privacy_tombstones"
+
+    provider_call_id: Mapped[str] = mapped_column(String(255), unique=True)
+    call_id: Mapped[UUID] = mapped_column(ForeignKey("calls.id", ondelete="RESTRICT"), unique=True)
+    action: Mapped[str] = mapped_column(String(32))
+    cleanup_pending: Mapped[bool] = mapped_column(server_default=text("true"))
+    completed_at: Mapped[datetime | None]

@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 
 from roma.api.v1.auth import resource_principal
 from roma.api.v1.auth import router as auth_router
+from roma.api.v1.privacy import router as privacy_router
 from roma.api.v1.responses import ApiError, api_error_handler, validation_error_handler
 from roma.api.v1.rest import router as rest_router
 from roma.core.auth_settings import AuthSettings
@@ -36,6 +37,7 @@ def mount_web_api(app, *, reachable_fn=None, session_factory=None) -> None:
     app.state.auth_settings = getattr(app.state, "auth_settings", None) or AuthSettings()
     app.include_router(auth_router)
     app.include_router(rest_router)
+    app.include_router(privacy_router)
 
     async def require_auth(request: Request, permission) -> None:
         try:

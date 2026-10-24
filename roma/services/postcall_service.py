@@ -5,13 +5,16 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from uuid import uuid4
 
+from roma.core.privacy_paths import safe_call_sid
+from roma.core.recording_consent import recording_consent_valid
 from roma.domain.persistence import CallRecord, FollowupJobRecord
 from roma.domain.postcall import OUTCOME_LOCKED, CompletedCall
 
 
 class PostcallService:
-    def __init__(self, store) -> None:
+    def __init__(self, store, *, privacy_settings=None) -> None:
         self._store = store
+        self._retention_days = getattr(privacy_settings, "privacy_retention_days", None)
 
     async def persist(
         self,
@@ -46,6 +49,8 @@ class PostcallService:
             final_stage=message.final_stage,
             created_at=ended_at,
             updated_at=ended_at,
+            retention_until=(ended_at + timedelta(days=self._retention_days))
+                if self._retention_days is not None else None,
         )
         facts = {
             "v": 1,
@@ -98,7 +103,22 @@ class PostcallService:
                 created_at=ended_at,
                 updated_at=ended_at,
                 idempotency_key=f"postcall:{message.call_sid}:{job_type}:v1",
+                retention_until=call.retention_until,
             )
             for job_type in types
         )
-        await self._store.save_call_and_jobs(call, jobs, caller_digest=message.caller_digest)
+        options = {"caller_digest": message.caller_digest}
+        if recording_outcome == "stored":
+            if message.recording_ref is None or not recording_consent_valid(message):
+                raise ValueError("Stored recordings require explicit unexpired call consent.")
+            sid = safe_call_sid(message.call_sid)
+            options["recording"] = {
+                "storage_provider": "local",
+                "object_key": started_at.strftime("%Y-%m-%d") + "/" + sid + ".wav",
+                "media_type": "audio/wav", "status": "available",
+                "consent_at": datetime.fromisoformat(message.recording_consent_at),
+                "disclosure_version": message.recording_disclosure_version,
+                "retention_until": datetime.fromisoformat(message.recording_retention_until),
+                "duration_ms": round(message.audio_secs * 1000),
+            }
+        await self._store.save_call_and_jobs(call, jobs, **options)

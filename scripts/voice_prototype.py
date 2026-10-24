@@ -16,8 +16,10 @@ sys.path.insert(0, str(ROOT))
 
 from roma.core.claude_llm_settings import ClaudeLLMSettings  # noqa: E402
 from roma.core.cpu_worker import CpuWorker  # noqa: E402
+from roma.core.field_encryption import configure_field_encryption  # noqa: E402
 from roma.core.logging import configure_logging  # noqa: E402
 from roma.core.migration_settings import MigrationSettings, current_schema_head  # noqa: E402
+from roma.core.privacy_settings import PrivacySettings  # noqa: E402
 from roma.core.speech_settings import SpeechSettings  # noqa: E402
 from roma.core.tokenizer import require_nltk_data  # noqa: E402
 from roma.core.tts_settings import TTSSettings  # noqa: E402
@@ -263,6 +265,7 @@ async def _local_run(args):
             await tts.cache_identity(TTSRequest("नमस्ते", language="hi"))
         scorer = SileroFrameProbability()
         await ready_local_models(stt, tts, scorer)
+        configure_field_encryption(PrivacySettings())
         store = PostgresVoiceLabStore(factory, persist_transcripts=args.persist_transcripts)
         await store.start(state.call_sid)
 

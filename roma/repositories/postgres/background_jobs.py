@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from roma.domain.persistence import CallRecord, FollowupJobRecord
 
-from .models import Call, Caller, CallEvent, FollowupJob
+from .models import Call, Caller, CallEvent, FollowupJob, PrivacyTombstone, Recording
+from .privacy import lock_privacy_identity
 
 ACTIVE_JOB_TYPES = (
     "compute_statistics",
@@ -50,6 +51,7 @@ class BackgroundJobStore:
         jobs: tuple[FollowupJobRecord, ...],
         *,
         caller_digest: str | None = None,
+        recording: dict | None = None,
     ) -> UUID:
         """One commit owns both the call outcome and all job intents.
 
@@ -59,6 +61,11 @@ class BackgroundJobStore:
         if not call.provider_call_id:
             raise ValueError("post-call work requires a provider call ID")
         async with self._session_factory() as session, session.begin():
+            await lock_privacy_identity(session, call.provider_call_id)
+            disposed = await session.scalar(select(PrivacyTombstone.call_id).where(
+                PrivacyTombstone.provider_call_id == call.provider_call_id))
+            if disposed is not None:
+                return disposed
             caller_id = call.caller_id
             if caller_digest is not None:
                 caller_id = (
@@ -81,6 +88,8 @@ class BackgroundJobStore:
             }
             if caller_id is not None:
                 updates["caller_id"] = caller_id
+            if call.retention_until is not None:
+                updates["retention_until"] = call.retention_until
             statement = insert(Call).values(
                 id=call.id,
                 provider_call_id=call.provider_call_id,
@@ -92,6 +101,7 @@ class BackgroundJobStore:
                 ended_at=call.ended_at,
                 final_stage=call.final_stage,
                 booking_status=call.booking_status,
+                retention_until=call.retention_until,
                 created_at=call.created_at,
                 updated_at=call.updated_at,
             )
@@ -100,6 +110,9 @@ class BackgroundJobStore:
                 set_=updates,
             ).returning(Call.id)
             call_id = (await session.execute(returning)).scalar_one()
+            if recording is not None:
+                await session.execute(insert(Recording).values(call_id=call_id, **recording)
+                    .on_conflict_do_nothing(index_elements=[Recording.storage_provider, Recording.object_key]))
             for job in jobs:
                 await session.execute(
                     insert(FollowupJob)
@@ -115,6 +128,7 @@ class BackgroundJobStore:
                         idempotency_key=job.idempotency_key,
                         created_at=job.created_at,
                         updated_at=job.updated_at,
+                        retention_until=job.retention_until,
                     )
                     .on_conflict_do_nothing(index_elements=[FollowupJob.idempotency_key])
                 )
@@ -185,12 +199,16 @@ class BackgroundJobStore:
     ) -> bool:
         """Commit the business effect and acknowledgement in the same transaction."""
         async with self._session_factory() as session, session.begin():
+            # Disposal locks call -> jobs. Use the same order and lock the call
+            # before any caller/event effect so a late completion cannot repopulate PII.
+            call = await session.scalar(select(Call).where(Call.id == job.call_id).with_for_update())
+            if call is None:
+                raise RuntimeError("job call record is missing")
+            if call.deleted_at is not None:
+                return False
             row = await _owned_job(session, job.id, owner)
             if row is None:
                 return False
-            call = await session.get(Call, job.call_id)
-            if call is None:
-                raise RuntimeError("job call record is missing")
             needs_identity = caller_status is not None and call.caller_id is None
             if caller_status is not None and call.caller_id is not None:
                 caller = await session.get(Caller, call.caller_id)

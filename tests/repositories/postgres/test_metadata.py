@@ -44,6 +44,7 @@ TABLES = {
     "model_registry",
     "benchmark_runs",
     "benchmark_results",
+    "privacy_tombstones",
 }
 
 

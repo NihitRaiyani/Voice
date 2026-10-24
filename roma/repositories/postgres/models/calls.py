@@ -18,6 +18,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+from roma.core.field_encryption import EncryptedText
+
 from .base import Base, CreatedAtMixin, UpdatedAtMixin, UUIDPrimaryKeyMixin
 
 
@@ -25,7 +27,7 @@ class Caller(UUIDPrimaryKeyMixin, CreatedAtMixin, UpdatedAtMixin, Base):
     __tablename__ = "callers"
 
     phone_hash: Mapped[str] = mapped_column(String(64), unique=True)
-    name: Mapped[str | None] = mapped_column(String(255))
+    name: Mapped[str | None] = mapped_column(EncryptedText("callers.name"))
     preferred_language: Mapped[str | None] = mapped_column(String(32))
     city: Mapped[str | None] = mapped_column(String(128))
     education: Mapped[str | None] = mapped_column(Text)
@@ -81,7 +83,7 @@ class CallTurn(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     call_id: Mapped[UUID] = mapped_column(ForeignKey("calls.id", ondelete="CASCADE"))
     turn_number: Mapped[int]
     speaker: Mapped[str] = mapped_column(String(16))
-    transcript: Mapped[str | None] = mapped_column(Text)
+    transcript: Mapped[str | None] = mapped_column(EncryptedText("call_turns.transcript"))
     conversation_stage: Mapped[str | None] = mapped_column(String(64))
     language: Mapped[str | None] = mapped_column(String(32))
     route: Mapped[str | None] = mapped_column(String(128))

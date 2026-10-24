@@ -16,6 +16,9 @@ from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
+from roma.core.field_encryption import PrivacyError
+from roma.core.privacy_paths import safe_call_sid, safe_runtime_path
+from roma.core.recording_consent import recording_consent_valid
 from roma.workers.postcall.job import PostcallJob
 from roma.workers.postcall.store import prune
 
@@ -56,6 +59,7 @@ class WorkerDeps:
     retention_days: int
     spool: object = None
     persist: Callable[[PostcallJob, str], Awaitable[None]] | None = None
+    is_deleted: Callable[[str], Awaitable[bool]] | None = None
     now_fn: Callable[[], datetime] = field(default=lambda: datetime.now(UTC))
 
 
@@ -79,9 +83,26 @@ async def handle_job(job: PostcallJob, deps: WorkerDeps) -> JobResult:
     if job.recording_ref is None:
         return JobResult.ACK
 
-    raw_path = Path(deps.media_root) / job.recording_ref
+    try:
+        raw_path = safe_runtime_path(deps.media_root, job.recording_ref)
+        marker = safe_runtime_path(Path(deps.media_root).parent,
+            f"privacy/tombstones/{safe_call_sid(job.call_sid)}.json")
+    except PrivacyError:
+        return JobResult.DEAD
 
-    if not deps.consent_ok():
+    if marker.exists():
+        raw_path.unlink(missing_ok=True)
+        return JobResult.ACK
+    if deps.is_deleted is not None:
+        try:
+            disposed = await deps.is_deleted(job.call_sid)
+        except Exception:  # noqa: BLE001 — unavailable deletion authority never permits storage
+            return JobResult.DEAD if job.attempts + 1 >= MAX_ATTEMPTS else JobResult.RETRY
+        if disposed:
+            raw_path.unlink(missing_ok=True)
+            return JobResult.ACK
+
+    if not deps.consent_ok() or not recording_consent_valid(job, deps.now_fn()):
         _log.error(
             "postcall: storage BLOCKED — consent wording not signed off (CLAUDE.md gate 4); "
             "discarding capture for call_sid=%s",
@@ -179,7 +200,7 @@ async def run_worker(
 
         idle_polls = 0
         stats.processed += 1
-        consent_before = deps.consent_ok()
+        consent_before = deps.consent_ok() and recording_consent_valid(job, deps.now_fn())
         result = await handle_job(job, deps)
         recording_outcome = "not_requested"
         if job.recording_ref is not None:

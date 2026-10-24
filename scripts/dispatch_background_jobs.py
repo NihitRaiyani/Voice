@@ -11,7 +11,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from roma.core.config import get_settings
 from roma.core.database import Database
+from roma.core.field_encryption import configure_field_encryption
 from roma.core.logging import configure_logging
+from roma.core.privacy_settings import PrivacySettings
 from roma.providers.jobs.dramatiq import DramatiqPublisher, build_broker
 from roma.repositories.postgres.background_jobs import BackgroundJobStore
 from roma.services.job_dispatcher import dispatch_due_jobs
@@ -21,6 +23,7 @@ _log = logging.getLogger("roma.workers.dispatcher")
 
 async def _run(*, once: bool) -> int:
     settings = get_settings()
+    configure_field_encryption(PrivacySettings())
     if not settings.database_url.get_secret_value():
         raise RuntimeError("DATABASE_URL is required for background jobs")
     database = Database.from_settings(settings)

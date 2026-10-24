@@ -23,6 +23,7 @@ from roma.domain.persistence import (
     RecordingRecord,
     SafetyEventRecord,
 )
+from roma.repositories.postgres.models import Recording
 from roma.repositories.postgres.unit_of_work import PostgresUnitOfWork
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from tests.repositories.postgres.test_migrations import alembic_config, disposable_postgres_url
@@ -126,6 +127,40 @@ async def _add_caller_and_call(
         )
         await uow.commit()
         return caller, call
+
+
+@pytest.mark.parametrize("disclosure_version", [None, "disclosure-v1"])
+def test_recording_disclosure_version_round_trips_with_legacy_default(
+    session_factory, disclosure_version
+):
+    async def run() -> None:
+        _, call = await _add_caller_and_call(session_factory)
+        options = {} if disclosure_version is None else {"disclosure_version": disclosure_version}
+        record = RecordingRecord(
+            id=uuid4(),
+            call_id=call.id,
+            storage_provider="local",
+            object_key=f"recordings/{uuid4()}.wav",
+            media_type="audio/wav",
+            duration_ms=1200,
+            size_bytes=42,
+            checksum=None,
+            status="available",
+            retention_until=_now(90),
+            created_at=_now(14),
+            **options,
+        )
+        assert record.disclosure_version == disclosure_version
+        async with PostgresUnitOfWork(session_factory) as uow:
+            stored = await uow.evidence.add_recording(record)
+            assert stored.disclosure_version == disclosure_version
+            await uow.commit()
+        async with session_factory() as session:
+            row = await session.get(Recording, record.id)
+            assert row is not None
+            assert row.disclosure_version == disclosure_version
+
+    asyncio.run(run())
 
 
 def test_repositories_round_trip_durable_records(session_factory):

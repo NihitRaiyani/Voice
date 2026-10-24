@@ -7,7 +7,15 @@ from .benchmarks import BenchmarkResult, BenchmarkRun, ModelRegistry
 from .calls import Call, Caller, CallEvent, CallTurn
 from .conversation import ConversationState
 from .identity import Role, User, UserRole
-from .operations import AuditLog, CallCost, FollowupJob, ProviderUsage, Recording, SafetyEvent
+from .operations import (
+    AuditLog,
+    CallCost,
+    FollowupJob,
+    PrivacyTombstone,
+    ProviderUsage,
+    Recording,
+    SafetyEvent,
+)
 from .organization import Branch, BranchCourse, Counsellor, Course, Institute
 from .webhooks import WebhookReceipt
 
@@ -35,6 +43,7 @@ __all__ = [
     "Recording",
     "FollowupJob",
     "AuditLog",
+    "PrivacyTombstone",
     "WebhookReceipt",
     "ConversationState",
     "ModelRegistry",

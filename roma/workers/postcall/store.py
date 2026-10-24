@@ -22,6 +22,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from roma.core.field_encryption import PrivacyError
+from roma.core.privacy_paths import safe_call_sid, safe_runtime_path
 from roma.workers.postcall.job import PostcallJob
 from roma.workers.postcall.paths import DIR_MODE, FILE_MODE, ensure_private_dir
 
@@ -66,8 +68,9 @@ class LocalRecordingStore:
         return self._root
 
     def _final_paths(self, job: PostcallJob) -> "tuple[Path, Path]":
-        day = self._root / _day_of(job)
-        return day / f"{job.call_sid}.wav", day / f"{job.call_sid}.json"
+        sid = safe_call_sid(job.call_sid)
+        return (safe_runtime_path(self._root, f"{_day_of(job)}/{sid}.wav"),
+                safe_runtime_path(self._root, f"{_day_of(job)}/{sid}.json"))
 
     def already_stored(self, job: PostcallJob) -> bool:
         """True only if BOTH artifacts are present.
@@ -95,6 +98,9 @@ class LocalRecordingStore:
 
     def _put_sync(self, job: PostcallJob, raw_path: Path) -> Path:
         """The blocking body of `put`. Kept separate so it is directly unit-testable."""
+        marker = safe_runtime_path(self._root.parent, f"privacy/tombstones/{safe_call_sid(job.call_sid)}.json")
+        if marker.exists():
+            raise PrivacyError("Recording has been disposed.")
         wav_path, meta_path = self._final_paths(job)
         day_dir = ensure_private_dir(wav_path.parent)
 
@@ -121,6 +127,10 @@ class LocalRecordingStore:
         os.replace(meta_tmp, meta_path)
 
         _fsync_dir(day_dir)
+        if marker.exists():
+            for path in (wav_path, meta_path):
+                path.unlink(missing_ok=True)
+            raise PrivacyError("Recording has been disposed.")
         _log.info(
             "postcall: stored recording call_sid=%s outcome=%s duration=%.1fs",
             job.call_sid,

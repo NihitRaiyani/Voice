@@ -571,7 +571,7 @@ Production composition supplies `RedisWebhookWindow` to `WebhookService`; signed
 
 Authentication fails closed until configured. Review the target database and backup/rollback plan, then apply `make db-upgrade` explicitly; this session applied the new revision only to disposable databases. Never stamp head to avoid an upgrade. Set `AUTH_JWT_SECRET` to an independently generated private random value of at least 32 bytes in `.env` or your secret manager. Keep it out of terminal logs, git and shared examples. Key replacement invalidates existing access tokens; plan re-login and family revocation rather than treating it as transparent rotation.
 
-Defaults: `AUTH_JWT_ISSUER=roma`, `AUTH_JWT_AUDIENCE=roma-api`, `AUTH_ACCESS_TTL_SECS=900`, `AUTH_REFRESH_TTL_SECS=604800`, `AUTH_RATE_LIMIT=10`, `AUTH_RATE_WINDOW_SECS=60`, `AUTH_ALLOW_LEGACY_API_TOKEN=false`. Ensure private Redis is available for login/refresh rate limiting. Credentials are sent only over HTTPS outside local development. Do not trust forwarded peer headers without a separately reviewed proxy design.
+Defaults: `AUTH_JWT_ISSUER=roma`, `AUTH_JWT_AUDIENCE=roma-api`, `AUTH_ACCESS_TTL_SECS=900`, `AUTH_REFRESH_TTL_SECS=604800`, `AUTH_RATE_LIMIT=10`, `AUTH_RATE_WINDOW_SECS=300`, `AUTH_ALLOW_LEGACY_API_TOKEN=false`. Ensure private Redis is available for login/refresh rate limiting. Credentials are sent only over HTTPS outside local development. Do not trust forwarded peer headers without a separately reviewed proxy design.
 
 Provision the first Admin explicitly after migration; the script prompts twice without echo and prints no password/token:
 
@@ -596,3 +596,22 @@ Use offline capability, answer-idempotency and media-auth tests before deploymen
 The production app uses the existing private Redis connection and a purpose-derived HMAC key from PII_HASH_KEY. Configure a strong private PII hash key; do not use shared development examples. The reviewed budgets are in [Level 8](levels/level-08.md#section-30-shared-request-limits). Keep AUTH_RATE_LIMIT/AUTH_RATE_WINDOW_SECS consistent with the intended additional auth-service policy; defaults are 10/300. Request middleware enforces its published perimeter policies independently, including /ws before acceptance; rejected WebSocket admission closes with 1013.
 
 429 means wait for Retry-After; 503 means admission is unavailable. Do not bypass Redis or retry a dial blindly. Observe metadata-only rate_limited events, Redis TTLs and request/correlation IDs. User identity comes from verified live authentication; forwarded peer headers are ignored. Review deployment proxy handling and NAT/callback traffic before setting production capacity. No new expensive HTTP endpoint, paid request or GPU test is started by installation.
+
+## Privacy setup and managed operations (section 31)
+
+Review the intended database and backup/rollback procedure before explicitly applying migration 20261024_0005 or later. Keep PII_HASH_KEY, PII_ENCRYPTION_KEY and RECORDING_URL_SIGNING_KEY private and distinct. Selected field encryption is off until PII_ENCRYPTION_ENABLED=true and a valid 32-byte hexadecimal key is provided. Recording URL signing requires its independent 32-byte hexadecimal key; no default key is invented. Store keys in the operator's private environment/secret manager. Do not print them, commit them, or remove the old encryption key before an explicit re-encryption/restore plan is verified.
+
+PII activation is configured in API, prototype and worker processes. It does not encrypt old rows automatically. The explicit CLI previews by default and never migrates a database or generates keys:
+
+```bash
+uv run --no-sync python scripts/privacy.py --call-id <approved-call-uuid>
+uv run --no-sync python scripts/privacy.py --call-id <approved-call-uuid> --action anonymize
+uv run --no-sync python scripts/privacy.py --expired --limit 100
+uv run --no-sync python scripts/privacy.py --backfill-encryption --limit 100
+```
+
+Run only against the explicitly chosen DATABASE_URL. Add --apply only after reviewing the preview and approved request/policy. Backfill apply additionally requires encryption activation and its existing private key; repeat bounded batches until no plaintext rows remain. CLI output contains counts/status, not private field values. No such apply command ran during implementation.
+
+The human API uses POST /api/v1/recordings/{recording_id}/access, then authenticated GET of its short-lived returned content URL. A link is not an independent bearer grant: the same current human identity/recording permission is required. POST /api/v1/privacy/calls/{call_id} requires Admin and defaults to apply=false. Audit failures deny output; failed cleanup remains pending and can be retried. Review the tombstone alongside Redis/file cleanup, and reapply tombstones before restored backups serve traffic. Use the external_pending fields to track backups, exports and unmapped TTL caches; do not call managed cleanup complete proof of global erasure.
+
+PRIVACY_RETENTION_DAYS stays unset until the institute approves policy. An explicit stored retention expiry or approved configured policy drives selection; legacy null expiries require inventory. Do not enable capture without approved disclosure plus deterministic call-bound evidence. Signed recording access does not approve consent wording or retention. Confirm Anthropic account/model/feature retention terms and legal duties using [the source review](07-security.md#claude-api-retention-review--2026-10-24) before private caller-text/live acceptance.

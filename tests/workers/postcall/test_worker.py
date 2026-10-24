@@ -30,6 +30,9 @@ def _job(call_sid="CA_w", **kw) -> PostcallJob:
         duration_secs=338.2,
         audio_secs=337.9,
         outcome=OUTCOME_LOCKED,
+        recording_consent_at="2026-07-26T10:00:00+00:00",
+        recording_disclosure_version="synthetic-approved-v1",
+        recording_retention_until="2027-07-26T10:00:00+00:00",
     )
     base.update(kw)
     return PostcallJob(**base)

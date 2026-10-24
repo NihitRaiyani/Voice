@@ -115,7 +115,7 @@ class PostgresVoiceLabStore:
                         Call.provider_call_id == sid,
                         Call.deleted_at.is_(None),
                         Call.status == "in_progress",
-                    )
+                    ).with_for_update()
                 )
                 if call is None or not sid.startswith("voice-lab-"):
                     raise ValueError("Missing lab call")

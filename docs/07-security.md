@@ -32,3 +32,18 @@ CI uses synthetic/redacted fixtures and fake paid providers. L12 adds security s
 ## Section 12 prompt and safety boundary
 
 The [safety contract](04-guardrails.md#untrusted-inputs-and-limits) defines bounded caller/slot characters, length and enum validation, instruction-override canaries and the final deterministic output gate. Rejected utterances never become live model history. Structured events omit raw text and preserve call/turn correlation; API serialization exposes only approved audit metadata. Database write failures produce a safe line and an explicit structured failure signal. This is not complete semantic injection prevention, universal PII detection or complete semantic/production security acceptance. Section 28 separately adds user authorization.
+
+
+## Sections 29–31 implementation and operational boundary
+
+[Level 8](levels/level-08.md) owns callback capabilities, shared API admission and privacy/access implementation. The new recording route replaces permanent URL exposure; call-resource recording_url values are always null. Setup of private keys, migration, approved accounts, consent wording/retention and deployment access audits remains explicit. Historical descriptions above must not be read as current permanent-link authorization.
+
+### Claude API retention review — 2026-10-24
+
+The [Claude API retention documentation](https://platform.claude.com/docs/en/manage-claude/api-and-data-retention) makes eligibility depend on model, API feature and organization arrangement. It currently identifies specific Covered Models requiring retention; eligibility alone does not prove this project's account has zero data retention. The [commercial retention policy](https://privacy.claude.com/en/articles/7996866-how-long-do-you-store-my-organization-s-data) describes deletion within 30 days under its standard policy, with contractual, feature, abuse and legal exceptions. These pages have differing general wording: the operator must confirm the applicable account agreement, exact configured Haiku model and enabled features with Anthropic before private caller-text acceptance. No ZDR agreement, model-specific entitlement or provider deletion was verified in this increment. Preserve the configured model and deferred paid testing.
+
+The adapter masks recognized phone numbers, email addresses, hashes and locations before Claude requests; prompts must contain only the current bounded controller task. Ordinary operational logs carry reviewed metadata, not prompts/transcripts. Pattern redaction is not universal PII detection, and selected encrypted SQL fields do not encrypt Redis/checkpoints, all database fields, audio files or backups automatically.
+
+### Institute privacy/legal review
+
+Collect only counselling-flow data, state the approved purpose, and require deterministic recording consent. Consent/disclosure wording and retention periods need institute approval; a configured duration is not legal sign-off. Support authorized erasure/anonymization and preserve retry evidence without private transcript content. India's DPDP Act has phased commencement: see the [official MeitY commencement notification](https://www.meity.gov.in/static/uploads/2025/11/c56ceae6c383460ca69577428d36828b.pdf). The institute's legal advisor must confirm current duties, applicable dates, notices/consent, rights handling, processors and backup/deletion obligations. Source code/offline tests do not establish legal compliance.

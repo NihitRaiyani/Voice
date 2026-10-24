@@ -24,7 +24,6 @@ from roma.schemas.rest_api import (
     SafetyStatsQuery,
     UpdateAppointmentRequest,
 )
-from roma.services.auth_service import Permission
 from roma.services.rest_api_service import RestApiService, RestApiServiceError
 
 SessionFactory = async_sessionmaker[AsyncSession]
@@ -34,8 +33,7 @@ router = APIRouter(prefix="/api/v1")
 
 
 def _visible_call(data, request):
-    if Permission.RECORDINGS_VIEW in request.state.resource_principal.permissions:
-        return data
+    # Playback is issued and audited through the dedicated human-authenticated route.
     return {**data, "recording_url": None}
 
 

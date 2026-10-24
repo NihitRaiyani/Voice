@@ -27,9 +27,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from roma.core.config import get_settings
 from roma.core.database import Database
+from roma.core.field_encryption import configure_field_encryption
 from roma.core.logging import configure_logging
+from roma.core.privacy_settings import PrivacySettings
 from roma.domain.calls import CONSENT_LINE, consent_signed_off
 from roma.repositories.postgres.background_jobs import BackgroundJobStore
+from roma.repositories.postgres.privacy import SQLPrivacyRepository
 from roma.repositories.redis.postcall_queue import (
     RedisPostcallQueue,
     SpoolPostcallQueue,
@@ -61,6 +64,7 @@ def _parse_args(argv=None):
 
 async def _run(args) -> int:
     settings = get_settings()
+    configure_field_encryption(PrivacySettings())
     database = (
         Database.from_settings(settings)
         if settings.database_url.get_secret_value()
@@ -104,8 +108,9 @@ async def _run(args) -> int:
         consent_ok=lambda: consent_signed_off(CONSENT_LINE),
         retention_days=settings.recording_retention_days,
         spool=spool_for_drain,
+        is_deleted=SQLPrivacyRepository(database.session_factory).is_deleted if database else None,
         persist=(
-            PostcallService(BackgroundJobStore(database.session_factory)).persist
+            PostcallService(BackgroundJobStore(database.session_factory), privacy_settings=PrivacySettings()).persist
             if database is not None
             else None
         ),

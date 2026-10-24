@@ -400,3 +400,7 @@ Section 5 preserves this entire schema and all revision files. See the [migratio
 `auth_refresh_tokens`: opaque UUID primary key, `created_at`, `session_id`, unique `token_hash`, `expires_at`, nullable `consumed_at`. Session deletion cascades its credentials; session_id is indexed for family operations. Unique token_hash supports safe direct credential lookup; a named check requires exactly 64 lowercase hexadecimal SHA-256 characters. Expiry must be later than creation. Plaintext credentials are never stored. Row locks on the family/token serialize rotation and reuse revocation; SQL is authoritative across API processes.
 
 Retain consumed hashes through the usable family lifetime so reuse can revoke successors. Expiry is checked at authorization; it does not automatically delete data. Cleanup/retention policy is still to be approved. Downgrading 0004 drops both credential tables and logs out all such sessions, retaining users/roles and other business records. No migration seeds identities or role assignments. [Migration workflow](21-database-migrations.md) owns execution and rollback.
+
+## Section 31 privacy schema
+
+Revision 20261024_0005 adds privacy_tombstones, recording disclosure evidence and TEXT name storage for explicitly activated selected-field encryption. There are 28 application tables through this revision. No key generation, data encryption/backfill or working-environment upgrade runs automatically. See Level 8 and migration guidance.

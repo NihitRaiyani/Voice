@@ -89,3 +89,7 @@ The [Level 1 brief](levels/level-01.md) records current evidence and remaining g
 Students should explain why applied history is immutable, why generated migrations need review, why a downgrade can lose data, why indexes belong in schema history, and why demo content must remain separate from durable business facts.
 
 Return to the [documentation index](README.md).
+
+## Privacy revision 0005
+
+20261024_0005 appends after auth0004, adding disclosure/tombstone schema and widening Caller.name to TEXT. Downgrade removes privacy schema but intentionally retains TEXT to avoid ciphertext truncation. It never decrypts rows or generates keys. Backup/restore must preserve deletion instructions; intended-environment migration/backfill remain explicit.

@@ -138,9 +138,12 @@ def test_env_example_matches_settings_fields():
         keys_in_example.add(line.split("=", 1)[0].strip())
 
     from roma.core.auth_settings import AuthSettings
+    from roma.core.privacy_settings import PrivacySettings
 
     expected = {
-        name.upper() for profile in (Settings, AuthSettings) for name in profile.model_fields
+        name.upper()
+        for profile in (Settings, AuthSettings, PrivacySettings)
+        for name in profile.model_fields
     }
     assert keys_in_example == expected
 

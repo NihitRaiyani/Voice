@@ -9,7 +9,9 @@ from dramatiq.middleware import Middleware
 
 from roma.core.config import get_settings
 from roma.core.database import Database
+from roma.core.field_encryption import configure_field_encryption
 from roma.core.logging import configure_logging
+from roma.core.privacy_settings import PrivacySettings
 from roma.providers.jobs.dramatiq import (
     ACTOR_NAME,
     QUEUE_NAME,
@@ -74,6 +76,7 @@ def create_background_actor(broker, store_factory, *, handlers=None):
 def configure_worker_broker(*, allow_paid_summary=False) -> None:
     """Dramatiq CLI factory; importing this module performs no Redis I/O."""
     settings = get_settings()
+    configure_field_encryption(PrivacySettings())
     if not settings.database_url.get_secret_value():
         raise RuntimeError("DATABASE_URL is required for background jobs")
     configure_logging(settings)

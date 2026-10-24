@@ -48,6 +48,9 @@ class PostcallJob:
     final_stage: str | None = None
     turn_count: int = 0
     caller_digest: str | None = None
+    recording_consent_at: str | None = None
+    recording_disclosure_version: str | None = None
+    recording_retention_until: str | None = None
 
     raw: "str | None" = field(default=None, compare=False, repr=False)
 
@@ -69,6 +72,9 @@ class PostcallJob:
             "final_stage": self.final_stage,
             "turn_count": self.turn_count,
             "caller_digest": self.caller_digest,
+            "recording_consent_at": self.recording_consent_at,
+            "recording_disclosure_version": self.recording_disclosure_version,
+            "recording_retention_until": self.recording_retention_until,
         }
 
     def to_json(self) -> str:
@@ -94,6 +100,9 @@ class PostcallJob:
             final_stage=d.get("final_stage"),
             turn_count=int(d.get("turn_count", 0)),
             caller_digest=d.get("caller_digest", d.get("caller_phone_hash")),
+            recording_consent_at=d.get("recording_consent_at"),
+            recording_disclosure_version=d.get("recording_disclosure_version"),
+            recording_retention_until=d.get("recording_retention_until"),
             raw=raw,
         )
 

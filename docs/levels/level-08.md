@@ -1,6 +1,6 @@
 # Level 8 — Secure jobs and access
 
-**Roadmap sections:** 26–31. **Status:** Sections 26–28 durable jobs, webhook idempotency and human authentication/RBAC implemented with offline verification; privacy/replay/publication and full gate pending.
+**Roadmap sections:** 26–31. **Status:** Sections 26–28 durable jobs, webhook idempotency and human authentication/RBAC implemented with offline verification; sections 29–31 callback security, shared admission and managed privacy are implemented; operational/privacy/publication acceptance and the full gate remain pending.
 
 ## Entry gate
 
@@ -63,7 +63,7 @@ Refresh credentials are random 384-bit opaque values; only SHA-256 hashes are st
 
 Viewer call/list/detail responses redact `recording_url` to null. There is no new recording-download endpoint; expiring object access and access auditing remain privacy work. Safety rules remain code-reviewed, and Level 9 knowledge endpoints are not created by assigning permissions. This implements the proposed baseline with additional Admin-only outbound dialing; institute policy still needs approval before production.
 
-Routes: `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, Admin-only `POST /api/v1/users` and `PATCH /api/v1/users/{user_id}`. Login/refresh responses forbid caching. Login/refresh share Redis-backed HMAC-keyed peer-IP admission: ten attempts per 60 seconds by default, explicit expiry, 429 when exceeded and 503 if the limiter is unavailable. Proxy headers are not trusted. Missing authentication configuration is 503; bad/expired credentials are 401 and insufficient permission is 403.
+Routes: `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, Admin-only `POST /api/v1/users` and `PATCH /api/v1/users/{user_id}`. Login/refresh responses forbid caching. Login/refresh share Redis-backed HMAC-keyed peer-IP admission: ten attempts per 300 seconds by default, explicit expiry, 429 when exceeded and 503 if the limiter is unavailable. Proxy headers are not trusted. Missing authentication configuration is 503; bad/expired credentials are 401 and insufficient permission is 403.
 
 Existing resources and legacy dial/status routes now require these permissions. `AUTH_ALLOW_LEGACY_API_TOKEN=false` by default; an explicit compatibility opt-in permits the old machine token only for pre-existing resource permissions, never user administration, safety mutation or knowledge management. Invalid/JWT-shaped credentials never downgrade to that token. Signed Twilio `/answer` and `/ws` remain a separate trust boundary.
 
@@ -109,3 +109,15 @@ Production composition installs Redis-backed request admission before body parsi
 | Authenticated user across protected routes | 100 / 60 seconds |
 
 The AI-test namespace is protected if mounted; this section creates no paid/GPU HTTP endpoint and grants no CLI spend permission. The existing auth-service limiter remains an additional configurable bound; its default window is now 300 seconds. Fixed windows use atomic increment/expiry transactions with bounded Redis I/O. Over-limit responses are sanitized 429 with Retry-After; Redis admission failure is 503 and never invokes the protected handler. Health checks remain available. Shared NAT peers share the perimeter budget; proxy trust and production sizing require deployment review.
+
+## Section 31 managed privacy and recording access
+
+Selected recoverable fields, Caller.name and CallTurn.transcript, use authenticated AES-GCM storage when PII_ENCRYPTION_ENABLED is explicitly activated with a separately managed 32-byte hexadecimal key. Associated field context prevents cross-field ciphertext substitution. Legacy plaintext stays readable until the explicit bounded backfill; encrypted rows fail closed without the key. Phone identity continues to use canonical E.164 and the existing keyed HMAC. This does not encrypt every database/Redis field, audio file, checkpoint or backup. Migration 20261024_0005 widens name storage, adds recording disclosure evidence and durable privacy tombstones; no working database, key or legacy row was changed automatically.
+
+Recording capture requires both approved disclosure wording and trusted explicit call-bound consent evidence (grant time, disclosure version and retention expiry). Unknown/legacy evidence does not authorize capture or retention. Worker handoff now writes a real consent/expiry-bearing Recording row with the call/jobs transaction; deleted-call tombstones suppress queued recreation. The pending institute disclosure remains pending, so installation cannot start recording callers.
+
+Recording URL issuance and playback require a current human JWT with recordings.view. Viewer and legacy machine access are denied. Links are signed, user-bound and expire after 120 seconds by default (maximum 300); playback rechecks live authorization, consent, availability, retention and deletion. SQL audit must commit before link or audio output. Both routes prohibit caching and referrer leakage. Owner-only managed files are read through bounded, path/symlink-checked local access; permanent recording URLs are removed from call responses.
+
+Admin-only disposal previews before apply. Both delete/anonymize scrub managed call transcripts, checkpoints, event/job metadata, recording references and linked caller fields, retaining minimized aggregate/audit/idempotency facts and a permanent tombstone. Local artifacts and attributable Redis state/queued jobs are cleaned with explicit retry status; cleanup failures are not reported as completion. Shared caller profiles are disclosed in preview: sibling-call transcripts are not included, so this is call-scoped disposal, not whole-person erasure. Expired stored call/recording/turn records can be selected in bounded batches. Unmapped lead caches, operator exports, providers and backups remain explicit operational work; null legacy expiries are not silently assigned a policy.
+
+Recognized phone/email identifiers are masked in ordinary logs; signed query credentials and private encryption/signing/hash/database secrets are scrubbed. The final JSON logging boundary retains reviewed metadata only. Claude receives minimized recognized identifiers as before; [current provider terms and legal review limits](../07-security.md#claude-api-retention-review--2026-10-24) remain operator gates. No ZDR account entitlement or legal compliance is inferred from these controls.
