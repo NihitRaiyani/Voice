@@ -7,6 +7,8 @@ from datetime import datetime
 from typing import Any
 from urllib.parse import urlencode
 
+from roma.core.call_capabilities import CallCapabilities
+from roma.core.config import get_settings
 from roma.domain.calls.dnd import DenylistRegistry, is_indian_mobile, numbers_from_config
 from roma.domain.calls.precall import precall_check
 from roma.domain.calls.window import CALL_TIMEZONE
@@ -60,13 +62,16 @@ class TriggeredCall:
     from_: str
 
 
-def build_answer_url(base_url: str, lead_token: str) -> str:
+def build_answer_url(base_url: str, lead_token: str, *, intent: str | None = None) -> str:
     """`<PUBLIC_BASE_URL>/answer?lead=<token>` — the only channel for the lead record.
 
     `urlencode` rather than an f-string: the token is `secrets.token_urlsafe`, which emits
     `-` and `_` but the encoder is what guarantees that stays true if the alphabet changes.
     """
-    return f"{base_url.rstrip('/')}/answer?{urlencode({'lead': lead_token})}"
+    query = {"lead": lead_token}
+    if intent:
+        query["intent"] = intent
+    return f"{base_url.rstrip('/')}/answer?{urlencode(query)}"
 
 
 async def trigger_outbound_call(
@@ -78,6 +83,7 @@ async def trigger_outbound_call(
     base_url: str,
     opener_store=None,
     render=None,
+    capabilities: CallCapabilities | None = None,
 ) -> TriggeredCall:
     """Store the lead under a fresh token, then fire the call at its own answer URL.
 
@@ -94,7 +100,18 @@ async def trigger_outbound_call(
         # whose record Roma cannot fetch at pickup — a call that opens knowing nothing.
         raise DialPrereqError("call store (redis) unavailable") from exc
 
-    answer_url = build_answer_url(base_url, lead_token)
+    if capabilities is None:
+        settings = get_settings()
+        try:
+            capabilities = CallCapabilities(
+                settings.twilio_auth_token.get_secret_value(),
+                settings.twilio_account_sid.get_secret_value(),
+            )
+        except ValueError as exc:
+            raise DialPrereqError("provider callback security unavailable") from exc
+    answer_url = build_answer_url(
+        base_url, lead_token, intent=capabilities.issue_answer(lead_token)
+    )
     call = client.calls.create(
         to=lead.phone,
         from_=from_number,
@@ -196,9 +213,7 @@ async def place_outbound_call(to_number: str, *, settings, reachable_fn) -> dict
         )
     except DialPrereqError as exc:
         _log.info("dial refused: %s", exc)
-        raise CallServiceError(
-            503, {"status": "blocked", "reason": str(exc)}
-        ) from exc
+        raise CallServiceError(503, {"status": "blocked", "reason": str(exc)}) from exc
     except Exception as exc:
         _log.info("dial failed upstream: %s", type(exc).__name__)
         raise CallServiceError(
@@ -210,9 +225,7 @@ async def place_outbound_call(to_number: str, *, settings, reachable_fn) -> dict
         ) from exc
 
     _log.info("dial fired: request_uuid=%s", fired.request_uuid)
-    await _put_dialing_guarded(
-        status_store, fired.request_uuid, fired.lead_token, to_number
-    )
+    await _put_dialing_guarded(status_store, fired.request_uuid, fired.lead_token, to_number)
     return {"request_uuid": fired.request_uuid, "status": "dialing"}
 
 

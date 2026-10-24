@@ -48,11 +48,15 @@ def test_duplicate_delivery_returns_same_twiml_with_same_business_key():
     service = AsyncMock()
     service.accept_answer.side_effect = [True, False]
     app, connected = make_app(service)
+    from roma.core.call_capabilities import CallCapabilities
+
+    intent = CallCapabilities(TOKEN, ACCOUNT).issue_answer("secret-lead")
+    path = f"/answer?lead=secret-lead&intent={intent}"
     with TestClient(app) as client:
-        first = signed_post(client, path="/answer?lead=secret-lead", retry_token="attempt-1")
-        second = signed_post(client, path="/answer?lead=secret-lead", retry_token="attempt-2")
+        first = signed_post(client, path=path, retry_token="attempt-1")
+        second = signed_post(client, path=path, retry_token="attempt-2")
     assert first.status_code == second.status_code == 200
-    assert first.content == second.content
+    assert "capability" in first.text and "capability" in second.text
     assert first.headers["x-webhook-duplicate"] == "false"
     assert second.headers["x-webhook-duplicate"] == "true"
     events = [call.args[0] for call in service.accept_answer.await_args_list]
@@ -165,6 +169,8 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch, w
         lambda: SimpleNamespace(
             database_url=SecretStr("postgresql+asyncpg://unused" if with_database else ""),
             redis_url=SecretStr("redis://unused"),
+            pii_hash_key=SecretStr("offline-pii-key" * 4),
+            roma_data_dir="var/roma",
             booking_hold_ttl_secs=90,
             booking_db_timeout_secs=3,
             booking_redis_timeout_secs=1,
@@ -218,7 +224,10 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch, w
             assert isinstance(client.app.state.webhook_service, WebhookService)
         else:
             assert client.app.state.webhook_service is None
-        assert mounted == {"app": client.app, "session_factory": database.session_factory if with_database else None}
+        assert mounted == {
+            "app": client.app,
+            "session_factory": database.session_factory if with_database else None,
+        }
         assert client.app.state.test_booking is client.app.state.booking_service
         database.close.assert_not_awaited()
         redis.aclose.assert_not_awaited()
@@ -227,3 +236,110 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch, w
     else:
         database.close.assert_not_awaited()
     redis.aclose.assert_awaited_once()
+
+
+def test_signed_payload_rejects_oversized_unknown_fields_before_acceptance():
+    service = AsyncMock()
+    app, _ = make_app(service)
+    with TestClient(app) as client:
+        response = signed_post(
+            client, params={"AccountSid": ACCOUNT, "CallSid": CALL, "FutureField": "x" * 17000}
+        )
+    assert response.status_code == 413
+    service.accept_answer.assert_not_awaited()
+
+
+def test_outbound_answer_requires_fresh_lead_bound_intent():
+    service = AsyncMock()
+    app, _ = make_app(service)
+    with TestClient(app) as client:
+        response = signed_post(client, path="/answer?lead=secret-lead")
+    assert response.status_code == 403
+    service.accept_answer.assert_not_awaited()
+
+
+@pytest.mark.parametrize("mode", ["expired", "wrong-lead", "wrong-account"])
+def test_outbound_answer_rejects_stale_or_mismatched_intent_before_effects(mode):
+    import time
+
+    from roma.core.call_capabilities import CallCapabilities
+
+    clock = (lambda: time.time() - 301) if mode == "expired" else time.time
+    account = "AC" + "3" * 32 if mode == "wrong-account" else ACCOUNT
+    lead = "another-lead" if mode == "wrong-lead" else "secret-lead"
+    intent = CallCapabilities(TOKEN, account, clock=clock).issue_answer(lead)
+    service = AsyncMock()
+    app, connected = make_app(service)
+    with TestClient(app) as client:
+        response = signed_post(client, path=f"/answer?lead=secret-lead&intent={intent}")
+    assert response.status_code == 403
+    service.accept_answer.assert_not_awaited()
+    connected.assert_not_awaited()
+
+
+def test_outbound_without_lead_still_requires_and_accepts_intent():
+    from roma.core.call_capabilities import CallCapabilities
+
+    service = AsyncMock()
+    app, _ = make_app(service)
+    params = {"AccountSid": ACCOUNT, "CallSid": CALL, "Direction": "outbound-api"}
+    with TestClient(app) as client:
+        assert signed_post(client, params=params).status_code == 403
+        intent = CallCapabilities(TOKEN, ACCOUNT).issue_answer(None)
+        assert (
+            signed_post(client, params=params, path=f"/answer?intent={intent}").status_code
+            == 200
+        )
+    service.accept_answer.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"AccountSid=%ZZ",
+        b"AccountSid=%FF",
+        b"AccountSid=one&AccountSid=two",
+        b"unassigned",
+        b"x=" + b"x" * 2049,
+        b"&".join(f"k{i}=v".encode() for i in range(65)),
+        b"x" * 65 + b"=v",
+    ],
+)
+def test_malformed_forms_are_bounded_before_signature_or_effects(body):
+    service = AsyncMock()
+    app, connected = make_app(service)
+    with TestClient(app) as client:
+        response = client.post(
+            "/answer",
+            content=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+    assert response.status_code == 400
+    service.accept_answer.assert_not_awaited()
+    connected.assert_not_awaited()
+
+
+def test_valid_unknown_form_fields_remain_covered_by_signature():
+    service = AsyncMock()
+    app, _ = make_app(service)
+    params = {"AccountSid": ACCOUNT, "CallSid": CALL, "FutureField": "bounded"}
+    signature = RequestValidator(TOKEN).compute_signature(BASE + "/answer", params)
+    with TestClient(app) as client:
+        assert signed_post(client, params=params, signature=signature).status_code == 200
+        assert (
+            signed_post(
+                client, params={**params, "FutureField": "modified"}, signature=signature
+            ).status_code
+            == 403
+        )
+    service.accept_answer.assert_awaited_once()
+
+
+def test_duplicate_callback_query_is_rejected_before_effects():
+    service = AsyncMock()
+    app, connected = make_app(service)
+    with TestClient(app) as client:
+        response = signed_post(client, path="/answer?intent=a&intent=b")
+    assert response.status_code == 400
+    service.accept_answer.assert_not_awaited()
+    connected.assert_not_awaited()

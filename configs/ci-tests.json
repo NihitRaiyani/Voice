@@ -13,6 +13,7 @@
     "tests/architecture/test_readiness_docs.py",
     "tests/core/test_async_queue.py",
     "tests/core/test_auth_security.py",
+    "tests/core/test_call_capabilities.py",
     "tests/core/test_claude_llm_settings.py",
     "tests/core/test_config.py",
     "tests/core/test_database.py",

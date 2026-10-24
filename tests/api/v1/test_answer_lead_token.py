@@ -30,13 +30,19 @@ def app(monkeypatch):
 
 
 def _answer(app, query=""):
+    if query:
+        from urllib.parse import parse_qs
+
+        from roma.core.call_capabilities import CallCapabilities
+
+        query += "&intent=" + CallCapabilities(AUTH_TOKEN, "AC" + "1" * 32).issue_answer(
+            parse_qs(query)["lead"][0]
+        )
     params = {"CallSid": "CA" + "2" * 32, "AccountSid": "AC" + "1" * 32}
     url = f"https://host.example/answer{('?' + query) if query else ''}"
     signature = RequestValidator(AUTH_TOKEN).compute_signature(url, params)
     path = f"/answer{('?' + query) if query else ''}"
-    return TestClient(app).post(
-        path, data=params, headers={"X-Twilio-Signature": signature}
-    )
+    return TestClient(app).post(path, data=params, headers={"X-Twilio-Signature": signature})
 
 
 def test_the_lead_token_is_a_stream_custom_parameter(app):
@@ -53,7 +59,8 @@ def test_the_lead_token_is_a_stream_custom_parameter(app):
 def test_an_inbound_call_carries_no_lead_and_that_is_not_an_error(app):
     root = ElementTree.fromstring(_answer(app).text)
     assert root.find("./Connect/Stream") is not None
-    assert root.find("./Connect/Stream/Parameter") is None
+    parameters = root.findall("./Connect/Stream/Parameter")
+    assert [p.attrib["name"] for p in parameters] == ["capability"]
 
 
 def test_the_lead_token_is_never_written_to_the_log(app, caplog):

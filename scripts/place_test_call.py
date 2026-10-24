@@ -67,7 +67,14 @@ def main() -> int:
 
     s = get_settings()
     base = (args.base_url or s.public_base_url).rstrip("/")
-    answer_url = f"{base}/answer"
+    from urllib.parse import urlencode
+
+    from roma.core.call_capabilities import CallCapabilities
+
+    intent = CallCapabilities(
+        s.twilio_auth_token.get_secret_value(), s.twilio_account_sid.get_secret_value()
+    ).issue_answer(None)
+    answer_url = f"{base}/answer?{urlencode({'intent': intent})}"
     registry = StubRegistry(consented={args.callee})
     now = datetime.now(CALL_TIMEZONE)
 
@@ -174,7 +181,7 @@ def main() -> int:
         budget_inr=s.anthropic_budget_inr,
     )
     print(f"dialed={result.dialed} reason={result.reason} call_id={result.call_sid}")
-    print(f"answer_url={answer_url}")
+    print(f"answer_url={base}/answer?intent=***")
     print(
         f"LLM spend: ₹{ledger.spent_inr:.2f} of ₹{s.anthropic_budget_inr:.2f} "
         f"(₹{ledger.remaining_inr(s.anthropic_budget_inr):.2f} left)"

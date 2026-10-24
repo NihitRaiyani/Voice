@@ -1,7 +1,7 @@
 """Twilio HTTP and WebSocket callbacks must be signed and account-bound."""
 
 import json
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from xml.etree import ElementTree
 
 import pytest
@@ -42,9 +42,9 @@ def _answer(app, *, signature=True, query=""):
     public_url = f"https://host.example/answer{('?' + query) if query else ''}"
     headers = {}
     if signature:
-        headers["X-Twilio-Signature"] = RequestValidator(
-            AUTH_TOKEN
-        ).compute_signature(public_url, params)
+        headers["X-Twilio-Signature"] = RequestValidator(AUTH_TOKEN).compute_signature(
+            public_url, params
+        )
     path = f"/answer{('?' + query) if query else ''}"
     return TestClient(app).post(path, data=params, headers=headers)
 
@@ -105,3 +105,101 @@ def test_rejects_a_signed_socket_from_another_twilio_account(app):
 def test_health_reports_ok(app):
     body = TestClient(app).get("/health").json()
     assert body["status"] == "ok"
+
+
+@pytest.mark.parametrize(
+    "mode", ["missing", "expired", "tampered", "wrong-call", "wrong-account", "wrong-lead"]
+)
+def test_stream_capability_rejected_before_replay_and_provider_construction(
+    app, monkeypatch, mode
+):
+    import time
+
+    import roma.realtime.pipeline as pipeline
+    from roma.core.call_capabilities import CallCapabilities
+
+    replay = AsyncMock()
+    app.state.stream_replay_store = replay
+    provider = Mock(side_effect=AssertionError("provider constructed"))
+    monkeypatch.setattr(pipeline, "ValidatedTwilioSerializer", provider)
+    account = "AC" + "3" * 32 if mode == "wrong-account" else ACCOUNT_SID
+    call = "CA" + "3" * 32 if mode == "wrong-call" else CALL_SID
+    lead = "lead-token" if mode == "wrong-lead" else None
+    clock = (lambda: time.time() - 121) if mode == "expired" else time.time
+    capability = CallCapabilities(AUTH_TOKEN, account, clock=clock).issue_stream(call, lead)
+    if mode == "missing":
+        capability = ""
+    elif mode == "tampered":
+        capability += "x"
+    _expect_close(
+        app,
+        headers=_ws_headers(),
+        start={
+            "streamSid": "MZ123",
+            "accountSid": ACCOUNT_SID,
+            "callSid": CALL_SID,
+            "mediaFormat": {"encoding": "audio/x-mulaw", "sampleRate": 8000},
+            "customParameters": {"capability": capability},
+        },
+    )
+    replay.consume.assert_not_awaited()
+    provider.assert_not_called()
+
+
+@pytest.mark.parametrize("unavailable", [False, True])
+def test_stream_replay_and_redis_failure_are_closed_before_provider_construction(
+    app, monkeypatch, unavailable
+):
+    import roma.realtime.pipeline as pipeline
+    from roma.core.call_capabilities import CallCapabilities
+
+    replay = AsyncMock()
+    replay.consume.side_effect = RuntimeError("private redis url") if unavailable else None
+    replay.consume.return_value = False
+    app.state.stream_replay_store = replay
+    provider = Mock(side_effect=AssertionError("provider constructed"))
+    monkeypatch.setattr(pipeline, "ValidatedTwilioSerializer", provider)
+    capability = CallCapabilities(AUTH_TOKEN, ACCOUNT_SID).issue_stream(CALL_SID, None)
+    _expect_close(
+        app,
+        headers=_ws_headers(),
+        code=1013 if unavailable else 1008,
+        start={
+            "streamSid": "MZ123",
+            "accountSid": ACCOUNT_SID,
+            "callSid": CALL_SID,
+            "mediaFormat": {"encoding": "audio/x-mulaw", "sampleRate": 8000},
+            "customParameters": {"capability": capability},
+        },
+    )
+    replay.consume.assert_awaited_once_with(ACCOUNT_SID, CALL_SID)
+    provider.assert_not_called()
+
+
+def test_valid_stream_consumes_identity_once_and_replay_is_rejected(app, monkeypatch):
+    import roma.realtime.pipeline as pipeline
+    from roma.core.call_capabilities import CallCapabilities, RedisStreamReplay
+
+    class Redis:
+        def __init__(self):
+            self.seen = set()
+
+        async def set(self, key, value, *, nx, ex):
+            if key in self.seen:
+                return None
+            self.seen.add(key)
+            return True
+
+    app.state.stream_replay_store = RedisStreamReplay(client=Redis())
+    # End accepted admission at the existing budget gate, before speech construction.
+    monkeypatch.setattr(pipeline.SpendLedger, "exhausted", lambda *_: True)
+    capability = CallCapabilities(AUTH_TOKEN, ACCOUNT_SID).issue_stream(CALL_SID, None)
+    start = {
+        "streamSid": "MZ123",
+        "accountSid": ACCOUNT_SID,
+        "callSid": CALL_SID,
+        "mediaFormat": {"encoding": "audio/x-mulaw", "sampleRate": 8000},
+        "customParameters": {"capability": capability},
+    }
+    _expect_close(app, headers=_ws_headers(), start=start, code=1013)
+    _expect_close(app, headers=_ws_headers(), start=start)

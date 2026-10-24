@@ -75,8 +75,9 @@ from websockets.protocol import State
 
 from roma.api.v1.health import mount_health_route
 from roma.api.v1.twilio_webhooks import mount_answer_route
+from roma.core.call_capabilities import CallCapabilities, RedisStreamReplay
 from roma.core.config import get_settings
-from roma.core.logging import RedactionFilter, current_call_sid
+from roma.core.logging import LogEvent, RedactionFilter, current_call_sid, log_event
 from roma.core.voice_errors import VoiceFailure
 from roma.domain.calls import consent_signed_off
 from roma.domain.conversation import CallState, ConversationStage
@@ -459,24 +460,51 @@ async def _read_start(websocket: WebSocket) -> StreamStart:
     websocket, a task and a Silero ONNX session open for as long as it liked — a resource
     leak reachable by anyone who can reach the port, with no call ever starting.
     """
+    deadline = asyncio.get_running_loop().time() + _PRELUDE_TIMEOUT_SECS
     for _ in range(_MAX_PRELUDE_MESSAGES):
         try:
             raw = await asyncio.wait_for(
-                websocket.receive_text(), timeout=_PRELUDE_TIMEOUT_SECS
+                websocket.receive_text(),
+                timeout=max(0, deadline - asyncio.get_running_loop().time()),
             )
         except TimeoutError as exc:
             raise ValueError("stream prelude timed out before the start event") from exc
+        except (KeyError, TypeError) as exc:
+            raise ValueError("invalid stream prelude frame") from exc
+        if not isinstance(raw, str) or len(raw.encode("utf-8")) > 8192:
+            raise ValueError("stream prelude message too large")
         try:
             message = json.loads(raw)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, RecursionError):
             continue
         if isinstance(message, dict) and message.get("event") == "start":
             start = message.get("start") or {}
+            if not isinstance(start, dict):
+                raise ValueError("invalid stream start")
             stream_id = start.get("streamSid") or message.get("streamSid")
             if not stream_id:
                 raise ValueError("Twilio start event missing streamSid")
             fmt = start.get("mediaFormat") or {}
             custom = start.get("customParameters") or {}
+            if (
+                not isinstance(stream_id, str)
+                or len(stream_id) > 64
+                or not isinstance(fmt, dict)
+                or not isinstance(custom, dict)
+                or len(custom) > 8
+                or any(
+                    not isinstance(k, str)
+                    or len(k) > 64
+                    or not isinstance(v, str)
+                    or len(v) > 1024
+                    for k, v in custom.items()
+                )
+                or any(
+                    value is not None and (not isinstance(value, str) or len(value) > 64)
+                    for value in (start.get("accountSid"), start.get("callSid"))
+                )
+            ):
+                raise ValueError("invalid stream start fields")
             return StreamStart(
                 stream_id=str(stream_id),
                 account_id=start.get("accountSid"),
@@ -1050,6 +1078,7 @@ def build_media_app(
     booking_factory=None,
     webhook_service=None,
     safety_store=None,
+    stream_replay_store=None,
     lifespan=None,
 ) -> FastAPI:
     """FastAPI app exposing Twilio's `/answer`, `/ws`, and `/health` routes.
@@ -1079,6 +1108,9 @@ def build_media_app(
     app = FastAPI(lifespan=lifespan)
     app.state.webhook_service = webhook_service
     settings = get_settings()
+    app.state.stream_replay_store = stream_replay_store or RedisStreamReplay(
+        settings.redis_url.get_secret_value()
+    )
     app.state.calls = {}
     app.state.calendar = build_calendar_fn(settings) if booking_factory is None else None
     app.state.slot_client_factory = build_slot_client_fn
@@ -1168,24 +1200,48 @@ def build_media_app(
             websocket.headers.get("x-twilio-signature", ""),
             settings.twilio_auth_token.get_secret_value(),
         ):
+            log_event(LogEvent.SECURITY_REJECTED, status_code=403)
             await websocket.close(code=1008)
             return
         await websocket.accept()
 
         try:
             start = await _read_start(websocket)
-        except (ValueError, WebSocketDisconnect) as exc:
-            _log.warning("rejecting media stream: %s", exc)
+        except (ValueError, WebSocketDisconnect):
+            log_event(LogEvent.SECURITY_REJECTED, status_code=400)
             await websocket.close(code=1008)
             return
 
         stream_sid = start.stream_id
         call_sid = start.call_id
         if start.account_id != settings.twilio_account_sid.get_secret_value():
-            _log.warning("rejecting media stream: Twilio account SID mismatch")
+            log_event(LogEvent.SECURITY_REJECTED, status_code=403)
+            await websocket.close(code=1008)
+            return
+        if start.encoding != "audio/x-mulaw" or start.sample_rate != _RATE:
+            log_event(LogEvent.SECURITY_REJECTED, status_code=400)
             await websocket.close(code=1008)
             return
         lead_token = start.custom_parameters.get("lead")
+        try:
+            CallCapabilities(
+                settings.twilio_auth_token.get_secret_value(), start.account_id
+            ).verify_stream(start.custom_parameters.get("capability", ""), call_sid, lead_token)
+        except ValueError:
+            log_event(LogEvent.SECURITY_REJECTED, status_code=403)
+            await websocket.close(code=1008)
+            return
+        try:
+            admitted = await app.state.stream_replay_store.consume(start.account_id, call_sid)
+        except Exception:  # noqa: BLE001 — Redis is the shared replay authority; fail closed.
+            log_event(LogEvent.SECURITY_REJECTED, status_code=503)
+            await websocket.close(code=1013)
+            return
+        if not admitted:
+            log_event(LogEvent.SECURITY_REJECTED, status_code=409)
+            await websocket.close(code=1008)
+            return
+        log_event(LogEvent.SECURITY_ACCEPTED, status_code=101)
         is_outbound = bool(lead_token)
 
         current_call_sid.set(call_sid)
@@ -1289,7 +1345,10 @@ def build_media_app(
             seed.update(lead.as_state_seed())
         try:
             state, booking_session = await _restore_call_state(
-                store, call_sid, seed=seed, booking_factory=booking_factory,
+                store,
+                call_sid,
+                seed=seed,
+                booking_factory=booking_factory,
             )
         except VoiceFailure:
             _log.warning("durable call-state unavailable; closing media stream")
@@ -1316,7 +1375,8 @@ def build_media_app(
         )
         slot_client = CallLLMProvider(
             app.state.slot_client_factory(settings),
-            ledger=SpendLedger(spend_ledger_path(settings)), call_sid=call_sid,
+            ledger=SpendLedger(spend_ledger_path(settings)),
+            call_sid=call_sid,
         )
         safety = SafetyService(safety_store)
         if getattr(store, "checkpoint", None) is not None:
@@ -1372,11 +1432,14 @@ def build_media_app(
         )
         llm = (
             build_llm_fn(settings, provider=slot_client)
-            if build_llm_fn is build_llm else build_llm_fn(settings)
+            if build_llm_fn is build_llm
+            else build_llm_fn(settings)
         )
         slot_client.prefix_fn = lambda: stage_ctrl.prefix_hash
         usage = _UsageLogger(
-            ledger=None if build_llm_fn is build_llm else SpendLedger(spend_ledger_path(settings)),
+            ledger=None
+            if build_llm_fn is build_llm
+            else SpendLedger(spend_ledger_path(settings)),
             call_sid=call_sid or stream_sid,
             prefix_fn=lambda: stage_ctrl.prefix_hash,
         )
@@ -1529,7 +1592,8 @@ def build_media_app(
                 )
                 _log.info(
                     "carrier_audio_summary: stream_sid=%s metrics=%s",
-                    stream_sid, serializer.audio_metrics.snapshot(),
+                    stream_sid,
+                    serializer.audio_metrics.snapshot(),
                 )
                 _log.info(
                     "endpoint timing: stream_sid=%s vad=%s vad_stop_secs=%s "

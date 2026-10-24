@@ -17,9 +17,7 @@ class _FakeWebSocket:
 
 def _start(**start_fields):
     stream_sid = start_fields.get("streamSid")
-    return json.dumps(
-        {"event": "start", "streamSid": stream_sid, "start": start_fields}
-    )
+    return json.dumps({"event": "start", "streamSid": stream_sid, "start": start_fields})
 
 
 def test_read_start_extracts_twilio_identity_format_and_lead():
@@ -70,10 +68,54 @@ def test_top_level_stream_sid_is_accepted():
 
 def test_read_start_rejects_start_without_stream_sid():
     with pytest.raises(ValueError, match="missing streamSid"):
-        asyncio.run(_read_start(_FakeWebSocket([_start(callSid="CA")])) )
+        asyncio.run(_read_start(_FakeWebSocket([_start(callSid="CA")])))
 
 
 def test_read_start_rejects_when_start_never_arrives():
     messages = [json.dumps({"event": "media"}) for _ in range(50)]
     with pytest.raises(ValueError, match="within prelude bound"):
         asyncio.run(_read_start(_FakeWebSocket(messages)))
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"streamSid": "x" * 65},
+        {"streamSid": "MZ1", "accountSid": []},
+        {"streamSid": "MZ1", "customParameters": {"capability": 1}},
+        {"streamSid": "MZ1", "customParameters": {"capability": "x" * 1025}},
+        {"streamSid": "MZ1", "customParameters": {str(i): "x" for i in range(9)}},
+        {"streamSid": "MZ1", "mediaFormat": "invalid"},
+    ],
+)
+def test_read_start_rejects_invalid_bounded_fields(fields):
+    with pytest.raises(ValueError):
+        asyncio.run(_read_start(_FakeWebSocket([_start(**fields)])))
+
+
+def test_prelude_byte_bound_is_enforced_before_parsing():
+    with pytest.raises(ValueError, match="too large"):
+        asyncio.run(_read_start(_FakeWebSocket([" " * 8193])))
+
+
+def test_prelude_deadline_covers_all_leading_messages(monkeypatch):
+    import roma.realtime.pipeline as pipeline
+
+    monkeypatch.setattr(pipeline, "_PRELUDE_TIMEOUT_SECS", 0.03)
+
+    class SlowWebSocket:
+        async def receive_text(self):
+            await asyncio.sleep(0.02)
+            return '{"event":"connected"}'
+
+    with pytest.raises(ValueError, match="timed out"):
+        asyncio.run(_read_start(SlowWebSocket()))
+
+
+def test_binary_prelude_frame_is_a_rejection():
+    class BinaryWebSocket:
+        async def receive_text(self):
+            raise KeyError("text")
+
+    with pytest.raises(ValueError, match="invalid stream prelude frame"):
+        asyncio.run(_read_start(BinaryWebSocket()))

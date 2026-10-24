@@ -1,17 +1,60 @@
 """Twilio HTTP webhook adapter."""
 
+import asyncio
 import logging
+import re
 from urllib.parse import parse_qsl
 
 from fastapi import HTTPException, Request, Response
+from pydantic import ValidationError
 
+from roma.core.call_capabilities import CallCapabilities
+from roma.core.logging import LogEvent, log_event
 from roma.domain.webhooks import WebhookConflict, WebhookUnavailable
 from roma.providers.telephony.twilio.auth import external_url, valid_twilio_signature
 from roma.providers.telephony.twilio.twiml import connect_stream_twiml
 from roma.providers.telephony.twilio.webhooks import answer_event
-from roma.services.call_service import lead_token_from_query
+from roma.schemas.twilio import AnswerPayload
 
 _log = logging.getLogger("roma.api.twilio")
+_MAX_BODY = 16_384
+
+
+def _reject(status: int, detail: str):
+    log_event(LogEvent.SECURITY_REJECTED, status_code=status)
+    raise HTTPException(status_code=status, detail=detail)
+
+
+async def _read_form(request: Request) -> dict[str, str]:
+    body = bytearray()
+    try:
+        async with asyncio.timeout(5):
+            async for chunk in request.stream():
+                if len(body) + len(chunk) > _MAX_BODY:
+                    _reject(413, "webhook body too large")
+                body.extend(chunk)
+    except TimeoutError:
+        _reject(408, "webhook body timeout")
+    try:
+        text = body.decode("utf-8")
+        if re.search(r"%(?![0-9a-fA-F]{2})", text):
+            raise ValueError
+        pairs = parse_qsl(
+            text,
+            keep_blank_values=True,
+            encoding="utf-8",
+            errors="strict",
+            max_num_fields=64,
+            strict_parsing=True,
+        )
+    except (UnicodeError, ValueError):
+        _reject(400, "invalid form encoding")
+    params = dict(pairs)
+    if len(params) != len(pairs):
+        _reject(400, "duplicate form fields")
+    if any(not 1 <= len(key) <= 64 or len(value) > 2048 for key, value in pairs):
+        _reject(400, "invalid form field bounds")
+    return params
 
 
 def mount_answer_route(app, *, settings, on_connected) -> None:
@@ -23,14 +66,8 @@ def mount_answer_route(app, *, settings, on_connected) -> None:
             request.headers.get("content-type", "").split(";")[0].strip().lower()
             != "application/x-www-form-urlencoded"
         ):
-            raise HTTPException(status_code=415, detail="expected form-encoded webhook")
-        try:
-            pairs = parse_qsl((await request.body()).decode("utf-8"), keep_blank_values=True)
-        except UnicodeDecodeError as exc:
-            raise HTTPException(status_code=400, detail="invalid form encoding") from exc
-        params = dict(pairs)
-        if len(params) != len(pairs):
-            raise HTTPException(status_code=400, detail="duplicate form fields")
+            _reject(415, "expected form-encoded webhook")
+        params = await _read_form(request)
         signature_url = external_url(
             settings.public_base_url, request.url.path, request.url.query
         )
@@ -40,17 +77,32 @@ def mount_answer_route(app, *, settings, on_connected) -> None:
             request.headers.get("x-twilio-signature", ""),
             settings.twilio_auth_token.get_secret_value(),
         ):
-            raise HTTPException(status_code=403, detail="invalid Twilio signature")
+            _reject(403, "invalid Twilio signature")
 
         if params.get("AccountSid") != settings.twilio_account_sid.get_secret_value():
-            raise HTTPException(status_code=403, detail="unexpected Twilio account")
+            _reject(403, "unexpected Twilio account")
 
-        call_id = params.get("CallSid")
-        lead_token = lead_token_from_query(request.query_params)
         try:
-            event = answer_event(params, lead_token)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            payload = AnswerPayload.model_validate(params)
+        except ValidationError:
+            _reject(400, "invalid Twilio payload")
+        query = request.query_params
+        if len(query.multi_items()) != len(query) or len(request.url.query) > 2048:
+            _reject(400, "invalid callback query")
+        lead_token = query.get("lead") or None
+        intent = query.get("intent")
+        try:
+            capabilities = CallCapabilities(
+                settings.twilio_auth_token.get_secret_value(), payload.account_sid
+            )
+            if intent:
+                capabilities.verify_answer(intent, lead_token)
+            elif lead_token or payload.direction in ("outbound-api", "outbound-dial"):
+                raise ValueError
+        except ValueError:
+            _reject(403, "invalid callback capability")
+        call_id = payload.call_sid
+        event = answer_event(params, lead_token)
         service = getattr(app.state, "webhook_service", None)
         if service is None:
             raise HTTPException(status_code=503, detail="webhook persistence unavailable")
@@ -71,9 +123,13 @@ def mount_answer_route(app, *, settings, on_connected) -> None:
             call_id or "-",
             "yes" if lead_token else "-",
         )
+        stream_capability = capabilities.issue_stream(call_id, lead_token)
+        log_event(LogEvent.SECURITY_ACCEPTED, status_code=200)
         await on_connected(app, lead_token)
         return Response(
-            content=connect_stream_twiml(wss_url, lead_token=lead_token),
+            content=connect_stream_twiml(
+                wss_url, lead_token=lead_token, capability=stream_capability
+            ),
             media_type="application/xml",
             headers={"X-Webhook-Duplicate": "false" if created else "true"},
         )

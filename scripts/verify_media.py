@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import threading
+from tempfile import TemporaryDirectory
 from xml.etree import ElementTree
 
 from pipecat.frames.frames import InputAudioRawFrame, OutputAudioRawFrame
@@ -19,13 +20,13 @@ PUBLIC_BASE_URL = "https://testserver"
 STREAM_SID = "MZ_synthetic"
 CALL_SID = "CA" + "2" * 32
 
-os.environ.setdefault("TWILIO_ACCOUNT_SID", ACCOUNT_SID)
-os.environ.setdefault("TWILIO_AUTH_TOKEN", AUTH_TOKEN)
+os.environ["TWILIO_ACCOUNT_SID"] = ACCOUNT_SID
+os.environ["TWILIO_AUTH_TOKEN"] = AUTH_TOKEN
 os.environ.setdefault("TWILIO_FROM_NUMBER", "+16295550100")
 os.environ.setdefault("SARVAM_API_KEY", "sarvam_test")
 os.environ.setdefault("OPENAI_API_KEY", "openai_test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
-os.environ.setdefault("PUBLIC_BASE_URL", PUBLIC_BASE_URL)
+os.environ["PUBLIC_BASE_URL"] = PUBLIC_BASE_URL
 
 N_INBOUND = 5
 SILENCE_ULAW = bytes([0xFF] * 160)
@@ -57,17 +58,29 @@ def _give_up() -> None:
 def main() -> int:
     from unittest.mock import AsyncMock
 
+    from roma.core.config import get_settings
+    from roma.providers.ai.mocks import MockLLMProvider
     from roma.realtime.pipeline import build_media_app, sole_call
+    from roma.repositories.redis.conversation_state import InMemoryCallStateStore
+
+    runtime = TemporaryDirectory(prefix="roma-offline-media-")
+    os.environ["ROMA_DATA_DIR"] = runtime.name
+    os.environ["RECORDING_ENABLED"] = "false"
+    get_settings.cache_clear()
 
     timer = threading.Timer(WATCHDOG_SECS, _give_up)
     timer.daemon = True
     timer.start()
     app = build_media_app(
         auto_hang_up=False,
+        build_store_fn=lambda _s: InMemoryCallStateStore(),
+        build_queue_fn=lambda _s: None,
+        build_slot_client_fn=lambda _s: MockLLMProvider(response="{}"),
         build_stt_fn=lambda _s: _Passthrough(),
         build_vad_fn=lambda _s: None,
         build_llm_fn=lambda _s: _Passthrough(),
         build_tts_fn=lambda _s, _cache=None: _EchoTTS(),
+        stream_replay_store=AsyncMock(consume=AsyncMock(return_value=True)),
         webhook_service=AsyncMock(),  # Offline media probe; PostgreSQL has separate tests.
     )
     validator = RequestValidator(AUTH_TOKEN)
@@ -103,7 +116,10 @@ def main() -> int:
                                 "sampleRate": 8000,
                                 "channels": 1,
                             },
-                            "customParameters": {},
+                            "customParameters": {
+                                p.attrib["name"]: p.attrib["value"]
+                                for p in stream.findall("Parameter")
+                            },
                         },
                     }
                 )

@@ -85,3 +85,11 @@ No production clearance from an empty denylist, CORS, opaque token URL or assume
 Record revision, reproducible commands, environment/data/configuration identity, actual outcomes, demo/reviewer result and limitations here when this level is implemented. Existing foundations do not automatically pass the full gate. Use the [verification contract](../12-verification.md), [baseline](../roadmaps/level-00-baseline.md) and [decision register](../decisions.md).
 
 Return to the [documentation index](../README.md).
+
+## Section 29 callback and stream admission
+
+Twilio SDK signatures cover the exact configured external URL and all supplied form fields. The answer transport permits only bounded UTF-8 form bodies, rejects duplicate/malformed fields, validates known fields with strict Pydantic schemas, and checks the configured Account SID before durable acceptance. Provider-added fields remain signed inputs; they cannot select a different provider. Security events contain only reviewed metadata/status.
+
+Twilio does not supply a timestamp in its signature. Roma therefore issues an outbound answer intent valid for 300 seconds, bound to its configured account and lead capability. The outbound dial paths include it; expired or forged intents fail before SQL effects. Signed inbound requests retain the provider's signature semantics: old signed inbound requests have no invented freshness guarantee. SQL receipts remain the permanent duplicate-effect authority.
+
+Every live stream additionally needs a signed 120-second capability, delivered through TwiML custom parameters and bound to the account, Call SID and lead. Signature/account/capability validation and shared Redis admission precede model/media construction. Redis admits one stream per call for 600 seconds, exceeding the outbound callback/stream windows; missing Redis denies admission. The bounded start prelude cannot keep unauthenticated resources alive indefinitely. No provider console/retry configuration or live call was changed.

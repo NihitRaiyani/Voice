@@ -62,6 +62,8 @@ markers = [
 [tool.mypy]
 python_version = "3.11"
 files = [
+    "roma/core/call_capabilities.py",
+    "roma/schemas/twilio.py",
     "roma/providers/ai",
     "roma/core/openai_llm_settings.py",
     "roma/core/claude_llm_settings.py",

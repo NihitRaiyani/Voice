@@ -5,6 +5,7 @@ import json
 from types import SimpleNamespace
 
 import pytest
+from roma.core.call_capabilities import CallCapabilities
 from roma.repositories.redis.leads import (
     LEAD_TTL_SECONDS,
     SEGMENTS,
@@ -71,6 +72,7 @@ def _trigger(store, client, base_url="https://host.example"):
             client=client,
             from_number="+16295550100",
             base_url=base_url,
+            capabilities=CallCapabilities("offline-secret", "AC" + "1" * 32),
         )
     )
 
@@ -166,6 +168,9 @@ def test_the_token_round_trips_through_the_query_string():
     result = _trigger(store, _FakeTwilio())
     q = parse_qs(urlparse(result.answer_url).query)
     assert lead_token_from_query({"lead": q["lead"][0]}) == result.lead_token
+    CallCapabilities("offline-secret", "AC" + "1" * 32).verify_answer(
+        q["intent"][0], result.lead_token
+    )
     assert lead_token_from_query({}) is None
     assert lead_token_from_query(None) is None
 

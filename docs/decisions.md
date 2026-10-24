@@ -223,3 +223,7 @@ Keep atomic SQL receipt/effect unchanged. Add shared owner-checked processing60 
 ## Section 28 human access decision
 
 Adopt the proposed Admin/Counsellor/Viewer baseline with Admin-only call creation/dialing, Counsellor appointment/lead access and Viewer recording redaction. Reuse users/roles and append session/refresh tables; preserve applied history. Use maintained Argon2id/PyJWT libraries, fixed HS256, live SQL authorization, rotating one-use refresh families and shared HMAC-keyed login admission. Static-token compatibility defaults off and never falls back from JWT failure. No automatic Admin/secret/working-DB upgrade. Institute permission approval, operational provisioning, privacy/access auditing and native/live acceptance remain explicit; RAG/safety-management permission names do not authorize new endpoints or mutable rules. See [access contract](levels/level-08.md#section-28-authentication-and-role-permissions).
+
+## Section 29 callback capabilities
+
+Retain Twilio SDK signing/account checks and permanent SQL idempotency. Use expiring Roma-issued outbound answer and stream capabilities, bounded preludes and shared replay admission. Provider signatures carry no freshness timestamp; preserve the inbound replay limitation explicitly. See Level 8 and runbook.

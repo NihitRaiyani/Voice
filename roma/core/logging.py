@@ -30,7 +30,7 @@ _MIN_SECRET_LEN = 6
 # _secret_values(): it does not exist until the call is placed. Matched on the URL
 # grammar instead of on any known value. Deliberately NOT `\w`/`\b` — this is a
 # hand-written character class for the same reason the guardrail matchers avoid them.
-_LEAD_TOKEN_RE = re.compile(r"([?&]lead=)[A-Za-z0-9_\-%.~]+")
+_LEAD_TOKEN_RE = re.compile(r"([?&](?:lead|intent|token|capability|access_token)=)[A-Za-z0-9_\-%.~]+", re.I)
 
 # uvicorn's own loggers are configured by its CLI with `propagate: False` and their own
 # handlers, so a filter installed on the root handler never sees a single one of their
@@ -199,6 +199,8 @@ def configure_logging(settings: Settings | None = None) -> None:
 class LogEvent(StrEnum):
     """Reviewed operational vocabulary; never derive an event from caller text."""
 
+    SECURITY_REJECTED = "security_rejected"
+    SECURITY_ACCEPTED = "security_accepted"
     CHECKPOINT_COMPLETED = "checkpoint_completed"
     CHECKPOINT_FAILED = "checkpoint_failed"
     STATE_CACHE_FAILED = "state_cache_failed"
