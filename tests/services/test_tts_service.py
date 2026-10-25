@@ -200,7 +200,7 @@ def test_request_bytes_and_expansion_bounds_reject_before_provider():
         with pytest.raises(ValueError):
             await synth.synthesize(TTSRequest("ક" * 50), CTX)
         with pytest.raises(ValueError, match="Normalized"):
-            await synth.synthesize(TTSRequest("9" * 80), CTX)
+            await synth.synthesize(TTSRequest("slot 9999 " * 6), CTX)
         assert not provider.calls
 
     asyncio.run(run())
@@ -446,5 +446,88 @@ def test_missing_or_tampered_rendering_never_looks_up_model_or_cache(monkeypatch
         with pytest.raises(ValueError, match="reviewed pronunciation"):
             await synth.synthesize(TTSRequest("fees 50000"), CTX)
         assert not provider.calls and not synth._cache and synth.misses == 0
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("number", ["9876543210", "123 456 7890", "+91 98765 43210"])
+def test_private_numeric_forms_never_reach_provider_cache_or_logs(number, caplog):
+    async def run():
+        provider = PCMProvider()
+        synth = service(provider)
+        with pytest.raises(ValueError):
+            await synth.synthesize(TTSRequest(number), CTX)
+        assert provider.calls == [] and not synth._cache and not synth._flights
+        assert synth.misses == synth.stores == 0
+        assert number not in caplog.text
+
+    asyncio.run(run())
+
+
+def test_actual_expansion_is_safety_checked_before_audio_and_on_cache_hits(monkeypatch):
+    from roma.services import tts_service
+
+    class RecordingSafety(SafetyService):
+        def __init__(self):
+            super().__init__()
+            self.seen = []
+
+        async def check(self, text, context, **kwargs):
+            self.seen.append(text)
+            return await super().check(text, context, **kwargs)
+
+    async def run():
+        provider, safety = PCMProvider(), RecordingSafety()
+        synth = service(provider, safety)
+        # A future vocabulary expansion cannot create a financial claim after the
+        # first screen and silently send that changed text to inference/cache.
+        monkeypatch.setattr(tts_service, "normalize_tts_text", lambda *_: "fees 500")
+        first = await synth.synthesize(TTSRequest("appointment"), CTX)
+        second = await synth.synthesize(TTSRequest("appointment"), CTX)
+        assert safety.seen == ["appointment", "fees 500", "appointment", "fees 500"]
+        assert "500" not in first.text and second.cache_hit
+        assert first.pronunciation_version and first.canonical_sha256 and first.spoken_sha256
+        assert provider.calls[0].text == first.text and provider.calls[0].language == "hi"
+        assert sum(event.category == "FEE" for _, event in safety.store.entries) == 2
+
+    asyncio.run(run())
+
+
+def test_normalization_version_partitions_cached_audio(monkeypatch):
+    from roma.domain.audio import speech_normalization
+    from roma.services import tts_service
+
+    assert tts_service.NORMALIZATION_VERSION == speech_normalization.NORMALIZATION_VERSION
+    assert tts_service.NORMALIZATION_VERSION == "roma-tts-normalization-v2"
+
+    async def run():
+        provider = PCMProvider()
+        synth = service(provider)
+        first = await synth.synthesize(TTSRequest("slot 23", language="en"), CTX)
+        hit = await synth.synthesize(TTSRequest("slot 23", language="en"), CTX)
+        monkeypatch.setattr(tts_service, "NORMALIZATION_VERSION", "synthetic-next-version")
+        changed = await synth.synthesize(TTSRequest("slot 23", language="en"), CTX)
+        assert first.cache_status == changed.cache_status == "miss" and hit.cache_hit
+        assert len(provider.calls) == 2
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("language,day,month,year", [
+    ("en", "five", "November", "twenty twenty six"),
+    ("hi", "पाँच", "नवंबर", "बीस छब्बीस"),
+    ("gu", "પાંચ", "નવેમ્બર", "વીસ છવ્વીસ"),
+])
+def test_calendar_year_speech_survives_actual_final_safety(language, day, month, year):
+    async def run():
+        provider, safety = PCMProvider(), SafetyService()
+        result = await service(provider, safety).synthesize(
+            TTSRequest("2026-11-05 10:30 AM", language=language), CTX
+        )
+        assert day in result.text and month in result.text and year in result.text
+        assert result.pronunciation_version is None
+        assert result.spoken_language == language and result.audit_ok
+        assert provider.calls[0].text == result.text
+        assert not safety.store.entries
 
     asyncio.run(run())

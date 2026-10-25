@@ -648,3 +648,10 @@ The 2026-10-25 acceptance follow-up retained INR6 of the INR50 aggregate ceiling
 Run `uv run --no-sync python scripts/adaptive_audio_lab.py` for the fixed-seed synthetic report; no services, models, microphone, paid API or database are needed. Compare the [saved evidence](../benchmarks/voice/phase5a-adaptive-replay.json). Private replay payloads require consent/access/retention approval. The optional Redis journal accepts unique `voice-lab-` UUID identities and strict metadata/controls, expires without renewal and fails explicitly at capacity; test with disposable Redis. It is not enabled in production or the microphone CLI and does not replay booking effects.
 
 Local input opens once after preflight/readiness and before the first `CAPTURE_STARTED`, stays software-muted during synthesis/playback, and closes at cleanup. `DEVICE-CAPTURE-STALLED` means callbacks stopped during active capture. Use an explicitly supervised diagnostic to inspect device health; never silently restart or concatenate incomplete audio. Native callback/interruption acceptance remains pending.
+
+
+## Phase 5B local TTS lifecycle
+
+The local prototype warms the active Hindi/female TTS voice before opening capture and registers provider cleanup before readiness. A retained worker is bounded and is killed/drained/reaped on timeout, failure, cancellation and shutdown. Do not create a worker per sentence after warmup. Local mode defaults to audited sentence streaming; `--buffered-speech` restores whole-response delivery for a diagnostic, independently of the forthcoming duplex capture mode. Mock default remains offline and buffered unless `--streaming` is supplied.
+
+[Native synthetic timing](../benchmarks/tts/phase5b-native-20261025.json) and private A/B WAVs under `var/roma/phase5b-tts-20261025` contain no participant recording. Generate future comparisons as new evidence runs; do not infer a listener rating. The latest full-duplex request supersedes the previous microphone half-duplex default once that separate increment is implemented and verified.

@@ -17,6 +17,13 @@ import threading
 from collections.abc import Mapping
 from pathlib import Path
 
+from roma.core.turn_epoch import require_current_epoch
+from roma.providers.ai._indic_tts_protocol import (
+    MAX_FRAME_BYTES,
+    RESIDENT_PROFILE,
+    decode_frame,
+    encode_frame,
+)
 from roma.providers.ai.contracts import AudioFormat, ProviderUnavailable, TTSRequest, TTSResult
 from roma.providers.reliability import FailureKind, ProviderFailure, remaining_timeout
 
@@ -56,6 +63,10 @@ def validate_request(request: TTSRequest, max_bytes: int = 4096) -> None:
         type(request.voice) is not str or request.voice not in {"female", "male"}
     ):
         raise ValueError("TTS requires an explicitly supported female/male voice")
+    if request.turn_epoch is not None and (
+        type(request.turn_epoch) is not int or request.turn_epoch < 0
+    ):
+        raise ValueError("TTS epoch must be a nonnegative integer")
     fmt = request.format
     if (
         not isinstance(fmt, AudioFormat)
@@ -106,6 +117,13 @@ class IndicTTSProvider:
         self._verified: dict[str, tuple[str, dict, tuple]] = {}
         self._manifest_lock = threading.Lock()
         self._manifest_slot = threading.BoundedSemaphore(1)
+        self._resident_enabled = False
+        self._resident_lock = asyncio.Lock()
+        self._resident_admission = threading.BoundedSemaphore(2)
+        self._resident_process = None
+        self._resident_identity = None
+        self._request_id = 0
+        self._runtime_verified: tuple[tuple, str] | None = None
 
     def _manifest(self, request: TTSRequest) -> tuple[str, dict]:
         # Concurrent cache lookups must not hash the same large checkpoint repeatedly.
@@ -165,7 +183,14 @@ class IndicTTSProvider:
                     runtime_stat.st_mtime_ns,
                 )
             )
-            identity = hashlib.sha256(raw + str(interpreter.resolve()).encode()).hexdigest()
+            runtime_snapshot = snapshot[-1]
+            if self._runtime_verified is None or self._runtime_verified[0] != runtime_snapshot:
+                with interpreter.open("rb") as source:
+                    runtime_digest = hashlib.file_digest(source, "sha256").hexdigest()
+                self._runtime_verified = (runtime_snapshot, runtime_digest)
+            identity = hashlib.sha256(
+                raw + str(interpreter.resolve()).encode() + self._runtime_verified[1].encode()
+            ).hexdigest()
             key = language_code(request.language)
             previous = self._verified.get(key)
             if previous is None or previous[0] != identity or previous[2] != tuple(snapshot):
@@ -196,6 +221,7 @@ class IndicTTSProvider:
             raise ProviderUnavailable("TTS manifest worker is busy")
         loop = asyncio.get_running_loop()
         future = loop.create_future()
+
         def deliver(result, error):
             if future.done():
                 return
@@ -203,6 +229,7 @@ class IndicTTSProvider:
                 future.set_exception(error)
             else:
                 future.set_result(result)
+
         def work():
             result = error = None
             try:
@@ -215,6 +242,7 @@ class IndicTTSProvider:
                 loop.call_soon_threadsafe(deliver, result, error)
             except RuntimeError:
                 pass  # The caller loop may close while native hashing finishes.
+
         try:
             threading.Thread(target=work, name="roma-tts-manifest", daemon=True).start()
         except RuntimeError:
@@ -228,9 +256,203 @@ class IndicTTSProvider:
 
     async def cache_identity(self, request: TTSRequest) -> str:
         identity, _ = await self._manifest_async(request)
-        return "indic-tts:" + identity
+        profile = ":" + RESIDENT_PROFILE if self._resident_enabled else ""
+        return "indic-tts:" + identity + profile
+
+    async def warmup(self, request: TTSRequest | None = None) -> None:
+        """Retain one cache-only model and discard a bounded safe warmup inference."""
+        request = request or TTSRequest("नमस्ते", voice=self.voice)
+        validate_request(request, self.max_text_bytes)
+        self._resident_enabled = True
+        await self._resident_operation(request, synthesize=True)
+
+    @staticmethod
+    async def _kill_and_reap(process):
+
+        # Keep ownership until wait() completes, even after repeated cancellation.
+        async def reap():
+            if process.returncode is None:
+                try:
+                    process.kill()
+                except ProcessLookupError:
+                    pass
+            # Drain in fixed chunks after kill: unread PIPE backpressure can keep
+            # asyncio's subprocess transport from completing wait(). Never retain logs.
+            stdout = getattr(process, "stdout", None)
+            if stdout is not None:
+                while await stdout.read(MAX_FRAME_BYTES):
+                    pass
+            await process.wait()
+
+        cleanup = asyncio.create_task(reap())
+        cancelled = False
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError:
+                cancelled = True
+        cleanup.result()
+        if cancelled:
+            raise asyncio.CancelledError
+
+    async def _stop_resident(self):
+        if self._resident_process is None:
+            return
+        try:
+            await self._kill_and_reap(self._resident_process)
+        finally:
+            self._resident_process = None
+            self._resident_identity = None
+
+    async def aclose(self) -> None:
+        """Release the retained runtime; an active request finishes within its bound."""
+        async with self._resident_lock:
+            await self._stop_resident()
+
+    async def _exchange(self, payload, expected):
+        self._request_id += 1
+        request_id = self._request_id
+        frame = encode_frame({**payload, "id": request_id})
+        process = self._resident_process
+        process.stdin.write(frame)
+        await process.stdin.drain()
+        reply = decode_frame(await process.stdout.readline())
+        if reply != {"id": request_id, "status": expected, "turn_epoch": payload["turn_epoch"]}:
+            raise ValueError("Invalid Indic-TTS reply")
+
+    async def _start_resident(self):
+        env = {
+            **os.environ,
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "HF_DATASETS_OFFLINE": "1",
+            "OMP_NUM_THREADS": "2",
+            "NUMBA_NUM_THREADS": "2",
+        }
+        self._resident_process = await self._launch_process(
+            self.python_path,
+            str(Path(__file__).with_name("_indic_tts_worker.py")),
+            "--resident",
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL,
+            env=env,
+            limit=MAX_FRAME_BYTES,
+        )
+
+    async def _launch_process(self, *args, **kwargs):
+        launch = asyncio.create_task(asyncio.create_subprocess_exec(*args, **kwargs))
+        try:
+            return await asyncio.shield(launch)
+        except asyncio.CancelledError:
+            # Creation can finish after caller cancellation; keep native ownership.
+            while not launch.done():
+                try:
+                    await asyncio.shield(launch)
+                except asyncio.CancelledError:
+                    continue
+            await self._kill_and_reap(launch.result())
+            raise
+
+    @staticmethod
+    def _read_pcm(output, request, max_audio_secs):
+        maximum = int(request.format.sample_rate_hz * max_audio_secs) * 2
+        if output.is_symlink() or not output.is_file():
+            raise ProviderUnavailable("Indic-TTS produced invalid PCM output")
+        if not 0 < output.stat().st_size <= maximum:
+            raise ProviderUnavailable("Indic-TTS produced empty or oversized PCM")
+        with output.open("rb") as source:
+            audio = source.read(maximum + 1)
+        if len(audio) % 2 or not 0 < len(audio) <= maximum:
+            raise ProviderUnavailable("Indic-TTS produced incomplete PCM16")
+        return TTSResult(
+            audio,
+            request.format,
+            round(len(audio) / 2 / request.format.sample_rate_hz * 1000),
+            turn_epoch=request.turn_epoch,
+        )
+
+    async def _resident_operation(self, request, *, synthesize):
+        validate_request(request, self.max_text_bytes)
+        if not self._resident_admission.acquire(blocking=False):
+            raise ProviderUnavailable("Indic-TTS resident worker is busy")
+        try:
+            async with asyncio.timeout(remaining_timeout(self.timeout_secs)):
+                async with self._resident_lock:
+                    require_current_epoch()
+                    try:
+                        identity, payload = await self._manifest_async(request)
+                        route = (
+                            identity,
+                            language_code(request.language),
+                            request.voice or self.voice,
+                            RESIDENT_PROFILE,
+                        )
+                        if self._resident_identity != route or (
+                            self._resident_process is not None
+                            and self._resident_process.returncode is not None
+                        ):
+                            await self._stop_resident()
+                        if self._resident_process is None:
+                            await self._start_resident()
+                            await self._exchange(
+                                {
+                                    **payload,
+                                    "op": "load",
+                                    "voice": route[2],
+                                    "profile": RESIDENT_PROFILE,
+                                    "turn_epoch": None,
+                                },
+                                "ready",
+                            )
+                            self._resident_identity = route
+                        if not synthesize:
+                            return None
+                        with tempfile.TemporaryDirectory(prefix="roma-tts-") as directory:
+                            output = Path(directory) / "speech.pcm"
+                            await self._exchange(
+                                {
+                                    "op": "synthesize",
+                                    "text": request.text,
+                                    "sample_rate": request.format.sample_rate_hz,
+                                    "max_audio_secs": self.max_audio_secs,
+                                    "output": str(output),
+                                    "turn_epoch": request.turn_epoch,
+                                },
+                                "ok",
+                            )
+                            require_current_epoch()
+                            return self._read_pcm(output, request, self.max_audio_secs)
+                    except BaseException:
+                        await self._stop_resident()
+                        raise
+        except TimeoutError:
+            raise ProviderFailure(FailureKind.TIMEOUT) from None
+        except (OSError, ValueError, EOFError):
+            raise ProviderUnavailable("Indic-TTS resident worker failed") from None
+        finally:
+            self._resident_admission.release()
 
     async def synthesize(self, request: TTSRequest) -> TTSResult:
+        if self._resident_enabled:
+            return await self._resident_operation(request, synthesize=True)
+        validate_request(request, self.max_text_bytes)
+        if not self._resident_admission.acquire(blocking=False):
+            raise ProviderUnavailable("Indic-TTS worker is busy")
+        try:
+            async with asyncio.timeout(remaining_timeout(self.timeout_secs)):
+                async with self._resident_lock:
+                    # warmup may have activated resident mode during admission.
+                    if not self._resident_enabled:
+                        require_current_epoch()
+                        return await self._synthesize_once(request)
+        except TimeoutError:
+            raise ProviderFailure(FailureKind.TIMEOUT) from None
+        finally:
+            self._resident_admission.release()
+        return await self._resident_operation(request, synthesize=True)
+
+    async def _synthesize_once(self, request: TTSRequest) -> TTSResult:
         if remaining_timeout(self.timeout_secs) <= 0:
             raise ProviderFailure(FailureKind.TIMEOUT)
         _, payload = await self._manifest_async(request)
@@ -255,7 +477,7 @@ class IndicTTSProvider:
             payload["output"] = str(output)
             if remaining_timeout(self.timeout_secs) <= 0:
                 raise ProviderFailure(FailureKind.TIMEOUT)
-            process = await asyncio.create_subprocess_exec(
+            process = await self._launch_process(
                 self.python_path,
                 str(worker),
                 stdin=asyncio.subprocess.PIPE,
@@ -271,18 +493,7 @@ class IndicTTSProvider:
                         "Indic-TTS worker failed: verify pinned runtime/checkpoint compatibility "
                         "and native language dependencies in the isolated environment"
                     )
-                maximum = int(request.format.sample_rate_hz * self.max_audio_secs) * 2
-                if not 0 < output.stat().st_size <= maximum:
-                    raise ProviderUnavailable("Indic-TTS produced empty or oversized PCM")
-                audio = output.read_bytes()
-                if len(audio) % 2:
-                    raise ProviderUnavailable("Indic-TTS produced incomplete PCM16")
-                return TTSResult(
-                    audio,
-                    request.format,
-                    round(len(audio) / 2 / request.format.sample_rate_hz * 1000),
-                )
+                require_current_epoch()
+                return self._read_pcm(output, request, self.max_audio_secs)
             finally:
-                if process.returncode is None:
-                    process.kill()
-                    await process.wait()
+                await self._kill_and_reap(process)

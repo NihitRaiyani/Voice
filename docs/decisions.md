@@ -249,3 +249,10 @@ The owner resumed supervised microphone/paid Claude acceptance on 2026-10-24–2
 ## 2026-10-25 Phase 5A authorized audio scope
 
 Adopt persistent local capture with software half-duplex gating, call-owned epochs, bounded metadata-only lab Streams and deterministic adaptive jitter/PLC replay. Preserve fixed production jitter, providers/models, safety and SQL booking authority. Replay payloads need separate authorization; metadata is not a recording. Implement advanced code under explicit owner direction, retain unfinished gates, and commit once per phase without pushing. Phase 5B must retain loaded models rather than repeat a disposable warmup. Measured first-turn work cannot honestly be asserted to cost zero milliseconds. Model-card claims and proposed legal/account settings are not local accuracy, RAM, retention or sign-off evidence.
+
+
+## 2026-10-25 retained TTS and full-duplex direction
+
+Retain one explicitly warmed local TTS process rather than discard initialization on every cache miss. Bound IPC/admission and terminate/reap on timeout, cancellation or identity change. Keep safety before/after natural speech rendering and separate cache identity for the resident edge profile. Existing audited queues synthesize sentence N+1 while N plays; local mode selects that path by default, with `--buffered-speech` as an explicit diagnostic override. Comma chunks require at least eight words; sentence punctuation remains bounded. Native timing does not substitute for listening scores.
+
+The owner now explicitly requests full duplex. Earlier local half-duplex decisions are superseded as the implementation target. Capture must continue during playback, with playback-reference echo cancellation, independent near-end speech detection and epoch-safe cancellation. No callback, AEC or hardware acceptance is invented from code presence or synthetic tests. Implement this as the next scoped increment after the Phase 5B commit.

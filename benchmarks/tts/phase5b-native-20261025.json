@@ -1,0 +1,53 @@
+{
+  "schema": "phase5b-native-tts-v1",
+  "synthetic_only": true,
+  "microphone_used": false,
+  "audio_playback": false,
+  "paid_calls": 0,
+  "downloads": false,
+  "models_changed": false,
+  "native_quality_passed": false,
+  "naturalness_score": null,
+  "renders": [
+    {
+      "label": "A-clean-cold",
+      "file": "A-clean-cold.wav",
+      "text": "आपका नाम क्या है?",
+      "elapsed_ms": 12152.089,
+      "duration_ms": 1603,
+      "pcm_sha256": "2a5880e099be1536181177721e0bba29a7f9d7a0a38399bb1812399e68c452a3"
+    },
+    {
+      "label": "B-clean-warm",
+      "file": "B-clean-warm.wav",
+      "text": "आपका नाम क्या है?",
+      "elapsed_ms": 219.645,
+      "duration_ms": 1603,
+      "pcm_sha256": "67c89ee75ef50619fd5e957624bb02e95660fde0a55c1390df01e543abcfdc18"
+    },
+    {
+      "label": "A-time-previous-normalization",
+      "file": "A-time-previous-normalization.wav",
+      "text": "क्या एक शून्य:तीन शून्य का समय आपके लिए ठीक रहेगा?",
+      "elapsed_ms": 8354.264,
+      "duration_ms": 3948,
+      "pcm_sha256": "11d4569fbb9caa63a1bd9c00a7e7f7ebe87ea490551c8f224db36df109a10be7"
+    },
+    {
+      "label": "B-time-natural-normalization",
+      "file": "B-time-natural-normalization.wav",
+      "text": "क्या सुबह साढ़े दस बजे का समय आपके लिए ठीक रहेगा?",
+      "elapsed_ms": 700.398,
+      "duration_ms": 3832,
+      "pcm_sha256": "4cb5cea39eb5a147eb0b91e7a60fa3b34c11a087e3267f6cff8294d7ddb8f339"
+    }
+  ],
+  "cold_first_ms": 12152.089082999737,
+  "warmup_ms": 8455.276,
+  "warm_first_ms": 219.6445829995355,
+  "same_worker_after_warmup": true,
+  "same_worker_after_next_sentence": true,
+  "model_identity_cold": "indic-tts:f8caca605cef8dcfc90b833e276c2fd417ac57fff485b6001f2799c98d3397d9",
+  "model_identity_resident": "indic-tts:f8caca605cef8dcfc90b833e276c2fd417ac57fff485b6001f2799c98d3397d9:resident-kaiser-cosine15ms-v1",
+  "limits": "One cold and one warm first chunk plus one synthetic time pair; startup shifted before caller. Timings are synthesis wall time, not acoustic TTFA/p95. Different source text and edge profile in time pair; native naturalness and representative quality need listeners."
+}

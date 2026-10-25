@@ -10,11 +10,8 @@ import asyncio
 import hashlib
 import json
 import math
-import re
-import unicodedata
 from collections import OrderedDict
 from dataclasses import dataclass, replace
-from datetime import date
 from time import perf_counter
 from typing import Literal
 
@@ -22,84 +19,12 @@ from roma.core.turn_epoch import current_turn_epoch, require_current_epoch
 from roma.domain.audio.g711 import encode
 from roma.domain.audio.pcm import PCMFramer, validate_pcm16
 from roma.domain.audio.resampling import PCMResampler
+from roma.domain.audio.speech_normalization import NORMALIZATION_VERSION, normalize_tts_text
 from roma.domain.safety.audit import SafetyContext
 from roma.domain.safety.pronunciation import pronunciation_for
 from roma.providers.ai.contracts import TTSProvider, TTSRequest, TTSResult
 from roma.providers.ai.indic_tts import language_code, validate_request
 from roma.services.safety_service import SafetyService
-
-NORMALIZATION_VERSION = "roma-tts-normalization-v1"
-_DIGITS = {
-    "en": "zero one two three four five six seven eight nine".split(),
-    "hi": "शून्य एक दो तीन चार पाँच छह सात आठ नौ".split(),
-    "gu": "શૂન્ય એક બે ત્રણ ચાર પાંચ છ સાત આઠ નવ".split(),
-}
-_MONTHS = {
-    "en": "January February March April May June July August September October November December".split(),
-    "hi": "जनवरी फरवरी मार्च अप्रैल मई जून जुलाई अगस्त सितंबर अक्टूबर नवंबर दिसंबर".split(),
-    "gu": "જાન્યુઆરી ફેબ્રુઆરી માર્ચ એપ્રિલ મે જૂન જુલાઈ ઓગસ્ટ સપ્ટેમ્બર ઓક્ટોબર નવેમ્બર ડિસેમ્બર".split(),
-}
-_TERMS = {
-    "en": {"SEO": "S E O", "SEM": "S E M", "PPC": "P P C", "CRM": "C R M"},
-    "hi": {
-        "SEO": "एस ई ओ",
-        "SEM": "एस ई एम",
-        "PPC": "पी पी सी",
-        "CRM": "सी आर एम",
-        "Digital Marketing": "डिजिटल मार्केटिंग",
-        "Google Ads": "गूगल ऐड्स",
-    },
-    "gu": {
-        "SEO": "એસ ઈ ઓ",
-        "SEM": "એસ ઈ એમ",
-        "PPC": "પી પી સી",
-        "CRM": "સી આર એમ",
-        "Digital Marketing": "ડિજિટલ માર્કેટિંગ",
-        "Google Ads": "ગૂગલ એડ્સ",
-    },
-}
-
-
-def normalize_tts_text(text: str, language: str) -> str:
-    """NFC/whitespace, reviewed course terms, valid ISO/Indian dates and digit names.
-
-    Numbers deliberately use individual digit names, including years; no inferred
-    currency, unit, transliteration, language translation or ambiguous date guessing.
-    Native fluency and cardinal-number pronunciation require separate review.
-    """
-    lang = language_code(language)
-    text = unicodedata.normalize("NFC", text)
-    # A tokenizer can silently discard format controls and rejoin an obfuscated
-    # claim after digits have been spelled out. Reject those inputs before audio.
-    if any(
-        unicodedata.category(c) == "Cf" or (unicodedata.category(c) == "Cc" and not c.isspace())
-        for c in text
-    ):
-        raise ValueError("Control characters are not accepted for speech")
-
-    def digits(value: str) -> str:
-        return " ".join(_DIGITS[lang][unicodedata.decimal(c)] for c in value)
-
-    def render_date(match: re.Match) -> str:
-        raw = match.group()
-        if "-" in raw:
-            year, month, day = (int(part) for part in raw.split("-"))
-        else:
-            day, month, year = (int(part) for part in raw.split("/"))
-        date(year, month, day)  # Invalid dates must never become a different spoken date.
-        return f"{digits(str(day))} {_MONTHS[lang][month - 1]} {digits(str(year))}"
-
-    text = re.sub(
-        r"(?<!\d)(?:[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{2}/[0-9]{2}/[0-9]{4})(?!\d)",
-        render_date,
-        text,
-    )
-    for original, spoken in _TERMS[lang].items():
-        text = re.sub(
-            r"(?<!\w)" + re.escape(original) + r"(?!\w)", spoken, text, flags=re.IGNORECASE
-        )
-    text = re.sub(r"\d+", lambda match: digits(match.group()), text)
-    return " ".join(text.split())
 
 
 def build_mulaw_frames(audio, sample_rate):

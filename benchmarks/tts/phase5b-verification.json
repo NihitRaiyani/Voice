@@ -1,0 +1,29 @@
+{
+  "schema": "phase5b-verification-v1",
+  "offline_suite_exit_codes": {
+    "ci": {
+      "exit_code": 0,
+      "seconds": 140.16
+    },
+    "test": {
+      "exit_code": 0,
+      "seconds": 148.78
+    }
+  },
+  "tests_collected": 3572,
+  "catalog_modules": 203,
+  "mypy_source_files": 127,
+  "native_profile": "benchmarks/tts/phase5b-native-20261025.json",
+  "native_profile_limit": "Individual synthetic wall times; no acoustic TTFA/p95 or naturalness score. Later changes were typing declarations/import comments and calendar-year rendering not exercised by the native time/clean pairs.",
+  "red_then_green": [
+    "test_readiness_retains_the_active_voice_instead_of_another_throwaway_synthesis",
+    "test_short_comma_waits_for_a_sentence_and_long_clause_can_stream",
+    "test_local_profile_streams_by_default_but_mock_and_buffered_override_do_not"
+  ],
+  "additional_regressions": "Resident protocol/admission/epoch/reaping tests, midpoint and midnight rendering, calendar years through real SafetyService; strict money policy retained.",
+  "paid_calls": 0,
+  "microphone_used": false,
+  "weights_changed": false,
+  "working_database_changed": false,
+  "native_gate_passed": false
+}

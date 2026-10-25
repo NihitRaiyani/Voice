@@ -335,7 +335,12 @@ async def ready_local_models(stt, tts, scorer):
             await stt.transcribe(STTRequest(b"\0\0" * 16000, AudioFormat(16000), language))
     safe = await SafetyService().check("नमस्ते।", SafetyContext("voice-lab-preflight", 1, "open"))
     with voice_boundary(VoiceErrorCode.TTS):
-        await tts.synthesize(TTSRequest(safe.text, language="hi"))
+        request = TTSRequest(safe.text, language="hi")
+        warmup = getattr(tts, "warmup", None)
+        if warmup is not None:
+            await warmup(request)
+        else:
+            await tts.synthesize(request)
     scorer.probability(b"\0\0" * 512)
     scorer.reset()
 
@@ -425,6 +430,8 @@ async def _local_run(args):
             stt = build_stt_provider(cfg)
         with voice_boundary(VoiceErrorCode.TTS):
             tts = build_tts_provider(tts_cfg)
+        if getattr(tts, "aclose", None) is not None:
+            cleanup.push_async_callback(tts.aclose)
         stt = LocalLanguageSTT(stt)
         # Read/verify provisioned TTS artifacts before opening the microphone.
         with voice_boundary(VoiceErrorCode.TTS):
@@ -485,12 +492,12 @@ async def _local_run(args):
         )
         speech = SpeechInputService(stt, scorer, state, policy=cfg.turn_policy())
         cpu_worker = None
-        if args.streaming:
+        if sentence_streaming(args):
             cpu_worker = CpuWorker()
             cleanup.push_async_callback(cpu_worker.aclose)
             await cpu_worker.run(int, 0)
         voice = VoicePrototype(state, conversation, synthesis, device, store, budget=budget,
-                               streaming=StreamConfig() if args.streaming else None, cpu_worker=cpu_worker)
+                               streaming=StreamConfig() if sentence_streaming(args) else None, cpu_worker=cpu_worker)
         voice.release_on_disconnect = booking.aclose
         voice.attempt = previous_attempts
         # The persisted SQL start includes downtime and resumed model readiness.
@@ -502,7 +509,7 @@ async def _local_run(args):
         cleanup.push_async_callback(device.aclose)
         await device.start()
         voice._started = deadline.started_tick
-        if args.streaming:
+        if sentence_streaming(args):
             await voice.prime_filler()
         print(
             "Headphones required. Local ASR/TTS; "
@@ -534,9 +541,16 @@ async def _local_run(args):
         await cleanup.aclose()
 
 
+def sentence_streaming(args):
+    """Sentence delivery can stream while microphone input stays half duplex."""
+    return bool(args.streaming or (args.mode == "local" and not args.buffered_speech))
+
+
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--streaming", action="store_true", help="Opt-in audited sentence streaming; microphone remains half duplex")
+    speech_mode = p.add_mutually_exclusive_group()
+    speech_mode.add_argument("--streaming", action="store_true", help="Audited sentence streaming; default in local mode")
+    speech_mode.add_argument("--buffered-speech", action="store_true", help="Wait for the complete reply; microphone remains half duplex")
     p.add_argument("--mode", choices=("mock", "local"), default="mock")
     p.add_argument("--llm-provider", choices=("claude", "mock"), default="claude")
     p.add_argument("--allow-microphone", action="store_true")

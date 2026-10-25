@@ -57,6 +57,8 @@ class PunctuationChunker:
                 if index == len(self._tail) - 1 or self._tail[index + 1].isdecimal():
                     continue
             line = self._tail[start:index + 1].strip()
+            if char == "," and len(line[:-1].split()) < 8:
+                continue
             if len(line) > self.max_chars:
                 raise ValueError("Streaming clause exceeds limit")
             if line:

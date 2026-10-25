@@ -72,9 +72,9 @@ def test_bad_watermarks_are_rejected(high, low):
 
 def test_punctuation_chunker_streams_clauses_preserves_numerals_and_bounds_tail():
     chunker = PunctuationChunker(max_chars=64)
-    assert chunker.feed("नमस्ते,") == ("नमस्ते,",)
+    assert chunker.feed("नमस्ते,") == ()  # Short comma clauses wait for sentence context.
     assert chunker.feed(" fee 1,") == ()
-    assert chunker.feed("000.50? Next") == ("fee 1,000.50?",)
+    assert chunker.feed("000.50? Next") == ("नमस्ते, fee 1,000.50?",)
     assert chunker.finish() == ("Next",)
     with pytest.raises(ValueError):
         PunctuationChunker(max_chars=8).feed("x" * 9)
