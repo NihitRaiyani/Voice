@@ -13,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from roma.eval.asr_benchmark import summaries
+from roma.providers.ai.whisper_vocabulary import ROUTER_VERSION, prompt_details, sample_length
 from roma.repositories.postgres.benchmarks import (
     AggregateMetric,
     BenchmarkEvidence,
@@ -165,14 +166,26 @@ def _asr(
         )
         _checksum(details["artifact_manifest_sha256"])
     elif provider in {"whisper_turbo_local", "whisper_turbo_batch_local"}:
+        vocabulary = details.get("router_version") == ROUTER_VERSION
+        expected_prompt = prompt_details(vocabulary)
+        supplied_prompt = details.get("prompt_policy")
+        if (
+            (vocabulary or supplied_prompt is not None)
+            and (
+                not isinstance(supplied_prompt, dict)
+                or supplied_prompt != expected_prompt
+                or any(type(supplied_prompt[k]) is not type(v) for k, v in expected_prompt.items())
+            )
+        ):
+            raise ValueError("Invalid local Turbo vocabulary provenance")
         if (
             report.get("network_calls") is not False
             or details.get("network_calls") is not False
             or details.get("model_name") != "mlx-community/whisper-large-v3-turbo-4bit"
             or details.get("model_revision") != "0f058d38170d183f9fdee07908f5b515d91793a8"
             or details.get("device") != "metal" or details.get("compute_type") != "int4"
-            or details.get("router_version") not in ({"whisper-turbo-single-pass-v1"} if provider == "whisper_turbo_local" else {"whisper-turbo-batched-v2", "whisper-turbo-structural-v3"})
-            or details.get("temperature") != 0 or details.get("sample_len") != 440
+            or details.get("router_version") not in ({"whisper-turbo-single-pass-v1"} if provider == "whisper_turbo_local" else {"whisper-turbo-batched-v2", "whisper-turbo-structural-v3", ROUTER_VERSION})
+            or details.get("temperature") != 0 or details.get("sample_len") != sample_length(vocabulary)
             or details.get("condition_on_previous_text") is not False
             or details.get("without_timestamps") is not True
         ):
@@ -180,7 +193,7 @@ def _asr(
         if provider == "whisper_turbo_batch_local" and details.get("mixed_batch") != {
             "max_chunks": 2, "silence_ms": 384, "min_gap_ms": 256, "min_chunk_ms": 1000,
             "english_probability": 0.8, "preserve_all_pcm": True, "compact_completed_rows": True,
-            **({"eligibility": "audio-gap", "min_turn_ms": 2000} if details.get("router_version") == "whisper-turbo-structural-v3" else {}),
+            **({"eligibility": "audio-gap", "min_turn_ms": 2000} if details.get("router_version") in {"whisper-turbo-structural-v3", ROUTER_VERSION} else {}),
         }:
             raise ValueError("Invalid mixed batch provenance")
         local_model = ModelEvidence(
@@ -421,6 +434,8 @@ def _asr(
     )
     if provider == "whisper_turbo_batch_local":
         safe_details["mixed_batch"] = details["mixed_batch"]
+        if "prompt_policy" in details:
+            safe_details["prompt_policy"] = details["prompt_policy"]
     config = {
         "provider": provider,
         "provider_details": safe_details,

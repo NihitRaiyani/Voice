@@ -587,8 +587,9 @@ def test_local_indic_cli_runs_all_cases_offline_and_marks_english_unsupported(
     capsys.readouterr()
 
 
+@pytest.mark.parametrize("vocabulary", [False, True])
 def test_turbo_local_cli_uses_one_pinned_model_and_preserves_mixed_hint(
-    public_cache, tmp_path, monkeypatch, capsys
+    public_cache, tmp_path, monkeypatch, capsys, vocabulary
 ):
     import importlib.util
 
@@ -601,7 +602,8 @@ def test_turbo_local_cli_uses_one_pinned_model_and_preserves_mixed_hint(
     monkeypatch.setattr(
         module,
         "local_mlx_details",
-        lambda config: {"model_revision": "a" * 40, "network_calls": False, "router_version": "whisper-turbo-batched-v2"},
+        lambda config, **kw: {"model_revision": "a" * 40, "network_calls": False,
+                              "router_version": "whisper-turbo-vocabulary-v1" if kw else "whisper-turbo-batched-v2"},
     )
     monkeypatch.setattr(
         module,
@@ -646,6 +648,8 @@ def test_turbo_local_cli_uses_one_pinned_model_and_preserves_mixed_hint(
         "run", "--provider", "whisper_turbo_batch_local", "--manifest", str(manifest_path),
         "--audio-dir", str(public_cache), "--report", str(report_path),
     ]
+    if vocabulary:
+        args.append("--booking-vocabulary")
     with pytest.raises(ValueError, match="local-model-dir"):
         asyncio.run(module.run(module.parser().parse_args(args)))
     args += ["--local-model-dir", str(tmp_path)]
@@ -657,9 +661,27 @@ def test_turbo_local_cli_uses_one_pinned_model_and_preserves_mixed_hint(
     assert {request.language_hint for request in provider.requests} == {
         "gu", "hi", "en", "gu-en", "hi-en"
     }
-    assert report["provider_details"]["router_version"] == "whisper-turbo-batched-v2"
+    assert report["provider_details"]["router_version"] == (
+        "whisper-turbo-vocabulary-v1" if vocabulary else "whisper-turbo-batched-v2"
+    )
     assert [kind for kind, _ in constructed] == ["whisper"]
+    assert constructed[0][1].get("booking_vocabulary", False) is vocabulary
     capsys.readouterr()
+
+
+def test_vocabulary_cli_rejects_other_providers_before_reading_inputs(tmp_path):
+    import importlib.util
+
+    script = Path(__file__).resolve().parents[2] / "scripts/asr_benchmark.py"
+    spec = importlib.util.spec_from_file_location("vocabulary_benchmark_cli", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    args = module.parser().parse_args([
+        "run", "--booking-vocabulary", "--provider", "whisper_local",
+        "--manifest", str(tmp_path / "missing.json"), "--report", str(tmp_path / "out.json"),
+    ])
+    with pytest.raises(ValueError, match=r"vocabulary.*Turbo"):
+        asyncio.run(module.run(args))
 
 
 def test_local_comparison_pairs_audio_and_keeps_cold_and_unsupported_separate(

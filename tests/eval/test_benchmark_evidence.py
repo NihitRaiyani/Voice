@@ -474,3 +474,54 @@ def test_current_batch_report_keeps_distinct_config_and_rejects_changed_chunk_bo
     report["provider_details"]["mixed_batch"]["max_chunks"] = 3
     with pytest.raises(ValueError, match="provenance"):
         convert(report)
+
+
+def vocabulary_report():
+    from roma.providers.ai.whisper_vocabulary import ROUTER_VERSION, prompt_details
+
+    path = Path(__file__).resolve().parents[2] / "benchmarks/asr/section18/whisper-turbo-structural-v3-20261022-report.json"
+    report, _ = read_report(path)
+    report["provider_details"].update(
+        router_version=ROUTER_VERSION, sample_len=410, prompt_policy=prompt_details(True),
+    )
+    return report
+
+
+def test_vocabulary_provenance_is_explicit_metadata_only():
+    from roma.providers.ai.whisper_vocabulary import PROMPT, prompt_details
+
+    item = convert(vocabulary_report())
+    assert item.config["provider_details"]["prompt_policy"] == prompt_details(True)
+    assert item.config["provider_details"]["sample_len"] == 410
+    run, models, _ = _prepare(item)
+    assert models[0]["version"] == "0f058d38170d183f9fdee07908f5b515d91793a8"
+    assert PROMPT not in json.dumps(run, default=str)
+
+
+@pytest.mark.parametrize("change", [
+    lambda d: d.pop("prompt_policy"),
+    lambda d: d.update(sample_len=440),
+    lambda d: d.update(router_version="whisper-turbo-structural-v3"),
+    lambda d: d["prompt_policy"].update(enabled=False),
+    lambda d: d["prompt_policy"].update(enabled=1),
+    lambda d: d["prompt_policy"].update(tokens=25),
+    lambda d: d["prompt_policy"].update(tokens=24.0),
+    lambda d: d["prompt_policy"].update(utf8_bytes=99),
+    lambda d: d["prompt_policy"].update(sha256="a" * 64),
+    lambda d: d["prompt_policy"].update(version="unknown"),
+    lambda d: d["prompt_policy"].update(sample_len=440),
+    lambda d: d["prompt_policy"].update(prompt="private text"),
+])
+def test_mislabelled_or_changed_vocabulary_provenance_fails(change):
+    report = vocabulary_report()
+    change(report["provider_details"])
+    with pytest.raises(ValueError, match="provenance"):
+        convert(report)
+
+
+def test_historical_structural_report_stays_valid_without_prompt_policy():
+    path = Path(__file__).resolve().parents[2] / "benchmarks/asr/section18/whisper-turbo-structural-v3-20261022-report.json"
+    report, _ = read_report(path)
+    item = convert(report)
+    assert item.config["provider_details"]["sample_len"] == 440
+    assert "prompt_policy" not in item.config["provider_details"]

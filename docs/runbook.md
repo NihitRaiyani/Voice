@@ -469,6 +469,8 @@ uv run --no-sync python scripts/save_benchmark.py \
 
 The local decoder requires `HF_HUB_OFFLINE=1` and verifies the exact [artifact manifest](../benchmarks/asr/whisper-turbo-mlx-artifacts.json) before loading. Its installed three-file directory is 464,280,053 bytes. `mlx-whisper` 0.4.3 expects `weights.safetensors`; the upstream `model.safetensors` was renamed without changing bytes. A new machine must provision that exact revision/layout before use; inference never downloads weights. Linux/Intel hosts retain mocks or explicit base comparison until a separately measured supported runtime is chosen; do not install MLX there.
 
+For a separately authorized vocabulary comparison, add `--booking-vocabulary` to the local Turbo benchmark command and select a fresh report path/run key. This opts into the fixed reviewed Weltec/course/branch nouns and a 410-token output cap; it records `whisper-turbo-vocabulary-v1` and metadata-only prompt provenance. Other benchmark providers reject the flag. The registry's `WHISPER_BOOKING_VOCABULARY` defaults false; enabling it applies the same fixed policy to single and batched local decoding. There is no freeform prompt setting and no caller/booking data is inserted. Historical reports stay unchanged. Offline contract checks do not demonstrate recognition improvement; [Level 4](levels/level-04.md#opt-in-reviewed-vocabulary--2026-10-25) records the unmeasured quality/latency limits.
+
 For an explicitly approved fresh-machine provisioning only (not needed on this already-provisioned Mac):
 
 ```bash

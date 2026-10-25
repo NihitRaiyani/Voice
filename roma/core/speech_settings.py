@@ -39,6 +39,7 @@ class SpeechSettings(BaseSettings):
         )
 
     whisper_batch_no_speech: float = Field(default=0.6, ge=0, le=1, allow_inf_nan=False)
+    whisper_booking_vocabulary: bool = False
     whisper_batch_avg_logprob: float = Field(default=-1.0, le=0, allow_inf_nan=False)
     whisper_batch_compression_ratio: float = Field(default=2.4, gt=0, allow_inf_nan=False)
 

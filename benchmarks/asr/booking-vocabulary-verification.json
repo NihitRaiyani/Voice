@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-26",
+  "default_enabled": false,
+  "focused_offline_tests_passed": 224,
+  "microphone_used": false,
+  "models_changed": false,
+  "native_mlx_tests_deselected": 3,
+  "paid_calls": 0,
+  "prompt_sample_len": 410,
+  "prompt_tokens": 24,
+  "prompt_utf8_bytes": 98,
+  "quality_gate_passed": false,
+  "real_asr_inference": false,
+  "schema": "roma.whisper-vocabulary-verification.v1",
+  "source_sha256": {
+    "roma/providers/ai/mlx_batch.py": "fbacc1b094e5edfe9e18a7163c151d6038b31acb2f0bb10ad2368704dd16d15d",
+    "roma/providers/ai/whisper_mlx.py": "5d585688757d038655bb234d3109faf9802b536331e04627e0300821a69c2ac3",
+    "roma/providers/ai/whisper_vocabulary.py": "1557d57760081829624c6558abf6269c9145eaba1c7c358b70573c165914e6f9"
+  }
+}

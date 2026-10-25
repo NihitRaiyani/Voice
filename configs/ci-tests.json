@@ -103,6 +103,7 @@
     "tests/providers/ai/test_silero.py",
     "tests/providers/ai/test_stt.py",
     "tests/providers/ai/test_whisper_mlx.py",
+    "tests/providers/ai/test_whisper_vocabulary.py",
     "tests/providers/audio/test_capture_buffer.py",
     "tests/providers/audio/test_duplex_device.py",
     "tests/providers/audio/test_echo.py",

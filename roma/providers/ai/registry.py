@@ -46,7 +46,7 @@ def build_stt_provider(settings) -> STTProvider:
                 max_audio_secs=settings.stt_max_audio_secs,
             )
         case "whisper_mlx":
-            return WhisperMLXSTT(rejection=settings.batch_rejection(), policy=settings.turn_policy(), model_id=settings.whisper_mlx_model_dir, timeout_secs=settings.stt_timeout_secs, max_audio_secs=settings.stt_max_audio_secs)
+            return WhisperMLXSTT(rejection=settings.batch_rejection(), policy=settings.turn_policy(), model_id=settings.whisper_mlx_model_dir, timeout_secs=settings.stt_timeout_secs, max_audio_secs=settings.stt_max_audio_secs, booking_vocabulary=settings.whisper_booking_vocabulary)
         case "hf_public_lab":
             return HFHostedSTT(
                 endpoint_url=settings.hf_indic_space_url,

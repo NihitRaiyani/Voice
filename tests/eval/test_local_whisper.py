@@ -68,6 +68,15 @@ def test_mlx_artifacts_are_verified_and_have_distinct_runtime(artifacts, monkeyp
     detail = local_whisper.local_mlx_details(folder)
     assert detail["compute_type"] == "int4" and detail["device"] == "metal"
     assert detail["sample_len"] == 440 and detail["network_calls"] is False
+    assert "prompt_policy" not in detail
+    from roma.providers.ai.whisper_vocabulary import ROUTER_VERSION, prompt_details
+
+    vocabulary = local_whisper.local_mlx_details(folder, booking_vocabulary=True)
+    assert vocabulary["sample_len"] == 410
+    assert vocabulary["router_version"] == ROUTER_VERSION
+    assert vocabulary["prompt_policy"] == prompt_details(True)
+    assert vocabulary["mixed_batch"] == detail["mixed_batch"]
+    assert vocabulary["model_sha256"] == detail["model_sha256"]
     (folder / "weights.safetensors").write_bytes(b"wrong.bin")
     with pytest.raises(ValueError, match="checksum"):
         local_whisper.local_mlx_details(folder)

@@ -120,6 +120,10 @@ def parser() -> argparse.ArgumentParser:
         )
         run.add_argument("--allow-network", action="store_true")
         run.add_argument("--local-model-dir", type=Path)
+        run.add_argument(
+            "--booking-vocabulary", action="store_true",
+            help="Opt into fixed reviewed nouns and 410-token output; local Turbo only",
+        )
         run.add_argument("--manifest", type=Path, required=True)
         run.add_argument("--audio-dir", type=Path, default=ROOT / "var/roma/asr-public")
         run.add_argument("--report", type=Path, required=True)
@@ -221,6 +225,8 @@ async def run(args) -> int:
             )
         )
         return 0
+    if args.booking_vocabulary and args.provider != "whisper_turbo_batch_local":
+        raise ValueError("Booking vocabulary requires the local Turbo benchmark provider")
     local = args.provider in {"whisper_local", "indic_local", "whisper_turbo_batch_local"}
     if not local and not args.allow_network:
         raise ValueError("Hosted benchmark requests require --allow-network")
@@ -266,8 +272,9 @@ async def run(args) -> int:
             timeout_secs=60,
         )
     elif args.provider == "whisper_turbo_batch_local":
-        details = local_mlx_details(args.local_model_dir)
-        provider = LocalLanguageSTT(WhisperMLXSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60))
+        vocabulary_options = {"booking_vocabulary": True} if args.booking_vocabulary else {}
+        details = local_mlx_details(args.local_model_dir, **vocabulary_options)
+        provider = LocalLanguageSTT(WhisperMLXSTT(model_id=str(args.local_model_dir.resolve()), timeout_secs=60, **vocabulary_options))
     elif args.provider == "hf_indic":
         provider = GradioIndicSTT(
             endpoint_url=config.hf_indic_space_url, decoder=config.indic_decoder, **options
