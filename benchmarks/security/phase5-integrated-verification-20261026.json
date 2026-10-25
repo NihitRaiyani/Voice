@@ -1,0 +1,43 @@
+{
+  "catalog_modules": 210,
+  "checks": {
+    "ci": {
+      "exit_code": 0,
+      "passed": 3718,
+      "pytest_seconds": 137.72,
+      "seconds": 144.16,
+      "warnings": 22
+    },
+    "test": {
+      "exit_code": 0,
+      "passed": 3718,
+      "pytest_seconds": 135.66,
+      "seconds": 137.31,
+      "warnings": 22
+    }
+  },
+  "date": "2026-10-26",
+  "disposable_environment_correction": "Initial macOS Unix socket path exceeded 103 bytes; runner retried under a short /private/tmp path.",
+  "full_acceptance_gates_passed": [],
+  "integration_correction": "Public env template now declares WHISPER_BOOKING_VOCABULARY=false; private .env was untouched. Final fresh full suites supersede the earlier config-contract failure.",
+  "microphone_used": false,
+  "migration_head": "20261024_0006",
+  "mypy_source_files": 136,
+  "paid_calls": 0,
+  "private_environment_changed": false,
+  "red_then_green": [
+    "test_env_example_matches_settings_fields"
+  ],
+  "remote_provider_operations": 0,
+  "schema": "roma.phase5-integrated-verification.v1",
+  "source_sha256": {
+    ".env.example": "7c987b67c2f37d0970dbdc1c676eae2359551c71b13a8e07f2271d18a853eab7",
+    "roma/core/erasure_contracts.py": "eec74a5ef7acabe415b1bd2680342f1d87b91fc0c57d5a4bb5b0254e8dcb0e86",
+    "roma/providers/telephony/twilio/erasure.py": "e605e50b364f9a50b39bbc9cd6c84526fc08f584933a1defd07114b030241982",
+    "roma/services/erasure_ledger.py": "97fd583665897c23eef56c7231e1e8d4da35a8fa6ec9912a1071dde2b9e261c0",
+    "roma/services/provider_erasure.py": "17fcc8420480feea4a24580beae336735fa6a4f55b83497a6af1d4065c6797a4",
+    "scripts/provider_erasure.py": "87d5a33f1f33821abfce89e6a28cb3fccef39cb28706e684d99c2b169473cfd4"
+  },
+  "speech_weights_changed": false,
+  "working_database_changed": false
+}

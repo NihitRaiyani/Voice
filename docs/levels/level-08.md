@@ -137,3 +137,7 @@ On 2026-10-25 an independent read-only recheck confirmed head `0006`, the approv
 ### Restore-erasure rehearsal — 2026-10-25
 
 The [synthetic disk restore/disposal drill](../../benchmarks/security/restore-erasure-20261025.json) verified pre-disposal SQL/files/Redis resurrection, separate ledger import, preview/apply re-scrubbing of completed tombstones before traffic, repeated cleanup and queued post-call replay suppression. Working `roma` and supervised voice fixtures were untouched. Unknown exports/providers/replicas, sibling calls and off-host disaster recovery remain outside this proof; runtime retention and disclosure remain unapproved.
+
+### Known-resource provider erasure operator
+
+The separate [preview-first operator](../runbook.md#known-resource-provider-erasure) implements account-bound verification and explicit durable-ledger deletion of known Twilio call, recording and legacy transcription resources. Local disposal retains `external_pending`; no provider operation runs as a deletion/restore side effect. Unknown inventory/archives, Anthropic/Sarvam account-specific retention, backups/exports and whole-person scope still require independent confirmation. This is offline code/tooling evidence, with no real account verification/deletion or privacy gate approval.

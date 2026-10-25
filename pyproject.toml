@@ -67,6 +67,10 @@ markers = [
 python_version = "3.11"
 files = [
     "roma/core/turn_epoch.py",
+    "roma/core/erasure_contracts.py",
+    "roma/services/provider_erasure.py",
+    "roma/services/erasure_ledger.py",
+    "scripts/provider_erasure.py",
     "roma/repositories/redis/replay_journal.py",
     "roma/eval/adaptive_audio.py",
     "roma/core/call_capabilities.py",

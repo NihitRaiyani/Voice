@@ -665,3 +665,52 @@ Install the locked optional native AEC runtime with `uv sync --locked --extra de
 Local mode defaults to full duplex plus audited sentence streaming. Append `--half-duplex` to an otherwise authorized local command for software-muted diagnosis; append `--buffered-speech` for whole-response speech while retaining full-duplex input. Neither option changes the existing microphone, paid-API, database or model-cache opt-ins. This phase authorizes no new microphone/paid run or model download.
 
 Run `uv run --no-sync python scripts/echo_lab.py` for deterministic voiced/noise probes with noise suppression off/on, generated PCM only and no devices, models or services. The report separates echo attenuation, double-talk energy/correlation, near-only preservation and DSP frame timing. It is not a speech intelligibility, physical latency or native listening result. Preserve native speaker/microphone echo-tail, false-interruption and near-end speech checks as pending acceptance.
+
+## Known-resource provider erasure
+
+This is a separately selected operator operation. Local `scripts/privacy.py` preview/apply remains unchanged and retains external-provider pending items. Do not run against real accounts as an automatic test or as a restore-drill side effect. Obtain authorization for the specific account/resources and supported provider action, prepare the known inventory independently and retain unknown archives/products/exports for manual resolution. This command does not enumerate an account or infer that a manifest lists every copy.
+
+Prepare an owner-only JSON manifest (`chmod 600`) in ignored private runtime storage. Exact fields are `version: 1`, `account_sid` (AC + 32 hexadecimal characters), `call_sid` (CA + 32 hex), `recording_sids` (list of RE + 32 hex), and `transcriptions` (list of objects with only `sid` (TR + 32 hex) and `recording_sid` referencing a listed RE). Lists may be empty, but this states only what is known. Maximum 50 RE and 50 TR; unknown/duplicate fields, duplicate IDs, invalid relationships, nonterminal calls or unfinished resources fail closed. Do not add caller text, phone numbers, media URLs, credentials or approval documents. Example shape with identifiers to replace:
+
+```json
+{
+  "version": 1,
+  "account_sid": "AC11111111111111111111111111111111",
+  "call_sid": "CA22222222222222222222222222222222",
+  "recording_sids": ["RE33333333333333333333333333333333"],
+  "transcriptions": [
+    {"sid": "TR44444444444444444444444444444444", "recording_sid": "RE33333333333333333333333333333333"}
+  ]
+}
+```
+
+Use separately provisioned restricted API-key credentials, injected by the operator's secret mechanism through `ROMA_ERASURE_TWILIO_ACCOUNT_SID`, `ROMA_ERASURE_TWILIO_API_KEY_SID` and `ROMA_ERASURE_TWILIO_API_KEY_SECRET`. No secret belongs on the command line. The CLI never loads `.env`, application settings or `TWILIO_AUTH_TOKEN`; it cannot verify an SK key's restriction type. Confirm the key permits only the intended account's supported fetch/delete operations. Explicit `--account-sid` can override the erasure account environment variable; the manifest and SDK request account must match.
+
+Default preview below makes zero requests, constructs no provider client and writes no runtime files. `--verify` deliberately makes read-only provider GETs, projects only metadata and returns `verified_manifest_digest` if every declared target belongs to the account/call/recording and is terminal. These are example commands, not activities performed during implementation:
+
+```bash
+uv run --no-sync python scripts/provider_erasure.py --manifest var/roma/privacy/provider-manifest.json
+uv run --no-sync python scripts/provider_erasure.py --manifest var/roma/privacy/provider-manifest.json --verify
+```
+
+Review counts and the exact manifest before applying. Copy the verified digest into the explicit apply command, and choose a durable owner-only ledger directory outside any backup that could overwrite its evidence. The command creates missing directories as 700 and ledger/lock files as 600; existing permissive, symlinked, corrupted, account-mismatched or manifest-mismatched ledgers fail closed. Keep this ledger and the original manifest together under restricted access. On this Unix runtime, parent symlinks are also rejected; use canonical filesystem paths.
+
+```bash
+uv run --no-sync python scripts/provider_erasure.py \
+  --manifest var/roma/privacy/provider-manifest.json \
+  --apply --verified-digest <digest-returned-by-verify> \
+  --ledger var/roma/privacy/provider-erasure/receipt.json
+```
+
+Apply re-fetches all targets before effects, writes/fsyncs minimized verified intent and an `attempting` state before each independent TR→RE→CA delete, and stops at the first unresolved step. Requests are bounded to 3 seconds and the aggregate service budget to 30 seconds; neither SDK nor locked aiohttp retries automatically and redirects are disabled. Rerun the identical apply command with the same ledger after a transient timeout or cancellation. A lost successful response is resolved by the matching ledger plus account-scoped 404; a first-run 404 with no prior verified ledger remains `ownership_unverified` and needs manual review. Do not replace or edit a ledger to bypass this check. Missing/denied restricted credentials produce `authentication_manual`; resolve access manually rather than using the dial token. A failed fsync or concurrent owner produces `ledger_or_configuration_pending`, with no subsequent DELETE. Preserve pending/attempting receipts after interruption.
+
+Exit 0 means preview succeeded, known resources verified, or the requested known-resource deletes were acknowledged/absent. It never means full physical erasure. `manual_pending` and `physical_erasure_complete: false` remain even after `known_resources_absent`. Record provider-specific confirmations separately under approved access: unknown Twilio inventory/archives/other products, Anthropic organization + configured model + features + agreement/retention, Sarvam supported rights process/retention, replicas/backups/exports. No unsupported Anthropic or Sarvam DELETE is sent, and no account tier implies ZDR or legal approval. No actual provider erasure/account verification was performed to produce the offline evidence.
+
+Offline checks (no provider access):
+
+```bash
+uv run --no-sync pytest -q -p no:cacheprovider \
+  tests/privacy/test_provider_erasure.py \
+  tests/privacy/test_provider_erasure_cli.py \
+  tests/privacy/test_twilio_erasure_adapter.py
+```
