@@ -1,12 +1,14 @@
 """Opt-in sentence delivery; bounded queues share one call's existing controller/stores."""
 
 import asyncio
+from dataclasses import replace
 from time import perf_counter
 
 from starlette.websockets import WebSocketDisconnect
 
 from roma.core.async_queue import BoundedChannel, QueuePolicy, QueuePressure
 from roma.core.logging import LogEvent, log_context, log_event, update_log_context
+from roma.core.turn_epoch import current_turn_epoch
 from roma.core.voice_errors import VoiceErrorCode, VoiceFailure, map_voice_error
 from roma.domain.safety.audit import SafetyContext
 from roma.domain.safety.lexicon import HARD_FAIL_LINE
@@ -17,6 +19,7 @@ from roma.services.voice_pronunciation import render_voice_line
 class StreamingDelivery:
     def __init__(self, voice, record, timings):
         self.voice, self.record, self.timings = voice, record, timings
+        self.epoch = current_turn_epoch()
         self.policy = voice.streaming
         self.text = self.policy.channel("tts_text")
         self.audio = self.policy.channel("tts_audio")
@@ -37,37 +40,47 @@ class StreamingDelivery:
 
     def _owns_response(self):
         return (self.voice._delivery is self and not self.voice.disconnected
-                and self.voice._response_task is self.owner and self.voice._stop_reason is None)
+                and self.voice._response_task is self.owner and self.voice._stop_reason is None
+                and self.voice.epochs.is_current(self.epoch))
 
     async def enqueue(self, line):
-        if not self.active:
+        if not self.active or not self._owns_response():
             raise asyncio.CancelledError
-        if not await self.text.put(line):
-            if not self.active:
+        if not await self.text.put((self.epoch, line)):
+            if not self.active or not self._owns_response():
                 raise asyncio.CancelledError
             raise QueuePressure()
 
     async def _synthesize(self):
         try:
-            async for line in self.text:
+            async for epoch, line in self.text:
+                self.voice.epochs.require_current(epoch)
+                if not self._owns_response():
+                    raise asyncio.CancelledError
                 state = self.voice.state
                 update_log_context(stage=state.stage.value, language=state.language_router.current.value)
                 started = perf_counter()
                 try:
                     kwargs = {"cpu_worker": self.voice.cpu_worker} if self.voice.cpu_worker else {}
                     speech = await self.voice.synthesis.synthesize(
-                        TTSRequest(render_voice_line(line, state), language="hi"),
+                        TTSRequest(render_voice_line(line, state), language="hi", turn_epoch=epoch),
                         SafetyContext(state.call_sid, max(1, state.turn_count), state.stage.value), **kwargs,
                     )
                 except Exception:  # noqa: BLE001 -- stage code only.
                     raise VoiceFailure(VoiceErrorCode.TTS) from None
+                if not self._owns_response():
+                    self.audio.metrics.discarded += 1
+                    raise asyncio.CancelledError
+                if speech.result.turn_epoch is not None:
+                    self.voice.epochs.require_current(speech.result.turn_epoch)
+                speech = replace(speech, result=replace(speech.result, turn_epoch=epoch))
                 if not speech.audit_ok:
                     self.error_code = VoiceErrorCode.SAFETY.value
                 self.timings["tts_ms"] = self.timings.get("tts_ms", 0) + (perf_counter() - started) * 1000
                 self.timings["safety_ms"] = self.timings.get("safety_ms", 0) + speech.safety_normalization_ms
                 self.timings["tts_inference_ms"] = self.timings.get("tts_inference_ms", 0) + speech.synthesis_ms
                 log_event(LogEvent.TTS_COMPLETED, latency_ms=(perf_counter() - started) * 1000)
-                if not self.active or (self.voice._response_task and self.voice._response_task.cancelling()):
+                if not self.active or not self._owns_response() or (self.voice._response_task and self.voice._response_task.cancelling()):
                     self.audio.metrics.discarded += 1
                     continue
                 if not await self.audio.put(speech):
@@ -77,9 +90,10 @@ class StreamingDelivery:
 
     async def _play(self):
         async for speech in self.audio:
-            if not self.active or (self.voice._response_task and self.voice._response_task.cancelling()):
+            if not self.active or not self._owns_response() or (self.voice._response_task and self.voice._response_task.cancelling()):
                 self.audio.metrics.discarded += 1
                 continue
+            self.voice.epochs.require_current(speech.result.turn_epoch)
             state = self.voice.state
             update_log_context(stage=state.stage.value, language=state.language_router.current.value)
             self.parts.append(speech.spoken_canonical_text)
@@ -108,6 +122,8 @@ class StreamingDelivery:
 
     async def _fallback(self):
         """Overflow/error: stop queued output, clear, then approved fallback or close."""
+        if not self._owns_response():
+            return
         self.voice.stream_fallbacks += 1
         try:
             async with asyncio.timeout(min(2, self.policy.playback_timeout_secs)):
@@ -118,11 +134,12 @@ class StreamingDelivery:
                     return
                 state = self.voice.state
                 speech = await self.voice.synthesis.synthesize(
-                    TTSRequest(render_voice_line(HARD_FAIL_LINE, state), language="hi"),
+                    TTSRequest(render_voice_line(HARD_FAIL_LINE, state), language="hi", turn_epoch=self.epoch),
                     SafetyContext(state.call_sid, max(1, state.turn_count), state.stage.value),
                 )
                 if not self._owns_response():
                     return
+                speech = replace(speech, result=replace(speech.result, turn_epoch=self.epoch))
                 self.record.update(status="ready", agent=speech.spoken_canonical_text)
                 await self.voice.store.save(state.call_sid, self.record)
                 if not self._owns_response():

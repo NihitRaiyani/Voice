@@ -6,7 +6,7 @@ import asyncio
 import json
 import re
 import unicodedata
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from time import perf_counter
 from typing import Any, Literal
@@ -14,6 +14,7 @@ from typing import Any, Literal
 from pydantic import ConfigDict, Field, ValidationError, field_validator
 
 from roma.core.prompt_privacy import redact_prompt
+from roma.core.turn_epoch import current_turn_epoch, require_current_epoch
 from roma.core.voice_errors import VoiceErrorCode, voice_boundary
 from roma.domain.appointments.slots import (
     _DISCOVERY_SYS,
@@ -289,16 +290,23 @@ class TextConversationService:
         on_sentence=None, stream_config=None, stream_metrics=None, cpu_worker=None,
     ) -> TextTurnTrace:
         with llm_turn_budget(self.provider):
-            return await self._turn(
-                state, user_text, now=now, elapsed_secs=elapsed_secs,
-                on_sentence=on_sentence, stream_config=stream_config,
-                stream_metrics=stream_metrics, cpu_worker=cpu_worker,
-            )
+            try:
+                return await self._turn(
+                    state, user_text, now=now, elapsed_secs=elapsed_secs,
+                    on_sentence=on_sentence, stream_config=stream_config,
+                    stream_metrics=stream_metrics, cpu_worker=cpu_worker,
+                )
+            except asyncio.CancelledError:
+                # A cancelled await may have committed SQL already. The next
+                # admitted turn must reconcile that truth before controller work.
+                self._booking_restored = False
+                raise
 
     async def _turn(
         self, state: CallState, user_text: str, *, now: datetime, elapsed_secs: float = 0,
         on_sentence=None, stream_config=None, stream_metrics=None, cpu_worker=None,
     ) -> TextTurnTrace:
+        require_current_epoch()
         identity = state.call_sid or id(state)
         if self._call_identity is not None and self._call_identity != identity:
             raise ValueError("One text service/provider budget belongs to one call")
@@ -323,8 +331,10 @@ class TextConversationService:
             )
             context = SafetyContext(state.call_sid, state.turn_count, state.stage.value)
             ok = await self.safety.persist(context, (event,))
+            require_current_epoch()
             self.safety_elapsed_ms += (perf_counter() - input_started) * 1000
             with voice_boundary(VoiceErrorCode.DB):
+                require_current_epoch()
                 await save_checkpoint(self.store, state, CheckpointMilestone.TURN_COMPLETED)
             if on_sentence is not None:
                 await on_sentence(final if ok else HARD_FAIL_LINE)
@@ -350,9 +360,12 @@ class TextConversationService:
             nonlocal collection_output
             collection_output = ""
             text = []
+            require_current_epoch()
+            request = replace(request, turn_epoch=current_turn_epoch())
             stream = self.provider.generate(request)
             try:
                 async for chunk in stream:
+                    require_current_epoch()
                     text.append(chunk.text)
                     collection_output = "".join(text)
                     if chunk.metrics:
@@ -363,10 +376,12 @@ class TextConversationService:
                         raise ProviderUnavailable("Provider returned a fallback/error")
                     if on_token is not None and chunk.text:
                         await on_token(chunk.text)
+                        require_current_epoch()
             finally:
                 close = getattr(stream, "aclose", None)
                 if close is not None:
                     await close()
+            require_current_epoch()
             return "".join(text)
 
         async def extract(
@@ -394,6 +409,7 @@ class TextConversationService:
                         response_schema=schema.model_json_schema(),
                     )
                 )
+                require_current_epoch()
                 value = schema.model_validate_json(raw)
                 if isinstance(value, ValidatedDiscoveryValue) and value.value is not None:
                     field = content.split("Field: ", 1)[-1].split("\n", 1)[0]
@@ -455,16 +471,22 @@ class TextConversationService:
 
         if self.booking_session is not None and not self._booking_restored:
             await self.booking_session.restore()
+            require_current_epoch()
             self._booking_restored = True
+        async def release_holds():
+            await self.booking_session.aclose()
+            require_current_epoch()
+
         booking_kwargs = (
             {
                 "calendar": self.booking_session,
                 "confirm_booking": self.booking_session.confirm,
-                "release_holds": self.booking_session.aclose,
+                "release_holds": release_holds,
             }
             if self.booking_session
             else {}
         )
+        require_current_epoch()
         controller_started = perf_counter()
         extraction_before = getattr(self.provider, "elapsed_ms", 0.0)
         decision = classify_turn(state, user_text)
@@ -480,11 +502,13 @@ class TextConversationService:
             controller_only=factual_turn,
             **booking_kwargs,
         )
+        require_current_epoch()
         self.controller_elapsed_ms += max(0.0, (perf_counter() - controller_started) * 1000
                                           - (getattr(self.provider, "elapsed_ms", 0.0) - extraction_before))
         if on_sentence is not None:
             # An interruption during generation must not erase already accepted slots.
             with voice_boundary(VoiceErrorCode.DB):
+                require_current_epoch()
                 await save_checkpoint(self.store, state, CheckpointMilestone.STATE_CHANGED)
         fixed = canned_reply(state, user_text)
         route = decision.route.value
@@ -523,10 +547,12 @@ class TextConversationService:
                 args = (prefix, line, state.to_dict(), self.dialogue_language == "voice_hi")
                 result = (await cpu_worker.run(stream_filter, *args) if cpu_worker
                           else await asyncio.to_thread(stream_filter, *args))
+                require_current_epoch()
                 final, verdicts, events, stop = result
                 ok = await self.safety.persist(
                     SafetyContext(state.call_sid, max(1, state.turn_count), state.stage.value), events
                 )
+                require_current_epoch()
                 all_verdicts.extend(verdicts)
                 all_events.extend(events)
                 self.safety_elapsed_ms += (perf_counter() - started) * 1000
@@ -572,9 +598,12 @@ class TextConversationService:
             final = HARD_FAIL_LINE
             errors.append("safety-audit-unavailable")
         self.safety_elapsed_ms += (perf_counter() - safety_started) * 1000
+        require_current_epoch()
         state.record_facts(facts_in(final))
         with voice_boundary(VoiceErrorCode.DB):
+            require_current_epoch()
             await save_checkpoint(self.store, state, CheckpointMilestone.TURN_COMPLETED)
+        require_current_epoch()
         if on_sentence is not None and streamed is None:
             await on_sentence(final)
         return TextTurnTrace(

@@ -1,0 +1,94 @@
+{
+  "adaptive": {
+    "concealed_frames": 25,
+    "concealed_frames_excluded_from_endpoint": 25,
+    "discarded": 0,
+    "discontinuities": 0,
+    "duplicates": 0,
+    "emitted": 475,
+    "endpoint_observed_pcm_bytes": 304000,
+    "endpoint_utterances": 14,
+    "epoch_discarded_pending_bytes": 0,
+    "gap_events": 24,
+    "gap_frames": 25,
+    "interpolated_frames": 25,
+    "invalid": 0,
+    "jitter_ms": 40.55638904782734,
+    "late": 0,
+    "max_depth": 9,
+    "max_playout_lateness_ms": 5.0,
+    "max_target_delay_ms": 120,
+    "max_wait_ms": 185.0,
+    "output_frame_span": 500,
+    "output_pcm_bytes": 320000,
+    "overflow": 0,
+    "pcm_sha256": "6052e44439c8c1b170a8c75b8dde5605961819408b9e57a3b460073774415ddf",
+    "pending_packets": 0,
+    "received": 475,
+    "reordered": 187,
+    "resolved_payload_bytes": 304000,
+    "stale_epoch": 0,
+    "tail_padding_bytes": 12416,
+    "target_delay_ms": 120
+  },
+  "controller": {
+    "booking_effects": 0,
+    "scripted_stt_calls": 1,
+    "stop_signal_honoured": true,
+    "turns": 1
+  },
+  "database_access": false,
+  "fixed_baseline": {
+    "delay_ms": 60,
+    "discarded": 0,
+    "discontinuities": 25,
+    "duplicates": 0,
+    "emitted": 475,
+    "gap_events": 24,
+    "invalid": 0,
+    "late": 0,
+    "max_depth": 6,
+    "max_wait_ms": 125.0,
+    "overflow": 0,
+    "pending_packets": 0,
+    "plc_enabled": false,
+    "received": 475,
+    "reordered": 187,
+    "sequence_gaps": 25
+  },
+  "impairment": {
+    "dropped_frames": 25,
+    "jitter_radius_ms": 50,
+    "loss_percent": 5,
+    "seed": 3550,
+    "source_frames": 500
+  },
+  "inference_calls": false,
+  "limits": {
+    "max_consecutive_plc": 3,
+    "plc_excluded_from_endpoint": true,
+    "probability_and_transcripts_scripted": true,
+    "production_path_changed": false,
+    "receiver_wait_and_timer_lateness_reported_separately": true,
+    "tail_padding_is_synthetic": true,
+    "target_delay_ms": [
+      40,
+      120
+    ]
+  },
+  "native_quality_measured": false,
+  "recovery_probes": {
+    "four_loss_burst": {
+      "concealed_frames": 3,
+      "discontinuities": 1,
+      "gap_frames": 4
+    },
+    "overflow": {
+      "recovered": true,
+      "rejected": 1
+    }
+  },
+  "repeat_bit_identical": true,
+  "schema": "phase5a-adaptive-replay-v1",
+  "synthetic_only": true
+}

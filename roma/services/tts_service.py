@@ -18,6 +18,7 @@ from datetime import date
 from time import perf_counter
 from typing import Literal
 
+from roma.core.turn_epoch import current_turn_epoch, require_current_epoch
 from roma.domain.audio.g711 import encode
 from roma.domain.audio.pcm import PCMFramer, validate_pcm16
 from roma.domain.audio.resampling import PCMResampler
@@ -187,7 +188,7 @@ class SpeechSynthesisService:
         self._cache: OrderedDict[str, TTSResult] = OrderedDict()
         self._bytes = 0
         self._slots = asyncio.Semaphore(max_concurrency)
-        self._flights: dict[str, _Flight] = {}
+        self._flights: dict[tuple[str, int | None], _Flight] = {}
         self._pending = 0
         self.hits = self.misses = self.stores = self.coalesced = 0
 
@@ -198,7 +199,13 @@ class SpeechSynthesisService:
     async def _produce(self, key: str, request: TTSRequest) -> tuple[TTSResult, float]:
         async with self._slots:
             started = perf_counter()
+            require_current_epoch()
             result = await self.provider.synthesize(request)
+            require_current_epoch()
+            if result.turn_epoch is not None and result.turn_epoch != request.turn_epoch:
+                raise asyncio.CancelledError("Stale TTS result")
+            # Cached PCM is reusable content, never an old turn delivery envelope.
+            result = replace(result, turn_epoch=None)
             synthesis_ms = (perf_counter() - started) * 1000
             validate_request(replace(request, format=result.format), self.max_text_bytes)
             if result.format != request.format:
@@ -227,8 +234,13 @@ class SpeechSynthesisService:
     async def synthesize(
         self, request: TTSRequest, context: SafetyContext, *, cpu_worker=None
     ) -> SynthesizedSpeech:
+        require_current_epoch()
+        epoch = current_turn_epoch()
+        if epoch is not None and request.turn_epoch is not None and request.turn_epoch != epoch:
+            raise asyncio.CancelledError("Stale TTS request")
         validate_request(request, self.max_text_bytes)
-        request = replace(request, metadata=dict(request.metadata))
+        request = replace(request, metadata=dict(request.metadata),
+                          turn_epoch=epoch if epoch is not None else request.turn_epoch)
         if self._pending >= self.max_pending:
             raise ValueError("TTS admission limit reached")
         self._pending += 1
@@ -244,12 +256,15 @@ class SpeechSynthesisService:
         started = perf_counter()
         # Check before spelling digits, so normalization cannot erase an amount signal.
         original = await self.safety.check(request.text, context)
+        require_current_epoch()
         requested_language = language_code(request.language)
         normalized = (await cpu_worker.run(normalize_tts_text, original.text, request.language)
                       if cpu_worker else normalize_tts_text(original.text, request.language))
+        require_current_epoch()
         if len(normalized.encode("utf-8")) > self.max_text_bytes:
             raise ValueError("Normalized TTS text exceeds its bounded UTF-8 size")
         final = await self.safety.check(normalized, context)
+        require_current_epoch()
         canonical = final.text
         pronunciation = pronunciation_for(canonical)
         canonical_sha256 = pronunciation.canonical_sha256 if pronunciation else None
@@ -258,6 +273,7 @@ class SpeechSynthesisService:
             # Same safety/audit authority adjudicates the exact pronunciation before
             # any model identity/cache lookup. Caller language cannot change policy.
             spoken = await self.safety.check_pronunciation(pronunciation, context)
+            require_current_epoch()
             # Audit failure uses the trusted hard-fail rendering, not the original line.
             if spoken.canonical_text is None:
                 raise ValueError("Safety pronunciation did not retain its canonical binding")
@@ -272,6 +288,7 @@ class SpeechSynthesisService:
         safety_normalization_ms = (perf_counter() - started) * 1000
         identity_method = getattr(self.provider, "cache_identity", None)
         version = await identity_method(request) if identity_method else self.model_version
+        require_current_epoch()
         if type(version) is not str or not version or len(version) > 256:
             raise ValueError("TTS provider returned an invalid model identity")
         key = hashlib.sha256(
@@ -298,11 +315,12 @@ class SpeechSynthesisService:
             self._cache[key] = result
             status, synthesis_ms = "hit", 0.0
         else:
-            flight = self._flights.get(key)
+            flight_key = (key, request.turn_epoch)
+            flight = self._flights.get(flight_key)
             if flight is None:
                 self.misses += 1
                 flight = _Flight(asyncio.create_task(self._produce(key, request)))
-                self._flights[key] = flight
+                self._flights[flight_key] = flight
                 status = "miss"
             else:
                 self.coalesced += 1
@@ -313,10 +331,12 @@ class SpeechSynthesisService:
             finally:
                 flight.waiters -= 1
                 if not flight.waiters:
-                    self._flights.pop(key, None)
+                    self._flights.pop(flight_key, None)
                     if not flight.task.done():
                         flight.task.cancel()
                         await asyncio.gather(flight.task, return_exceptions=True)
+        require_current_epoch()
+        result = replace(result, turn_epoch=request.turn_epoch)
         if cpu_worker:
             frames = list(await cpu_worker.run(build_mulaw_frames, result.audio, result.format.sample_rate_hz))
         else:
@@ -331,6 +351,7 @@ class SpeechSynthesisService:
             frames.extend(encode(frame) for frame in framer.feed(converter.finish()))
             if tail := framer.finish(pad=True):
                 frames.append(encode(tail))
+        require_current_epoch()
         elapsed = (perf_counter() - started) * 1000
         duration_ms = len(result.audio) / 2 / result.format.sample_rate_hz * 1000
         return SynthesizedSpeech(

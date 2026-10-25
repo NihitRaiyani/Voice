@@ -303,3 +303,47 @@ def test_suspension_during_synthesis_cannot_open_a_speaker_or_play_late_audio():
         assert voice.store.records[-1][1]["error_code"] == "CAPTURE"
 
     asyncio.run(run())
+
+
+def test_capture_turn_stamps_one_fresh_epoch_before_asr_and_preserves_it_for_reply():
+    from roma.core.turn_epoch import TurnEpoch
+    from roma.domain.audio.turn_policy import TurnPolicy
+    from roma.services.speech_input import SpeechTranscript
+
+    async def run():
+        module = cli()
+        guard = TurnEpoch()
+        voice = SimpleNamespace(state=CallState(call_sid="voice-lab-" + "f" * 32), attempt=0, epochs=guard)
+        seen = []
+        class Device:
+            async def listen(self, speech, *, epoch=None, **kwargs):
+                assert epoch == 1 and guard.current == 1
+                seen.append(epoch)
+                return SpeechTranscript("hello", "en", 100, "silence", 0, turn_epoch=epoch), {}
+        async def respond(transcript, timings):
+            assert transcript.turn_epoch == guard.current == 1
+            seen.append(transcript.turn_epoch)
+            return "played"
+        voice.respond = respond
+        result = await module.capture_turn(Device(), object(), voice, TurnPolicy(), module.LabDeadline(datetime.now(UTC)))
+        assert result == "played" and seen == [1, 1]
+    asyncio.run(run())
+
+
+def test_capture_failure_invalidates_epoch_and_clears_before_propagating():
+    from roma.core.turn_epoch import TurnEpoch
+    from roma.domain.audio.turn_policy import TurnPolicy
+
+    async def run():
+        module, events = cli(), []
+        guard = TurnEpoch()
+        voice = SimpleNamespace(state=CallState(call_sid="voice-lab-" + "a" * 32), attempt=0, epochs=guard)
+        class Device:
+            async def listen(self, *args, **kwargs):
+                raise TimeoutError()
+            async def clear(self):
+                events.append(guard.current)
+        with pytest.raises(VoiceFailure):
+            await module.capture_turn(Device(), object(), voice, TurnPolicy(), module.LabDeadline(datetime.now(UTC)))
+        assert guard.current == 2 and events == [2]
+    asyncio.run(run())

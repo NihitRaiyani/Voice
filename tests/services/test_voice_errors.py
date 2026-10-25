@@ -7,6 +7,7 @@ from roma.domain.appointments.booking import BookingError
 from roma.domain.conversation.state import CallState
 from roma.providers.ai.contracts import AudioFormat, TTSResult
 from roma.services.speech_input import SpeechTranscript
+from roma.services.tts_service import SynthesizedSpeech
 from roma.services.voice_prototype import InMemoryVoiceTurnStore, VoicePrototype
 
 PRIVATE = "caller-secret +919876543210 /private/caller.wav hf_private_token"
@@ -26,7 +27,11 @@ def build_voice(seam):
     async def synthesize(*args):
         if seam == "TTS":
             raise RuntimeError(PRIVATE)
-        return SimpleNamespace(
+        return SynthesizedSpeech(
+            text="नमस्ते।", mulaw_frames=(), cache_status="miss", rtf=0.1,
+            model_version="synthetic-errors", canonical_text="नमस्ते।",
+            requested_language="hi", spoken_language="hi", voice="synthetic",
+            pronunciation_version=None, canonical_sha256=None, spoken_sha256=None,
             result=TTSResult(b"\0\0" * 160, AudioFormat(16000), duration_ms=10),
             synthesis_ms=1, safety_normalization_ms=1, elapsed_ms=2,
             audit_ok=seam != "SAFETY", spoken_canonical_text="नमस्ते।",

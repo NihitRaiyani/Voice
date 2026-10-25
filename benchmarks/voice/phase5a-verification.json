@@ -1,0 +1,44 @@
+{
+  "schema": "phase5a-verification-v1",
+  "offline_only": true,
+  "ci_tests": 3440,
+  "full_tests": 3440,
+  "existing_warnings_per_suite": 22,
+  "mypy_files": 125,
+  "ci_catalog_modules": 200,
+  "checks": {
+    "ci": {
+      "exit_code": 0,
+      "seconds": 130.95
+    },
+    "test": {
+      "exit_code": 0,
+      "seconds": 124.01
+    }
+  },
+  "working_database_changed": false,
+  "microphone_used": false,
+  "paid_requests": 0,
+  "models_changed": false,
+  "native_gate_passed": false,
+  "red_then_green_regressions": [
+    "test_one_explicit_input_stream_serves_two_active_captures_then_closes_once",
+    "test_callback_stall_has_a_distinct_fixed_code_and_never_reaches_asr",
+    "test_clear_aborts_inflight_native_write_and_old_epoch_never_writes_again",
+    "test_late_asr_from_invalidated_capture_never_returns_a_final",
+    "test_interrupt_flushes_before_joining_resistant_provider_within_fake_60ms_target",
+    "test_each_untagged_turn_advances_epoch_but_a_captured_epoch_is_preserved",
+    "test_next_turn_restores_sql_commit_after_old_epoch_lost_its_result",
+    "test_deadline_drains_received_frames_without_admitting_later_audio",
+    "test_capture_turn_stamps_one_fresh_epoch_before_asr_and_preserves_it_for_reply",
+    "test_capture_failure_invalidates_epoch_and_clears_before_propagating",
+    "test_invalid_clock_or_unannounced_epoch_never_poisons_stream",
+    "test_corrupt_stream_read_has_a_fixed_sanitized_error"
+  ],
+  "limits": [
+    "Sub-60 ms is a cooperative fake-clear test, not physical audible cancellation.",
+    "Synthetic concealment is excluded from observed-speech endpointing.",
+    "Replay requires authorized payloads; only metadata is journaled.",
+    "No native quality, latency or full acceptance gate is passed."
+  ]
+}

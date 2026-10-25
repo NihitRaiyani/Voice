@@ -54,26 +54,6 @@ def device(stream, **kwargs):
     )
 
 
-def test_microphone_closes_before_returning_a_turn():
-    async def run():
-        stream, speech = Stream(), Speech()
-        result, timing = await device(stream).listen(speech)
-        assert result.text == "public" and timing["capture_ms"] >= 0
-        assert stream.events == ["start", "abort", "close"] and speech.reset_called
-
-    asyncio.run(run())
-
-
-def test_overflow_discards_incomplete_audio_and_closes():
-    async def run():
-        stream, speech = Stream(overflow=True), Speech()
-        with pytest.raises(ValueError, match="overflow"):
-            await device(stream).listen(speech)
-        assert stream.events[-2:] == ["abort", "close"] and speech.reset_called
-
-    asyncio.run(run())
-
-
 @pytest.mark.parametrize("underflow", [False, True])
 def test_playback_writes_pcm_and_always_closes(underflow):
     async def run():
@@ -94,73 +74,6 @@ def test_invalid_output_never_opens_a_stream():
         with pytest.raises(ValueError):
             await device(stream).play(TTSResult(b"x", AudioFormat(8000)))
         assert not stream.events
-
-    asyncio.run(run())
-
-
-def test_cancelled_capture_aborts_and_joins_native_reader():
-    import threading
-
-    class Blocking(Stream):
-        def __init__(self):
-            super().__init__()
-            self.waiting = threading.Event()
-            self.release = threading.Event()
-
-        def read(self, count):
-            self.waiting.set()
-            self.release.wait(2)
-            return super().read(count)
-
-        def abort(self):
-            super().abort()
-            self.release.set()
-
-    async def run():
-        stream, speech = Blocking(), Speech()
-        task = asyncio.create_task(device(stream).listen(speech))
-        await asyncio.to_thread(stream.waiting.wait, 2)
-        task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
-        assert stream.events[-2:] == ["abort", "close"] and speech.reset_called
-
-    asyncio.run(run())
-
-
-def test_capture_started_callback_follows_open_before_first_read():
-    async def run():
-        events = []
-
-        class Observed(Stream):
-            def start(self):
-                events.append("opened")
-                super().start()
-
-            def read(self, count):
-                events.append("read")
-                return super().read(count)
-
-        stream = Observed()
-        await device(stream).listen(Speech(), on_capture_started=lambda: events.append("cue"))
-        assert events == ["opened", "cue", "read"]
-
-    asyncio.run(run())
-
-
-def test_capture_started_callback_is_absent_when_stream_open_fails():
-    async def run():
-        cues = []
-
-        class Broken(Stream):
-            def start(self):
-                raise OSError("scripted device unavailable")
-
-        with pytest.raises(OSError):
-            await device(Broken()).listen(
-                Speech(), on_capture_started=lambda: cues.append(True)
-            )
-        assert cues == []
 
     asyncio.run(run())
 
@@ -213,27 +126,107 @@ def test_expiry_between_playback_blocks_stops_further_native_writes():
     asyncio.run(run())
 
 
-def test_expired_native_capture_read_is_not_submitted_to_asr():
+def test_capture_mutes_before_returning_and_call_close_owns_native_teardown():
+    from tests.providers.audio.test_persistent_capture import (
+        CallbackBackend,
+    )
+    from tests.providers.audio.test_persistent_capture import (
+        Speech as InputSpeech,
+    )
+
+    async def run():
+        backend, speech = CallbackBackend(), InputSpeech()
+        device = LocalAudioDevice(backend=backend)
+        await device.start()
+        result, timing = await device.listen(speech, on_capture_started=lambda: backend.emit(1))
+        assert result.text == "synthetic" and timing["capture_ms"] >= 0
+        assert device.capture_mode == "MUTED_HALF_DUPLEX" and speech.resets == 1
+        assert backend.events == ["start"]
+        await device.aclose()
+        assert backend.events == ["start", "abort", "close"]
+
+    asyncio.run(run())
+
+
+def test_capture_started_callback_follows_running_stream_and_active_mode():
+    from tests.providers.audio.test_persistent_capture import (
+        CallbackBackend,
+    )
+    from tests.providers.audio.test_persistent_capture import (
+        Speech as InputSpeech,
+    )
+
+    async def run():
+        backend = CallbackBackend()
+        device = LocalAudioDevice(backend=backend)
+        await device.start()
+
+        def cue():
+            assert device.capture_mode == "ACTIVE" and backend.events == ["start"]
+            backend.events.append("cue")
+            backend.emit(1)
+
+        await device.listen(InputSpeech(), on_capture_started=cue)
+        assert backend.events == ["start", "cue"]
+        await device.aclose()
+
+    asyncio.run(run())
+
+
+def test_capture_start_failure_has_no_listening_cue_and_tears_down_once():
+    events, cues = [], []
+
+    class Broken(Stream):
+        def start(self):
+            events.append("start")
+            raise OSError("scripted device unavailable")
+
+        def abort(self):
+            events.append("abort")
+
+        def close(self):
+            events.append("close")
+
+    async def run():
+        dev = device(Broken())
+        with pytest.raises(OSError):
+            await dev.start()
+        with pytest.raises(RuntimeError):
+            await dev.listen(Speech(), on_capture_started=lambda: cues.append(True))
+        await dev.aclose()
+        assert events == ["start", "abort", "close"] and cues == []
+
+    asyncio.run(run())
+
+
+def test_expired_callback_capture_is_not_submitted_to_asr():
+    from tests.providers.audio.test_persistent_capture import (
+        CallbackBackend,
+    )
+    from tests.providers.audio.test_persistent_capture import (
+        Speech as InputSpeech,
+    )
+
     async def run():
         expired = [False]
-
-        class Paused(Stream):
-            def read(self, count):
-                result = super().read(count)
-                expired[0] = True
-                return result
-
-        class NoInference(Speech):
-            async def feed(self, pcm):
-                pytest.fail("Expired native capture must not reach VAD or ASR")
 
         def guard():
             if expired[0]:
                 raise VoiceFailure(VoiceErrorCode.CAPTURE)
 
-        stream, speech = Paused(), NoInference()
-        with pytest.raises(VoiceFailure):
-            await device(stream, check_active=guard).listen(speech)
-        assert stream.events[-2:] == ["abort", "close"] and speech.reset_called
+        backend, speech = CallbackBackend(), InputSpeech()
+        device = LocalAudioDevice(backend=backend, check_active=guard)
+        await device.start()
+
+        def cue():
+            backend.emit(1)
+            expired[0] = True
+
+        try:
+            with pytest.raises(VoiceFailure):
+                await device.listen(speech, on_capture_started=cue)
+            assert speech.received == [] and speech.resets == 1
+        finally:
+            await device.aclose()
 
     asyncio.run(run())

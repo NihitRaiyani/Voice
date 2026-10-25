@@ -529,7 +529,7 @@ def test_failed_close_of_cancel_resistant_turn_still_finishes_disconnect():
         finally:
             release.set()
             await asyncio.gather(task, return_exceptions=True)
-        assert events == ["close", "clear", "release", "finish"]
+        assert events == ["clear", "close", "release", "finish"]
         assert voice.disconnected
     asyncio.run(run())
 

@@ -2,12 +2,18 @@
 
 import asyncio
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from time import perf_counter
 from uuid import uuid4
 
 from roma.core.logging import LogEvent, log_context, log_event, update_log_context
+from roma.core.turn_epoch import (
+    TurnEpoch,
+    current_turn_epoch,
+    epoch_scope,
+    require_current_epoch,
+)
 from roma.core.voice_errors import VoiceErrorCode, VoiceFailure, map_voice_error
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.audio.turn_budget import TurnBudget
@@ -29,7 +35,7 @@ class VoiceTurnResult:
 
 
 class VoicePrototype:
-    def __init__(self, state, conversation, synthesis, speaker, store, *, clock=perf_counter, budget=None, streaming=None, cpu_worker=None):
+    def __init__(self, state, conversation, synthesis, speaker, store, *, clock=perf_counter, budget=None, streaming=None, cpu_worker=None, epoch_guard=None):
         self.state, self.conversation, self.synthesis = state, conversation, synthesis
         self.speaker, self.store, self.clock = speaker, store, clock
         self.budget = budget or TurnBudget()
@@ -37,6 +43,8 @@ class VoicePrototype:
         self.streaming, self.cpu_worker = streaming, cpu_worker
         self.queue_metrics = {}
         self.stream_fallbacks = 0
+        self.epochs = epoch_guard if epoch_guard is not None else TurnEpoch()
+        self._response_epoch = None
         self.attempt = 0
         self._busy = False
         self._started = clock()
@@ -63,13 +71,22 @@ class VoicePrototype:
                     # A previous clear must finish before any new turn can speak.
                     async with self._control_lock:
                         pass
-                return await self._respond(transcript, input_timings)
+                # Rejected concurrent calls must not invalidate the active response.
+                if self._busy or self._poisoned or self.disconnected:
+                    raise RuntimeError("Voice session is busy or requires restart")
+                epoch = getattr(transcript, "turn_epoch", None)
+                epoch = self.epochs.advance() if epoch is None else epoch
+                self.epochs.require_current(epoch)
+                with epoch_scope(self.epochs, epoch):
+                    return await self._respond(transcript, input_timings)
 
     async def _respond(self, transcript, input_timings=None):
         if self._busy or self._poisoned or self.disconnected:
             raise RuntimeError("Voice session is busy or requires restart")
         if self.clock() - self._started >= 300:
             raise RuntimeError("Voice session reached its five-minute limit")
+        require_current_epoch()
+        self._response_epoch = current_turn_epoch()
         self._busy = True
         self._response_task = asyncio.current_task()
         self._stop_reason = None
@@ -106,6 +123,7 @@ class VoicePrototype:
         try:
             # Durable receipt before business mutation; no session spans any inference.
             await self.store.save(self.state.call_sid, record)
+            require_current_epoch()
             if transcript.error or not transcript.text.strip():
                 error = map_voice_error(transcript.error or "asr-empty", stage=VoiceErrorCode.ASR).value
                 return VoiceTurnResult(
@@ -129,6 +147,7 @@ class VoicePrototype:
                         on_sentence=delivery.enqueue, stream_config=self.streaming,
                         stream_metrics=self.queue_metrics, cpu_worker=self.cpu_worker,
                     )
+                require_current_epoch()
                 timings["llm_ms"] = max(0, getattr(self.conversation.provider, "elapsed_ms", 0.0) - llm_before)
                 timings["safety_ms"] = timings.get("safety_ms", 0) + max(0, getattr(self.conversation, "safety_elapsed_ms", 0.0) - safety_before)
                 if delivery.first_write is not None and transcript.speech_end_at is not None:
@@ -159,6 +178,7 @@ class VoicePrototype:
                 now=datetime.now(IST),
                 elapsed_secs=self.clock() - self._started,
             )
+            require_current_epoch()
             timings["llm_ms"] = max(
                 0.0, getattr(self.conversation.provider, "elapsed_ms", 0.0) - llm_before
             )
@@ -185,11 +205,15 @@ class VoicePrototype:
             spoken = render_voice_line(trace.final_response, self.state)
             tick = self.clock()
             speech = await self.synthesis.synthesize(
-                TTSRequest(spoken, language="hi"),
+                TTSRequest(spoken, language="hi", turn_epoch=current_turn_epoch()),
                 SafetyContext(
                     self.state.call_sid, max(1, self.state.turn_count), self.state.stage.value
                 ),
             )
+            require_current_epoch()
+            if speech.result.turn_epoch is not None:
+                self.epochs.require_current(speech.result.turn_epoch)
+            speech = replace(speech, result=replace(speech.result, turn_epoch=current_turn_epoch()))
             timings["safety_tts_cache_ms"] = (self.clock() - tick) * 1000
             timings["safety_ms"] = controller_safety_ms + speech.safety_normalization_ms
             timings["tts_ms"] = max(0.0, timings["safety_tts_cache_ms"] - speech.safety_normalization_ms)
@@ -208,10 +232,13 @@ class VoicePrototype:
             error = map_voice_error(raw_error, stage=VoiceErrorCode.LLM).value if raw_error else None
             record.update(status="ready", error_code=error, agent=speech.spoken_canonical_text)
             stage = VoiceErrorCode.DB
+            require_current_epoch()
             await self.store.save(self.state.call_sid, record)
+            require_current_epoch()
             tick = self.clock()
             stage = VoiceErrorCode.DEVICE
             await self.speaker.play(speech.result)
+            require_current_epoch()
             first_write = getattr(self.speaker, "first_write_at", None)
             if first_write is not None:
                 timings["playback_start_ms"] = max(0.0, (first_write - tick) * 1000)
@@ -224,9 +251,14 @@ class VoicePrototype:
                 self.attempt, status, record["stage"], record["language"], timings, error, self.budget.evaluate(timings)
             )
         except asyncio.CancelledError:
+            if self.epochs.is_current(current_turn_epoch()):
+                self.epochs.advance()
+                clear = getattr(self.speaker, "clear", None)
+                if clear:
+                    await clear()
             error = map_voice_error(asyncio.CancelledError()).value
-            self._poisoned = not (self.streaming and self._stop_reason == "interrupted")
-            if self.streaming and self._stop_reason:
+            self._poisoned = self._stop_reason != "interrupted"
+            if self._stop_reason:
                 status = self._stop_reason
             raise
         except Exception as exc:  # noqa: BLE001 -- fixed codes only.
@@ -279,8 +311,13 @@ class VoicePrototype:
         return await self._cancel_response(disconnect=True)
 
     async def _cancel_response(self, *, disconnect, owner=None):
-        if not self.streaming:
-            raise RuntimeError("Streaming control requires explicit streaming mode")
+        from roma.services.streaming_text import StreamConfig
+        policy = self.streaming or StreamConfig()
+        if self.disconnected:
+            return False
+        if owner is not None and self._response_task is not owner:
+            return False
+        self.epochs.advance()  # Synchronous invalidation before control/flush awaits.
         async with self._control_lock:
             if self.disconnected:
                 return False
@@ -296,33 +333,34 @@ class VoicePrototype:
             cleanup_error = None
             if target is not None and target is not asyncio.current_task() and not target.done():
                 target.cancel()
-                done, pending = await asyncio.wait({target}, timeout=self.streaming.cleanup_timeout_secs)
-                if pending:
-                    self.disconnected = True
-                    self._poisoned = True
-                    target.add_done_callback(lambda task: task.exception() if not task.cancelled() else None)
-                    close = getattr(self.speaker, "close", None)
-                    if close:
-                        try:
-                            async with asyncio.timeout(self.streaming.cleanup_timeout_secs):
-                                await close()
-                        except Exception:  # noqa: BLE001 -- still clear/release/persist below.
-                            cleanup_error = VoiceErrorCode.DEVICE
-                for task in done:
-                    if not task.cancelled():
-                        task.exception()
             clear = getattr(self.speaker, "clear", None)
             try:
                 if clear:
-                    async with asyncio.timeout(self.streaming.cleanup_timeout_secs):
+                    async with asyncio.timeout(policy.cleanup_timeout_secs):
                         await clear()
-            except Exception:  # noqa: BLE001 -- clear failure must still release the call.
+                if target is not None and target is not asyncio.current_task() and not target.done():
+                    done, pending = await asyncio.wait({target}, timeout=policy.cleanup_timeout_secs)
+                    if pending:
+                        self.disconnected = True
+                        self._poisoned = True
+                        target.add_done_callback(lambda task: task.exception() if not task.cancelled() else None)
+                        close = getattr(self.speaker, "close", None)
+                        if close:
+                            try:
+                                async with asyncio.timeout(policy.cleanup_timeout_secs):
+                                    await close()
+                            except Exception:  # noqa: BLE001 -- still clear/release/persist below.
+                                cleanup_error = VoiceErrorCode.DEVICE
+                    for task in done:
+                        if not task.cancelled():
+                            task.exception()
+            except Exception:  # noqa: BLE001 -- still release the disconnected call.
                 cleanup_error = VoiceErrorCode.DEVICE
                 self.disconnected = self._poisoned = True
                 close = getattr(self.speaker, "close", None)
                 if close:
                     try:
-                        async with asyncio.timeout(self.streaming.cleanup_timeout_secs):
+                        async with asyncio.timeout(policy.cleanup_timeout_secs):
                             await close()
                     except Exception:  # noqa: BLE001
                         pass
@@ -331,7 +369,7 @@ class VoicePrototype:
                     self._poisoned = True
                     try:
                         if self.release_on_disconnect:
-                            async with asyncio.timeout(self.streaming.cleanup_timeout_secs):
+                            async with asyncio.timeout(policy.cleanup_timeout_secs):
                                 await self.release_on_disconnect()
                     except Exception:  # noqa: BLE001
                         cleanup_error = VoiceErrorCode.DB
@@ -392,10 +430,16 @@ class TimedLLMProvider:
 
     async def generate(self, request):
         tick = perf_counter()
+        epoch = current_turn_epoch()
+        require_current_epoch()
+        request = replace(request, turn_epoch=epoch) if epoch is not None else request
         stream = self.provider.generate(request)
         try:
             async for chunk in stream:
-                yield chunk
+                require_current_epoch()
+                if epoch is not None and chunk.turn_epoch is not None and chunk.turn_epoch != epoch:
+                    raise asyncio.CancelledError("Stale LLM chunk")
+                yield replace(chunk, turn_epoch=epoch) if epoch is not None else chunk
         finally:
             try:
                 close = getattr(stream, "aclose", None)

@@ -6,6 +6,7 @@ bounded speech batch; exact loanwords are normalized before the controller.
 
 import re
 import unicodedata
+from dataclasses import replace
 
 from roma.providers.ai.contracts import STTProvider, STTRequest, STTResult
 from roma.providers.ai.stt import normalize_transcript
@@ -93,13 +94,13 @@ class LocalLanguageSTT:
         if base not in {None, "gu", "hi", "en"}:
             raise ValueError("Unsupported local ASR language route")
         result = await self.provider.transcribe(
-            STTRequest(request.audio, request.format, base, {**request.metadata, **({"local_language_route": hint} if hint else {})})
+            replace(request, language_hint=base, metadata={**request.metadata, **({"local_language_route": hint} if hint else {})})
         )
-        return STTResult(
-            normalize_domain_loanwords(result.text, base or result.language or ""),
-            hint or result.language,
-            result.confidence,
-            result.error_code,
+        return replace(
+            result,
+            text=normalize_domain_loanwords(result.text, base or result.language or ""),
+            language=hint or result.language,
+            turn_epoch=result.turn_epoch if result.turn_epoch is not None else request.turn_epoch,
         )
 
 

@@ -63,6 +63,9 @@ markers = [
 [tool.mypy]
 python_version = "3.11"
 files = [
+    "roma/core/turn_epoch.py",
+    "roma/repositories/redis/replay_journal.py",
+    "roma/eval/adaptive_audio.py",
     "roma/core/call_capabilities.py",
     "roma/core/rate_limit.py",
     "roma/core/field_encryption.py",

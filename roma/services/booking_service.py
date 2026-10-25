@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
+from roma.core.turn_epoch import require_current_epoch
 from roma.domain.appointments.booking import BookingError, HoldOwner, SlotKey
 from roma.domain.appointments.timeresolve import (
     IST,
@@ -49,7 +50,9 @@ class BookingService:
     async def database(self, operation: Awaitable[T]) -> T:
         try:
             async with asyncio.timeout(self.db_timeout):
-                return await operation
+                result = await operation
+                require_current_epoch()
+                return result
         except PersistenceConflict as exc:
             raise BookingError("APPOINTMENT_SLOT_UNAVAILABLE") from exc
         except RecordNotFound as exc:
@@ -100,6 +103,7 @@ class BookingService:
         )
 
     async def acquire(self, key: SlotKey, owner: HoldOwner) -> int:
+        require_current_epoch()
         if self.holds is None:
             raise BookingError("HOLD_UNAVAILABLE")
         if not await self.available(key):
@@ -108,6 +112,11 @@ class BookingService:
         if call is None:
             raise BookingError("APPOINTMENT_NOT_FOUND")
         remaining = await self._redis(self.holds.acquire(key, owner))
+        try:
+            require_current_epoch()
+        except asyncio.CancelledError:
+            await self.release(key, owner)
+            raise
         if remaining <= 0:
             raise BookingError("APPOINTMENT_SLOT_UNAVAILABLE")
         # Redis did not keep a database connection checked out. Availability may have changed.
@@ -130,6 +139,7 @@ class BookingService:
             return False
 
     async def _existing(self, record: AppointmentRecord):
+        require_current_epoch()
         existing = await self.database(self.store.get(record.id))
         if existing is not None:
             fields = (
@@ -148,6 +158,7 @@ class BookingService:
         return existing
 
     async def confirm(self, record: AppointmentRecord, *, owner: HoldOwner | None = None):
+        require_current_epoch()
         key = SlotKey(record.branch_id, record.appointment_date, record.start_time)
         existing = await self._existing(record)
         if existing is not None:
@@ -168,6 +179,7 @@ class BookingService:
             if current is not None and (owner is None or current != owner.value):
                 raise BookingError("APPOINTMENT_SLOT_UNAVAILABLE")
         # Expiry/lost hold is allowed, but only the locked SQL re-check can authorize success.
+        require_current_epoch()
         saved = await self.database(self.store.reserve(record))
         if owner is not None:
             await self.release(key, owner)

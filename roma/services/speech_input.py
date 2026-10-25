@@ -11,6 +11,7 @@ from dataclasses import dataclass, replace
 from time import perf_counter
 from typing import Literal, Protocol
 
+from roma.core.turn_epoch import TurnEpoch
 from roma.domain.audio.endpointing import (
     FRAME_BYTES,
     EndpointConfig,
@@ -45,6 +46,7 @@ class SpeechTranscript:
     error: str | None = None
     last_speech_sample: int | None = None
     speech_end_at: float | None = None
+    turn_epoch: int | None = None
 
 
 def language_hint(state: CallState) -> str:
@@ -81,8 +83,12 @@ class SpeechInputService:
         endpoint: EndpointDetector | None = None,
         policy: TurnPolicy | None = None,
         stt_metadata: Mapping[str, str] | None = None,
+        epoch_guard: TurnEpoch | None = None,
     ) -> None:
         self.provider, self.scorer, self.call_state = provider, scorer, state
+        self.epochs = epoch_guard
+        self._capture_epoch: int | None = None
+        self.on_utterance_finalizing = None
         if endpoint is not None and policy is not None:
             raise ValueError("Supply a turn policy or an explicit legacy endpoint, not both")
         self.policy = policy
@@ -118,7 +124,12 @@ class SpeechInputService:
         self, segments: tuple[Utterance, ...]
     ) -> tuple[SpeechTranscript, ...]:
         results = []
+        epoch = self._capture_epoch
         for segment in segments:
+            if self.epochs is not None:
+                self.epochs.require_current(epoch)
+            if segment.reason != "max_duration" and self.on_utterance_finalizing is not None:
+                self.on_utterance_finalizing()
             if self.policy is not None and segment.end_sample > self._source_end:
                 # Silero needs a complete frame; ASR receives only original source samples.
                 keep = max(0, self._source_end - segment.start_sample)
@@ -138,8 +149,14 @@ class SpeechInputService:
                             AudioFormat(16000),
                             language_hint(self.call_state),
                             self._stt_metadata,
+                            turn_epoch=epoch,
                         )
                     )
+                    if self.epochs is not None:
+                        self.epochs.require_current(epoch)
+                        if result.turn_epoch is not None and result.turn_epoch != epoch:
+                            import asyncio
+                            raise asyncio.CancelledError("Stale ASR result")
                     if result.error_code:
                         self._turn_failure("ASR-BATCH-REJECTED" if result.error_code == "ASR-BATCH-REJECTED" else "stt-unavailable")
                     if self._turn_error is None:
@@ -170,6 +187,7 @@ class SpeechInputService:
                         self._turn_asr_ms,
                         self._turn_error,
                         self._turn_last_speech,
+                        turn_epoch=epoch,
                     )
                 )
                 self._clear_turn()
@@ -187,6 +205,7 @@ class SpeechInputService:
         sample_rate: int = 16000,
         channels: int = 1,
         discontinuity: bool = False,
+        turn_epoch: int | None = None,
     ) -> tuple[SpeechTranscript, ...]:
         if (
             not isinstance(pcm, bytes)
@@ -199,6 +218,12 @@ class SpeechInputService:
         ):
             raise AudioFormatError("Expected at most one second of 16 kHz mono PCM16 per batch")
         validate_pcm16(pcm)
+        if self.epochs is not None:
+            epoch = self.epochs.snapshot() if turn_epoch is None else turn_epoch
+            self.epochs.require_current(epoch)
+            if self._capture_epoch is not None and self._capture_epoch != epoch:
+                self._discard()
+            self._capture_epoch = epoch
         self._enter()
         try:
             segments: list[Utterance] = []
@@ -219,7 +244,13 @@ class SpeechInputService:
         finally:
             self._busy = False
 
-    async def finish(self, *, pad_tail: bool = False, endpoint_reason: Literal["flush", "deadline"] = "flush") -> tuple[SpeechTranscript, ...]:
+    async def finish(self, *, pad_tail: bool = False, endpoint_reason: Literal["flush", "deadline"] = "flush", turn_epoch: int | None = None) -> tuple[SpeechTranscript, ...]:
+        if self.epochs is not None:
+            epoch = self.epochs.snapshot() if turn_epoch is None else turn_epoch
+            self.epochs.require_current(epoch)
+            if self._capture_epoch is None:
+                self._capture_epoch = epoch
+            self.epochs.require_current(self._capture_epoch)
         if self._carry and not pad_tail:
             raise AudioFormatError("Partial Silero frame: explicitly pad_tail or reset")
         self._enter()
@@ -240,6 +271,7 @@ class SpeechInputService:
     def _discard(self) -> None:
         self._carry.clear()
         self._source_end = 0
+        self._capture_epoch = None
         self._clear_turn()
         self.endpoint.reset()
         self.scorer.reset()

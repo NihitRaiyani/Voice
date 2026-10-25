@@ -32,6 +32,7 @@ class STTRequest:
     format: AudioFormat
     language_hint: str | None = None
     metadata: Mapping[str, str] = field(default_factory=dict)
+    turn_epoch: int | None = None
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,7 @@ class STTResult:
     language: str | None = None
     confidence: float | None = None
     error_code: str | None = None
+    turn_epoch: int | None = None
 
 
 @runtime_checkable
@@ -61,6 +63,7 @@ class LLMRequest:
     max_tokens: int | None = None
     metadata: Mapping[str, str] = field(default_factory=dict)
     response_schema: Mapping[str, Any] | None = None
+    turn_epoch: int | None = None
 
 
 @dataclass(frozen=True)
@@ -87,6 +90,7 @@ class LLMChunk:
     text: str
     finish_reason: str | None = None
     metrics: LLMGenerationMetrics | None = None
+    turn_epoch: int | None = None
 
 
 @runtime_checkable
@@ -101,6 +105,7 @@ class TTSRequest:
     voice: str | None = None
     format: AudioFormat = field(default_factory=lambda: AudioFormat(sample_rate_hz=8000))
     metadata: Mapping[str, str] = field(default_factory=dict)
+    turn_epoch: int | None = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +113,7 @@ class TTSResult:
     audio: bytes
     format: AudioFormat
     duration_ms: int | None = None
+    turn_epoch: int | None = None
 
 
 @runtime_checkable

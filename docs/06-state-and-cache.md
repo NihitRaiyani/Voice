@@ -52,3 +52,6 @@ Booking commits remain independent of Redis; advisory hold outages use fresh SQL
 ## Section 27 webhook key lifetimes
 
 Temporary answer deduplication uses hashed event keys with explicit processing owner TTL60 s and completed TTL86,400 s. Completed coverage outlives the live-call lease; durable SQL uniqueness persists independently. Redis done/mismatch never bypasses SQL verification, and stale owners cannot delete successors. [Webhook idempotency](18-webhook-idempotency.md#section-27-advisory-processing-window) owns redelivery/retention semantics.
+
+
+Phase 5A adds an optional bounded, expiring metadata-only Redis Stream for isolated audio labs. See the [replay contract](05-endpointing-vad.md#persistent-capture-and-advanced-audio-lab). It stores frame identities and controls, not PCM, appointment effects or durable conversation events. It does not change SQL milestones, production leases, Redis persistence configuration or recovery-point guarantees. Caller-audio replay needs separately authorized payloads.

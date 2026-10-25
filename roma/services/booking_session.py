@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
+from roma.core.turn_epoch import require_current_epoch
 from roma.domain.appointments.booking import BookingError, HoldOwner, SlotKey
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.persistence import AppointmentRecord
@@ -17,6 +18,7 @@ class BookingSession:
         self._token = uuid4()
 
     async def _bind(self):
+        require_current_epoch()
         if self.service.store is None:
             raise BookingError("BOOKING_UNAVAILABLE")
         if self._call is None:
@@ -31,9 +33,11 @@ class BookingSession:
             )
         if self._branch is None:
             raise BookingError("BOOKING_UNAVAILABLE")
+        require_current_epoch()
         return self._call, self._branch
 
     async def restore(self) -> None:
+        require_current_epoch()
         state = self.state
         state.booking_required = True
         state.appointment_id, state.locked_slot = None, None
@@ -100,6 +104,7 @@ class BookingSession:
             if len(result) >= count:
                 break
         await self._release_except(keep)
+        require_current_epoch()
         return result
 
     async def is_open(self, when):
@@ -119,6 +124,7 @@ class BookingSession:
         else:
             self._leases[key] = owner
         await self._release_except({key})
+        require_current_epoch()
         return True
 
     async def confirm(self, iso: str) -> str:
@@ -141,6 +147,7 @@ class BookingSession:
         owner = self._leases.get(key, HoldOwner(call.id, self._token))
         saved = await self.service.confirm(record, owner=owner)
         await self.aclose()
+        require_current_epoch()
         return str(saved.id)
 
     async def _release_except(self, keep):

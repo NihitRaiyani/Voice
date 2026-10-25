@@ -235,23 +235,37 @@ async def capture_turn(device, speech, voice, policy, deadline):
         deadline.require_remaining()
         capture_started(voice.state.call_sid, voice.attempt + 1)
 
-    with voice_boundary(VoiceErrorCode.CAPTURE):
-        remaining = deadline.require_remaining()
-        transcript, timings = await asyncio.wait_for(
-            device.listen(
-                speech,
-                max_seconds=min(policy.max_utterance_ms / 1000, remaining),
-                on_capture_started=opened,
-            ),
-            timeout=remaining,
-        )
-        # Native capture may have returned after the computer resumed. Re-read
-        # wall time before the controller can perform extraction or generation.
-        remaining = deadline.require_remaining()
-        if transcript is None:
-            from roma.services.speech_input import SpeechTranscript
-            transcript = SpeechTranscript("", None, 0, "listen_limit", 0, "listen-timeout")
-        return await asyncio.wait_for(voice.respond(transcript, timings), timeout=remaining)
+    guard = getattr(voice, "epochs", None)
+    epoch = guard.advance() if guard is not None else None
+    options = {"epoch": epoch} if guard is not None else {}
+    try:
+        with voice_boundary(VoiceErrorCode.CAPTURE):
+            remaining = deadline.require_remaining()
+            transcript, timings = await asyncio.wait_for(
+                device.listen(
+                    speech,
+                    max_seconds=min(policy.max_utterance_ms / 1000, remaining),
+                    on_capture_started=opened,
+                    **options,
+                ),
+                timeout=remaining,
+            )
+            # Re-read wall time after suspension, before business effects or AI.
+            remaining = deadline.require_remaining()
+            if guard is not None:
+                guard.require_current(epoch)
+            if transcript is None:
+                from roma.services.speech_input import SpeechTranscript
+                transcript = SpeechTranscript("", None, 0, "listen_limit", 0,
+                                              "listen-timeout", turn_epoch=epoch)
+            return await asyncio.wait_for(voice.respond(transcript, timings), timeout=remaining)
+    except BaseException:
+        if guard is not None and guard.is_current(epoch):
+            guard.advance()
+        clear = getattr(device, "clear", None)
+        if clear is not None:
+            await clear()
+        raise
 
 
 async def resume_lab_call(factory, live_state, sid, *, now=None, data_root=None):
@@ -483,6 +497,10 @@ async def _local_run(args):
         # Neither controller nor provider deadlines receive a fresh five minutes.
         deadline = LabDeadline(started_at)
         device.check_active = deadline.require_remaining
+        device.bind_epoch_guard(voice.epochs)
+        speech.epochs = voice.epochs
+        cleanup.push_async_callback(device.aclose)
+        await device.start()
         voice._started = deadline.started_tick
         if args.streaming:
             await voice.prime_filler()
