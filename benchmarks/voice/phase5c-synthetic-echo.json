@@ -1,0 +1,110 @@
+{
+  "backend": "pywebrtc-audio==0.2.0",
+  "echo_taps_ms_gain": [
+    [
+      40,
+      0.55
+    ],
+    [
+      60,
+      0.2
+    ]
+  ],
+  "evidence_date": "2026-10-26",
+  "frame_ms": 20,
+  "probes": [
+    {
+      "capture_discontinuities": 0,
+      "cold_200_to_700ms_erle_db": 7.058990797704111,
+      "double_talk_8_to_12s": {
+        "energy_ratio": 0.7422065359878922,
+        "lag_aligned_correlation": 0.6729733909362446,
+        "lag_samples": 126
+      },
+      "far_kind": "voiced",
+      "first_three_200ms_windows_ge_10db_at_s": 1.6,
+      "late_4_to_6s_erle_db": 8.752372720230518,
+      "late_4_to_6s_min_200ms_erle_db": 5.576856134683661,
+      "near_only_14_to_16s": {
+        "energy_ratio": 0.9016344668112418,
+        "lag_aligned_correlation": 0.7357896332364261,
+        "lag_samples": 126
+      },
+      "noise_suppression": false,
+      "reference_overflows": 0,
+      "render_and_process_frame_p95_ms": 1.5746899013720395
+    },
+    {
+      "capture_discontinuities": 0,
+      "cold_200_to_700ms_erle_db": 15.355787252168792,
+      "double_talk_8_to_12s": {
+        "energy_ratio": 0.5565207455596821,
+        "lag_aligned_correlation": 0.6371133460587792,
+        "lag_samples": 222
+      },
+      "far_kind": "voiced",
+      "first_three_200ms_windows_ge_10db_at_s": 1.6,
+      "late_4_to_6s_erle_db": 14.915845095382021,
+      "late_4_to_6s_min_200ms_erle_db": 10.621025605276756,
+      "near_only_14_to_16s": {
+        "energy_ratio": 0.35701660449844436,
+        "lag_aligned_correlation": 0.6933346137682217,
+        "lag_samples": 222
+      },
+      "noise_suppression": true,
+      "reference_overflows": 0,
+      "render_and_process_frame_p95_ms": 1.5772857504089184
+    },
+    {
+      "capture_discontinuities": 0,
+      "cold_200_to_700ms_erle_db": 33.70979301103282,
+      "double_talk_8_to_12s": {
+        "energy_ratio": 0.4511589638103886,
+        "lag_aligned_correlation": 0.6159730969333075,
+        "lag_samples": 122
+      },
+      "far_kind": "noise",
+      "first_three_200ms_windows_ge_10db_at_s": 0.2,
+      "late_4_to_6s_erle_db": 23.78565671542804,
+      "late_4_to_6s_min_200ms_erle_db": 22.524706030226426,
+      "near_only_14_to_16s": {
+        "energy_ratio": 0.9016344668112418,
+        "lag_aligned_correlation": 0.7357896332364261,
+        "lag_samples": 126
+      },
+      "noise_suppression": false,
+      "reference_overflows": 0,
+      "render_and_process_frame_p95_ms": 1.5590041511131856
+    },
+    {
+      "capture_discontinuities": 0,
+      "cold_200_to_700ms_erle_db": 45.7840796455993,
+      "double_talk_8_to_12s": {
+        "energy_ratio": 0.027072629035886666,
+        "lag_aligned_correlation": 0.6136230273370813,
+        "lag_samples": 218
+      },
+      "far_kind": "noise",
+      "first_three_200ms_windows_ge_10db_at_s": 0.2,
+      "late_4_to_6s_erle_db": 36.442243600160765,
+      "late_4_to_6s_min_200ms_erle_db": 35.2000118970231,
+      "near_only_14_to_16s": {
+        "energy_ratio": 0.21769733029276522,
+        "lag_aligned_correlation": 0.6987593472286217,
+        "lag_samples": 223
+      },
+      "noise_suppression": true,
+      "reference_overflows": 0,
+      "render_and_process_frame_p95_ms": 1.5248065500600205
+    }
+  ],
+  "sample_rate": 16000,
+  "schema": "roma.synthetic-echo.v1",
+  "scope": "synthetic DSP only; no listening, physical latency or speech-quality gate",
+  "seed": 301,
+  "source_sha256": {
+    "roma/eval/echo.py": "0a7bee881b5efb9b8bb67521249ac7ed3db652be7aac51e93cbd34ee5f5cc927",
+    "roma/providers/audio/echo.py": "a61187f15a8ede37d1ee2f4821f59319092b24ee58b48a6003898ff69e55a916",
+    "scripts/echo_lab.py": "dcbdc4068f1300942797a17640e3454b9c87a78063f54c202768b2c59a73715d"
+  }
+}

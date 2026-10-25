@@ -268,6 +268,20 @@ async def capture_turn(device, speech, voice, policy, deadline):
         raise
 
 
+
+async def duplex_turns(device, speech, voice, policy, deadline, *, max_turns, on_result=None):
+    from roma.services.duplex_voice import DuplexVoiceSession
+
+    def opened():
+        deadline.require_remaining()
+        capture_started(voice.state.call_sid, voice.attempt + 1)
+
+    session = DuplexVoiceSession(voice, speech, policy=policy, max_turns=max_turns,
+                                remaining=deadline.remaining, on_result=on_result)
+    source = device.frames(max_seconds=deadline.require_remaining(), on_capture_started=opened)
+    with voice_boundary(VoiceErrorCode.CAPTURE):
+        return await session.run(source)
+
 async def resume_lab_call(factory, live_state, sid, *, now=None, data_root=None):
     """Claim an unfinished lab and restore SQL truth without extending its lifetime."""
     from roma.core.privacy_paths import safe_runtime_path
@@ -426,6 +440,13 @@ async def _local_run(args):
                                   "status": "completed", "appointment_id": state.appointment_id}), flush=True)
                 return
             await require_booking_data(factory, branch=state.branch)
+        echo = None
+        if input_duplex(args):
+            from roma.providers.audio.echo import WebRTCEchoCanceller
+            with voice_boundary(VoiceErrorCode.DEVICE):
+                # Reference timestamps already include DAC latency; let AEC estimate residual delay.
+                echo = WebRTCEchoCanceller(stream_delay_ms=0)
+                echo.preflight()
         with voice_boundary(VoiceErrorCode.ASR):
             stt = build_stt_provider(cfg)
         with voice_boundary(VoiceErrorCode.TTS):
@@ -488,7 +509,8 @@ async def _local_run(args):
             max_concurrency=tts_cfg.tts_max_concurrency,
         )
         device = LocalAudioDevice(
-            input_device=args.input_device, output_device=args.output_device, policy=cfg.turn_policy()
+            input_device=args.input_device, output_device=args.output_device, policy=cfg.turn_policy(),
+            duplex=input_duplex(args), echo=echo,
         )
         speech = SpeechInputService(stt, scorer, state, policy=cfg.turn_policy())
         cpu_worker = None
@@ -497,7 +519,8 @@ async def _local_run(args):
             cleanup.push_async_callback(cpu_worker.aclose)
             await cpu_worker.run(int, 0)
         voice = VoicePrototype(state, conversation, synthesis, device, store, budget=budget,
-                               streaming=StreamConfig() if sentence_streaming(args) else None, cpu_worker=cpu_worker)
+                               streaming=StreamConfig(minimum_speech_ms=200 if input_duplex(args) else 600)
+                               if sentence_streaming(args) else None, cpu_worker=cpu_worker)
         voice.release_on_disconnect = booking.aclose
         voice.attempt = previous_attempts
         # The persisted SQL start includes downtime and resumed model readiness.
@@ -512,7 +535,8 @@ async def _local_run(args):
         if sentence_streaming(args):
             await voice.prime_filler()
         print(
-            "Headphones required. Local ASR/TTS; "
+            ("Full duplex with local WebRTC echo cancellation. " if input_duplex(args)
+             else "Diagnostic half duplex. ") + "Local ASR/TTS; "
             + (
                 "mock LLM, no cloud inference."
                 if args.llm_provider == "mock"
@@ -521,6 +545,21 @@ async def _local_run(args):
             + " Ctrl+C stops. No audio recording."
         )
         print("Voice lab id: " + state.call_sid, flush=True)
+        if input_duplex(args):
+            def report_turn(outcome):
+                print(json.dumps({"call_sid": state.call_sid, **asdict(outcome)},
+                                 ensure_ascii=False), flush=True)
+            turns = min(args.max_turns, args.pause_after_turn or args.max_turns)
+            outcomes = await duplex_turns(device, speech, voice, cfg.turn_policy(), deadline,
+                                          max_turns=turns, on_result=report_turn)
+            if (args.pause_after_turn is not None and len(outcomes) >= args.pause_after_turn
+                    and not state.lead_wants_out and deadline.remaining() > 0):
+                await pause_lab_call(factory, live_state, state, voice.attempt)
+                paused = True
+                print(json.dumps({"event": "CALL_PAUSED", "call_sid": state.call_sid,
+                                  "attempt": voice.attempt}), flush=True)
+            failed = False
+            return
         for invocation_attempt in range(1, args.max_turns + 1):
             if deadline.remaining() <= 0 or state.lead_wants_out:
                 break
@@ -541,8 +580,13 @@ async def _local_run(args):
         await cleanup.aclose()
 
 
+def input_duplex(args):
+    """The local calling path listens during playback unless explicitly diagnosed muted."""
+    return args.mode == "local" and not args.half_duplex
+
+
 def sentence_streaming(args):
-    """Sentence delivery can stream while microphone input stays half duplex."""
+    """Sentence delivery is independent of continuous full-duplex input."""
     return bool(args.streaming or (args.mode == "local" and not args.buffered_speech))
 
 
@@ -550,8 +594,9 @@ def parser():
     p = argparse.ArgumentParser(description=__doc__)
     speech_mode = p.add_mutually_exclusive_group()
     speech_mode.add_argument("--streaming", action="store_true", help="Audited sentence streaming; default in local mode")
-    speech_mode.add_argument("--buffered-speech", action="store_true", help="Wait for the complete reply; microphone remains half duplex")
+    speech_mode.add_argument("--buffered-speech", action="store_true", help="Wait for the complete reply; input remains full duplex")
     p.add_argument("--mode", choices=("mock", "local"), default="mock")
+    p.add_argument("--half-duplex", action="store_true", help="Diagnostic: mute capture while replying instead of full duplex")
     p.add_argument("--llm-provider", choices=("claude", "mock"), default="claude")
     p.add_argument("--allow-microphone", action="store_true")
     p.add_argument("--allow-paid-api", action="store_true")

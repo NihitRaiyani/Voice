@@ -404,3 +404,25 @@ def test_one_batch_can_finalize_multiple_caller_turns_without_mixing_text():
         assert await service.finish() == ()
 
     asyncio.run(run())
+
+
+def test_presegmented_decoder_never_mutates_live_endpoint_or_scorer():
+    from roma.core.turn_epoch import TurnEpoch
+    from roma.domain.audio.endpointing import Utterance
+
+    async def run():
+        guard, provider, scorer = TurnEpoch(), STT(), Scorer()
+        live = SpeechInputService(provider, scorer, CallState())
+        await live.feed(b'\1\0' * 320)
+        decoder = live.segment_decoder(epoch_guard=guard)
+        segment = Utterance(b'\2\0' * 512, 0, 512, 1, 'silence', 512)
+        result = await decoder.transcribe_segment(segment, turn_epoch=guard.advance())
+        assert result.text == 'haan' and result.turn_epoch == 1
+        assert live.pending_bytes == 640 and scorer.resets == 0
+        assert live.endpoint.position_samples == 0
+        guard.advance()
+        with pytest.raises(asyncio.CancelledError):
+            await decoder.transcribe_segment(segment, turn_epoch=1)
+        assert len(provider.requests) == 1
+        assert live.pending_bytes == 640 and scorer.resets == 0
+    asyncio.run(run())

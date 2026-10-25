@@ -120,6 +120,35 @@ class SpeechInputService:
     def pending_bytes(self) -> int:
         return len(self._carry)
 
+    def segment_decoder(self, *, epoch_guard: TurnEpoch) -> "SpeechInputService":
+        """Create independent decode state for externally endpointed capture.
+
+        The decoder shares the configured provider and language state; it never
+        feeds or resets the live scorer/endpoint.
+        """
+        return SpeechInputService(self.provider, self.scorer, self.call_state,
+                                  policy=self.policy, stt_metadata=self._stt_metadata,
+                                  epoch_guard=epoch_guard)
+
+    async def transcribe_segment(self, segment: Utterance, *, turn_epoch: int) -> SpeechTranscript:
+        """Decode one already-final, bounded segment without touching capture."""
+        if not isinstance(segment, Utterance) or segment.reason == "max_duration":
+            raise ValueError("Expected a finalized utterance")
+        validate_pcm16(segment.pcm)
+        if (not segment.pcm or len(segment.pcm) > 960000
+                or segment.end_sample - segment.start_sample != len(segment.pcm) // 2):
+            raise AudioFormatError("Expected at most thirty seconds of original PCM")
+        self._enter()
+        try:
+            self._clear_turn()
+            self._capture_epoch = turn_epoch
+            self._source_end = segment.end_sample
+            return (await self._transcribe((segment,)))[0]
+        finally:
+            self._clear_turn()
+            self._capture_epoch = None
+            self._busy = False
+
     async def _transcribe(
         self, segments: tuple[Utterance, ...]
     ) -> tuple[SpeechTranscript, ...]:

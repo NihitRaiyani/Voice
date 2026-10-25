@@ -1,0 +1,35 @@
+{
+  "ci": {
+    "exit_code": 0,
+    "seconds": 144.08
+  },
+  "ci_collection_note": "CI collected before the last three device regressions; the separate final full suite includes all three. Final source also passed fresh Ruff, mypy and focused device/coordinator tests.",
+  "ci_passed": 3630,
+  "full_suite_passed": 3633,
+  "microphone_used": false,
+  "models_changed": false,
+  "mypy_source_files": 130,
+  "native_gate_passed": false,
+  "paid_calls": 0,
+  "red_then_green": [
+    "test_actual_adc_gap_rejects_incomplete_input_instead_of_stitching_it",
+    "test_clear_during_render_never_exposes_unplayed_reference_to_capture",
+    "test_echo_cleanup_failure_still_aborts_and_closes_native_output",
+    "test_epoch_only_invalidation_scrubs_unplayed_render_before_capture",
+    "test_epoch_advance_after_render_scrubs_future_reference_before_capture",
+    "test_terminal_stop_finishes_goodbye_audio_without_accepting_another_caller"
+  ],
+  "schema": "roma.phase5c-verification.v1",
+  "source_sha256": {
+    "roma/providers/audio/echo.py": "a61187f15a8ede37d1ee2f4821f59319092b24ee58b48a6003898ff69e55a916",
+    "roma/providers/audio/local_device.py": "1167d45303350f66aa55e48fb46c053cd4029fbfeec581242aaac083fd373d71",
+    "roma/services/duplex_voice.py": "712ca188daf65bcdddeda7d542667ff1411c9753cfacefdeecb627cc6c23ab89",
+    "scripts/voice_prototype.py": "bf6ce87ebdb53fe5e7e264ebdb5a424f4acdc619c817b9918f2f328fc2760f1b"
+  },
+  "test": {
+    "exit_code": 0,
+    "seconds": 144.62
+  },
+  "warnings": 22,
+  "working_database_changed": false
+}

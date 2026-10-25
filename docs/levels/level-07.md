@@ -1,6 +1,6 @@
 # Level 7 — Real-time reliability
 
-**Roadmap sections:** 22–25. **Status:** Sections 22–25 streaming, cancellation, Redis/SQL state and provider reliability are implemented and verified offline; real-call reliability/native gates and advanced tracks remain pending.
+**Roadmap sections:** 22–25. **Status:** Sections 22–25 streaming, cancellation, Redis/SQL state and provider reliability have offline evidence. Phases 5A–5C add persistent capture/epochs, retained TTS, local full duplex/AEC and synthetic replay; native reliability and the full gate remain pending.
 
 ## Entry gate
 
@@ -18,7 +18,7 @@ Pipecat cancellation/clear, isolation/watchdog tests, Redis checkpoint/degradati
 
 ## Sections 22–23 implementation
 
-`make --silent voice-prototype ARGS=--streaming` opts into the new local sentence-delivery path. Without the flag, the existing full-response prototype is unchanged. The physical microphone remains half duplex: capture closes before response processing/playback. The existing Twilio/Pipecat/Sarvam path, its signed transport and production interruption logic remain unchanged. The new transport-neutral cancellation seam is exercised with fake input and real `WebSocketDisconnect` objects, without carrier calls or microphone access.
+At the sections 22–23 increment, `make --silent voice-prototype ARGS=--streaming` opted into sentence delivery and physical capture remained half duplex. Phase 5C supersedes that local input policy: local mode now defaults to full duplex and sentence streaming; mock mode stays buffered unless `--streaming` is supplied. See [the current local contract](#phase-5c-local-full-duplex-and-echo-cancellation). The existing Twilio/Pipecat/Sarvam path, its signed transport and production interruption logic remain unchanged. The new transport-neutral cancellation seam is exercised with fake input and real `WebSocketDisconnect` objects, without carrier calls or microphone access.
 
 `TextConversationService` still owns deterministic stages, validated slots and booking commits. Optional sentence callbacks activate bounded token/chunk/safety stages. The chunker recognizes commas, full stops, question/exclamation marks and Indic danda, preserves decimal/thousands separators and caps unfinished tails and the entire turn. Existing final-speech rules check each clause plus its bounded cumulative prefix, preventing a risky noun and its later amount from evading checks across a comma. The first activation substitutes an approved line, audits it and stops the remaining generation. Extraction JSON never enters the sentence path. Accepted controller state is checkpointed before streaming begins.
 
@@ -46,7 +46,7 @@ No model is downloaded, changed or multiplied into these CPU workers. Claude rem
 
 ### Interruption and disconnect
 
-Per-turn tasks are separate from the long-lived final-transcript consumer. A continuous probability-qualified speech span must reach **600 ms** (configurable minimum and probability threshold) before barge-in. Short noise resets without cancelling. Actual `SpeechInputService` VAD frames drive this seam in the transport-neutral input runner. No echo cancellation or full-duplex physical microphone capture is added; minimum duration cannot identify sustained echo by itself.
+Per-turn tasks are separate from the long-lived final-transcript consumer. The sections 22–23 default required **600 ms** of probability-qualified continuous speech (configurable minimum and threshold) before barge-in; Phase 5C local full duplex uses **200 ms**. Short noise resets without cancelling. Actual `SpeechInputService` VAD frames drive this seam in the transport-neutral input runner. That increment added no echo cancellation or full-duplex physical capture. Phase 5C adds local reference-based AEC; minimum duration alone cannot identify sustained echo.
 
 The shared control path invalidates delivery, cancels generation/synthesis/playback, discards unfinished clauses and queued outputs, joins cooperative tasks, then invokes output clear. Accepted slots/stage stay checkpointed and the final-transcript worker accepts the next turn. The five-minute input-session cap is preserved. An explicit disconnect uses the same path, is idempotent, releases per-call resource/hold callbacks and marks the call terminal. Clear or close failure still attempts release and durable finish. Playback rechecks delivery ownership after persistence and fallback awaits; the next response waits for the previous output clear to finish. Cleanup deadlines close/poison an unresponsive session rather than permit another generation alongside old work. A provider which ignores cancellation forever still requires process/service-level termination; no source-only native cleanup guarantee is claimed.
 
@@ -60,7 +60,7 @@ Focused queue/streaming/CPU/cancellation/privacy and existing voice/safety check
 
 ## Section 24 live state and supervised checkpoints
 
-`LiveCallStateStore` composes the existing Redis and PostgreSQL adapters. `roma.main` injects one coordinator per carrier call; local prototype composition uses the same writer. Provider settings, signed Twilio transport, Sarvam speech and physical microphone half duplex are unchanged. Plain injected legacy stores keep their load/save contracts in offline fixtures. A coordinator startup failure closes/releases owned resources and refuses fresh-state continuation. SQL remains authoritative for committed appointments.
+`LiveCallStateStore` composes the existing Redis and PostgreSQL adapters. `roma.main` injects one coordinator per carrier call; local prototype composition uses the same writer. That increment preserved provider settings, signed Twilio transport, Sarvam speech and the then-current physical microphone half duplex; Phase 5C changes only the local input policy. Plain injected legacy stores keep their load/save contracts in offline fixtures. A coordinator startup failure closes/releases owned resources and refuses fresh-state continuation. SQL remains authoritative for committed appointments.
 
 Milestones are call started, accepted state/slot change, caller turn completed, stage changed, audited safety activation, booking confirmed and call ended. The existing short SQL adapter writes compatible latest snapshots. `CheckpointSafetyEventStore` first commits safety audit, then checkpoints the current state. No frame, audio packet or model token becomes a database write. Provider wording/playback never shares a database session with these writes.
 
@@ -113,3 +113,17 @@ The local supervised CLI also gained explicit SQL-authoritative pause/resume, pr
 ## Phase 5A persistent capture, epochs and replay
 
 The 2026-10-25 owner instruction authorizes previously deferred advanced implementation before native acceptance, without waiving that gate. See the [capture/audio contract](../05-endpointing-vad.md#persistent-capture-and-advanced-audio-lab) and [synthetic metrics](../../benchmarks/voice/phase5a-adaptive-replay.json). Input stays open across software-muted half-duplex turns; shared epochs suppress stale ASR/controller/LLM/TTS/playback work. Lab Streams and adaptive jitter/PLC replay change no production media or business-state recovery. Physical cancellation latency, callback reliability, representative ASR and native naturalness remain pending. Phase commits stay local under the explicit no-push instruction.
+
+## Phase 5B retained TTS
+
+Local readiness explicitly warms and retains one cache-verified Indic-TTS worker and active voice. Bounded epoch-tagged IPC, cancellation/timeout cleanup and identity changes preserve ownership. Audited sentence delivery overlaps synthesis and playback; finite date/time/cardinal pronunciation preserves both source and spoken safety checks. [Verification](../12-verification.md#phase-5b-retained-tts-and-speech-rendering) records the separate offline and native synthetic evidence. No listening gate follows from those measurements.
+
+## Phase 5C local full duplex and echo cancellation
+
+The owner-requested local default is continuous full duplex. `--half-duplex` explicitly selects the earlier software-muted diagnostic path; `--buffered-speech` controls response delivery independently. `LocalAudioDevice.frames()` keeps mono PCM16 capture active at 16 kHz/20 ms through ASR, synthesis, playback and output clear. ADC timestamps mapped to the monotonic clock preserve sample alignment despite callback scheduling jitter, with a sample-clock fallback when device timestamps are unavailable. The callback only copies bounded frames; real DSP runs in the serial consumer.
+
+The optional `duplex` extra pins `pywebrtc-audio==0.2.0` for local WebRTC AEC3. A bounded sample-addressed playback reference uses scheduled output latency and the existing 8→16 kHz resampler. Missing/wrong-version/failed AEC refuses full duplex instead of forwarding raw microphone PCM. Noise suppression and automatic gain control are off by default. Clearing future output preserves already rendered reference and learned echo state for the acoustic tail.
+
+`DuplexVoiceSession` owns continuous VAD/endpointing independently of bounded decode/final queues and response work. Sustained near-end speech during an active response advances the shared turn epoch and starts output clear/cancellation; late results cannot start a new reply. Only eligible, already-captured onset frames transfer ownership, and discontinuities/pressure fail explicitly rather than stitch incomplete input. Existing safety, language policy, SQL booking authority and five-minute lifetime remain authoritative. An in-flight SQL commit still requires reconciliation.
+
+Fake-device/session coverage and generated-sample real-DSP probes are separate evidence classes; [verification](../12-verification.md#phase-5c-duplex-verification-scope) and the [runbook](../runbook.md#phase-5c-local-full-duplex) define reproducible commands and limits. No physical speaker/microphone double-talk, acoustic cancellation latency, representative speech preservation or native acceptance is established by this increment. Models, production Twilio/Sarvam and working database policy are unchanged. Delivery remains one local phase commit with no push.

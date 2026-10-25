@@ -347,3 +347,10 @@ def test_capture_failure_invalidates_epoch_and_clears_before_propagating():
             await module.capture_turn(Device(), object(), voice, TurnPolicy(), module.LabDeadline(datetime.now(UTC)))
         assert guard.current == 2 and events == [2]
     asyncio.run(run())
+
+
+def test_local_input_is_full_duplex_by_default_with_explicit_diagnostic_override():
+    module = cli()
+    assert module.input_duplex(module.parser().parse_args(["--mode", "local"]))
+    assert not module.input_duplex(module.parser().parse_args(["--mode", "local", "--half-duplex"]))
+    assert not module.input_duplex(module.parser().parse_args([]))

@@ -1,5 +1,6 @@
 """Bounded callback-to-async PCM handoff; callbacks never wait for the consumer."""
 
+import math
 import threading
 from collections import deque
 from dataclasses import dataclass
@@ -31,19 +32,23 @@ class CaptureBuffer:
         self.mode = CaptureMode.MUTED_HALF_DUPLEX
         self.generation = 0
         self.epoch = 0
+        self.follow_epochs = False
         self.last_callback_at = clock()
         self._failed_generation = None
         self.muted_discarded = 0
         self.stale_discarded = 0
         self.active_overflows = 0
 
-    def activate(self, epoch):
+    def activate(self, epoch, *, follow_epochs=False):
+        if type(epoch) is not int or epoch < 0 or type(follow_epochs) is not bool:
+            raise ValueError("Invalid capture epoch policy")
         with self._lock:
             if self.mode == CaptureMode.CLOSED:
                 raise RuntimeError("Capture is closed")
             self._frames.clear()
             self.generation += 1
             self.epoch = epoch
+            self.follow_epochs = follow_epochs
             self._failed_generation = None
             self.mode = CaptureMode.ACTIVE
             return self.generation
@@ -59,7 +64,7 @@ class CaptureBuffer:
             self._frames.clear()
             self.mode = CaptureMode.CLOSED
 
-    def push(self, pcm, frames, epoch, overflow=False):
+    def push(self, pcm, frames, epoch, overflow=False, *, at=None):
         self.last_callback_at = self.clock()
         if self.mode != CaptureMode.ACTIVE:
             self.muted_discarded += 1
@@ -73,11 +78,12 @@ class CaptureBuffer:
             if self.mode != CaptureMode.ACTIVE:
                 self.muted_discarded += 1
                 return
-            if epoch != self.epoch:
+            if not self.follow_epochs and epoch != self.epoch:
                 self.stale_discarded += 1
                 return
             if (
                 overflow
+                or (at is not None and (type(at) not in (int, float) or not math.isfinite(at)))
                 or type(frames) is not int
                 or frames != 320
                 or len(pcm) != frames * 2
@@ -88,7 +94,7 @@ class CaptureBuffer:
                 self._frames.clear()
                 return
             self._frames.append(
-                CaptureFrame(bytes(pcm), self.last_callback_at, epoch, self.generation)
+                CaptureFrame(bytes(pcm), self.last_callback_at if at is None else at, epoch, self.generation)
             )
         finally:
             self._lock.release()
@@ -97,12 +103,12 @@ class CaptureBuffer:
         if self._failed_generation == generation:
             raise ValueError("Microphone overflow: incomplete utterance discarded")
 
-    def pop(self, generation, epoch):
+    def pop(self, generation, epoch=None):
         with self._lock:
             self.check(generation)
             while self._frames:
                 frame = self._frames.popleft()
-                if frame.generation == generation and frame.epoch == epoch:
+                if frame.generation == generation and (epoch is None or frame.epoch == epoch):
                     return frame
                 self.stale_discarded += 1
             return None

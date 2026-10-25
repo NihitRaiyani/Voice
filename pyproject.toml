@@ -14,6 +14,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+duplex = [
+    "pywebrtc-audio==0.2.0",
+]
 workers = [
     "dramatiq[redis]>=2.0,<3",
 ]
@@ -104,6 +107,8 @@ files = [
     "roma/core/tts_settings.py",
     "roma/services/tts_service.py",
     "roma/services/voice_prototype.py",
+    "roma/services/duplex_voice.py",
+    "roma/eval/echo.py",
     "roma/providers/reliability.py",
     "roma/providers/jobs/claude_summary.py",
     "roma/core/auth_settings.py",

@@ -304,20 +304,38 @@ class VoicePrototype:
     async def observe_speech(self, probability, duration_ms):
         return await self.interrupt() if self.barge_in_due(probability, duration_ms) else False
 
-    async def interrupt(self, *, owner=None):
-        return await self._cancel_response(disconnect=False, owner=owner)
+    def claim_turn(self):
+        """Atomically own accepted near-end speech before asynchronous clear.
+
+        A ready old provider can observe invalidation as soon as the event loop
+        yields; mark that response interrupted before it can classify teardown.
+        """
+        if self.disconnected or self._poisoned:
+            raise RuntimeError("Voice session requires restart")
+        epoch = self.epochs.advance()
+        if self._busy:
+            self._stop_reason = "interrupted"
+        return epoch
+
+    async def interrupt(self, *, owner=None, turn_epoch=None):
+        return await self._cancel_response(disconnect=False, owner=owner, turn_epoch=turn_epoch)
 
     async def disconnect(self):
         return await self._cancel_response(disconnect=True)
 
-    async def _cancel_response(self, *, disconnect, owner=None):
+    async def _cancel_response(self, *, disconnect, owner=None, turn_epoch=None):
         from roma.services.streaming_text import StreamConfig
         policy = self.streaming or StreamConfig()
         if self.disconnected:
             return False
         if owner is not None and self._response_task is not owner:
             return False
-        self.epochs.advance()  # Synchronous invalidation before control/flush awaits.
+        if turn_epoch is None:
+            self.epochs.advance()  # Synchronous invalidation before control/flush awaits.
+        else:
+            # Continuous capture already claimed this near-end turn. Never
+            # invalidate its retained onset again while clearing old playback.
+            self.epochs.require_current(turn_epoch)
         async with self._control_lock:
             if self.disconnected:
                 return False

@@ -1,7 +1,9 @@
-"""Persistent callback capture and software-muted half-duplex local audio."""
+"""Persistent local capture with optional full-duplex echo cancellation."""
 
 import asyncio
+import math
 import sys
+import threading
 from dataclasses import replace
 from time import perf_counter
 
@@ -41,9 +43,19 @@ class LocalAudioDevice:
         capture_capacity=32,
         capture_watchdog_secs=1.0,
         clock=perf_counter,
+        duplex=False,
+        echo=None,
     ):
         if not 0 < capture_watchdog_secs <= 10:
             raise ValueError("Capture watchdog must be bounded")
+        if type(duplex) is not bool or (duplex and echo is None):
+            raise ValueError("Full duplex requires an explicit echo canceller")
+        self.duplex, self.echo = duplex, echo
+        self._input_samples = 0
+        self._input_anchor: float | None = None
+        self._adc_offset: float | None = None
+        self._last_capture_end: float | None = None
+        self._render_next_at: float | None = None
         self.input_device, self.output_device = input_device, output_device
         self._backend = backend
         self.policy = policy or TurnPolicy()
@@ -64,6 +76,9 @@ class LocalAudioDevice:
         self._play_lock = asyncio.Lock()
         self._output = None
         self._output_generation = 0
+        self._echo_generation = 0
+        self._echo_epoch = self._epoch()
+        self._echo_lock = threading.Lock()
         self.last_clear_ms = None
 
     def bind_epoch_guard(self, guard):
@@ -96,14 +111,28 @@ class LocalAudioDevice:
         return self._backend
 
     def _capture_callback(self, pcm, frames, time_info, status):
-        # Expired input cannot consume ring capacity while valid queued frames
-        # are still being drained by the asynchronous consumer.
-        deadline = self._capture_deadline
-        if deadline is not None and self.clock() > deadline:
+        # Hardware ADC/sample time keeps DSP aligned when Python callbacks jitter.
+        at = self.clock()
+        overflow = bool(getattr(status, "input_overflow", False))
+        if self.duplex:
+            adc = getattr(time_info, "inputBufferAdcTime", None)
+            current = getattr(time_info, "currentTime", None)
+            if (type(adc) in (int, float) and type(current) in (int, float)
+                    and math.isfinite(adc) and math.isfinite(current) and 0 < adc <= current):
+                if self._adc_offset is None:
+                    self._adc_offset = at - current
+                at = self._adc_offset + adc + frames / 16000
+            else:
+                if self._input_anchor is None:
+                    self._input_anchor = at - frames / 16000
+                self._input_samples += frames
+                at = self._input_anchor + self._input_samples / 16000
+            if self._last_capture_end is not None and abs(at - self._last_capture_end - frames / 16000) > 0.005:
+                overflow = True
+            self._last_capture_end = at
+        if self._capture_deadline is not None and at > self._capture_deadline:
             return
-        self.capture.push(
-            pcm, frames, self._epoch(), bool(getattr(status, "input_overflow", False))
-        )
+        self.capture.push(pcm, frames, self._epoch(), overflow, at=at)
 
     async def start(self):
         async with self._start_lock:
@@ -112,6 +141,8 @@ class LocalAudioDevice:
             if self._started:
                 return
             self._check_active()
+            if self.duplex:
+                self.echo.preflight()
             self._input_stream = self._audio().RawInputStream(
                 samplerate=16000,
                 channels=1,
@@ -154,7 +185,47 @@ class LocalAudioDevice:
             self._close_task = asyncio.create_task(self._close())
         await _finish_native(self._close_task)
 
+    async def frames(self, *, max_seconds=300, on_capture_started=None):
+        """Continuous AEC-cleaned capture; no ASR/model work runs in the callback."""
+        if not self.duplex or not self._started or self._closing:
+            raise RuntimeError("A started full-duplex device is required")
+        if type(max_seconds) not in (int, float) or not math.isfinite(max_seconds) or not 0 < max_seconds <= 300:
+            raise ValueError("Invalid duplex capture deadline")
+        if self._listening:
+            raise RuntimeError("Only one capture consumer is allowed")
+        self._check_active()
+        self._listening = True
+        started = self.clock()
+        self._capture_deadline = started + max_seconds
+        generation = self.capture.activate(self._epoch(), follow_epochs=True)
+        try:
+            if on_capture_started is not None:
+                on_capture_started()
+            while not self._closing:
+                self._check_active()
+                frame = self.capture.pop(generation)
+                if frame is None:
+                    if self.clock() >= self._capture_deadline:
+                        break
+                    if self.clock() - max(started, self.capture.last_callback_at) >= self.capture_watchdog_secs:
+                        raise VoiceFailure(VoiceErrorCode.DEVICE_CAPTURE_STALLED)
+                    await asyncio.sleep(0.005)
+                    continue
+                if frame.at > self._capture_deadline:
+                    break
+                cleaned = await asyncio.to_thread(self._process_echo, frame.pcm, frame.at - 0.020)
+                if not isinstance(cleaned, bytes) or len(cleaned) != 640:
+                    raise ValueError("Echo processing returned an invalid capture frame")
+                self.capture.check(generation)
+                yield replace(frame, pcm=cleaned)
+        finally:
+            self.capture.mute()
+            self._capture_deadline = None
+            self._listening = False
+
     async def listen(self, speech, *, max_seconds=30, on_capture_started=None, epoch=None):
+        if self.duplex:
+            raise RuntimeError("Use continuous frames() for full duplex")
         if not 0 < max_seconds <= self.policy.max_utterance_ms / 1000:
             raise ValueError("Capture limit must be in (0,30] seconds")
         if not self._started or self._closing:
@@ -300,20 +371,60 @@ class LocalAudioDevice:
                 finally:
                     output["done"].set()
 
+    def _clear_echo(self):
+        with self._echo_lock:
+            self.echo.clear_future(at=self.clock())
+            self._echo_generation = self._output_generation
+            self._echo_epoch = self._epoch()
+
+    def _process_echo(self, pcm, at):
+        with self._echo_lock:
+            # Invalidation is immediate; a delayed clear task cannot expose an
+            # already-cancelled render reference to the capture DSP.
+            if (self._echo_generation != self._output_generation
+                    or (self.epochs is not None and not self.epochs.is_current(self._echo_epoch))):
+                self.echo.clear_future(at=self.clock())
+                self._echo_generation = self._output_generation
+                self._echo_epoch = self._epoch()
+            return self.echo.process(pcm, at=at)
+
+    def _render_echo(self, block, stream, rate, generation, epoch):
+        with self._echo_lock:
+            self._check_output(generation, epoch)
+            latency = getattr(stream, "latency", 0.0)
+            if type(latency) not in (int, float) or not math.isfinite(latency) or not 0 <= latency <= 1:
+                raise ValueError("Invalid native output latency")
+            at = max(self.clock() + latency, self._render_next_at or 0)
+            try:
+                self.echo.render(block, rate=rate, at=at)
+                self._render_next_at = at + len(block) / 2 / rate
+            finally:
+                if (generation != self._output_generation
+                        or (self.epochs is not None and not self.epochs.is_current(epoch))):
+                    self.echo.clear_future(at=self.clock())
+                self._echo_generation = self._output_generation
+                self._echo_epoch = self._epoch()
+            self._check_output(generation, epoch)
+
     async def clear(self):
-        # Shared turn_epoch is advanced by VoicePrototype before this control
-        # callback. This counter only invalidates queued/in-flight device writes.
+        # Invalidate writes synchronously, before joining any native or DSP work.
         self._output_generation += 1
-        self.capture.mute()
+        if not self.duplex:
+            self.capture.mute()
         output, started = self._output, self.clock()
 
         async def finish():
-            if output is not None:
-                try:
-                    await self._abort_output(output)
-                finally:
-                    await output["done"].wait()
-            self.last_clear_ms = max(0.0, (self.clock() - started) * 1000)
+            aborting = asyncio.create_task(self._abort_output(output)) if output is not None else None
+            try:
+                if self.duplex:
+                    await asyncio.to_thread(self._clear_echo)
+            finally:
+                if aborting is not None:
+                    try:
+                        await aborting
+                    finally:
+                        await output["done"].wait()
+                self.last_clear_ms = max(0.0, (self.clock() - started) * 1000)
 
         await _finish_native(asyncio.create_task(finish()))
 
@@ -333,7 +444,8 @@ class LocalAudioDevice:
             raise ValueError("Speaker requires nonempty mono PCM16")
         async with self._play_lock:
             self._check_output(generation, epoch)
-            self.capture.mute()
+            if not self.duplex:
+                self.capture.mute()
             stream = self._audio().RawOutputStream(
                 samplerate=result.format.sample_rate_hz,
                 channels=1,
@@ -343,11 +455,14 @@ class LocalAudioDevice:
             output = {"stream": stream, "io": None, "abort": None, "done": asyncio.Event()}
             self._output = output
             self.first_write_at = None
+            self._render_next_at = None
 
             def write(block):
                 self._check_output(generation, epoch)
                 if self.first_write_at is None:
                     self.first_write_at = self.clock()
+                if self.duplex:
+                    self._render_echo(block, stream, result.format.sample_rate_hz, generation, epoch)
                 return stream.write(block)
 
             try:
@@ -355,9 +470,10 @@ class LocalAudioDevice:
                 await asyncio.shield(output["io"])
                 output["io"] = None
                 self._check_output(generation, epoch)
-                for offset in range(0, len(result.audio), 3200):
+                batch = result.format.sample_rate_hz // 50 * 2 if self.duplex else 3200
+                for offset in range(0, len(result.audio), batch):
                     output["io"] = asyncio.create_task(
-                        asyncio.to_thread(write, result.audio[offset : offset + 3200])
+                        asyncio.to_thread(write, result.audio[offset : offset + batch])
                     )
                     underflow = await asyncio.shield(output["io"])
                     output["io"] = None
@@ -372,5 +488,9 @@ class LocalAudioDevice:
                 try:
                     await _finish_native(asyncio.create_task(self._cleanup_output(output)))
                 finally:
-                    if self._output is output:
-                        self._output = None
+                    try:
+                        if self.duplex:
+                            await asyncio.to_thread(self._clear_echo)
+                    finally:
+                        if self._output is output:
+                            self._output = None
