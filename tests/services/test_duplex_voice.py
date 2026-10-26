@@ -88,6 +88,72 @@ def test_two_normal_turns_are_decoded_and_responded_with_distinct_current_epochs
     asyncio.run(run())
 
 
+def test_capture_recovery_discards_partial_speech_and_decodes_only_fresh_generation():
+    async def run():
+        voice, service = Voice(), speech()
+        session = DuplexVoiceSession(voice, service)
+
+        async def source():
+            async for frame in blocks(voice, [1] * 8):
+                yield frame
+            await session.recover_capture()
+            for index, value in enumerate([2] * 12 + [0] * 12):
+                yield CaptureFrame(bytes([value, 0]) * 320, .18 + index * .02,
+                                   voice.epochs.snapshot(), 1)
+                await asyncio.sleep(0)
+
+        outcomes = await session.run(source())
+        assert len(outcomes) == len(voice.results) == len(service.provider.requests) == 1
+        assert service.provider.requests[0].audio.count(b'\2\0') == 12 * 320
+        assert b'\1\0' not in service.provider.requests[0].audio
+        assert voice.results[0].turn_epoch == 3 and not voice.disconnected
+
+    asyncio.run(run())
+
+
+def test_capture_recovery_rejects_late_cancel_resistant_asr_and_keeps_fresh_turn():
+    class LateProvider(Provider):
+        def __init__(self):
+            super().__init__()
+            self.started, self.release = asyncio.Event(), asyncio.Event()
+            self.cancelled = False
+
+        async def transcribe(self, request):
+            self.requests.append(request)
+            if len(self.requests) == 1:
+                self.started.set()
+                try:
+                    await self.release.wait()
+                except asyncio.CancelledError:
+                    self.cancelled = True
+                    await self.release.wait()
+            return STTResult('caller', 'en', turn_epoch=request.turn_epoch)
+
+    async def run():
+        voice, provider = Voice(), LateProvider()
+        service = speech(provider)
+        session = DuplexVoiceSession(voice, service)
+
+        async def source():
+            async for frame in blocks(voice, [1] * 12 + [0] * 12):
+                yield frame
+            await provider.started.wait()
+            asyncio.get_running_loop().call_later(.01, provider.release.set)
+            await session.recover_capture()
+            for index, value in enumerate([2] * 12 + [0] * 12):
+                yield CaptureFrame(bytes([value, 0]) * 320, 1 + index * .02,
+                                   voice.epochs.snapshot(), 1)
+                await asyncio.sleep(0)
+
+        outcomes = await session.run(source())
+        assert provider.cancelled and len(provider.requests) == 2
+        assert len(outcomes) == len(voice.results) == 1
+        assert voice.results[0].turn_epoch == 3 and not voice.disconnected
+        assert provider.requests[1].audio.count(b'\2\0') == 12 * 320
+
+    asyncio.run(run())
+
+
 def test_playback_barge_retains_the_entire_caller_onset_and_runs_fast_vad():
     class PlayingVoice(Voice):
         def __init__(self):

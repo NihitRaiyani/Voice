@@ -67,6 +67,9 @@ markers = [
 python_version = "3.11"
 files = [
     "roma/core/turn_epoch.py",
+    "roma/services/live_acceptance_evidence.py",
+    "roma/services/live_acceptance_runner.py",
+    "scripts/acceptance_live.py",
     "roma/core/erasure_contracts.py",
     "roma/services/provider_erasure.py",
     "roma/services/erasure_ledger.py",

@@ -141,3 +141,11 @@ The [synthetic disk restore/disposal drill](../../benchmarks/security/restore-er
 ### Known-resource provider erasure operator
 
 The separate [preview-first operator](../runbook.md#known-resource-provider-erasure) implements account-bound verification and explicit durable-ledger deletion of known Twilio call, recording and legacy transcription resources. Local disposal retains `external_pending`; no provider operation runs as a deletion/restore side effect. Unknown inventory/archives, Anthropic/Sarvam account-specific retention, backups/exports and whole-person scope still require independent confirmation. This is offline code/tooling evidence, with no real account verification/deletion or privacy gate approval.
+
+<!-- BEGIN CURRENT LIVE ACCEPTANCE -->
+
+## Current live acceptance
+
+Recorded 2026-10-26T04:34:04.216967Z; source commit `c338a0ea3e9be90eb0b24e89fd44b6e2e0c40467`. Run `03ebe8aeb13845f28e0d3e54eafa89fd`; status `failed`. Local HMAC receipts establish integrity, not independent acceptance. Governance, provider-account terms and whole-person/backup erasure remain pending independent closure. No recording or retention policy is activated by this receipt.
+
+<!-- END CURRENT LIVE ACCEPTANCE -->

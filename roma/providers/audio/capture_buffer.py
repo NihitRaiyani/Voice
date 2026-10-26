@@ -14,6 +14,10 @@ class CaptureMode(StrEnum):
     CLOSED = "CLOSED"
 
 
+class CaptureDiscontinuity(ValueError):
+    """A capture generation lost input; none of its partial speech may be reused."""
+
+
 @dataclass(frozen=True, slots=True)
 class CaptureFrame:
     pcm: bytes
@@ -101,7 +105,7 @@ class CaptureBuffer:
 
     def check(self, generation):
         if self._failed_generation == generation:
-            raise ValueError("Microphone overflow: incomplete utterance discarded")
+            raise CaptureDiscontinuity("Microphone overflow: incomplete utterance discarded")
 
     def pop(self, generation, epoch=None):
         with self._lock:

@@ -269,16 +269,30 @@ async def capture_turn(device, speech, voice, policy, deadline):
 
 
 
-async def duplex_turns(device, speech, voice, policy, deadline, *, max_turns, on_result=None):
+async def duplex_turns(device, speech, voice, policy, deadline, *, max_turns, on_result=None, on_started=None, on_recovery=None):
     from roma.services.duplex_voice import DuplexVoiceSession
 
     def opened():
         deadline.require_remaining()
         capture_started(voice.state.call_sid, voice.attempt + 1)
+        if on_started is not None:
+            on_started()
 
     session = DuplexVoiceSession(voice, speech, policy=policy, max_turns=max_turns,
                                 remaining=deadline.remaining, on_result=on_result)
-    source = device.frames(max_seconds=deadline.require_remaining(), on_capture_started=opened)
+    recoveries = 0
+    async def recover():
+        nonlocal recoveries
+        deadline.require_remaining()
+        await session.recover_capture()
+        recoveries += 1
+        if on_recovery is not None:
+            on_recovery(recoveries)
+        print(json.dumps({"event": "CAPTURE_RETRY", "recovery_count": recoveries}), flush=True)
+        print("Audio discontinuity: incomplete speech discarded. Please repeat your full request.", flush=True)
+
+    source = device.frames(max_seconds=deadline.require_remaining(), on_capture_started=opened,
+                           on_discontinuity=recover)
     with voice_boundary(VoiceErrorCode.CAPTURE):
         return await session.run(source)
 
@@ -342,12 +356,13 @@ async def pause_lab_call(factory, live_state, state, attempt):
             ))
 
 
-async def ready_local_models(stt, tts, scorer):
+async def ready_local_models(stt, tts, scorer, *, observer=None):
     # Synthetic readiness only: no participant audio, microphone, paid LLM or DB.
     for language in ("gu", "hi", "en"):
         with voice_boundary(VoiceErrorCode.ASR):
             await stt.transcribe(STTRequest(b"\0\0" * 16000, AudioFormat(16000), language))
     safe = await SafetyService().check("नमस्ते।", SafetyContext("voice-lab-preflight", 1, "open"))
+    tts_started = perf_counter()
     with voice_boundary(VoiceErrorCode.TTS):
         request = TTSRequest(safe.text, language="hi")
         warmup = getattr(tts, "warmup", None)
@@ -355,6 +370,8 @@ async def ready_local_models(stt, tts, scorer):
             await warmup(request)
         else:
             await tts.synthesize(request)
+    if observer is not None:
+        observer.on_event("tts_warmup", {"tts_readiness_ms": (perf_counter() - tts_started) * 1000})
     scorer.probability(b"\0\0" * 512)
     scorer.reset()
 
@@ -366,6 +383,9 @@ async def local_run(args):
 
 async def _local_run(args):
     cfg, llm_cfg, tts_cfg = local_preflight(args)
+    acceptance = getattr(args, "acceptance_observer", None)
+    if acceptance is not None:
+        acceptance.require_target(MigrationSettings().require_url())
     from roma.domain.audio.turn_budget import TurnBudget
     budget = TurnBudget(cfg.voice_turn_budget_ms)
     from pydantic import SecretStr
@@ -395,6 +415,8 @@ async def _local_run(args):
     )
     llm, booking, store = None, None, None
     state = initial_lab_state(cfg.stt_language, args.branch)
+    if acceptance is not None:
+        acceptance.prepare_state(state)
     failed, paused = True, False
     started_at, previous_attempts = None, 0
     cleanup = AsyncExitStack()
@@ -458,7 +480,10 @@ async def _local_run(args):
         with voice_boundary(VoiceErrorCode.TTS):
             await tts.cache_identity(TTSRequest("नमस्ते", language="hi"))
         scorer = SileroFrameProbability()
-        await ready_local_models(stt, tts, scorer)
+        if acceptance is None:
+            await ready_local_models(stt, tts, scorer)
+        else:
+            await ready_local_models(stt, tts, scorer, observer=acceptance)
         if started_at is None:
             started_at = datetime.now(UTC)
             await store.start(state.call_sid)
@@ -508,7 +533,8 @@ async def _local_run(args):
             max_text_bytes=tts_cfg.tts_max_text_bytes,
             max_concurrency=tts_cfg.tts_max_concurrency,
         )
-        device = LocalAudioDevice(
+        device_type = acceptance.device_type(LocalAudioDevice) if acceptance else LocalAudioDevice
+        device = device_type(
             input_device=args.input_device, output_device=args.output_device, policy=cfg.turn_policy(),
             duplex=input_duplex(args), echo=echo,
         )
@@ -518,7 +544,8 @@ async def _local_run(args):
             cpu_worker = CpuWorker()
             cleanup.push_async_callback(cpu_worker.aclose)
             await cpu_worker.run(int, 0)
-        voice = VoicePrototype(state, conversation, synthesis, device, store, budget=budget,
+        voice_type = acceptance.voice_type(VoicePrototype) if acceptance else VoicePrototype
+        voice = voice_type(state, conversation, synthesis, device, store, budget=budget,
                                streaming=StreamConfig(minimum_speech_ms=200 if input_duplex(args) else 600)
                                if sentence_streaming(args) else None, cpu_worker=cpu_worker)
         voice.release_on_disconnect = booking.aclose
@@ -547,11 +574,18 @@ async def _local_run(args):
         print("Voice lab id: " + state.call_sid, flush=True)
         if input_duplex(args):
             def report_turn(outcome):
+                if acceptance is not None:
+                    acceptance.on_result(outcome, state)
                 print(json.dumps({"call_sid": state.call_sid, **asdict(outcome)},
                                  ensure_ascii=False), flush=True)
             turns = min(args.max_turns, args.pause_after_turn or args.max_turns)
             outcomes = await duplex_turns(device, speech, voice, cfg.turn_policy(), deadline,
-                                          max_turns=turns, on_result=report_turn)
+                                          max_turns=turns, on_result=report_turn,
+                                          on_started=(lambda: acceptance.on_event("capture_started", {}))
+                                          if acceptance else None,
+                                          on_recovery=(lambda count: acceptance.on_event(
+                                              "capture_recovered", {"recovery_count": count}))
+                                          if acceptance else None)
             if (args.pause_after_turn is not None and len(outcomes) >= args.pause_after_turn
                     and not state.lead_wants_out and deadline.remaining() > 0):
                 await pause_lab_call(factory, live_state, state, voice.attempt)

@@ -117,3 +117,7 @@ demo-db-down:
 .PHONY: streaming-lab
 streaming-lab:
 	$(UV) run --no-sync python scripts/streaming_lab.py
+
+.PHONY: acceptance-live
+acceptance-live:
+	$(UV) run --no-sync python scripts/acceptance_live.py $(ARGS)

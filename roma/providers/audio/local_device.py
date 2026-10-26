@@ -11,7 +11,7 @@ from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
 from roma.domain.audio.pcm import validate_pcm16
 from roma.domain.audio.turn_policy import TurnPolicy
 from roma.providers.ai.contracts import TTSResult
-from roma.providers.audio.capture_buffer import CaptureBuffer
+from roma.providers.audio.capture_buffer import CaptureBuffer, CaptureDiscontinuity
 
 
 async def _finish_native(task):
@@ -185,7 +185,7 @@ class LocalAudioDevice:
             self._close_task = asyncio.create_task(self._close())
         await _finish_native(self._close_task)
 
-    async def frames(self, *, max_seconds=300, on_capture_started=None):
+    async def frames(self, *, max_seconds=300, on_capture_started=None, on_discontinuity=None):
         """Continuous AEC-cleaned capture; no ASR/model work runs in the callback."""
         if not self.duplex or not self._started or self._closing:
             raise RuntimeError("A started full-duplex device is required")
@@ -198,25 +198,42 @@ class LocalAudioDevice:
         started = self.clock()
         self._capture_deadline = started + max_seconds
         generation = self.capture.activate(self._epoch(), follow_epochs=True)
+        recoveries = 0
         try:
             if on_capture_started is not None:
                 on_capture_started()
             while not self._closing:
                 self._check_active()
-                frame = self.capture.pop(generation)
-                if frame is None:
-                    if self.clock() >= self._capture_deadline:
+                try:
+                    frame = self.capture.pop(generation)
+                    if frame is None:
+                        if self.clock() >= self._capture_deadline:
+                            break
+                        if self.clock() - max(started, self.capture.last_callback_at) >= self.capture_watchdog_secs:
+                            raise VoiceFailure(VoiceErrorCode.DEVICE_CAPTURE_STALLED)
+                        await asyncio.sleep(0.005)
+                        continue
+                    if frame.at > self._capture_deadline:
                         break
-                    if self.clock() - max(started, self.capture.last_callback_at) >= self.capture_watchdog_secs:
-                        raise VoiceFailure(VoiceErrorCode.DEVICE_CAPTURE_STALLED)
-                    await asyncio.sleep(0.005)
+                    cleaned = await asyncio.to_thread(self._process_echo, frame.pcm, frame.at - 0.020)
+                    if not isinstance(cleaned, bytes) or len(cleaned) != 640:
+                        raise ValueError("Echo processing returned an invalid capture frame")
+                    self.capture.check(generation)
+                except CaptureDiscontinuity:
+                    self.capture.mute()
+                    if on_discontinuity is None or recoveries >= 3:
+                        raise
+                    remaining = self._capture_deadline - self.clock()
+                    if remaining <= 0:
+                        raise VoiceFailure(VoiceErrorCode.CAPTURE) from None
+                    recoveries += 1
+                    async with asyncio.timeout(min(3, remaining)):
+                        await on_discontinuity()
+                    self._check_active()
+                    if self.clock() >= self._capture_deadline:
+                        raise VoiceFailure(VoiceErrorCode.CAPTURE) from None
+                    generation = self.capture.activate(self._epoch(), follow_epochs=True)
                     continue
-                if frame.at > self._capture_deadline:
-                    break
-                cleaned = await asyncio.to_thread(self._process_echo, frame.pcm, frame.at - 0.020)
-                if not isinstance(cleaned, bytes) or len(cleaned) != 640:
-                    raise ValueError("Echo processing returned an invalid capture frame")
-                self.capture.check(generation)
                 yield replace(frame, pcm=cleaned)
         finally:
             self.capture.mute()

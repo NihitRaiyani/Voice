@@ -127,3 +127,19 @@ The optional `duplex` extra pins `pywebrtc-audio==0.2.0` for local WebRTC AEC3. 
 `DuplexVoiceSession` owns continuous VAD/endpointing independently of bounded decode/final queues and response work. Sustained near-end speech during an active response advances the shared turn epoch and starts output clear/cancellation; late results cannot start a new reply. Only eligible, already-captured onset frames transfer ownership, and discontinuities/pressure fail explicitly rather than stitch incomplete input. Existing safety, language policy, SQL booking authority and five-minute lifetime remain authoritative. An in-flight SQL commit still requires reconciliation.
 
 Fake-device/session coverage and generated-sample real-DSP probes are separate evidence classes; [verification](../12-verification.md#phase-5c-duplex-verification-scope) and the [runbook](../runbook.md#phase-5c-local-full-duplex) define reproducible commands and limits. No physical speaker/microphone double-talk, acoustic cancellation latency, representative speech preservation or native acceptance is established by this increment. Models, production Twilio/Sarvam and working database policy are unchanged. Delivery remains one local phase commit with no push.
+
+## Phase 6 guided acceptance tooling
+
+`make acceptance-live` reuses the local full-duplex path with metadata-only observation hooks, prepared TEST ONLY booking, bounded aggregate reservations and signed local receipts. The runner distinguishes short-acknowledgement observations, epoch/control clear timing, actual SQL commit/restore and human scores. Acoustic latency and full native/reliability gates are never inferred from software timing or one prepared scenario. [The runbook](../runbook.md#phase-6-guided-live-acceptance) owns commands and evidence boundaries.
+
+Capture discontinuities discard incomplete speech and pending stale work before bounded cleanup and a request to repeat the whole utterance. The same native input stream resumes with a new epoch; at most three recoveries fit within the original deadline. A fourth loss or failed cleanup ends the run. This is bounded discard/retry, not lossless capture or replay.
+
+The supervised follow-up on 2026-10-26 produced two played turns/two playback requests, then failed after three recoveries and a fourth capture loss. Software first audio was **7.95/7.07 s**, with reported TTS timings **600/13 ms** and one cache hit. The owner rated naturalness **4/5**; the earlier **2.5/5** remains historical. Correctness, backchannel preservation and interruption success were not supplied, acoustic metrics remain unmeasured, and SQL booking was unverified (`booking_verified: false`, null commit/restore values). Native quality and the full reliability gate remain open. [Verification](../12-verification.md#phase-6-guided-acceptance--2026-10-26) records source identity and operational limits.
+
+<!-- BEGIN CURRENT LIVE ACCEPTANCE -->
+
+## Current live acceptance
+
+Recorded 2026-10-26T04:34:04.216967Z; source commit `c338a0ea3e9be90eb0b24e89fd44b6e2e0c40467`. Run `03ebe8aeb13845f28e0d3e54eafa89fd`; status `failed`. Local HMAC receipts establish integrity, not independent acceptance. Acoustic first-audible and playback-stop latency remain unmeasured without independent instrumentation. Software timing and one supervised scenario do not pass the full reliability/concurrency gate.
+
+<!-- END CURRENT LIVE ACCEPTANCE -->

@@ -136,6 +136,145 @@ def test_actual_adc_gap_rejects_incomplete_input_instead_of_stitching_it():
     asyncio.run(run())
 
 
+def test_discontinuity_recovery_flushes_and_reuses_the_same_native_input():
+    from roma.core.turn_epoch import TurnEpoch
+
+    async def run():
+        backend, echo, guard = Backend(), Echo(), TurnEpoch()
+        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo, epoch_guard=guard)
+        recovered = []
+
+        async def recover():
+            assert device.capture_mode == 'MUTED_HALF_DUPLEX'
+            recovered.append(guard.advance())
+            backend.emit(9)  # input arriving during cleanup is discarded.
+            asyncio.get_running_loop().call_soon(backend.emit, 2)
+
+        await device.start()
+        source = device.frames(max_seconds=2, on_discontinuity=recover,
+                               on_capture_started=lambda: backend.emit(1, overflow=True))
+        try:
+            frame = await asyncio.wait_for(anext(source), 1)
+            assert frame.pcm == b'\3\0' * 320
+            assert (frame.generation, frame.epoch) == (2, 1)
+            assert recovered == [1] and backend.created == 1
+            assert device.capture_mode == 'ACTIVE'
+        finally:
+            await source.aclose()
+            await device.aclose()
+        assert backend.events.count('close') == 1
+
+    asyncio.run(run())
+
+
+def test_discontinuity_recovery_stops_after_three_attempts():
+    from roma.providers.audio.capture_buffer import CaptureDiscontinuity
+
+    async def run():
+        backend, echo = Backend(), Echo()
+        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo)
+        retries = []
+
+        async def recover():
+            retries.append(True)
+            asyncio.get_running_loop().call_soon(lambda: backend.emit(1, overflow=True))
+
+        await device.start()
+        source = device.frames(max_seconds=2, on_discontinuity=recover,
+                               on_capture_started=lambda: backend.emit(1, overflow=True))
+        try:
+            with pytest.raises(CaptureDiscontinuity):
+                await asyncio.wait_for(anext(source), 1)
+            assert len(retries) == 3 and backend.created == 1
+            assert device.capture_mode == 'MUTED_HALF_DUPLEX'
+        finally:
+            await source.aclose()
+            await device.aclose()
+
+    asyncio.run(run())
+
+
+def test_cancelled_discontinuity_recovery_leaves_capture_muted():
+    async def run():
+        backend, echo, entered = Backend(), Echo(), asyncio.Event()
+        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo)
+
+        async def recover():
+            entered.set()
+            await asyncio.Event().wait()
+
+        await device.start()
+        source = device.frames(max_seconds=2, on_discontinuity=recover,
+                               on_capture_started=lambda: backend.emit(1, overflow=True))
+        pending = asyncio.create_task(anext(source))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            pending.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await pending
+            assert device.capture_mode == 'MUTED_HALF_DUPLEX' and backend.created == 1
+            backend.emit(9)
+            assert not device.capture._frames
+        finally:
+            pending.cancel()
+            await asyncio.gather(pending, return_exceptions=True)
+            await source.aclose()
+            await device.aclose()
+
+    asyncio.run(run())
+
+
+def test_recovery_never_refreshes_original_capture_deadline():
+    async def run():
+        from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
+
+        backend, echo, now = Backend(), Echo(), [10.0]
+        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo, clock=lambda: now[0])
+
+        async def recover():
+            now[0] = 12.0
+
+        await device.start()
+        source = device.frames(max_seconds=1, on_discontinuity=recover,
+                               on_capture_started=lambda: backend.emit(1, overflow=True))
+        try:
+            with pytest.raises(VoiceFailure) as error:
+                await anext(source)
+            assert error.value.code == VoiceErrorCode.CAPTURE
+            assert device.capture_mode == 'MUTED_HALF_DUPLEX' and backend.created == 1
+        finally:
+            await source.aclose()
+            await device.aclose()
+
+    asyncio.run(run())
+
+
+def test_invalid_aec_result_never_enters_capture_recovery():
+    class InvalidEcho(Echo):
+        def process(self, pcm, *, at):
+            return b''
+
+    async def run():
+        backend = Backend()
+        device = LocalAudioDevice(backend=backend, duplex=True, echo=InvalidEcho())
+
+        async def recover():
+            pytest.fail('AEC errors must remain terminal')
+
+        await device.start()
+        source = device.frames(max_seconds=2, on_discontinuity=recover,
+                               on_capture_started=lambda: backend.emit(1))
+        try:
+            with pytest.raises(ValueError, match='Echo processing'):
+                await anext(source)
+            assert device.capture_mode == 'MUTED_HALF_DUPLEX'
+        finally:
+            await source.aclose()
+            await device.aclose()
+
+    asyncio.run(run())
+
+
 def test_clear_during_render_never_exposes_unplayed_reference_to_capture():
     class PausedEcho(Echo):
         def __init__(self):

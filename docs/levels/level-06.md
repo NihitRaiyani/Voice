@@ -201,3 +201,11 @@ The interrupted first launch ended as failed with zero durable turns. Two subseq
 The owner explicitly scored **naturalness 2.5/5**. Correctness and reviewer initials were not supplied; do not fill them from the naturalness score. A single safe synthetic discovery phrase rendered at 8 kHz and 16 kHz from the same native waveform received **“No improvement”**. Playback configuration remains unchanged. This is a failed quality observation, not formal multilingual native acceptance. [Sanitized voice evidence](../../benchmarks/voice/acceptance-followup-20261025.json) and [TTS profiling](level-05.md#cold-start-profile-and-owner-review--2026-10-25) own these limits.
 
 The CLI now emits flushed `CAPTURE_STARTED` only after stream start, and supports explicit pause/resume with the original SQL identity, attempt count and five-minute lifetime. Resume checks SQL/local tombstones before cache load, then rechecks tombstones and validates terminal/expiry/deletion metadata after acquiring ownership. It reconciles existing committed appointments without a new capture/commit. Maximum wall/monotonic elapsed time prevents sleep or backward wall-clock changes from extending a call; input/controller and speaker-write checks reject expired work. Stage timing remains monotonic. These mocked/disposable SQL controls are separate from the unfinished physical interruption/booking/quality gate.
+
+<!-- BEGIN CURRENT LIVE ACCEPTANCE -->
+
+## Current live acceptance
+
+Recorded 2026-10-26T04:34:04.216967Z; source commit `c338a0ea3e9be90eb0b24e89fd44b6e2e0c40467`. Run `03ebe8aeb13845f28e0d3e54eafa89fd`; status `failed`. Local HMAC receipts establish integrity, not independent acceptance. Owner listening naturalness: 4/5. Historical scores remain below. Full multilingual/native acceptance stays open.
+
+<!-- END CURRENT LIVE ACCEPTANCE -->

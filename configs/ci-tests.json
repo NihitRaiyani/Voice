@@ -192,6 +192,8 @@
     "tests/services/test_call_service.py",
     "tests/services/test_demo_database.py",
     "tests/services/test_duplex_voice.py",
+    "tests/services/test_live_acceptance_evidence.py",
+    "tests/services/test_live_acceptance_runner.py",
     "tests/services/test_live_call_state.py",
     "tests/services/test_safety_service.py",
     "tests/services/test_speech_input.py",

@@ -1,0 +1,94 @@
+{
+  "catalog_modules": 212,
+  "checks": {
+    "ci": {
+      "exit_code": 0,
+      "passed": 3750,
+      "pytest_seconds": 134.2,
+      "seconds": 142.02,
+      "warnings": 22
+    },
+    "test": {
+      "exit_code": 0,
+      "passed": 3750,
+      "pytest_seconds": 128.25,
+      "seconds": 129.81,
+      "warnings": 22
+    }
+  },
+  "date": "2026-10-26",
+  "delivery": "one local commit; no push",
+  "full_acceptance_gates_passed": [],
+  "live": {
+    "acoustic_first_audible_ms": null,
+    "acoustic_stop_ms": null,
+    "aggregate_budget_paise": 5000,
+    "aggregate_reserved_paise": 1800,
+    "audio_retained": false,
+    "backchannel_preserved": null,
+    "booking": {
+      "committed": null,
+      "restored": null
+    },
+    "booking_verified": false,
+    "capture_recoveries": 3,
+    "correctness": null,
+    "interruption_success": null,
+    "listener": "Owner",
+    "naturalness": 4,
+    "original_input_volume_percent": 15,
+    "original_input_volume_restored": true,
+    "played_turns": 2,
+    "rating_language": "hi-Hinglish",
+    "recorded_at": "2026-10-26T04:34:04.216967Z",
+    "reservation_is_invoice_cost": false,
+    "source_tree_sha256": "f8282d52510efc62f69614456c95ab0377cdf378f4be77d0fa68405c11468a5b",
+    "speech_to_first_software_audio_ms": [
+      7950.232459003018,
+      7074.83216699984
+    ],
+    "status": "failed",
+    "temporary_input_volume_percent": 80,
+    "transcript_retained": false
+  },
+  "migration_head": "20261024_0006",
+  "mypy_source_files": 139,
+  "offline_checks_microphone_used": false,
+  "offline_checks_paid_calls": 0,
+  "private_environment_changed": false,
+  "red_then_green": [
+    "test_readiness_keeps_previous_signed_rating_private_and_pending_for_new_run",
+    "test_readiness_requires_verified_matching_physical_receipt_before_writing_docs",
+    "test_discontinuity_recovery_flushes_and_reuses_the_same_native_input",
+    "test_capture_recovery_discards_partial_speech_and_decodes_only_fresh_generation",
+    "test_capture_recovery_is_recorded_without_audio_or_a_passed_gate",
+    "test_failure_diagnostics_retain_nested_origins_without_private_details",
+    "test_failed_live_session_retains_signed_failure_and_does_not_verify_booking",
+    "test_wrapped_cancellation_keeps_interrupted_status_and_original_diagnostics"
+  ],
+  "remote_erasure_performed": false,
+  "schema": "roma.phase6-verification.v1",
+  "source_identity": {
+    "source_commit": "c338a0ea3e9be90eb0b24e89fd44b6e2e0c40467",
+    "source_tree_sha256": "f8282d52510efc62f69614456c95ab0377cdf378f4be77d0fa68405c11468a5b",
+    "working_tree_dirty": true
+  },
+  "source_sha256": {
+    "Makefile": "92abd5dfec852c20aabe518ff180eff780ab3f17c642183e9f2c74308537a215",
+    "configs/ci-tests.json": "870f76c55156f520349010bc3b0533466546b0df4dec85d068cde72333319f54",
+    "pyproject.toml": "cf6afdf77a70d809ff98d7f5c7b5424146560acd1a942a161c522e83349d0e14",
+    "roma/providers/audio/capture_buffer.py": "d4cf2063695628f7e33f811e46025219a2bd2db66915aa5d5f9e4b78f8ccdbc1",
+    "roma/providers/audio/local_device.py": "20201b25373935778724a1fa505566194fef0e6ca9d2ea6a15d23c6f29f67da9",
+    "roma/services/duplex_voice.py": "a1532f828d30e7841e228894ccaefdb91ec702cd2724234b46d617dfc3c943d5",
+    "roma/services/live_acceptance_evidence.py": "6ac81680a38df9d10f56ee9d24a6d4b5db7d070abf4b7e5a43b2605538e764be",
+    "roma/services/live_acceptance_runner.py": "33f6405682a92ae16e011f423e574f12f533a42c6f1c42e2f4fda711c3599495",
+    "scripts/acceptance_live.py": "b94f9a0a9f312c9c61a6c1ab430b44f4c5ff62294d216f73aabc28a965d804ac",
+    "scripts/voice_prototype.py": "66b986906a728704f7d7cbe11e45426ab1a1edf490124cd8f76f0338a60d248d",
+    "tests/providers/audio/test_duplex_device.py": "0eeba2a20e8db3e5ef7af331ded652766527079201a06b1204266bbccd0ec075",
+    "tests/services/test_duplex_voice.py": "91766f185cd34f2748851402a56bb1d4484c332909f97cda5a78785bd286d249",
+    "tests/services/test_live_acceptance_evidence.py": "6eff43ea99b41e74ec5d4a37bfb93364360287b1e8911398b10f5f8776c6494b",
+    "tests/services/test_live_acceptance_runner.py": "b7851c5f21581a8eb6bddba754d79f56ce86c2cd6713324ff93c1dbe62eb2650"
+  },
+  "speech_weights_changed": false,
+  "working_database_changed": false
+}

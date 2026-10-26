@@ -70,6 +70,51 @@ class DuplexVoiceSession:
             if inspect.isawaitable(result):
                 await result
 
+    async def recover_capture(self):
+        """Discard a lost utterance while preserving the call and SQL authority."""
+        self._check_deadline()
+        if self.voice.disconnected or self._call_ended():
+            raise _SessionComplete
+        claim = getattr(self.voice, "claim_turn", self.voice.epochs.advance)
+        epoch = claim()  # Invalidate late ASR/output before the first await.
+        control, decode, response = self._control, self._decode_task, self._response
+        self._control = None
+        for task in (control, decode):
+            if task is not None and not task.done():
+                task.cancel()
+        for queue in (self._segments, self._finals):
+            while not queue.empty():
+                queue.get_nowait()
+        self._carry.clear()
+        self.endpoint.reset()
+        self._epoch = self._origin = self._handoff_until = None
+        self._speech_ms = self._source_samples = 0
+        self._last_at = self._generation = None
+        cleanup = self.voice.streaming.cleanup_timeout_secs if self.voice.streaming else 1
+        async with asyncio.timeout(min(self._check_deadline(), cleanup * 3)):
+            interrupted = await self.voice.interrupt(
+                owner=response if response is not None and not response.done() else None,
+                turn_epoch=epoch)
+            if not interrupted:
+                clear = getattr(self.voice.speaker, "clear", None)
+                if clear is not None:
+                    await clear()
+            if response is not None and not response.done():
+                response.cancel()
+            tasks = {task for task in (control, decode, response) if task is not None}
+            if tasks:
+                done, pending = await asyncio.wait(tasks, timeout=cleanup)
+                for task in pending:
+                    task.add_done_callback(lambda future: future.exception() if not future.cancelled() else None)
+                if pending:
+                    raise VoiceFailure(VoiceErrorCode.CAPTURE)
+                for task in done:
+                    if not task.cancelled():
+                        task.result()
+        self.speech.reset()
+        self._decode_task = self._response = None
+        self._check_deadline()
+
     def _claim(self, frame):
         old = self.voice.epochs.snapshot()
         claim = getattr(self.voice, "claim_turn", self.voice.epochs.advance)
@@ -219,7 +264,13 @@ class DuplexVoiceSession:
             if self._call_ended():
                 raise _SessionComplete
             if self._control is not None:
-                await self._control
+                try:
+                    await self._control
+                except asyncio.CancelledError:
+                    if asyncio.current_task().cancelling():
+                        raise
+                    if self.voice.disconnected or self._call_ended():
+                        raise _SessionComplete from None
             if not self.voice.epochs.is_current(final.turn_epoch):
                 continue
             self._check_deadline()

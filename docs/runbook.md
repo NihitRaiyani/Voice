@@ -714,3 +714,41 @@ uv run --no-sync pytest -q -p no:cacheprovider \
   tests/privacy/test_provider_erasure_cli.py \
   tests/privacy/test_twilio_erasure_adapter.py
 ```
+
+## Phase 6 guided live acceptance
+
+Run from the Roma repository:
+
+```bash
+make acceptance-live ARGS="--check"
+make acceptance-live
+```
+
+The first command verifies cached pinned ASR/TTS artifacts, local AEC and configuration without microphone, model inference or a paid request. The second asks for an explicit ready indication, then creates and verifies its own TEST ONLY PostgreSQL/Redis, warms the existing models, and opens the full-duplex microphone/speaker. Gujarati input and the pseudonymous listener label `Owner` are defaults; use `ARGS="--language hi --listener AB"` or device-index arguments as needed. Replies remain Hindi-base Hinglish. Preparation precedes the existing five-minute call ceiling; the guided checks may need extra utterances for corrected readback and explicit booking confirmation. The lab pre-fills fictional discovery and starts at CLOSE; it does not prove a full discovery journey.
+
+Ask for Vadodara visit options, try one short `haan`/`okay` during speech, then change the time mid-response to tomorrow 5pm. The demo has tomorrow's 11am/3pm/5pm slots. If needed, first request 11am to elicit a readback, then interrupt it with 5pm. Confirm only the correctly spoken final time. A short acknowledgement causing a cutoff is a failed observation, not permission to mark interruption handling passed. After normal completion, booking is independently queried and restored from SQL. If the run fails before verification, booking values remain null with `booking_verified: false`; this does not establish that no commit occurred.
+
+Capture loss discards the incomplete utterance and pending stale work, advances the turn epoch, clears output and asks for the full request again. Cleanup temporarily mutes the input buffer, then reactivates the same native input stream. At most three recoveries are allowed within the original call/capture deadline; a fourth loss or failed cleanup ends the run. These are bounded discard/retry semantics, not lossless capture or replay. A `capture_recovered` event records software recovery, not successful recognition or acoustic interruption.
+
+Before a launch, the operator ledger `var/roma/ops-20261024/acceptance-session-reservations.jsonl` is exclusively locked and receives a durable INR2 reservation. The existing INR6 historical reservations count toward one INR50 ceiling; malformed, missing, incomplete or exhausted history refuses a launch. Reservations survive ambiguity/interruption and are not invoice costs. The Claude adapter is separately capped at INR2 with no automatic retries. The runner does not edit private `.env`, reuse working `roma`/Redis, switch/download models, dial phones or run vendor deletion.
+
+After microphone cleanup, enter actual naturalness/correctness scores (1–5; `skip` is allowed), notes without personal details, and the observed backchannel/interruption outcomes. Owner-only receipts and a separate HMAC key live under ignored `var/acceptance/`: `session.json`, `physical.json` (including turn-budget timings/events), and `voice_rating.json` when supplied. Source commit, current Python source-tree fingerprint and dirty-state flag distinguish uncommitted test source from the base commit. HMAC verifies local integrity, not identity, legal authority or independent measurement. No caller audio/transcripts are retained by this runner. Software claim-to-clear/write timing is explicitly **not** acoustic stop/first-audible latency; these fields remain null without independent measurement. One short run cannot pass representative corpus, native multilingual, concurrency or full production gates.
+
+To add a later actual listening rating or regenerate current observation blocks from verified receipts without another call:
+
+```bash
+make acceptance-live ARGS="--record-rating --listener Owner"
+make acceptance-live ARGS="--update-readiness"
+```
+
+Only bounded `Current live acceptance` blocks in Level 6/7/8 briefs are replaced. Historical scores and unchecked full gates remain intact. Missing/tampered receipts fail closed. A valid rating from another run/source stays private and is omitted from current readiness until a matching actual rating is supplied. `--no-rating` lets a supervisor collect the actual score separately; `--yes-ready` is for an already received explicit ready indication, not unattended testing.
+
+The 2026-10-26 supervised follow-up produced two played turns before its fourth capture loss ended the run. The owner supplied **4/5 naturalness**; correctness, backchannel preservation and interruption success were not scored. No SQL booking outcome was verified. Software first-audio timings were **7.95/7.07 s**, with reported TTS timings **600/13 ms** and one cache hit; acoustic latency remains unmeasured. The earlier **2.5/5** listening result remains historical evidence and native/full gates stay open. A separate supervised probe temporarily raised the weak system input level from 15% to 80%, returned a 26-character ASR result, then restored and verified 15%. See [verification](12-verification.md#phase-6-guided-acceptance--2026-10-26) for source identity and evidence limits.
+
+Governance import is a separate offline operation:
+
+```bash
+make acceptance-live ARGS="--governance /absolute/private/confirmed-governance.json"
+```
+
+The owner-only 600 JSON file must contain exactly `approver`, `approved_at` (past timezone-aware ISO timestamp), `policy_reference`, `audio_retention_days`, `transcript_retention_days`, `anthropic`, `erasure`. Anthropic fields are `organization_reference`, `model` (configured Haiku), `features` (actual active features), `retention_terms`, `terms_reference`. Erasure must carry an actual known-resource `outcome: known_resources_absent`, `physical_erasure_complete: false` and the remaining nonempty `manual_pending` scope from the separately authorized provider operation; raw provider details are projected away. Placeholders, previews, wrong models and fabricated whole-erasure claims are rejected. Retain the original approval/account/provider evidence independently; local signing does not establish authenticity. This importer activates no recording/retention setting and sends no external request. The existing deletion CLI uses explicit `--apply`, not `--execute`; specific account/resource authorization and its verified digest/ledger are still required. Institute/legal/account terms, approved disclosure audio and broader erasure cannot be supplied by a recommended default.
