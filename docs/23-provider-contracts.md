@@ -12,10 +12,10 @@ yet.
 | `STTProvider` | `roma.providers.ai.contracts` | `transcribe(STTRequest) -> STTResult` | `MockSTTProvider`; section 16 cache-only `IndicConformerSTT`, faster-whisper `WhisperSTT`, pinned Apple Silicon `WhisperMLXSTT` (Turbo development baseline), opt-in custom-endpoint `HuggingFaceSTT`, public-lab `HFHostedSTT` and separate router `HFWhisperSTT` |
 | `LLMProvider` | `roma.providers.ai.contracts` | `generate(LLMRequest) -> AsyncIterator[LLMChunk]` | `MockLLMProvider`; section 11 `ClaudeLLM` with env-selected model/key and bounded SDK streaming |
 | `TTSProvider` | `roma.providers.ai.contracts` | `synthesize(TTSRequest) -> TTSResult` | `MockTTSProvider`; section 19 manifest-pinned local `IndicTTSProvider` (isolated CPU worker) |
-| `EmbeddingProvider` | `roma.providers.ai.contracts` | `embed(EmbeddingRequest) -> EmbeddingResult` | `MockEmbeddingProvider`; `LocalMultilingualEmbedding` placeholder |
+| `EmbeddingProvider` | `roma.providers.ai.contracts` | `embed(EmbeddingRequest) -> EmbeddingResult` | `MockEmbeddingProvider`; section 34–40 pinned cache-only `LocalMultilingualEmbedding` |
 | `TelephonyProvider` | `roma.providers.telephony.base` | `place_call(PlaceCallRequest) -> PlaceCallResult` | `MockTelephonyProvider`; `TwilioTelephonyProvider` |
 
-The embedding placeholder remains unavailable until its level. Local TTS requires explicitly provisioned runtime/artifacts and validates all five checkpoint/config/speaker hashes; construction performs no download or model load. Section 16 speech adapters are implemented but require an explicitly provisioned optional runtime/cache or an explicitly selected compatible hosted route. Their construction never loads/downloads weights. Missing prerequisites raise `ProviderUnavailable`; software interface tests do not imply native model quality or GPU admission.
+The local embedding adapter is implemented with a mandatory reviewed cache manifest; missing prerequisites fail closed without downloading. Local TTS requires explicitly provisioned runtime/artifacts and validates all five checkpoint/config/speaker hashes; construction performs no download or model load. Section 16 speech adapters are implemented but require an explicitly provisioned optional runtime/cache or an explicitly selected compatible hosted route. Their construction never loads/downloads weights. Missing prerequisites raise `ProviderUnavailable`; software interface tests do not imply native model quality or GPU admission.
 
 ## Config switching
 
@@ -37,7 +37,7 @@ runtime behavior; tests select `TELEPHONY_PROVIDER=mock` explicitly.
 ## Current integration boundary
 
 The contracts are ready for services and later model levels. The Pipecat media pipeline retains its speech services and uses a Claude wording/extraction adapter.
-Section 11 provides an SDK-level Claude text seam with mocks; the existing media processors remain until later audio/telephony integration has quality and latency evidence. Sections 15–17 compose a separate speech-input lab with STT adapters and persisted language metadata; three public benchmark clips now have hosted inference evidence; representative speech quality, live replacement and embeddings remain gated. Section 7 itself never installs model weights or adds RAG.
+Section 11 provides an SDK-level Claude text seam with mocks; the existing media processors remain until later audio/telephony integration has quality and latency evidence. Sections 15–17 compose a separate speech-input lab with STT adapters and persisted language metadata; three public benchmark clips now have hosted inference evidence; representative speech quality and live replacement remain gated; sections 34–40 now add measured local embeddings with their own open acceptance gate. Section 7 itself never installs model weights or adds RAG.
 
 Students should be able to write one adapter that satisfies a provider protocol
 and switch to it with one config value, while keeping tests on mocks by default.
@@ -75,3 +75,9 @@ Claude Messages usage extends `LLMChunk` with separate uncached input, cache-cre
 ## Section 25 failure contract
 
 Shared reliability primitives live in `roma/providers/reliability.py`: sanitized failure kinds, inherited deadlines, bounded stream pulls and a per-adapter breaker. They do not automatically retry every adapter. Claude retries only safe pre-output transient attempts; native STT/TTS retain ownership/cancellation policy; Twilio create-call never retries an ambiguous effect. Authentication/booking/safety remain separate domain boundaries. [Level 7](levels/level-07.md#section-25-provider-reliability) owns exact budgets, fallback and evidence limits.
+
+## Sections 34–40 local embedding identity
+
+`EmbeddingRequest.kind` distinguishes query from document passages. `EmbeddingResult` carries vectors plus `EmbeddingIdentity` (model, immutable revision, dimension, preprocessing and artifact-map SHA-256); ingestion and retrieval require exact identity agreement. `local_multilingual` resolves `intfloat/multilingual-e5-small` revision `614241f622f53c4eeff9890bdc4f31cfecc418b3`, 384-dimensional `e5-prefix-mean-l2-v1`. The adapter verifies allowlisted local files, disables remote code, uses safetensors and CPU masked-mean/L2 pooling, and refuses token truncation beyond 512 tokens. Nothing in construction downloads artifacts or invokes a cloud embedding service.
+
+Bounds are at most four inputs/batch, 8,192 UTF-8 bytes/text and two CPU threads, with finite/unit-vector result validation. Timeout/cancellation cannot terminate native thread work: shielded admission remains busy until it exits, preventing overlapping inference. Missing/corrupt/incompatible artifacts or runtime and nonfinite/incorrect output fail with sanitized provider errors. `EMBEDDING_PROVIDER=mock` remains available for offline mechanics; enabled runtime RAG requires explicitly configured local embeddings. Actual local inference is recorded in [Level 9](levels/level-09.md); representative/semantic/native and combined voice-memory approval remain open.

@@ -376,6 +376,25 @@ async def ready_local_models(stt, tts, scorer, *, observer=None):
     scorer.reset()
 
 
+def optional_knowledge(factory, llm, safety, cleanup):
+    """Opt in to governed evidence while sharing the call's existing Claude budget."""
+    from roma.core.rag_settings import RAGSettings
+    if not RAGSettings().rag_enabled:
+        return None
+    from roma.core.rag_settings import KnowledgeRuntimeSettings
+    from roma.services.knowledge_runtime import (
+        bind_knowledge_answers,
+        build_knowledge_components,
+    )
+    settings = KnowledgeRuntimeSettings()
+    components = build_knowledge_components(factory, settings)
+    close = getattr(components.provider, "aclose", None)
+    if close is not None:
+        cleanup.push_async_callback(close)
+    return bind_knowledge_answers(factory, components, llm, safety=safety,
+                                  timeout_secs=settings.rag_generation_timeout_secs)
+
+
 async def local_run(args):
     with voice_boundary(VoiceErrorCode.DB):
         return await _local_run(args)
@@ -512,8 +531,10 @@ async def _local_run(args):
             )
         if getattr(llm, "aclose", None) is not None:
             cleanup.push_async_callback(llm.aclose)
+        knowledge = optional_knowledge(factory, llm, safety, cleanup)
         conversation = TextConversationService(
             TimedLLMProvider(llm),
+            knowledge=knowledge,
             safety=safety,
             store=live_state,
             booking_session=booking,

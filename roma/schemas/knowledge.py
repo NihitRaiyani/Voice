@@ -72,3 +72,17 @@ class RetrievalMetadata(KnowledgeRequest):
 class ChunkMetadata(KnowledgeRequest):
     source_section: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9._/-]{0,127}$")
     document_version: int = Field(ge=1, le=1000000)
+
+
+class SearchKnowledgeRequest(KnowledgeRequest):
+    query: str = Field(min_length=1, max_length=2000, repr=False)
+    category: KnowledgeCategory
+    language: KnowledgeLanguage
+    course_id: UUID | None = Field(default=None, strict=False)
+    branch_id: UUID | None = Field(default=None, strict=False)
+    version: int | None = Field(default=None, ge=1, le=1000000)
+    allow_english: bool = True
+
+
+class IngestKnowledgeRequest(KnowledgeRequest):
+    pass

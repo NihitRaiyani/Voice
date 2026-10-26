@@ -115,7 +115,13 @@ def build_embedding_provider(settings) -> EmbeddingProvider:
         case "mock":
             return MockEmbeddingProvider()
         case "local_multilingual":
-            return LocalMultilingualEmbedding("LocalMultilingualEmbedding", "Level 9")
+            return LocalMultilingualEmbedding(
+                manifest_path=getattr(settings, "embedding_manifest", ""),
+                timeout_secs=getattr(settings, "embedding_timeout_secs", 10.0),
+                max_text_bytes=getattr(settings, "embedding_max_text_bytes", 8192),
+                max_batch_size=getattr(settings, "embedding_max_batch_size", 4),
+                cpu_threads=getattr(settings, "embedding_cpu_threads", 2),
+            )
     raise ValueError(f"unknown embedding provider {settings.embedding_provider!r}")
 
 

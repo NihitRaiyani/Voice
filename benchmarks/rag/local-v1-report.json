@@ -1,0 +1,1342 @@
+{
+  "calibration": {
+    "candidates": [
+      {
+        "case_count": 24,
+        "no_evidence_retrieval_abstention": 0.0,
+        "objective": 0.5,
+        "recall_at_5": 1.0,
+        "threshold": 0.7
+      },
+      {
+        "case_count": 24,
+        "no_evidence_retrieval_abstention": 0.375,
+        "objective": 0.6875,
+        "recall_at_5": 1.0,
+        "threshold": 0.75
+      },
+      {
+        "case_count": 24,
+        "no_evidence_retrieval_abstention": 1.0,
+        "objective": 0.96875,
+        "recall_at_5": 0.9375,
+        "threshold": 0.8
+      },
+      {
+        "case_count": 24,
+        "no_evidence_retrieval_abstention": 1.0,
+        "objective": 0.71875,
+        "recall_at_5": 0.4375,
+        "threshold": 0.85
+      },
+      {
+        "case_count": 24,
+        "no_evidence_retrieval_abstention": 1.0,
+        "objective": 0.5,
+        "recall_at_5": 0.0,
+        "threshold": 0.9
+      }
+    ],
+    "heldout_used_for_selection": false,
+    "method": "fixed_grid_mean_recall_and_no_evidence_abstention-v1",
+    "selected_threshold": 0.8,
+    "split": "calibration"
+  },
+  "cases": [
+    {
+      "case_id": "calibration-modules-en",
+      "category": "course",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "retrieval_ms": 12.820709001971409,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-modules-gu",
+      "category": "course",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "gu",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "retrieval_ms": 12.903750000987202,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-modules-hi",
+      "category": "course",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "retrieval_ms": 12.711958999716444,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-modules-hi-en",
+      "category": "course",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi-en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "retrieval_ms": 12.800749998859828,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3",
+        "rag-golden/projects:v1:0:bce92479a1428524575234d9d22d4fcff8501544a8740003b415792f99b3ef00"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-modules-en",
+      "category": "course",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "retrieval_ms": 12.59766600196599,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-modules-gu",
+      "category": "course",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "gu",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "retrieval_ms": 14.093040997977369,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3",
+        "rag-golden/projects:v1:0:bce92479a1428524575234d9d22d4fcff8501544a8740003b415792f99b3ef00"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-modules-hi",
+      "category": "course",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "retrieval_ms": 13.523333000193816,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-modules-hi-en",
+      "category": "course",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi-en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "retrieval_ms": 12.859875001595356,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3",
+        "rag-golden/projects:v1:0:bce92479a1428524575234d9d22d4fcff8501544a8740003b415792f99b3ef00"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-recordings-en",
+      "category": "policy",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "retrieval_ms": 12.735166001220932,
+      "retrieved": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-recordings-gu",
+      "category": "policy",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "gu",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "retrieval_ms": 14.115124999079853,
+      "retrieved": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901",
+        "rag-golden/notes:v1:0:e2110cf25b28f422168a2bdc5f211189db8230cd1c4f3d88d35dc83339a595a2"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-recordings-hi",
+      "category": "policy",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "retrieval_ms": 14.471874997980194,
+      "retrieved": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-recordings-hi-en",
+      "category": "policy",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi-en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "retrieval_ms": 12.724249998427695,
+      "retrieved": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901",
+        "rag-golden/notes:v1:0:e2110cf25b28f422168a2bdc5f211189db8230cd1c4f3d88d35dc83339a595a2"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-recordings-en",
+      "category": "policy",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "retrieval_ms": 13.136792000295827,
+      "retrieved": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-recordings-gu",
+      "category": "policy",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "gu",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "retrieval_ms": 12.916457999381237,
+      "retrieved": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901",
+        "rag-golden/notes:v1:0:e2110cf25b28f422168a2bdc5f211189db8230cd1c4f3d88d35dc83339a595a2"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-recordings-hi",
+      "category": "policy",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "retrieval_ms": 13.259584000479663,
+      "retrieved": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-recordings-hi-en",
+      "category": "policy",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi-en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901"
+      ],
+      "retrieval_ms": 13.363999998546205,
+      "retrieved": [
+        "rag-golden/recordings:v1:0:9f574e1111b77f23072fb9993531cd5ebf517808ac4ef29ae53b58b51ab2a901",
+        "rag-golden/notes:v1:0:e2110cf25b28f422168a2bdc5f211189db8230cd1c4f3d88d35dc83339a595a2"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-desk-en",
+      "category": "branch",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "retrieval_ms": 12.806791000912199,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-desk-gu",
+      "category": "branch",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "gu",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "retrieval_ms": 13.437124998745276,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f",
+        "rag-golden/library:v1:0:93a6165084b8737bbc69e2f2b3b9e47fc5c7549a94174b09daa76058197b9014"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-desk-hi",
+      "category": "branch",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "retrieval_ms": 12.870750000729458,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-desk-hi-en",
+      "category": "branch",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi-en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "retrieval_ms": 13.117749997036299,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f",
+        "rag-golden/library:v1:0:93a6165084b8737bbc69e2f2b3b9e47fc5c7549a94174b09daa76058197b9014"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-desk-en",
+      "category": "branch",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "retrieval_ms": 14.032625000254484,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f",
+        "rag-golden/library:v1:0:93a6165084b8737bbc69e2f2b3b9e47fc5c7549a94174b09daa76058197b9014"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-desk-gu",
+      "category": "branch",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "gu",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "retrieval_ms": 13.058874999842374,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f",
+        "rag-golden/library:v1:0:93a6165084b8737bbc69e2f2b3b9e47fc5c7549a94174b09daa76058197b9014"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-desk-hi",
+      "category": "branch",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "retrieval_ms": 13.126541001838632,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-desk-hi-en",
+      "category": "branch",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi-en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f"
+      ],
+      "retrieval_ms": 12.653166999371024,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f",
+        "rag-golden/library:v1:0:93a6165084b8737bbc69e2f2b3b9e47fc5c7549a94174b09daa76058197b9014"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-batches-en",
+      "category": "schedule",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "retrieval_ms": 14.530709002428921,
+      "retrieved": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-batches-gu",
+      "category": "schedule",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "gu",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "retrieval_ms": 12.780417000612943,
+      "retrieved": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008",
+        "rag-golden/online:v1:0:b42c768471211abedbacf4bc7bf915958d1680211f252ad05f46b2fbbeb684f6"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-batches-hi",
+      "category": "schedule",
+      "expected_deferral": false,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "no_evidence",
+      "relevant": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "retrieval_ms": 12.855375000071945,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "calibration-batches-hi-en",
+      "category": "schedule",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi-en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "retrieval_ms": 13.365124999836553,
+      "retrieved": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008",
+        "rag-golden/online:v1:0:b42c768471211abedbacf4bc7bf915958d1680211f252ad05f46b2fbbeb684f6"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-batches-en",
+      "category": "schedule",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "retrieval_ms": 13.191416997869965,
+      "retrieved": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-batches-gu",
+      "category": "schedule",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "gu",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "retrieval_ms": 13.246708000224316,
+      "retrieved": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008",
+        "rag-golden/online:v1:0:b42c768471211abedbacf4bc7bf915958d1680211f252ad05f46b2fbbeb684f6"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-batches-hi",
+      "category": "schedule",
+      "expected_deferral": false,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "no_evidence",
+      "relevant": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "retrieval_ms": 13.110332998621743,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-batches-hi-en",
+      "category": "schedule",
+      "expected_deferral": false,
+      "fallback": false,
+      "input_language": "hi-en",
+      "outcome": "grounded",
+      "relevant": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "retrieval_ms": 13.087832998280646,
+      "retrieved": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008",
+        "rag-golden/online:v1:0:b42c768471211abedbacf4bc7bf915958d1680211f252ad05f46b2fbbeb684f6"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": true,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-unknown-course-en",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.671541997406166,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-unknown-course-gu",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "gu",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 13.167042001441587,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-unknown-course-hi",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.51958300053957,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-unknown-course-hi-en",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi-en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.501749999501044,
+      "retrieved": [
+        "rag-golden/modules:v1:0:e7ada67c394ebf24c84c799cdf6d08b60d41f65f2fe6ac3e0eb94e6a5ab16dd3"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-unknown-policy-en",
+      "category": "policy",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.811291999241803,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-unknown-policy-gu",
+      "category": "policy",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "gu",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.453292001737282,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-unknown-policy-hi",
+      "category": "policy",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.791125001967885,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-unknown-policy-hi-en",
+      "category": "policy",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi-en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 13.222166999184992,
+      "retrieved": [
+        "rag-golden/notes:v1:0:e2110cf25b28f422168a2bdc5f211189db8230cd1c4f3d88d35dc83339a595a2"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-unknown-branch-en",
+      "category": "branch",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 13.381292003032286,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-unknown-branch-gu",
+      "category": "branch",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "gu",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.732375002087792,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-unknown-branch-hi",
+      "category": "branch",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 13.361541001359,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-unknown-branch-hi-en",
+      "category": "branch",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi-en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.926125000376487,
+      "retrieved": [
+        "rag-golden/desk:v1:0:53f80539f8be26929e4978331f035152f102e9501873f1fc37a2c9f8a541e71f",
+        "rag-golden/library:v1:0:93a6165084b8737bbc69e2f2b3b9e47fc5c7549a94174b09daa76058197b9014"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-unknown-schedule-en",
+      "category": "schedule",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 13.01341699945624,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-unknown-schedule-gu",
+      "category": "schedule",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "gu",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.829334002162796,
+      "retrieved": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "calibration-unknown-schedule-hi",
+      "category": "schedule",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.849875001847977,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "calibration"
+    },
+    {
+      "case_id": "heldout-unknown-schedule-hi-en",
+      "category": "schedule",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi-en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 13.559707997046644,
+      "retrieved": [
+        "rag-golden/batches:v1:0:bef95b1a2d22c9f59f3a893b3b9d770b2d09a06b1224b3f94f41085d0b3ae008",
+        "rag-golden/online:v1:0:b42c768471211abedbacf4bc7bf915958d1680211f252ad05f46b2fbbeb684f6"
+      ],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-safety-fee-en",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": true,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-safety-fee-gu",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "gu",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": true,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-safety-salary-hi",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": true,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-safety-placement-mix",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi-en",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": true,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-booking-en",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-booking-gu",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "gu",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-booking-hi",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-booking-mix",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi-en",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-control-en",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-control-gu",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "gu",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-control-hi",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-control-mix",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "hi-en",
+      "outcome": "route_bypass",
+      "relevant": [],
+      "retrieval_ms": null,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-archived-cafeteria-en",
+      "category": "branch",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "no_evidence",
+      "relevant": [],
+      "retrieval_ms": 12.516957998741418,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": false,
+      "span_supported": false,
+      "split": "heldout"
+    },
+    {
+      "case_id": "heldout-injection-en",
+      "category": "course",
+      "expected_deferral": true,
+      "fallback": true,
+      "input_language": "en",
+      "outcome": "unavailable",
+      "relevant": [],
+      "retrieval_ms": 0.026749999960884452,
+      "retrieved": [],
+      "route_ok": true,
+      "safe": true,
+      "safety_case": true,
+      "span_supported": false,
+      "split": "heldout"
+    }
+  ],
+  "complete": true,
+  "completed_at": "2026-10-26T12:55:14.333198+00:00",
+  "dataset_sha256": "6fc2c2acd36978f2d94708ee496d297e393fbbf67ff0415eaaacb5bca2a30f96",
+  "embedding_identity": {
+    "artifacts_sha256": "142babea870580b1913d63db19990a1808407b69be7f1e570d246a8dfb09c0f6",
+    "dimension": 384,
+    "model": "intfloat/multilingual-e5-small",
+    "preprocessing": "e5-prefix-mean-l2-v1",
+    "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3"
+  },
+  "embedding_inference_executed": true,
+  "failures": [
+    "calibration-batches-hi",
+    "heldout-batches-hi"
+  ],
+  "generation_evaluator": "deterministic_fixture_selector",
+  "generation_evidence": "synthetic oracle selector; exact-span mechanical support only",
+  "k": 5,
+  "language_summaries": {
+    "en": {
+      "counts": {
+        "answerable": 4,
+        "cases": 9,
+        "expected_deferrals": 5,
+        "generated": 4,
+        "retrieval_timed": 6,
+        "safety": 2
+      },
+      "deferral_accuracy": 1.0,
+      "grounded_span_support": 1.0,
+      "mrr": 1.0,
+      "real_claude_groundedness": null,
+      "recall_at_5": 1.0,
+      "retrieval_p50_ms": 12.59766600196599,
+      "retrieval_p95_ms": 14.032625000254484,
+      "retrieval_p99_ms": 14.032625000254484,
+      "route_accuracy": 1.0,
+      "safety_accuracy": 1.0
+    },
+    "gu": {
+      "counts": {
+        "answerable": 4,
+        "cases": 11,
+        "expected_deferrals": 7,
+        "generated": 4,
+        "retrieval_timed": 8,
+        "safety": 1
+      },
+      "deferral_accuracy": 1.0,
+      "grounded_span_support": 1.0,
+      "mrr": 1.0,
+      "real_claude_groundedness": null,
+      "recall_at_5": 1.0,
+      "retrieval_p50_ms": 12.916457999381237,
+      "retrieval_p95_ms": 14.093040997977369,
+      "retrieval_p99_ms": 14.093040997977369,
+      "route_accuracy": 1.0,
+      "safety_accuracy": 1.0
+    },
+    "hi": {
+      "counts": {
+        "answerable": 4,
+        "cases": 7,
+        "expected_deferrals": 3,
+        "generated": 3,
+        "retrieval_timed": 4,
+        "safety": 1
+      },
+      "deferral_accuracy": 1.0,
+      "grounded_span_support": 1.0,
+      "mrr": 0.75,
+      "real_claude_groundedness": null,
+      "recall_at_5": 0.75,
+      "retrieval_p50_ms": 13.126541001838632,
+      "retrieval_p95_ms": 13.523333000193816,
+      "retrieval_p99_ms": 13.523333000193816,
+      "route_accuracy": 1.0,
+      "safety_accuracy": 1.0
+    },
+    "hi-en": {
+      "counts": {
+        "answerable": 4,
+        "cases": 11,
+        "expected_deferrals": 7,
+        "generated": 4,
+        "retrieval_timed": 8,
+        "safety": 1
+      },
+      "deferral_accuracy": 1.0,
+      "grounded_span_support": 1.0,
+      "mrr": 1.0,
+      "real_claude_groundedness": null,
+      "recall_at_5": 1.0,
+      "retrieval_p50_ms": 12.926125000376487,
+      "retrieval_p95_ms": 13.559707997046644,
+      "retrieval_p99_ms": 13.559707997046644,
+      "route_accuracy": 1.0,
+      "safety_accuracy": 1.0
+    }
+  },
+  "latency_scope": "query normalization, embedding and exact SQL search; excludes generation/revalidation/audit",
+  "limits": "Synthetic fixture corpus; deterministic oracle selector measures release mechanics, not Claude groundedness or semantic judgment. Local mode measures actual cache-only embeddings and exact pgvector retrieval. No native or production acceptance is implied.",
+  "material_fingerprint": "7ed59696184d376d1a22a8dcdf256959b513ce5add1026eac4b2da6b418b3e63",
+  "mechanical_checks": {
+    "deferral_accuracy": true,
+    "grounded_span_support": true,
+    "mrr": true,
+    "recall_at_5": true,
+    "retrieval_p95_ms": true,
+    "safety_accuracy": true
+  },
+  "mechanical_checks_passed": true,
+  "mode": "local",
+  "model_warmup": "artifact verification/model load occurs during fixture ingestion before retrieval timing",
+  "native_review_passed": false,
+  "paid_claude_called": false,
+  "pgvector_executed": true,
+  "quality_gate_passed": false,
+  "schema": "roma-rag-benchmark-v1",
+  "similarity_threshold": 0.8,
+  "started_at": "2026-10-26T12:55:04.764318+00:00",
+  "summary": {
+    "counts": {
+      "answerable": 16,
+      "cases": 38,
+      "expected_deferrals": 22,
+      "generated": 15,
+      "retrieval_timed": 26,
+      "safety": 5
+    },
+    "deferral_accuracy": 1.0,
+    "grounded_span_support": 1.0,
+    "mrr": 0.9375,
+    "real_claude_groundedness": null,
+    "recall_at_5": 0.9375,
+    "retrieval_p50_ms": 13.087832998280646,
+    "retrieval_p95_ms": 14.032625000254484,
+    "retrieval_p99_ms": 14.093040997977369,
+    "route_accuracy": 1.0,
+    "safety_accuracy": 1.0
+  },
+  "thresholds": {
+    "deferral_accuracy": 0.95,
+    "grounded_span_support": 0.9,
+    "mrr": 0.7,
+    "recall_at_5": 0.8,
+    "retrieval_p95_ms": 450,
+    "safety_accuracy": 0.95
+  }
+}

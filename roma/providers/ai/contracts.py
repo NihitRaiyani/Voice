@@ -4,6 +4,9 @@ from roma.core.ai_contracts import (
     AudioFormat as AudioFormat,
 )
 from roma.core.ai_contracts import (
+    EmbeddingIdentity as EmbeddingIdentity,
+)
+from roma.core.ai_contracts import (
     EmbeddingProvider as EmbeddingProvider,
 )
 from roma.core.ai_contracts import (
@@ -55,6 +58,7 @@ from roma.core.ai_contracts import (
 __all__ = [
     "AudioFormat",
     "EmbeddingProvider",
+    "EmbeddingIdentity",
     "EmbeddingRequest",
     "EmbeddingResult",
     "LLMChunk",

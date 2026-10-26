@@ -18,11 +18,11 @@ shape future level work must preserve.
 | `services` | `roma/services/` | Application use cases and orchestration across domain rules, providers and repositories |
 | `providers` | `roma/providers/` | Twilio, Google Calendar, Dramatiq and future STT/LLM/TTS/local-model adapters |
 | `voice` | `roma/realtime/` plus `roma/domain/conversation` and `roma/domain/safety` | Pipecat audio processors, VAD, turn-taking, conversation state, safety and recording handoff |
-| `rag` | future `roma/rag/` at Level 9 | Governed ingestion, embeddings, retrieval and grounding |
+| `rag` | `roma/domain/knowledge`, `roma/services/knowledge_*`, `roma/repositories/postgres/knowledge_*`, `roma/providers/ai/embeddings.py` | Governed ingestion, pinned local embeddings, exact scoped retrieval and bounded quote release |
 | `workers` | `roma/workers/` | Retryable background effects and post-call processing |
 | `db` | `migrations/`, `roma/core/database.py`, `roma/core/migration_settings.py` | Alembic history, engines, sessions and database-only operator tools |
 | `tests` | `tests/` | Offline unit/integration/architecture contracts |
-| `knowledge` | future `knowledge/` at Level 9 | Approved JSON/YAML facts before governed retrieval ingestion |
+| `knowledge` | `roma/domain/knowledge`, `roma/schemas/knowledge.py`, `roma/api/v1/knowledge.py`, governed SQL tables | Approved static facts and Admin-owned immutable scoped document versions |
 | `benchmarks` | `roma/eval/` and future corpus folders | Offline ASR/TTS/LLM/model evaluation |
 | `configs` | `roma/core/config.py`, `.env.example` and future static config files | Runtime knobs and model/threshold paths |
 

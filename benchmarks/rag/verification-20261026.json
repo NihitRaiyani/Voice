@@ -1,0 +1,102 @@
+{
+  "base_commit": "cda81aa52583449f6bfb1fdf42741d9bc7c816d7",
+  "boundaries": {
+    "full_level9_gate_passed": false,
+    "local_embedding_native_inference": true,
+    "microphone_opened": false,
+    "paid_claude_called": false,
+    "private_env_modified": false,
+    "services": "owned disposable PostgreSQL/Redis stopped; synthetic SQL dump ignored and mode0600",
+    "speech_weights_modified": false,
+    "working_database_migrated": false
+  },
+  "checks": {
+    "ci": {
+      "exit_code": 0,
+      "log_sha256": "368a34a77fa0c663bc0630703455b9da1f3f88f19c878dd98b67b4fed9f12e6d",
+      "passed": 3933,
+      "pytest_seconds": 150.25,
+      "seconds": 157.34,
+      "warnings": 22
+    },
+    "test": {
+      "exit_code": 0,
+      "log_sha256": "e3e12d70a6309df30e23734d95ae6c0cfb49f8a7704d8fc37e943bbe4a65b037",
+      "passed": 3933,
+      "pytest_seconds": 143.86,
+      "seconds": 145.62,
+      "warnings": 22
+    }
+  },
+  "ci_modules": 222,
+  "fingerprint_method": "SHA256 of canonical JSON mapping each .py path under roma/scripts/migrations/tests to its SHA256; source was uncommitted during verification",
+  "integration_failures_repaired": [
+    "pytest worker/API filename collision",
+    "four old composition mocks missing optional RAG configuration",
+    "schema-contract missing knowledge_ingestion_jobs",
+    "demo migration expectation still at 0006"
+  ],
+  "lockfile_check": "uv lock --check --offline: 164 packages",
+  "markdown_local_links_checked": 706,
+  "mypy_checked_files": 155,
+  "native_benchmark": {
+    "material_fingerprint": "7ed59696184d376d1a22a8dcdf256959b513ce5add1026eac4b2da6b418b3e63",
+    "mechanical_checks_passed": true,
+    "persisted_run_id": "c05be042-1afb-4063-90fa-d8b2d7b3cc80",
+    "quality_gate_passed": false,
+    "report": "benchmarks/rag/local-v1-report.json",
+    "report_sha256": "8f3efa3794bb8f72f54aba4fccb43b938392fae1e382823a62ccdbf47f5c8e50",
+    "sql_readback": {
+      "active_documents": 8,
+      "benchmark_results": 45,
+      "benchmark_runs": 1,
+      "chunks": 9,
+      "dump_path": "var/roma/rag-benchmarks/local-v1-20261026.dump",
+      "dump_sha256": "232e675e498f7e58d9ef7093510a0699653350e8ba598ad22a4b9dcc17b47b37",
+      "migration_head": "20261026_0007",
+      "succeeded_ingestions": 9,
+      "vector_version": "0.8.5"
+    },
+    "summary": {
+      "counts": {
+        "answerable": 16,
+        "cases": 38,
+        "expected_deferrals": 22,
+        "generated": 15,
+        "retrieval_timed": 26,
+        "safety": 5
+      },
+      "deferral_accuracy": 1.0,
+      "grounded_span_support": 1.0,
+      "mrr": 0.9375,
+      "real_claude_groundedness": null,
+      "recall_at_5": 0.9375,
+      "retrieval_p50_ms": 13.087832998280646,
+      "retrieval_p95_ms": 14.032625000254484,
+      "retrieval_p99_ms": 14.093040997977369,
+      "route_accuracy": 1.0,
+      "safety_accuracy": 1.0
+    }
+  },
+  "python_file_count": 541,
+  "python_source_sha256": "004e9fe703e5cd8fe11c792c8da7b0b5e28257cc9579cd81cbe3bbebbfbfbe76",
+  "recorded_at": "2026-10-26T12:56:24.530113+00:00",
+  "red_green_regressions": [
+    "test_initial_ingestion_rejects_fabricated_self_hashed_evidence",
+    "test_retrieval_rejects_fabricated_content_even_with_matching_chunk_hash",
+    "test_knowledge_worker_and_prototype_read_private_config_without_extra_fields",
+    "test_standalone_knowledge_uses_valid_synthetic_conversation_context",
+    "test_scoped_knowledge_forwards_actual_call_safety_context",
+    "test_explicit_knowledge_safety_context_is_used_for_every_check",
+    "test_verbatim_booking_confirmation_cannot_be_released_as_knowledge"
+  ],
+  "remaining": [
+    "approved representative corpus and Hindi retrieval improvement",
+    "real Claude semantic groundedness/relevance and complete answer latency",
+    "combined speech/embedding RAM and native/concurrency acceptance",
+    "intended-environment 0007 rollout and governed production evidence",
+    "previous physical voice/privacy/governance acceptance"
+  ],
+  "ruff_passed": true,
+  "schema": "roma-sections-34-40-verification-v1"
+}

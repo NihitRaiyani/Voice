@@ -3,6 +3,7 @@
 from roma.providers.ai.claude_llm import ClaudeLLM
 from roma.providers.ai.contracts import (
     AudioFormat,
+    EmbeddingIdentity,
     EmbeddingProvider,
     EmbeddingRequest,
     EmbeddingResult,
@@ -45,6 +46,7 @@ __all__ = [
     "IndicConformerSTT",
     "WhisperSTT",
     "EmbeddingProvider",
+    "EmbeddingIdentity",
     "EmbeddingRequest",
     "EmbeddingResult",
     "LLMChunk",

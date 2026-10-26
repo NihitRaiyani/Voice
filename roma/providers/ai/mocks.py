@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 from roma.providers.ai.contracts import (
+    EmbeddingIdentity,
     EmbeddingRequest,
     EmbeddingResult,
     LLMChunk,
@@ -57,9 +59,21 @@ class MockTTSProvider:
 class MockEmbeddingProvider:
     dimension: int = 8
 
+    @property
+    def identity(self) -> EmbeddingIdentity:
+        return EmbeddingIdentity(
+            "mock-sha256",
+            "1",
+            self.dimension,
+            "sha256-v1",
+            hashlib.sha256(b"mock-sha256-v1").hexdigest(),
+        )
+
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResult:
         vectors = tuple(self._vector(text) for text in request.texts)
-        return EmbeddingResult(vectors=vectors, dimension=self.dimension)
+        return EmbeddingResult(
+            vectors=vectors, dimension=self.dimension, identity=self.identity
+        )
 
     def _vector(self, text: str) -> tuple[float, ...]:
         digest = hashlib.sha256(text.encode("utf-8")).digest()
@@ -67,7 +81,8 @@ class MockEmbeddingProvider:
         for index in range(self.dimension):
             byte = digest[index % len(digest)]
             values.append((byte / 127.5) - 1.0)
-        return tuple(values)
+        norm = math.sqrt(sum(value * value for value in values))
+        return tuple(value / norm for value in values)
 
 
 __all__ = [

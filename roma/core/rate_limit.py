@@ -22,7 +22,7 @@ def category_for(path: str) -> str | None:
         return "login"
     if path == "/answer" or path.startswith("/callbacks/"):
         return "callbacks"
-    if path.startswith(("/api/v1/ai-tests", "/api/v1/labs")):
+    if path == "/api/v1/knowledge/search" or path.startswith(("/api/v1/ai-tests", "/api/v1/labs")):
         return "ai_tests"
     if (
         path.startswith(("/api/v1/users", "/api/v1/knowledge/documents", "/api/v1/privacy"))

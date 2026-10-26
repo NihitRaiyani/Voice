@@ -69,3 +69,17 @@ Existing appointment POST retains its fields and adds optional UUID `idempotency
 Booking uses `BookingService` and `PostgresBookingStore`; commits finish before the success envelope. `APPOINTMENT_SLOT_UNAVAILABLE` is 409; a missing call/appointment (or a slot removed after the availability check) is 404; an unconfigured or ineligible candidate is unavailable (409); `BOOKING_UNAVAILABLE` or `HOLD_UNAVAILABLE` is 503. Validation remains 422, bad/missing bearer 401. No session spans Redis/model/audio waits. Cancellation atomically frees the booked slot; repeating an old cancellation cannot unlock its successor. Terminal appointments cannot be reactivated with PATCH. Section 28 now requires appointments.view/manage permissions; Admin and Counsellor can manage booking, Viewer cannot.
 
 Only active IST branch reference data and configured future slots within existing visiting hours can be booked. Capacity is one active appointment; rescheduling and external calendar/CRM/WhatsApp synchronization are outside section 13. See [booking policy/evidence](levels/level-03.md) and [operations](runbook.md#section-13-booking-operations).
+
+## Governed knowledge resources (sections 32–40)
+
+| Method | Path | Permission and effect |
+|---|---|---|
+| POST | `/api/v1/knowledge/documents` | Admin `rag.upload`; bounded governed JSON text/Markdown and durable managed ingestion intent |
+| POST | `/api/v1/knowledge/documents/{id}/approve` | Admin `rag.approve`; server-recorded actor/time/hash with approval_reference |
+| POST | `/api/v1/knowledge/documents/{id}/activate` | Admin `rag.approve`; expected_version plus approved/effective/completed-ingestion fence |
+| POST | `/api/v1/knowledge/documents/{id}/archive` | Admin `rag.approve`; expected_version revokes retrieval eligibility |
+| POST | `/api/v1/knowledge/documents/{id}/ingest` | Admin `rag.upload`; empty JSON body, idempotent current-content/pipeline enqueue |
+| GET | `/api/v1/knowledge/documents/{id}/ingestion-jobs` | Admin `rag.upload`; safe status/attempt/reason/quarantine metadata |
+| POST | `/api/v1/knowledge/search` | Admin/Counsellor `rag.debug`; explicitly configured enabled retrieval, metadata-only exact search |
+
+Upload never runs inference or self-approves content. Draft/approved/active/archived versions remain immutable after approval; updated facts require a new version. Processing is the bounded SQL worker drain, with status inspection rather than a fabricated synchronous success. Search accepts query/category/language, optional course/branch/version and explicit English fallback policy; it returns document/chunk IDs, scores, applied filters and retrieval/embedding timings without source text or raw query. Validation/auth/permission, conflict and unavailable errors use the shared v1 envelope with sanitized knowledge codes. Retrieval auditing must succeed before debug output or a grounded fact is released. Counsellor/Viewer have no knowledge mutation/debug grant. Runtime stays off by default; [Level 9](levels/level-09.md) owns its separate quality gate and [runbook](runbook.md#governed-ingestion-retrieval-and-golden-evaluation-sections-3440) owns operation.

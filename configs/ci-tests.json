@@ -211,7 +211,17 @@
     "tests/workers/postcall/test_worker.py",
     "tests/workers/test_background_handlers.py",
     "tests/workers/test_claude_summary.py",
-    "tests/workers/test_dramatiq_worker.py"
+    "tests/workers/test_dramatiq_worker.py",
+    "tests/domain/knowledge/test_ingestion.py",
+    "tests/domain/knowledge/test_retrieval.py",
+    "tests/eval/test_rag_benchmark.py",
+    "tests/providers/ai/test_embeddings.py",
+    "tests/repositories/postgres/test_knowledge_ingestion.py",
+    "tests/services/test_knowledge_answer.py",
+    "tests/services/test_knowledge_ingestion.py",
+    "tests/services/test_knowledge_retrieval.py",
+    "tests/workers/test_knowledge_worker.py",
+    "tests/services/test_knowledge_runtime.py"
   ],
   "excluded": {}
 }

@@ -288,18 +288,23 @@ def test_booking_information_never_mutates_profile_or_forwards_live_context():
             assert not state.slot_attempts and not state.accepted_slot
             extract.assert_not_awaited()
             frames = [call.args[0] for call in proc.push_frame.call_args_list]
-            assert any(isinstance(item, TextFrame) and item.text == NO_EVIDENCE_LINE for item in frames)
+            assert any(
+                isinstance(item, TextFrame) and item.text == NO_EVIDENCE_LINE for item in frames
+            )
             assert not any(isinstance(item, LLMContextFrame) for item in frames)
 
     asyncio.run(run())
 
 
-@pytest.mark.parametrize(("elapsed", "stage", "leaving"), [
-    (0, "discover", False),
-    (180, "pivot", False),
-    (240, "pivot", False),
-    (300, "pivot", True),
-])
+@pytest.mark.parametrize(
+    ("elapsed", "stage", "leaving"),
+    [
+        (0, "discover", False),
+        (180, "pivot", False),
+        (240, "pivot", False),
+        (300, "pivot", True),
+    ],
+)
 def test_factual_booking_words_preserve_controller_deadlines(elapsed, stage, leaving):
     import asyncio
     from datetime import UTC, datetime
@@ -307,13 +312,86 @@ def test_factual_booking_words_preserve_controller_deadlines(elapsed, stage, lea
     from roma.domain.conversation.turn import advance_turn
 
     state = CallState(stage="discover", lead_name="Amit", lead_time_asks=1)
-    asyncio.run(advance_turn(
-        state,
-        "What is the branch visit policy?",
-        now=datetime.now(UTC),
-        elapsed_secs=elapsed,
-        controller_only=True,
-    ))
+    asyncio.run(
+        advance_turn(
+            state,
+            "What is the branch visit policy?",
+            now=datetime.now(UTC),
+            elapsed_secs=elapsed,
+            controller_only=True,
+        )
+    )
     assert state.stage == stage and state.lead_wants_out is leaving
     assert state.lead_time_asks == 1
     assert not state.slot_attempts and state.current_status is None
+
+
+@pytest.mark.parametrize(
+    ("query", "topic"),
+    [
+        ("કોર્સમાં quantum mechanics શીખવાય છે?", "course"),
+        ("નીતિમાં airport boarding pass મળે છે?", "policy"),
+        ("મુલાકાત રદ કરવાની નીતિમાં શું છે?", "policy"),
+        ("કેમ્પસમાં counselling desk ક્યાં છે?", "branch"),
+        ("કેમ્પસમાં lunar observatory ક્યાં છે?", "branch"),
+        ("શાખામાં counselling desk ક્યાં છે?", "branch"),
+        ("कैंपस में counselling desk कहाँ है?", "branch"),
+        ("कैम्पस में counselling desk कहाँ है?", "branch"),
+    ],
+)
+@pytest.mark.parametrize("stage", ["open", "discover", "value", "pivot", "close"])
+def test_reviewed_indic_topic_forms_route_factual_questions(query, topic, stage):
+    decision = classify_turn(CallState(stage=stage), query)
+    assert decision.route == KnowledgeRoute.KNOWLEDGE
+    assert decision.topic == topic
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "કોર્સમાં fees કેટલા છે?",
+        "કેમ્પસમાં appointment book કરો અને fees કહો",
+        "કેમ્પસમાં salary કેટલી છે?",
+    ],
+)
+def test_indic_topic_forms_never_override_protected_topics(query):
+    assert classify_turn(CallState(stage="discover"), query).route == KnowledgeRoute.SAFETY
+
+
+def test_indic_topic_forms_preserve_booking_and_profile_answer_priority():
+    assert (
+        classify_turn(CallState(stage="discover"), "કેમ્પસમાં appointment book કરો").route
+        == KnowledgeRoute.BOOKING
+    )
+    assert (
+        classify_turn(CallState(stage="discover"), "હું કોર્સમાં અભ્યાસ કરું છું").route
+        == KnowledgeRoute.STATE
+    )
+    assert (
+        classify_turn(CallState(stage="value"), "કેમ્પસમાંઅજાણ્યું").route
+        == KnowledgeRoute.NO_EVIDENCE
+    )
+
+
+def test_indic_factual_questions_never_fill_profile_or_call_text_provider():
+    import asyncio
+    from datetime import UTC, datetime
+
+    from roma.services.text_conversation_service import TextConversationService
+
+    class Never:
+        async def generate(self, request):
+            raise AssertionError("Factual Gujarati question cannot fill discovery")
+            yield
+
+    async def run():
+        state = CallState(stage="discover", lead_name="Synthetic")
+        trace = await TextConversationService(Never()).turn(
+            state, "કેમ્પસમાં counselling desk ક્યાં છે?", now=datetime.now(UTC)
+        )
+        assert trace.route == "knowledge"
+        assert not state.slot_attempts and state.current_status is None
+        assert state.city is None and state.education is None and state.passing_year is None
+        assert trace.raw_model_output == ""
+
+    asyncio.run(run())

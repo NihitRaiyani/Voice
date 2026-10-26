@@ -1,4 +1,4 @@
-"""Governed evidence metadata; embeddings remain nullable future metadata only."""
+"""Governed immutable sources, identity-bound vectors and ingestion intent."""
 
 from datetime import datetime
 from uuid import UUID
@@ -17,6 +17,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
+
+from roma.repositories.postgres.vector import Vector
 
 from .base import Base, CreatedAtMixin, UUIDPrimaryKeyMixin
 
@@ -57,6 +59,7 @@ class KnowledgeDocument(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
             "effective_from",
         ),
     )
+    ingestion_required: Mapped[bool] = mapped_column(Boolean, server_default="false")
     source_key: Mapped[str] = mapped_column(String(128))
     source_reference: Mapped[str] = mapped_column(String(128))
     title: Mapped[str] = mapped_column(String(160))
@@ -90,6 +93,10 @@ class KnowledgeChunk(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __tablename__ = "knowledge_chunks"
     __table_args__ = (
         UniqueConstraint("document_id", "ordinal"),
+        CheckConstraint(
+            "embedding IS NULL OR (embedding_model IS NOT NULL AND embedding_revision IS NOT NULL AND embedding_dimensions IS NOT NULL AND embedded_at IS NOT NULL AND embedding_preprocessing IS NOT NULL AND embedding_artifacts_sha256 IS NOT NULL AND pipeline_identity IS NOT NULL AND vector_dims(embedding) = embedding_dimensions AND vector_norm(embedding) > 0)",
+            name="vector_identity",
+        ),
         CheckConstraint("ordinal >= 0", name="ordinal"),
         CheckConstraint("length(content) BETWEEN 1 AND 2000", name="content_bound"),
         CheckConstraint("content_hash ~ '^[0-9a-f]{64}$'", name="hash_shape"),
@@ -103,6 +110,10 @@ class KnowledgeChunk(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
             name="bounded_metadata",
         ),
     )
+    embedding: Mapped[tuple[float, ...] | None] = mapped_column(Vector())
+    embedding_preprocessing: Mapped[str | None] = mapped_column(String(128))
+    embedding_artifacts_sha256: Mapped[str | None] = mapped_column(String(64))
+    pipeline_identity: Mapped[str | None] = mapped_column(String(128))
     document_id: Mapped[UUID] = mapped_column(
         ForeignKey("knowledge_documents.id", ondelete="RESTRICT")
     )
@@ -152,3 +163,59 @@ class RetrievalLog(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
         ForeignKey("knowledge_documents.id", ondelete="RESTRICT")
     )
     latency_ms: Mapped[int]
+
+
+class KnowledgeIngestionJob(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
+    """Document-owned intent, separate from call-owned post-call jobs."""
+
+    __tablename__ = "knowledge_ingestion_jobs"
+    __table_args__ = (
+        UniqueConstraint("document_id", "expected_hash", "pipeline_identity"),
+        CheckConstraint(
+            "status IN ('queued','processing','succeeded','dead_letter')", name="status"
+        ),
+        CheckConstraint("attempts BETWEEN 0 AND 5", name="attempts"),
+        CheckConstraint("expected_hash ~ '^[0-9a-f]{64}$'", name="expected_hash"),
+        CheckConstraint("dimensions BETWEEN 1 AND 16000", name="dimensions"),
+        CheckConstraint("chunk_count BETWEEN 0 AND 1000", name="chunk_count"),
+        CheckConstraint(
+            "length(pipeline_identity) BETWEEN 1 AND 128", name="pipeline_identity"
+        ),
+        CheckConstraint(
+            "last_error IS NULL OR last_error ~ '^[a-z][a-z0-9_]{0,63}$'", name="safe_reason"
+        ),
+        Index("ix_knowledge_ingestion_jobs_dispatch", "status", "available_at"),
+    )
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey("knowledge_documents.id", ondelete="RESTRICT")
+    )
+    expected_hash: Mapped[str] = mapped_column(String(64))
+    pipeline_identity: Mapped[str] = mapped_column(String(128))
+    model: Mapped[str] = mapped_column(String(128))
+    revision: Mapped[str] = mapped_column(String(128))
+    dimensions: Mapped[int]
+    preprocessing: Mapped[str] = mapped_column(String(128))
+    artifacts_sha256: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(16), server_default="queued")
+    attempts: Mapped[int] = mapped_column(server_default="0")
+    available_at: Mapped[datetime] = mapped_column(server_default=text("now()"))
+    lock_owner: Mapped[str | None] = mapped_column(String(128))
+    locked_at: Mapped[datetime | None]
+    last_error: Mapped[str | None] = mapped_column(String(64))
+    quarantined: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    completed_at: Mapped[datetime | None]
+    chunk_count: Mapped[int] = mapped_column(server_default="0")
+
+    @property
+    def max_attempts(self):
+        return 5
+
+    @property
+    def lease_expires_at(self):
+        from datetime import timedelta
+
+        return self.locked_at + timedelta(seconds=300) if self.locked_at else None
+
+    @property
+    def operation(self):
+        return "ingest"

@@ -1393,9 +1393,12 @@ def build_media_app(
         safety = SafetyService(safety_store)
         if getattr(store, "checkpoint", None) is not None:
             safety.store = CheckpointSafetyEventStore(safety.store, store, state)
+        knowledge_factory = getattr(app.state, "knowledge_answer_factory", None)
+        knowledge = knowledge_factory(settings, slot_client, safety) if knowledge_factory else None
         stage_ctrl = StageControllerProcessor(
             state,
             safety=safety,
+            knowledge=knowledge,
             client=slot_client,
             store=store,
             flight=flight,

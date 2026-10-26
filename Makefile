@@ -121,3 +121,10 @@ streaming-lab:
 .PHONY: acceptance-live
 acceptance-live:
 	$(UV) run --no-sync python scripts/acceptance_live.py $(ARGS)
+
+.PHONY: rag-benchmark knowledge-worker
+rag-benchmark:
+	$(UV) run --no-sync python scripts/rag_benchmark.py $(ARGS)
+
+knowledge-worker:
+	$(UV) run --no-sync python -m roma.workers.knowledge --drain --allow-database-write $(ARGS)

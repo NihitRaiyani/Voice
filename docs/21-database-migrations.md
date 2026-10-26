@@ -1,6 +1,6 @@
 # Database migrations and separate demo data
 
-**Level 1 section 5.** SQLAlchemy 2.x defines the relational metadata; Alembic owns schema, constraints and indexes. [The schema catalog](20-relational-schema.md) explains their purpose. This workflow retains all existing revisions and the current single head. Current code head is `20261024_0006`, following authentication `0004`, privacy `0005` and knowledge governance `0006`. Verification uses disposable databases only. The configured `roma` database was recorded at then-head `20261004_0003` on 2026-10-04; that dated evidence is historical, and this session did not upgrade it. Every intended environment must explicitly upgrade before new schema consumers start.
+**Level 1 section 5.** SQLAlchemy 2.x defines the relational metadata; Alembic owns schema, constraints and indexes. [The schema catalog](20-relational-schema.md) explains their purpose. This workflow retains all existing revisions and the current single head. Current code head is `20261026_0007`, following authentication `0004`, privacy `0005`, knowledge governance `0006` and vector/ingestion `0007`. The new revision is tested on disposable databases only. The separately authorized working-`roma` rollout reached `20261024_0006` on 2026-10-24; sections 34–40 do not upgrade that environment. Every intended environment must explicitly upgrade before new schema consumers start.
 
 ## Preserved revision history
 
@@ -12,6 +12,7 @@
 | `20261023_0004` | `20261004_0003` | Human sessions and unique hashed rotating refresh credentials; no accounts/seeds |
 | `20261024_0005` | `20261023_0004` | Selected encrypted-field storage, recording disclosure evidence and durable privacy tombstones; no automatic backfill |
 | `20261024_0006` | `20261024_0005` | Governed knowledge documents/chunks/retrieval metadata and immutable approval controls; no model/vector inference |
+| `20261026_0007` | `20261024_0006` | pgvector values/identity, document-owned ingestion jobs and managed activation fence; no artifact download or inference |
 
 The roadmap's five numbered examples illustrate ordered migrations; they do not require splitting or renumbering history already present in this project. All three revision files remain unchanged in section 5. Section 5 originally added no empty fourth migration. Section 28 now appends a real fourth migration for authentication; prior revisions remain unchanged. Future schema/index changes append a reviewed revision to the current head. Never edit an applied revision to make a new model match it.
 
@@ -97,3 +98,9 @@ Return to the [documentation index](README.md).
 The forward chain appends 20261024_0005 after 20261023_0004, then 20261024_0006. Privacy adds disclosure evidence/tombstones and TEXT name storage; knowledge adds documents/chunks/retrieval metadata and approved-version enforcement. Neither revision generates keys, seeds users/documents, encrypts existing rows, touches models or calls providers.
 
 Review privacy tombstone/audit preservation and backup policy before any downgrade. Downgrading knowledge removes its evidence metadata; privacy downgrade removes tombstones/disclosure evidence. Caller.name intentionally remains TEXT on privacy downgrade so ciphertext cannot be truncated into a former 255-character column. A downgrade does not decrypt ciphertext or make deletion/consent policy disappear. Keep keys and reapply durable deletion instructions before restored data serves traffic. Use only disposable databases to rehearse upgrade/downgrade; intended-environment migration and encrypted legacy backfill remain explicit operator actions.
+
+## Vector and ingestion revision 0007
+
+The chosen PostgreSQL server must have pgvector installed and the migration role must be able to `CREATE EXTENSION IF NOT EXISTS vector`. An unavailable extension fails the upgrade; do not weaken vector types or switch stores to hide the failure. `0007` appends vector/provenance columns, ingestion jobs/constraints/index and a managed-activation trigger. It seeds no data, creates no model artifacts and makes no provider request.
+
+Review SQL and use a disposable database for upgrade/schema-parity/downgrade/re-upgrade evidence. Downgrade deletes ingestion jobs and the new vector/pipeline columns and drops the managed-ingestion fence/marker. Preserve approved source evidence and compatible code before any separately authorized intended-environment rollback; the shared extension is deliberately retained. Working `roma` remains at `0006` until a separate reviewed rollout. [The runbook](runbook.md#governed-ingestion-retrieval-and-golden-evaluation-sections-3440) owns the worker/benchmark rehearsal.

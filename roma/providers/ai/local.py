@@ -1,39 +1,10 @@
-"""Local speech compatibility exports and later-level TTS/embedding placeholders.
-
-Level 1 owns dependency inversion and mockability. Actual model loading,
-hardware admission and quality benchmarks land in the model-specific levels.
-"""
+"""Compatibility exports for explicitly provisioned cache-only local providers."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import NoReturn
-
-from roma.providers.ai.contracts import (
-    EmbeddingRequest,
-    EmbeddingResult,
-    ProviderUnavailable,
-)
+from roma.providers.ai.embeddings import LocalMultilingualEmbedding
 from roma.providers.ai.indic_tts import IndicTTSProvider
 from roma.providers.ai.stt import IndicConformerSTT, WhisperSTT
-
-
-@dataclass(frozen=True)
-class _UnavailableProvider:
-    provider_name: str
-    level: str
-
-    def _raise(self) -> NoReturn:
-        raise ProviderUnavailable(
-            f"{self.provider_name} is selected but not implemented in this level; "
-            f"complete {self.level} and its model/config checks first"
-        )
-
-
-class LocalMultilingualEmbedding(_UnavailableProvider):
-    async def embed(self, request: EmbeddingRequest) -> EmbeddingResult:
-        self._raise()
-
 
 __all__ = [
     "IndicConformerSTT",

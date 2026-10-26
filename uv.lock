@@ -3355,6 +3355,10 @@ dev = [
 duplex = [
     { name = "pywebrtc-audio" },
 ]
+embeddings = [
+    { name = "torch" },
+    { name = "transformers" },
+]
 indic-asr = [
     { name = "torch" },
     { name = "transformers" },
@@ -3403,13 +3407,15 @@ requires-dist = [
     { name = "sounddevice", marker = "extra == 'voice-lab'", specifier = ">=0.5,<0.6" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<3" },
     { name = "testcontainers", extras = ["postgres"], marker = "extra == 'dev'", specifier = ">=4.12,<5" },
+    { name = "torch", marker = "extra == 'embeddings'", specifier = ">=2.5,<3" },
     { name = "torch", marker = "extra == 'indic-asr'", specifier = ">=2.5,<3" },
+    { name = "transformers", marker = "extra == 'embeddings'", specifier = ">=4.46,<6" },
     { name = "transformers", marker = "extra == 'indic-asr'", specifier = ">=4.46,<6" },
     { name = "twilio", marker = "extra == 'telephony'", specifier = ">=9.10.9" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'telephony'", specifier = ">=0.51.0" },
     { name = "websockets", marker = "extra == 'telephony'", specifier = ">=16.1.1" },
 ]
-provides-extras = ["duplex", "workers", "dev", "telephony", "voice-lab", "indic-asr", "mlx-asr"]
+provides-extras = ["embeddings", "duplex", "workers", "dev", "telephony", "voice-lab", "indic-asr", "mlx-asr"]
 
 [[package]]
 name = "ruff"

@@ -99,7 +99,7 @@ def test_sql_lifecycle_eligibility_scope_and_immutable_approval(session_factory)
     asyncio.run(run())
 
 
-def test_metadata_has_no_raw_query_or_embedding_vector_and_chunks_have_scope_provenance():
+def test_metadata_has_no_raw_query_and_vectors_have_scope_provenance():
     assert {
         "language",
         "metadata_json",
@@ -109,7 +109,7 @@ def test_metadata_has_no_raw_query_or_embedding_vector_and_chunks_have_scope_pro
         "embedding_dimensions",
         "embedded_at",
     } <= set(KnowledgeChunk.__table__.c.keys())
-    assert not {"embedding", "vector"} & set(KnowledgeChunk.__table__.c.keys())
+    assert "embedding" in KnowledgeChunk.__table__.c
     assert {"call_id", "turn_id", "chunk_ids", "scores", "fallback_used"} <= set(
         RetrievalLog.__table__.c.keys()
     )

@@ -46,7 +46,7 @@ With size 5, overflow 10 and four engine-owning processes, retained capacity is 
 
 Use the [relational catalog](20-relational-schema.md) to justify each key, check and index. Show a duplicate checkpoint/result rejection, an orphan-reference rejection, call-to-checkpoint ownership cascade, run-to-result cascade and model deletion blocked by measured results. Explain why relational booking truth stays outside flexible checkpoint JSON, why duplicate metric rows cannot silently replace a measurement, and why a signed finite metric is valid while NaN is not.
 
-Describe migration compatibility: old rows/keys survive; optional turn language remains unknown for old rows; deleting the new tables during rollback loses their new data. Explain required checkpoint expiry, benchmark metadata without raw PII/audio, Level 2 latest-checkpoint restore, pending cleanup/redial/runner integration, and Level 9 knowledge-table deferral. Schema foundation and operational feature completion are different evidence.
+Describe migration compatibility: old rows/keys survive; optional turn language remains unknown for old rows; deleting the new tables during rollback loses their new data. Explain required checkpoint expiry, benchmark metadata without raw PII/audio, Level 2 latest-checkpoint restore, pending cleanup/redial/runner integration, and the later Level 9 approved-source/vector/ingestion schema. Schema foundation and operational feature completion are different evidence.
 
 ## Level 1 section 5 explanation
 
@@ -76,8 +76,8 @@ versioned public API schemas were completed in sections 7 and 8.
 
 Show how `STTProvider`, `LLMProvider`, `TTSProvider`, `EmbeddingProvider` and
 `TelephonyProvider` hide SDK/runtime details behind small request/result types.
-Explain why tests and synthetic CLI runs select mock AI providers, why future Indic speech/embedding
-classes fail fast until their model levels are complete, and why switching a
+Explain why tests and synthetic CLI runs select mock AI providers, why local speech/embedding
+adapters fail fast without their pinned reviewed artifacts, and why switching a
 provider should mean one adapter plus one config value rather than rewriting
 callers.
 
@@ -131,7 +131,7 @@ Show the seven-stage machine as business state, not prompt wording: `OPEN -> DIS
 
 Trace checkpoint persistence through `save_state()`/`restore_state()`: Redis remains the hot same-call cache, while `PostgresConversationStateStore` writes the latest compatible `CallState` to `conversation_states` through short unit-of-work sessions. The row carries schema version, policy version, revision, canonical stage, JSON state and expiry. Restore refuses missing calls, expired rows and schema/policy mismatches rather than replaying unsafe state.
 
-Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and knowledge goes to the current model prompt today. Level 9 can attach RAG to the knowledge route without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: native/paid Claude quality/latency, redial/session identity and L7 recovery drills.
+Defend `route_intent()` as a seam for later work: deterministic replies stay code-owned, booking paths stay under slot/confirmation rules, and eligible factual questions use reviewed static facts first and default-off scoped RAG only when configured; absent evidence defers. Level 9 attaches ingestion/search/quote release without allowing retrieved text to select a stage or weaken safety. State clearly what remains pending: native/paid Claude quality/latency, redial/session identity and L7 recovery drills.
 
 ## Level 2 section 11 explanation
 
@@ -289,4 +289,4 @@ An HF token solves identity, not unlimited inference capacity. Hosted ASR is a u
 - **Why rotate refresh tokens?** One-use hashes and family row locks expose reuse; a consumed token revokes its successor too.
 - **Why is a valid login not enough?** Route permissions decide access: a Viewer sees calls/analytics but not recording URLs or appointment writes.
 - **Why retain the old API token only by opt-in?** A shared machine credential cannot represent a human role or administer users safely.
-- **What remains?** Explicit operator setup and institute policy, complete access/privacy audits, representative/native acceptance and later knowledge endpoints; no gate is passed.
+- **What remains?** Explicit operator setup and institute policy, complete access/privacy audits, representative/native acceptance and real-Claude retrieval quality; Admin knowledge endpoints are implemented, while the full gate remains open.

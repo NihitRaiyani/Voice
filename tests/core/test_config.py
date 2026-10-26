@@ -254,3 +254,22 @@ def test_claude_main_settings_do_not_require_an_openai_key(monkeypatch):
     assert settings.anthropic_model == "claude-haiku-5-5"
     assert settings.anthropic_max_prompt_bytes == 32768
     assert settings.anthropic_call_token_budget == 64000
+
+
+def test_knowledge_worker_and_prototype_read_private_config_without_extra_fields(tmp_path, monkeypatch):
+    from roma.core.rag_settings import KnowledgeRuntimeSettings, RAGSettings
+
+    monkeypatch.chdir(tmp_path)
+    for key in ("RAG_ENABLED", "EMBEDDING_MANIFEST", "EMBEDDING_PROVIDER"):
+        monkeypatch.delenv(key, raising=False)
+    (tmp_path / ".env").write_text(
+        "RAG_ENABLED=true\nEMBEDDING_MANIFEST=/tmp/approved-manifest.json\n"
+        "EMBEDDING_PROVIDER=local_multilingual\nUNRELATED_PRIVATE_CONFIG=ignored\n"
+    )
+    assert RAGSettings().rag_enabled is True
+    settings = KnowledgeRuntimeSettings()
+    assert settings.rag_enabled is True
+    assert settings.embedding_manifest == "/tmp/approved-manifest.json"
+    assert settings.embedding_provider == "local_multilingual"
+    monkeypatch.setenv("RAG_ENABLED", "false")
+    assert RAGSettings().rag_enabled is False

@@ -25,7 +25,7 @@ flowchart LR
     B --> D
 ```
 
-The production controller uses a call-scoped booking service/calendar: PostgreSQL owns availability/commit and Redis holds only coordinate a short decision window. A committed appointment identity gates confirmed speech; reconnect consults PostgreSQL. The static/read-only calendar remains an explicit offline baseline. [Level 3](levels/level-03.md) owns policy/evidence; local speech providers and RAG remain future additions.
+The production controller uses a call-scoped booking service/calendar: PostgreSQL owns availability/commit and Redis holds only coordinate a short decision window. A committed appointment identity gates confirmed speech; reconnect consults PostgreSQL. The static/read-only calendar remains an explicit offline baseline. [Level 3](levels/level-03.md) owns policy/evidence; local speech providers and opt-in governed RAG now have isolated implementations, with native/representative and production acceptance still separate.
 
 ## Dependencies
 
@@ -58,7 +58,7 @@ L1 section 6 moves shared private-file primitives into `roma.core.private_files`
 
 ## Deployment and target
 
-Keep Twilio and the existing Pipecat comparison profile. Direct local ASR/TTS inference precedes speech model serving; embeddings/pgvector arrive with conditional RAG at L9. Claude Haiku 5.5 is the main wording/extraction LLM behind its provider interface. No OpenAI calls or fallback are allowed. The target permits Claude as its only external GenAI API, alongside carrier/internal services.
+Keep Twilio and the existing Pipecat comparison profile. Direct local ASR/TTS inference precedes speech model serving; sections 34–40 now supply pinned local embeddings/exact pgvector behind default-off conditional RAG at L9. Claude Haiku 5.5 is the main wording/extraction LLM behind its provider interface. No OpenAI calls or fallback are allowed. The target permits Claude as its only external GenAI API, alongside carrier/internal services.
 
 Existing Compose is pre-v4 infrastructure tooling, not proof of Level 13. No production host/GPU/SLO is established by these docs. Replica growth requires measured capacity, shared coordination and route/auth checks; recording startup recovery currently supports one recording consumer. See [state](06-state-and-cache.md), [concurrency](08-concurrency.md) and [decisions](decisions.md).
 
@@ -83,3 +83,7 @@ Section 20's local lab is an isolated application composition: `VoicePrototype` 
 ## Owner-selected local Turbo boundary
 
 The isolated local prototype/WAV benchmark use one optional `WhisperMLXSTT` behind `STTProvider` and `LocalLanguageSTT`; imports stay lazy and artifacts are verified locally. Explicit mixed turns may use the owner-approved two-chunk batch, retaining all PCM and known script; pure routes are unchanged. The domain owns byte-preserving pause boundaries, providers own Silero/MLX integration and services still own the caller turn/state. Indic weights remain removed, TTS/production speech remain intact. [Level 4](levels/level-04.md#single-model-speech-batching--2026-10-21) records recovered suffixes and remaining native/noisy/latency gates.
+
+## Governed knowledge boundary
+
+`roma/domain/knowledge` owns deterministic routing, governance, canonical chunking and scope/evidence records. `roma/services/knowledge_*` coordinates ingestion/search/quote release; PostgreSQL repositories own durable intent, leased publication and exact vector search; `roma/providers/ai/embeddings.py` owns pinned cache-only inference. API/controller/text/prototype composition injects these boundaries explicitly with runtime retrieval off by default. No retrieved content controls stages, consent, booking or safety. [Level 9](levels/level-09.md) owns implementation and the open semantic/native gate.

@@ -19,6 +19,7 @@ from roma.core.logging import RequestLogMiddleware, configure_logging
 from roma.core.privacy_settings import PrivacySettings
 from roma.core.rate_limit import RequestRateLimitMiddleware
 from roma.core.tokenizer import require_nltk_data
+from roma.providers.ai.contracts import EmbeddingRequest
 from roma.realtime.pipeline import build_media_app
 from roma.repositories.postgres.booking import PostgresBookingStore
 from roma.repositories.postgres.conversation_state import PostgresConversationStateStore
@@ -34,7 +35,7 @@ from roma.repositories.redis.webhook_window import RedisWebhookWindow
 from roma.services.auth_service import AuthService
 from roma.services.booking_service import BookingService
 from roma.services.booking_session import BookingSession
-from roma.services.knowledge_service import KnowledgeService
+from roma.services.knowledge_runtime import bind_knowledge_answers, build_knowledge_components
 from roma.services.live_call_state import LiveCallStateStore
 from roma.services.privacy_service import PrivacyService
 from roma.services.recording_service import RecordingService
@@ -91,9 +92,16 @@ def create_app() -> FastAPI:
             lease_factory=lambda sid: RedisCallLease(redis, sid),
         )
 
+    if settings.rag_enabled and settings.embedding_provider != 'local_multilingual':
+        raise ValueError('Enabled runtime RAG requires configured local embeddings')
+    knowledge = build_knowledge_components(database.session_factory, settings) if database else None
+
     @asynccontextmanager
     async def lifespan(_app):
         try:
+            if knowledge is not None and settings.rag_enabled:
+                # Cache-only readiness finishes before callers arrive; no paid generation.
+                await knowledge.provider.embed(EmbeddingRequest(('readiness',), kind='query'))
             yield
         finally:
             try:
@@ -131,9 +139,14 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestRateLimitMiddleware)
     app.add_middleware(RequestLogMiddleware)
-    app.state.knowledge_service = (
-        KnowledgeService(database.session_factory) if database else None
-    )
+    app.state.knowledge_service = knowledge.catalog if knowledge else None
+    app.state.knowledge_search_service = knowledge.search if knowledge and settings.rag_enabled else None
+    app.state.knowledge_answer_factory = (
+        (lambda call_settings, llm, safety: bind_knowledge_answers(
+            database.session_factory, knowledge, llm, safety=safety,
+            timeout_secs=call_settings.rag_generation_timeout_secs))
+        if knowledge and settings.rag_enabled else None)
+
     app.state.privacy_settings = privacy_settings
     privacy_repository = SQLPrivacyRepository(database.session_factory) if database else None
     app.state.recording_service = (

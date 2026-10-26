@@ -65,3 +65,10 @@ def test_admin_action_uses_server_principal_and_strict_bounded_action_body():
     assert response.status_code == 200 and response.json()["data"]["status"] == "active"
     args = service.activate.call_args.args
     assert args[0].roles == frozenset({"admin"}) and args[1] == target
+
+
+def test_search_is_denied_to_viewer_and_strict_for_authorized_roles():
+    assert client('viewer').post('/api/v1/knowledge/search', json={}).status_code == 403
+    assert client('admin').post('/api/v1/knowledge/search', json={'query':'SEO?', 'category':'fees', 'language':'gu'}).status_code == 422
+    for role in ('admin','counsellor'):
+        assert client(role).post('/api/v1/knowledge/search', json={'query':'SEO?', 'category':'course', 'language':'gu'}).status_code == 503

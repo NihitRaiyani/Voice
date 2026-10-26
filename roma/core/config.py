@@ -12,13 +12,15 @@ from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import SettingsConfigDict
 
 from roma.core.claude_llm_settings import ClaudeLLMSettings
+from roma.core.embedding_settings import EmbeddingSettings
 from roma.core.openai_llm_settings import OpenAILLMSettings
+from roma.core.rag_settings import RAGSettings
 from roma.core.speech_settings import SpeechSettings
 from roma.core.tts_settings import TTSSettings
 
 
 # BaseSettings automatically reads values from environment variables.
-class Settings(ClaudeLLMSettings, OpenAILLMSettings, SpeechSettings, TTSSettings):
+class Settings(ClaudeLLMSettings, OpenAILLMSettings, SpeechSettings, TTSSettings, EmbeddingSettings, RAGSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

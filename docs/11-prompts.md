@@ -30,3 +30,7 @@ The text service awaits extraction before controller decisions and applies exist
 
 
 Section 12 validates caller length/characters and prompt-bound slots in both the text seam and existing live prompt/extraction boundaries. Branch/field/time domains remain code-owned; free-text slots preserve Indic marks but reject control markup and instruction-like values. Recognized override attempts skip generation and receive audited safe speech. This strengthens prompt isolation without claiming that lexical canaries detect every semantic attack or that the legacy history is universally PII-free. See [input limits](04-guardrails.md#untrusted-inputs-and-limits).
+
+## Sections 34–40 grounded quote prompt
+
+`KnowledgeAnswerService` uses version `grounded-quote-v1`, separate system rules and quoted question/context/evidence. Claude must return exactly `{chunk_id, quote}` or null fields; no general memory-based paraphrase is released. Code requires a selected approved evidence ID, contiguous exact span of at most 35 words/800 characters, completed bounded generation, supported spoken-output policy and unchanged safety-audited text. Scope/hash/status are revalidated around generation, and the durable retrieval audit must succeed before release. Retrieved instructions cannot advance state or bypass safety; production remains Hindi-base Hinglish. The fixture selector proves these mechanical checks only; actual Claude relevance/semantic groundedness remains an open [Level 9](levels/level-09.md) gate.

@@ -47,6 +47,7 @@ TABLES = {
     "privacy_tombstones",
     "knowledge_documents",
     "knowledge_chunks",
+    "knowledge_ingestion_jobs",
     "retrieval_logs",
 }
 

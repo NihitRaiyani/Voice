@@ -271,10 +271,12 @@ class TextConversationService:
         safety: SafetyService | None = None,
         booking_session=None,
         dialogue_language: str = "code_mix",
+        knowledge=None,
     ) -> None:
         if dialogue_language not in LANGUAGE_INSTRUCTIONS:
             raise ValueError("Unsupported dialogue output policy")
         self.dialogue_language = dialogue_language
+        self.knowledge = knowledge
         self.provider = provider
         self.booking_session = booking_session
         self._booking_restored = False
@@ -518,6 +520,16 @@ class TextConversationService:
             # Existing reviewed structured course facts remain an approved source.
             # Branch/policy questions require a governed source; no model-memory guess.
             fixed = approved_static_reply(state, user_text)
+            if fixed == NO_EVIDENCE_LINE and self.knowledge is not None:
+                try:
+                    answer = await self.knowledge.answer_turn(
+                        state, user_text, decision.topic,
+                        output_language=self.dialogue_language,
+                    )
+                    require_current_epoch()
+                    fixed = answer.text
+                except Exception:  # noqa: BLE001 — unavailable evidence never authorizes model memory.
+                    fixed = NO_EVIDENCE_LINE
         elif decision.route == KnowledgeRoute.KNOWLEDGE and fixed is None:
             fixed = NO_EVIDENCE_LINE
         narrow_task = (

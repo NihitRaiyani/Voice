@@ -122,16 +122,27 @@ class TTSProvider(Protocol):
 
 
 @dataclass(frozen=True)
+class EmbeddingIdentity:
+    model: str
+    revision: str
+    dimension: int
+    preprocessing: str = "e5-prefix-mean-l2-v1"
+    artifacts_sha256: str = ""
+
+
+@dataclass(frozen=True)
 class EmbeddingRequest:
     texts: tuple[str, ...]
     model: str | None = None
     metadata: Mapping[str, str] = field(default_factory=dict)
+    kind: Literal["query", "document"] = "document"
 
 
 @dataclass(frozen=True)
 class EmbeddingResult:
     vectors: tuple[tuple[float, ...], ...]
     dimension: int
+    identity: EmbeddingIdentity | None = None
 
 
 @runtime_checkable
@@ -142,6 +153,7 @@ class EmbeddingProvider(Protocol):
 __all__ = [
     "AudioFormat",
     "EmbeddingProvider",
+    "EmbeddingIdentity",
     "EmbeddingRequest",
     "EmbeddingResult",
     "LLMChunk",

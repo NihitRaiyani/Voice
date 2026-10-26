@@ -210,3 +210,47 @@ def test_extraction_and_wording_share_one_configured_provider_deadline():
         assert len(provider.requests) == 2 and observed[1] < observed[0] - 0.01
     observed = []
     asyncio.run(run())
+
+
+def test_optional_knowledge_answers_only_unknown_facts_and_keeps_slots_and_final_safety():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from roma.domain.knowledge.routing import NO_EVIDENCE_LINE
+    async def run():
+        for reply in ['Campus mein practical workshop hota hai.', 'Fees 25000 hai.']:
+            knowledge = SimpleNamespace(answer_turn=AsyncMock(return_value=SimpleNamespace(text=reply)))
+            state = CallState(stage='discover',lead_name='Amit')
+            provider = Scripted([])
+            spoken = []
+            service = TextConversationService(provider,knowledge=knowledge)
+            trace = await service.turn(state,'Branch address?',now=NOW,on_sentence=lambda text, items=spoken: append(items,text))
+            knowledge.answer_turn.assert_awaited_once_with(state,'Branch address?','branch',output_language='code_mix')
+            assert trace.route == 'knowledge' and not provider.requests
+            assert state.stage == 'discover' and state.lead_name == 'Amit'
+            assert state.current_status is None and state.education is None and not state.slot_attempts
+            assert state.accepted_slot is None and state.locked_slot is None
+            assert '25000' not in trace.final_response
+            assert spoken == [trace.final_response]
+        knowledge = SimpleNamespace(answer_turn=AsyncMock(side_effect=RuntimeError('private provider body')))
+        trace = await TextConversationService(Scripted([]),knowledge=knowledge).turn(CallState(stage='discover'),'Branch address?',now=NOW)
+        assert trace.final_response == NO_EVIDENCE_LINE
+    async def append(items,text):
+        items.append(text)
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('text,stage,elapsed',[
+    ('Course modules?','discover',0), ('Fees kya hai?','discover',0),
+    ('Who won cricket?','discover',0), ('Branch address?','pivot',0),
+    ('Branch address?','close',0), ('Branch address?','discover',301),
+    ('Mera naam Amit hai','discover',0),
+])
+def test_optional_knowledge_never_handles_static_safety_control_booking_or_profile_turns(text,stage,elapsed):
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+    async def run():
+        knowledge = SimpleNamespace(answer_turn=AsyncMock(side_effect=AssertionError('Retrieval bypassed')))
+        await TextConversationService(MockLLMProvider(),knowledge=knowledge).turn(CallState(stage=stage),text,now=NOW,elapsed_secs=elapsed)
+        knowledge.answer_turn.assert_not_awaited()
+    asyncio.run(run())

@@ -7,10 +7,12 @@ from uuid import uuid4
 from sqlalchemy import or_, select, text
 
 from roma.domain.knowledge import governance
+from roma.repositories.postgres.knowledge_ingestion import identity_fields
 from roma.repositories.postgres.models.calls import CallTurn
 from roma.repositories.postgres.models.knowledge import (
     KnowledgeChunk,
     KnowledgeDocument,
+    KnowledgeIngestionJob,
     RetrievalLog,
 )
 from roma.schemas.knowledge import ChunkMetadata, RetrievalMetadata
@@ -20,17 +22,55 @@ class KnowledgeRepository:
     def __init__(self, session_factory):
         self.session_factory = session_factory
 
-    async def create(self, request, *, actor_id):
+    async def create(self, request, *, actor_id, ingestion_required=False, ingestion=None):
         governance.validate_content(request.content)
         governance.validate_content(request.title)
+        ingestion_values = None
+        if ingestion is not None:
+            pipeline = ingestion["pipeline_identity"]
+            now = ingestion.get("now") or datetime.now(UTC)
+            if (
+                not isinstance(pipeline, str)
+                or not 1 <= len(pipeline) <= 128
+                or now.tzinfo is None
+            ):
+                raise governance.KnowledgeError()
+            ingestion_values = identity_fields(ingestion["identity"]) | {
+                "pipeline_identity": pipeline,
+                "available_at": now,
+            }
+            ingestion_required = True
         document = KnowledgeDocument(
-            id=uuid4(), uploaded_by=actor_id, status="draft", **request.model_dump()
+            id=uuid4(),
+            uploaded_by=actor_id,
+            status="draft",
+            ingestion_required=ingestion_required,
+            **request.model_dump(),
         )
         document.content_hash = governance.content_hash(document)
         async with self.session_factory() as session, session.begin():
             session.add(document)
+            if ingestion_values is not None:
+                # The original and its durable intent commit together. Redis delivery
+                # may be retried independently without losing the upload after a crash.
+                await session.flush()
+                session.add(
+                    KnowledgeIngestionJob(
+                        id=uuid4(),
+                        document_id=document.id,
+                        expected_hash=document.content_hash,
+                        **ingestion_values,
+                    )
+                )
             await session.flush()
         return document
+
+    async def get(self, document_id):
+        async with self.session_factory() as session:
+            document = await session.get(KnowledgeDocument, document_id)
+            if document is None:
+                raise governance.KnowledgeError("KNOWLEDGE_NOT_FOUND", 404)
+            return document
 
     async def transition(
         self, document_id, action, *, actor_id, now, reference=None, expected_version=None
@@ -58,6 +98,19 @@ class KnowledgeRepository:
             if action == "approve":
                 governance.approve(document, actor_id=actor_id, reference=reference, now=now)
             elif action == "activate":
+                if document.ingestion_required:
+                    ready = await session.scalar(
+                        select(KnowledgeIngestionJob.id)
+                        .where(
+                            KnowledgeIngestionJob.document_id == document.id,
+                            KnowledgeIngestionJob.expected_hash == document.content_hash,
+                            KnowledgeIngestionJob.status == "succeeded",
+                            KnowledgeIngestionJob.chunk_count > 0,
+                        )
+                        .limit(1)
+                    )
+                    if ready is None:
+                        raise governance.KnowledgeError("KNOWLEDGE_INGESTION_REQUIRED", 409)
                 # Validate first so an invalid replacement cannot retire current evidence.
                 governance.activate(document, now=now)
                 with session.no_autoflush:

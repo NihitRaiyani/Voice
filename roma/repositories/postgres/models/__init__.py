@@ -21,6 +21,7 @@ from .webhooks import WebhookReceipt
 
 __all__ = [
     "KnowledgeDocument",
+    "KnowledgeIngestionJob",
     "KnowledgeChunk",
     "RetrievalLog",
     "Base",
@@ -54,4 +55,4 @@ __all__ = [
     "BenchmarkResult",
 ]
 
-from .knowledge import KnowledgeChunk, KnowledgeDocument, RetrievalLog
+from .knowledge import KnowledgeChunk, KnowledgeDocument, KnowledgeIngestionJob, RetrievalLog

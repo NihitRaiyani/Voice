@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
@@ -372,6 +372,9 @@ def test_production_auth_is_explicit_and_closes_before_database(monkeypatch, wit
     database = SimpleNamespace(session_factory=object(), close=db_close)
     monkeypatch.setattr(module, "configure_logging", lambda: None)
     monkeypatch.setattr(module, "require_reachable_base_url", lambda: None)
+    knowledge = SimpleNamespace(catalog=object(), provider=SimpleNamespace(embed=AsyncMock()))
+    build_knowledge = Mock(return_value=knowledge)
+    monkeypatch.setattr(module, "build_knowledge_components", build_knowledge)
     monkeypatch.setattr(module, "AuthSettings", lambda: cfg)
     monkeypatch.setattr(
         module,
@@ -384,6 +387,7 @@ def test_production_auth_is_explicit_and_closes_before_database(monkeypatch, wit
             booking_hold_ttl_secs=90,
             booking_db_timeout_secs=3,
             booking_redis_timeout_secs=1,
+            rag_enabled=False,
         ),
     )
     monkeypatch.setattr(module.Database, "from_settings", lambda _: database)
@@ -397,6 +401,10 @@ def test_production_auth_is_explicit_and_closes_before_database(monkeypatch, wit
     )
     monkeypatch.setattr(module, "mount_web_api", lambda *args, **kwargs: None)
     with TestClient(module.create_app()) as client:
+        assert client.app.state.knowledge_service is (knowledge.catalog if with_database else None)
+        assert client.app.state.knowledge_search_service is None
+        assert client.app.state.knowledge_answer_factory is None
+        knowledge.provider.embed.assert_not_awaited()
         assert (client.app.state.auth_service is auth) == with_database
         assert (client.app.state.auth_rate_limiter is not None) == with_database
     assert events == (["auth", "redis", "database"] if with_database else ["redis"])

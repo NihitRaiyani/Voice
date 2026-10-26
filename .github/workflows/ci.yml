@@ -34,13 +34,15 @@ jobs:
       - name: Install native PostgreSQL and Redis
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-16 redis-server
+          sudo apt-get install -y postgresql-16 postgresql-16-pgvector redis-server
       - name: Install locked dependencies
         run: uv sync --locked --extra dev --extra telephony --extra workers
       - name: Install sentence tokenizer data
         run: make nltk-data
       - name: Start native services
         run: make services-up
+      - name: Enable pgvector in the disposable CI database
+        run: psql postgresql://postgres@127.0.0.1:54329/roma -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector'
       - name: Lint
         run: make lint
       - name: Type check

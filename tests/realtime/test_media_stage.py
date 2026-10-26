@@ -210,3 +210,45 @@ def test_turn_budget_starts_only_on_new_context_not_pending_checkpoint_retry():
         await proc._drive(LLMContextFrame(_ctx("discover", "Amit")))
         assert client.begin_turn.call_count == 2
     asyncio.run(run())
+
+
+def test_unknown_live_knowledge_uses_optional_evidence_and_still_crosses_pretts_safety():
+    from pipecat.frames.frames import TextFrame
+    from roma.realtime.pretts import PreTTSFilterProcessor
+    async def run():
+        state = CallState(stage='discover',lead_name='Amit')
+        knowledge = SimpleNamespace(answer_turn=AsyncMock(return_value=SimpleNamespace(text='Fees 25000 hai.')))
+        proc = StageControllerProcessor(state,knowledge=knowledge,now_fn=lambda:NOW)
+        gate = PreTTSFilterProcessor()
+        captured = []
+        async def capture(frame,direction):
+            captured.append(frame)
+        gate.push_frame = capture
+        proc.push_frame = gate.process_frame
+        frame = LLMContextFrame(_ctx('discover','Branch address?'))
+        await proc._drive(frame)
+        assert await proc._maybe_short_circuit(frame)
+        knowledge.answer_turn.assert_awaited_once_with(state,'Branch address?','branch',output_language='code_mix')
+        assert state.stage == 'discover' and state.current_status is None and not state.slot_attempts
+        assert not state.accepted_slot and not state.locked_slot
+        texts = [item.text for item in captured if isinstance(item,TextFrame)]
+        assert texts and all('25000' not in item for item in texts)
+        assert not any(isinstance(item,LLMContextFrame) for item in captured)
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('text,stage',[
+    ('Course modules?','discover'),('Fees kya hai?','discover'),
+    ('Who won cricket?','discover'),('Branch address?','pivot'),('Branch address?','close'),
+])
+def test_live_optional_knowledge_preserves_static_safety_unknown_and_booking_priority(text,stage):
+    async def run():
+        knowledge = SimpleNamespace(answer_turn=AsyncMock(side_effect=AssertionError('No retrieval')))
+        state = CallState(stage=stage,lead_name='Amit')
+        proc = StageControllerProcessor(state,knowledge=knowledge,now_fn=lambda:NOW)
+        proc.push_frame = AsyncMock()
+        frame = LLMContextFrame(_ctx(stage,text))
+        await proc._drive(frame)
+        assert await proc._maybe_short_circuit(frame)
+        knowledge.answer_turn.assert_not_awaited()
+    asyncio.run(run())

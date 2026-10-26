@@ -354,3 +354,39 @@ def test_local_input_is_full_duplex_by_default_with_explicit_diagnostic_override
     assert module.input_duplex(module.parser().parse_args(["--mode", "local"]))
     assert not module.input_duplex(module.parser().parse_args(["--mode", "local", "--half-duplex"]))
     assert not module.input_duplex(module.parser().parse_args([]))
+
+
+def test_optional_local_knowledge_is_off_by_default_and_reuses_existing_llm_when_enabled(monkeypatch):
+    from contextlib import AsyncExitStack
+
+    import roma.core.rag_settings
+    import roma.services.knowledge_runtime
+    module = cli()
+    events = []
+    class Provider:
+        async def aclose(self):
+            events.append('embedding_closed')
+    components = SimpleNamespace(provider=Provider())
+    settings = SimpleNamespace(rag_generation_timeout_secs=7)
+    llm,safety,factory = object(),object(),object()
+    def build(received_factory,received_settings):
+        assert received_factory is factory and received_settings is settings
+        events.append('components_built')
+        return components
+    def bind(received_factory,received_components,received_llm,*,safety,timeout_secs):
+        assert received_factory is factory and received_components is components
+        assert received_llm is llm and safety is not None and timeout_secs == 7
+        events.append('same_llm_bound')
+        return 'scoped-knowledge'
+    monkeypatch.setattr(roma.services.knowledge_runtime,'build_knowledge_components',build)
+    monkeypatch.setattr(roma.services.knowledge_runtime,'bind_knowledge_answers',bind)
+    monkeypatch.setattr(roma.core.rag_settings,'KnowledgeRuntimeSettings',lambda:settings)
+    async def run():
+        async with AsyncExitStack() as cleanup:
+            monkeypatch.setattr(roma.core.rag_settings,'RAGSettings',lambda:SimpleNamespace(rag_enabled=False))
+            assert module.optional_knowledge(factory,llm,safety,cleanup) is None
+            assert not events
+            monkeypatch.setattr(roma.core.rag_settings,'RAGSettings',lambda:SimpleNamespace(rag_enabled=True))
+            assert module.optional_knowledge(factory,llm,safety,cleanup) == 'scoped-knowledge'
+        assert events == ['components_built','same_llm_bound','embedding_closed']
+    asyncio.run(run())

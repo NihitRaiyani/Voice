@@ -60,6 +60,7 @@ _TOPICS = {
             "teacher",
             "duration",
             "કોર્સ",
+            "કોર્સમાં",
             "कोर्स",
             "मॉड्यूल",
             "મોડ્યુલ",
@@ -69,7 +70,20 @@ _TOPICS = {
         {"schedule", "batch", "batches", "online", "offline", "બેચ", "बैच", "સમય"}
     ),
     "branch": frozenset(
-        {"branch", "branches", "address", "location", "campus", "સરનામું", "शाखा", "पता"}
+        {
+            "branch",
+            "branches",
+            "address",
+            "location",
+            "campus",
+            "સરનામું",
+            "શાખામાં",
+            "કેમ્પસમાં",
+            "शाखा",
+            "पता",
+            "कैंपस",
+            "कैम्पस",
+        }
     ),
     "policy": frozenset(
         {
@@ -81,6 +95,7 @@ _TOPICS = {
             "recordings",
             "नीति",
             "નીતિ",
+            "નીતિમાં",
             "प्रमाणपत्र",
         }
     ),
@@ -130,15 +145,41 @@ _QUESTIONS = frozenset(
 _BOOKING_ACTIONS = frozenset({"book", "reschedule", "cancel", "बुक", "રદ"})
 _BOOKING_INFORMATION = frozenset(
     {
-        "policy", "policies", "requirement", "requirements", "document", "documents",
-        "process", "procedure", "rules", "details", "information", "eligibility",
-        "duration", "before", "after", "नीति", "નીતિ",
+        "policy",
+        "policies",
+        "requirement",
+        "requirements",
+        "document",
+        "documents",
+        "process",
+        "procedure",
+        "rules",
+        "details",
+        "information",
+        "eligibility",
+        "duration",
+        "before",
+        "after",
+        "नीति",
+        "નીતિ",
+        "નીતિમાં",
     }
 )
 _INFORMATION_REQUESTS = frozenset(
     {
-        "tell", "explain", "describe", "bataiye", "batao", "bataye", "jaanna",
-        "janna", "samjhaiye", "बताइए", "बताओ", "બતાવો", "વિશે",
+        "tell",
+        "explain",
+        "describe",
+        "bataiye",
+        "batao",
+        "bataye",
+        "jaanna",
+        "janna",
+        "samjhaiye",
+        "बताइए",
+        "बताओ",
+        "બતાવો",
+        "વિશે",
     }
 )
 _ACKS = frozenset(

@@ -166,10 +166,14 @@ class StageControllerProcessor(FrameProcessor):
         flight=None,
         health=None,
         safety=None,
+        knowledge=None,
+        dialogue_language="code_mix",
         **advance_kwargs,
     ) -> None:
         super().__init__()
         self.state = state
+        self.knowledge = knowledge
+        self.dialogue_language = dialogue_language
         self.safety = safety if safety is not None else SafetyService()
         self._client = client
         self._store = store
@@ -257,6 +261,16 @@ class StageControllerProcessor(FrameProcessor):
                 line = decision.reply
             elif decision.route == KnowledgeRoute.KNOWLEDGE and line is None:
                 line = approved_static_reply(self.state, user_text) if self.state.stage not in {"pivot", "close"} else NO_EVIDENCE_LINE
+                if (line == NO_EVIDENCE_LINE and self.knowledge is not None
+                        and self.state.stage not in {"pivot", "close"}):
+                    try:
+                        answer = await self.knowledge.answer_turn(
+                            self.state, user_text, decision.topic,
+                            output_language=self.dialogue_language,
+                        )
+                        line = answer.text
+                    except Exception:  # noqa: BLE001 — unavailable evidence always defers.
+                        line = NO_EVIDENCE_LINE
             if not line:
                 # Off-topic turns are the fourth short-circuitable family: the reply does
                 # not depend on what was asked, only that it was off the script. Checked

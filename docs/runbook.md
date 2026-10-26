@@ -32,7 +32,7 @@ Apply existing migrations to the intended development database before answer-web
 make db-upgrade
 ```
 
-Current code head is `20261024_0006`: human sessions/refresh credentials (`0004`), managed privacy (`0005`) and knowledge governance (`0006`) append to the preserved `20261004_0003` schema. The explicitly authorized local operational rollout upgraded working `roma` to `0006` on 2026-10-24 after an isolated backup/restore and migration/auth rehearsal; other environments require their own rollout. Applied migrations `20260920_0001` and `20260930_0002` remain unchanged. Seed/demo data now has a [separate opt-in command](21-database-migrations.md#seeds-stay-outside-schema-history): `APP_ENV=dev python scripts/seed_demo.py --demo`. It requires head, preserves existing data, inserts only inactive synthetic offerings plus role vocabulary, and creates no accounts. Keep schema upgrades seed-free. Do not downgrade a working database merely to demonstrate rollback; tests use disposable databases.
+Current code head is `20261026_0007`: human sessions/refresh credentials (`0004`), managed privacy (`0005`), knowledge governance (`0006`) and vectors/ingestion (`0007`) append to the preserved `20261004_0003` schema. `0007` requires the PostgreSQL `vector` extension to be installed for that server and migration permission to create it. Sections 34–40 exercised `0007` only on disposable databases; do not apply it to working `roma` as a documentation/test side effect. The explicitly authorized local operational rollout upgraded working `roma` to `0006` on 2026-10-24 after an isolated backup/restore and migration/auth rehearsal; other environments require their own rollout. Applied migrations `20260920_0001` and `20260930_0002` remain unchanged. Seed/demo data now has a [separate opt-in command](21-database-migrations.md#seeds-stay-outside-schema-history): `APP_ENV=dev python scripts/seed_demo.py --demo`. It requires head, preserves existing data, inserts only inactive synthetic offerings plus role vocabulary, and creates no accounts. Keep schema upgrades seed-free. Do not downgrade a working database merely to demonstrate rollback; tests use disposable databases.
 
 The checkpoint migration was verified on empty and legacy-populated disposable databases, and configured `roma` was recorded at then-head `20261004_0003` on 2026-10-04. At the historical section 28 increment, `20261023_0004` was tested only in disposable databases. The later owner-authorized 2026-10-24 rollout applied through `20261024_0006` to working `roma`, as recorded above. Run `alembic upgrade head` in every other intended environment before starting code that queries turn-language metadata, and use `alembic current`/`alembic check` to verify its state. Existing rows retain NULL language; schema migrations seed no historical guesses or sample records; the separate demo command is explicit.
 
@@ -624,7 +624,7 @@ Apply the reviewed migration to the explicitly chosen environment before using g
 
 An Admin calls POST /api/v1/knowledge/documents/{id}/approve with approval_reference. Activation/archive use their respective POST suffix and expected_version. Approval actor/time/hash are server-owned; uploaded content cannot self-approve. Create a new version for changed evidence. Do not bypass approved-document SQL immutability guards, activate expired/future evidence, invent approval references or add unapproved course claims.
 
-No embedding download, ingestion, vector search or paid request runs through these endpoints. The conversation's current approved static facts and deterministic no-evidence deferral remain available. Validate actual knowledge scope, approval ownership and later golden-set results before routing production traffic to a future retrieval implementation.
+Sections 34–40 extend these endpoints with managed ingestion intent and explicit ingestion/status/search operations below. Upload does not run inference or download a model; the bounded SQL worker performs cache-only embeddings. Existing approved static facts and deterministic no-evidence deferral retain priority. Keep runtime retrieval off until its separate representative/Claude/native quality gate is accepted.
 
 ## Verified local operational configuration
 
@@ -752,3 +752,43 @@ make acceptance-live ARGS="--governance /absolute/private/confirmed-governance.j
 ```
 
 The owner-only 600 JSON file must contain exactly `approver`, `approved_at` (past timezone-aware ISO timestamp), `policy_reference`, `audio_retention_days`, `transcript_retention_days`, `anthropic`, `erasure`. Anthropic fields are `organization_reference`, `model` (configured Haiku), `features` (actual active features), `retention_terms`, `terms_reference`. Erasure must carry an actual known-resource `outcome: known_resources_absent`, `physical_erasure_complete: false` and the remaining nonempty `manual_pending` scope from the separately authorized provider operation; raw provider details are projected away. Placeholders, previews, wrong models and fabricated whole-erasure claims are rejected. Retain the original approval/account/provider evidence independently; local signing does not establish authenticity. This importer activates no recording/retention setting and sends no external request. The existing deletion CLI uses explicit `--apply`, not `--execute`; specific account/resource authorization and its verified digest/ledger are still required. Institute/legal/account terms, approved disclosure audio and broader erasure cannot be supplied by a recommended default.
+
+## Governed ingestion, retrieval and golden evaluation (sections 34–40)
+
+Use a disposable, explicitly selected PostgreSQL database for rehearsal. Install pgvector in the server's extension directory first, review `20261026_0007`, then migrate only that chosen database. Working local `roma` remains at its previously approved `0006`; existing `make app-start` automatically migrates its configured database, so do not invoke it against working data for this rehearsal. Downgrading `0007` deletes ingestion/vector metadata; it deliberately leaves a possibly shared `vector` extension installed.
+
+The locked optional runtime is `uv sync --locked --extra embeddings --extra dev --extra workers --extra telephony`. This installs libraries, not model artifacts. Owner authorization permits the pinned E5 snapshot if RAM fits; runtime never downloads it. Keep reviewed artifacts and manifest in ignored `var/roma/models/multilingual-e5-small/`. The manifest schema is `roma-embedding-manifest-v1`, model `intfloat/multilingual-e5-small`, revision `614241f622f53c4eeff9890bdc4f31cfecc418b3`, dimension 384, preprocessing `e5-prefix-mean-l2-v1` and `files` mapping approved artifact names to SHA-256 hashes. Required files are config.json, tokenizer.json, tokenizer_config.json and model.safetensors; symlinks, mismatched identities/hashes and oversized artifacts fail closed. No remote code or cloud embedding fallback exists.
+
+For an explicitly selected lab process, provide `EMBEDDING_PROVIDER=local_multilingual`, `EMBEDDING_MANIFEST` pointing to that manifest, `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` through process environment without editing private `.env`. Bounds default to 8,192 UTF-8 bytes/text, four texts/batch, two CPU threads and a ten-second embedding timeout. A timed-out/cancelled native worker retains admission until completion; do not start overlapping workers to bypass busy refusal. Isolated RAM was about 807 MB on the 8 GiB host; measure simultaneous voice-stack headroom before accepted voice use.
+
+Admin workflow after authentication and chosen-environment migration:
+
+1. `POST /api/v1/knowledge/documents` with reviewed bounded text/Markdown and complete governance/scope metadata. Managed upload returns ingestion job identity/status; a duplicate pipeline request reuses the durable job.
+2. Drain pending SQL jobs explicitly against that same chosen database and manifest:
+
+   ```bash
+   uv run --no-sync python -m roma.workers.knowledge --drain --allow-database-write --limit 100
+   ```
+
+3. Inspect `GET /api/v1/knowledge/documents/{id}/ingestion-jobs` for status, attempts, safe reason and quarantine flag. `POST /api/v1/knowledge/documents/{id}/ingest` with `{}` explicitly enqueues/reuses the current content/pipeline intent. Drain again when delayed retries become available; five attempts exhaust into dead letter. Processing leases expire after 300 seconds and stale owners are fenced. Fix rejected content in a new reviewed version; do not edit successful jobs, clear quarantine or forge completion.
+4. Approve with a real `approval_reference`, then activate with `expected_version`. Approval may precede processing, but managed activation requires nonempty completed identity-consistent ingestion. This is a pipeline fence; a human must still approve the facts and semantic fitness. Archive revokes eligibility and is rechecked before answer release.
+
+The explicit SQL drain is the available operator composition; the injectable Dramatiq actor is not a separately installed always-running worker. Each drain owns a one-connection pool. Include all process pools in the existing deployment connection budget. Inference does not hold a transaction; duplicate/crashed workers settle through SQL leases and canonical publication checks.
+
+`POST /api/v1/knowledge/search` requires `rag.debug` (Admin or Counsellor), enabled configured retrieval and JSON query/category/language plus optional course_id, branch_id, version and allow_english. The response exposes chunk/document IDs, scores, filters and embedding/retrieval timings, never the raw query or document text. Missing scope, model identity, approval, completed ingestion or audit fails closed. No arbitrary upload URL, file execution or external fetch is supported.
+
+Runtime defaults remain `RAG_ENABLED=false`, `RAG_TOP_K=5`, `RAG_MIN_SCORE=0.8`, `RAG_RETRIEVAL_TIMEOUT_SECS=0.45`, `RAG_GENERATION_TIMEOUT_SECS=10`. Enabling a chosen process makes cache-only model readiness precede caller admission and injects scoped answers into existing text/controller/prototype seams. A factual interruption reaches retrieval only after approved static lookup misses. Live replies remain Hindi-base Hinglish; unknown/ambiguous course/branch scopes, unsupported output script, stale/weak evidence, safety rejection, generation failure or audit failure use approved fallback. Do not enable accepted production traffic based solely on the synthetic benchmark.
+
+The default benchmark uses mocks, synthetic documents and a deterministic fixture selector, with no services, models, devices or paid API:
+
+```bash
+make rag-benchmark ARGS="--mode mock --check"
+```
+
+For actual local embeddings/exact pgvector, create a fresh loopback database named with the required `roma_rag_benchmark_` prefix, migrate it through `0007`, and export its URL privately as `RAG_BENCHMARK_DATABASE_URL`. The benchmark refuses working `roma`, remote hosts, non-test names and nonempty governed fixture state. It never migrates or creates a database. Then run:
+
+```bash
+make rag-benchmark ARGS="--mode local --test-only --embedding-manifest var/roma/models/multilingual-e5-small/manifest.json --report var/roma/rag-benchmark/local-report.json --check"
+```
+
+Add `--persist` only to save minimized aggregate evidence into that same TEST ONLY database. The native run inserts synthetic governed documents/jobs/chunks and audit metadata; it calls no Claude. It calibrates on the declared 24 cases only, evaluates the separate 38 held-out cases, and atomically writes the report. `--no-calibrate` uses the declared 0.80 default; it is not a way to tune on held-out failures. `--check` enforces provisional mechanical targets and never claims the full quality gate. Preserve model/corpus/material fingerprints and failures with results; report retrieval warm/cold scope separately from complete answer latency. The checked-in [local report](../benchmarks/rag/local-v1-report.json) is mechanical inference evidence, with real Claude groundedness null and gate false. [Level 9](levels/level-09.md) owns measured outcomes and remaining acceptance.
