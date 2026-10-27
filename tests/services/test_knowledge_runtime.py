@@ -64,13 +64,19 @@ def test_standalone_knowledge_uses_valid_synthetic_conversation_context():
 
 
 def test_scoped_knowledge_forwards_actual_call_safety_context():
-    course_id, branch_id, call_id = uuid4(), uuid4(), uuid4()
+    course_id, branch_id, call_id, turn_id = uuid4(), uuid4(), uuid4(), uuid4()
 
     class Rows:
         def all(self):
             return [(course_id, branch_id)]
 
     class Session:
+        def __init__(self):
+            self.reads = 0
+
+        def begin(self):
+            return self
+
         async def __aenter__(self):
             return self
 
@@ -81,7 +87,9 @@ def test_scoped_knowledge_forwards_actual_call_safety_context():
             return Rows()
 
         async def scalar(self, statement):
-            return call_id
+            from types import SimpleNamespace
+            self.reads += 1
+            return SimpleNamespace(id=call_id, retention_until=None) if self.reads == 1 else turn_id
 
     class Answer:
         async def answer(self, query, filters, **kwargs):
@@ -94,6 +102,7 @@ def test_scoped_knowledge_forwards_actual_call_safety_context():
                           turn_count=7)
         await ScopedKnowledgeAnswers(Session, answer).answer_turn(state, 'Policy kya hai?', 'policy')
         assert answer.kwargs['call_id'] == call_id
+        assert answer.kwargs['turn_id'] == turn_id
         assert answer.kwargs['safety_context'] == SafetyContext(state.call_sid, 7, 'structure')
     asyncio.run(run())
 

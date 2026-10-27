@@ -153,3 +153,47 @@ def render_voice_line(canonical, state):
     # Approved safety fallbacks retain canonical identity for their stronger binding
     # checks in SpeechSynthesisService. Unmapped/unsupported wording fails there.
     return canonical
+
+
+# Exact controller facts, with independently screened native pronunciation. A source
+# edit invalidates its literal key rather than authorizing arbitrary transliteration.
+_FACT_VOICE = {
+    "SEO, social media marketing aur Google Ads, teen module hain.": "एस ई ओ, सोशल मीडिया मार्केटिंग और गूगल ऐड्स, तीन मॉड्यूल हैं।",
+    "Course chaar se chhe mahine ka hai, basic se advance level tak.": "कोर्स चार से छह महीने का है, बेसिक से एडवांस लेवल तक।",
+    "Faculty working professionals hain, abhi industry mein kaam kar rahe hain.": "फैकल्टी वर्किंग प्रोफेशनल्स हैं, अभी इंडस्ट्री में काम कर रहे हैं।",
+    "Practical campaign work aur live projects se portfolio banta hai.": "प्रैक्टिकल कैंपेन वर्क और लाइव प्रोजेक्ट्स से पोर्टफोलियो बनता है।",
+    "Lecture recordings aur revision batches available hain.": "लेक्चर रिकॉर्डिंग्स और रिविज़न बैचेज़ अवेलेबल हैं।",
+    "Online ya offline, same class aur same faculty hain. Exact batch visit par decide hota hai.": "ऑनलाइन या ऑफलाइन, सेम क्लास और सेम फैकल्टी हैं। एक्ज़ैक्ट बैच विजिट पर डिसाइड होता है।",
+    "Morning, evening aur weekend batches hain. Exact batch visit par decide hota hai.": "मॉर्निंग, ईवनिंग और वीकेंड बैचेज़ हैं। एक्ज़ैक्ट बैच विजिट पर डिसाइड होता है।",
+    "Weltec ka certificate milta hai.": "वेल्टेक का सर्टिफिकेट मिलता है।",
+}
+
+
+def render_voice_sentence(canonical, state):
+    """Render only pinned full lines or their aligned sentence pieces, never a guess."""
+    import re
+
+    from roma.domain.knowledge.routing import _STATIC_FACTS, NO_EVIDENCE_LINE
+
+    if canonical == NO_EVIDENCE_LINE == "Iski approved jaankari ke liye counselling team se poochh lijiye.":
+        return "इसकी अप्रूव्ड जानकारी के लिए काउन्सलिंग टीम से पूछ लीजिए।"
+    rendered = render_voice_line(canonical, state)
+    if rendered != canonical:
+        return rendered
+    pairs = [(line, _FACT_VOICE[line]) for _, _, line in _STATIC_FACTS if line in _FACT_VOICE]
+    pairs.extend((line, native) for pinned, line, native in _STATIC if pinned == line)
+    if state.booking_required and state.appointment_id and state.locked_slot:
+        complete = confirmed_line(spoken_slot(state.locked_slot), state.branch)
+        native = render_voice_line(complete, state)
+        if native != complete:
+            pairs.append((complete, native))
+    for original, native in pairs:
+        if canonical == original:
+            return native
+        source_parts = re.split(r"(?<=[.!?])\s+", original)
+        native_parts = re.split(r"(?<=[।!?])\s+", native)
+        if len(source_parts) == len(native_parts):
+            for source, target in zip(source_parts, native_parts, strict=True):
+                if canonical.strip() == source:
+                    return target
+    return canonical

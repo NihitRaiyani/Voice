@@ -36,7 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-16 postgresql-16-pgvector redis-server
       - name: Install locked dependencies
-        run: uv sync --locked --extra dev --extra telephony --extra workers
+        run: uv sync --locked --extra dev --extra telephony --extra workers --extra observability
       - name: Install sentence tokenizer data
         run: make nltk-data
       - name: Start native services

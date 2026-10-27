@@ -86,6 +86,9 @@ class TTSAudioSanitizer(FrameProcessor):
             out = TTSAudioRawFrame(
                 cleaned, frame.sample_rate, frame.num_channels, context_id=frame.context_id
             )
+            generation = getattr(frame, "_roma_playback_generation", None)
+            if generation is not None:
+                out._roma_playback_generation = generation
             await self.push_frame(out, direction)
             return
 

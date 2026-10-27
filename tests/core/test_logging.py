@@ -133,3 +133,15 @@ def test_jwt_signing_secret_is_redacted_in_records_for_both_configuration_paths(
     finally:
         root.handlers = saved_handlers
         root.setLevel(saved_level)
+
+
+def test_speech_service_secret_is_redacted_in_both_logging_configuration_paths(monkeypatch):
+    from roma.core.logging import _LoggingSettings, _secret_values
+    secret='synthetic-speech-worker-secret-for-redaction-only'
+    monkeypatch.setenv('SPEECH_SERVICE_KEY',secret)
+    monkeypatch.setitem(_LoggingSettings.model_config,'env_file',None)
+    for settings in (_LoggingSettings(_env_file=None),Settings(_env_file=None,sarvam_api_key='synthetic-sarvam',redis_url='redis://unused')):
+        assert secret in _secret_values(settings)
+        record=logging.LogRecord('test',logging.ERROR,__file__,1,'worker key=%s',(secret,),None)
+        RedactionFilter(_secret_values(settings)).filter(record)
+        assert secret not in record.getMessage()

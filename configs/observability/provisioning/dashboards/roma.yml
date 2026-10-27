@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: Roma operations
+    orgId: 1
+    folder: Roma
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: ${ROMA_DASHBOARD_DIR}

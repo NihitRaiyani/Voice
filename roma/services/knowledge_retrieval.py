@@ -7,7 +7,9 @@ from datetime import UTC, datetime
 from time import perf_counter
 from uuid import uuid4
 
+from roma.core.logging import LogEvent, log_event
 from roma.core.prompt_privacy import redact_prompt
+from roma.core.telemetry import get_telemetry, observed
 from roma.core.turn_epoch import require_current_epoch
 from roma.domain.knowledge.governance import KnowledgeError
 from roma.domain.knowledge.retrieval import cosine_similarity
@@ -48,6 +50,7 @@ class KnowledgeSearchService:
         self.audit_repository, self.k, self.threshold = audit_repository, k, threshold
         self.timeout_secs, self.now_fn = timeout_secs, now_fn
 
+    @observed("rag")
     async def search(self, query, filters, *, known_name=None):
         query = normalize_query(query, known_name=known_name)
         started = perf_counter()
@@ -55,7 +58,8 @@ class KnowledgeSearchService:
         try:
             async with asyncio.timeout(self.timeout_secs):
                 vector_started = perf_counter()
-                result = await self.provider.embed(EmbeddingRequest((query,), kind='query'))
+                with get_telemetry().time('rag_embedding'):
+                    result = await self.provider.embed(EmbeddingRequest((query,), kind='query'))
                 require_current_epoch()
                 identity = self.provider.identity
                 if (result.identity != identity or result.dimension != identity.dimension
@@ -69,8 +73,11 @@ class KnowledgeSearchService:
                 require_current_epoch()
                 if len(evidence) > self.k:
                     raise ValueError('Excess evidence')
-                return SearchResult(tuple(evidence), query, (perf_counter()-started)*1000,
-                                    embedding_ms, filters)
+                latency_ms = (perf_counter() - started) * 1000
+                log_event(LogEvent.KNOWLEDGE_ROUTED, latency_ms=latency_ms,
+                          route='knowledge' if evidence else 'no_evidence',
+                          chunk_ids=[str(item.chunk_id) for item in evidence])
+                return SearchResult(tuple(evidence), query, latency_ms, embedding_ms, filters)
         except KnowledgeError:
             raise
         except Exception:  # noqa: BLE001 — provider/database details never cross the API.

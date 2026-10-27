@@ -12,6 +12,7 @@ from time import monotonic
 from sqlalchemy.exc import OperationalError
 
 from roma.core.logging import LogEvent, log_context, log_event
+from roma.core.telemetry import observed
 from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
 from roma.domain.conversation.state import CallState
 from roma.domain.persistence import PersistenceUnavailable
@@ -119,6 +120,7 @@ class LiveCallStateStore:
     async def save(self, state):
         await self.checkpoint(state, CheckpointMilestone.STATE_CHANGED)
 
+    @observed("checkpoint", event="checkpoint")
     async def checkpoint(self, state, milestone):
         milestone = CheckpointMilestone(milestone)
         snapshot = CallState.from_dict(state.to_dict())

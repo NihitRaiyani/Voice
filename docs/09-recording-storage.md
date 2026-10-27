@@ -16,7 +16,7 @@ Finalized files use temporary writes, fsync and atomic replacement. Filesystem s
 
 ## Privacy and remaining work
 
-Retention default is 90 days and a local pruning path exists. Approved retention/deletion must cover raw capture, spool/dead letters, WAV/metadata, database records, replicas and backups. Define crash/poison cleanup and audited manual replay rather than deleting evidence blindly.
+A compatibility pruning setting has a 90-day default; this is not an approved recording-retention policy and does not authorize capture. Managed consent retention remains explicitly unset until approved. Approved retention/deletion must cover raw capture, spool/dead letters, WAV/metadata, database records, replicas and backups. Define crash/poison cleanup and audited manual replay rather than deleting evidence blindly.
 
 L8 supplies role permissions, access audit and complete deletion policy. L10 integrates time-limited authorized playback and recording metadata as required. No public blob/URL access or carrier-recording enablement is implied by these docs. Summaries currently use deterministic call metadata, not paid transcript generation; follow-up delivery is inactive.
 
@@ -29,3 +29,11 @@ The worker now requires explicit per-call consent evidence in addition to approv
 Permanent call recording URLs are always redacted. Human JWT/RBAC, an expiring user-bound link and durable SQL audit protect both link issuance and actual playback. Access is revalidated at playback; errors or audit failure release no audio. See [privacy operations](runbook.md#privacy-setup-and-managed-operations-section-31) and [Level 8](levels/level-08.md#section-31-managed-privacy-and-recording-access).
 
 Managed call disposal scrubs SQL private payloads, local/raw/stored/spool artifacts and attributable Redis/queued work, retaining tombstones to prevent replay resurrection. Failures remain retryable; unknown exports, backup copies, sibling-call transcripts and unmapped TTL caches are explicitly outside this call-scoped completion claim. The institute must approve retention/disclosure and rehearse backup tombstone reapplication before production acceptance.
+
+## Section 44 awaited capture and timing
+
+The realtime sink now awaits off-loop serialized writes, chunked to at most five seconds of stereo PCM per submission, with no detached raw-audio queue. Cancellation drains an admitted disk operation before releasing admission, so close cannot overtake a write; close/flush/fsync also run off-loop. This bounds submitted chunk size, not disk I/O duration or total filesystem latency. Capture failure preserves call continuity and reports the failure.
+
+Post-call handoff carries validated numeric byte/chunk/audio-duration/write-total/write-max/close/failure diagnostics, without caller content. Existing original-payload acknowledgement and idempotent SQL/file handoff remain authoritative. Caller and Roma legs remain separate stereo channels after actual transport output. Fake/slow-disk checks do not establish audible alignment or host-loss recovery.
+
+Recording remains disabled with pending disclosure and unset approved retention. Per-call explicit unexpired consent, trusted construction evidence and existing audited user-bound playback remain mandatory. Section 44 does not activate retention, Twilio-side recording, public URLs or an audio corpus. [Level 10](levels/level-10.md) owns the separate operational gate.

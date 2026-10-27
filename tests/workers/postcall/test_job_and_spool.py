@@ -240,3 +240,42 @@ def test_a_corrupt_spool_file_does_not_stop_the_drain(tmp_path):
     assert moved == 1
     assert [j.call_sid for j in primary.pushed] == ["CA_good"]
     assert len(spool.pending()) == 1, "the corrupt file stays on disk for a human"
+
+
+def test_optional_recording_timing_roundtrips_without_changing_raw_ack():
+    timing = {
+        "audio_secs": 1.0,
+        "bytes_written": 32000,
+        "chunks_written": 1,
+        "write_total_ms": 2.0,
+        "write_max_ms": 2.0,
+        "close_ms": 1.0,
+        "failed": False,
+    }
+    job = _job(recording_timing=timing)
+    raw = job.to_json()
+    parsed = PostcallJob.from_raw(raw)
+    assert parsed.raw == raw
+    assert parsed.sidecar()["recording_timing"] == timing
+    assert parsed.with_attempt().recording_timing == timing
+    timing["bytes_written"] = 999
+    assert job.to_dict()["recording_timing"]["bytes_written"] == 32000
+
+
+@pytest.mark.parametrize(
+    "timing",
+    [
+        {"transcript": "private caller text"},
+        {"write_total_ms": "private"},
+        {"write_total_ms": float("nan")},
+        {"close_ms": float("inf")},
+        {"bytes_written": -1},
+        {"chunks_written": 1.2},
+        {"failed": "yes"},
+        {"audio_secs": 99999999999},
+        [],
+    ],
+)
+def test_recording_timing_rejects_unbounded_or_pii_values(timing):
+    with pytest.raises(ValueError, match="recording timing"):
+        _job(recording_timing=timing)

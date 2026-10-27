@@ -346,3 +346,35 @@ def test_legacy_restore_still_starts_fresh_when_redis_is_unavailable():
         assert state.city == "Synthetic" and booking is None
         store.aclose.assert_not_awaited()
     asyncio.run(run())
+
+
+def test_teardown_closes_later_resources_after_one_close_fails_or_stalls():
+    from unittest.mock import AsyncMock
+
+    from roma.realtime.pipeline import close_call_resources
+    async def run():
+        async def blocked(): await asyncio.Event().wait()
+        failed=SimpleNamespace(aclose=AsyncMock(side_effect=RuntimeError('private')))
+        stalled=SimpleNamespace(aclose=blocked)
+        later=SimpleNamespace(aclose=AsyncMock())
+        await asyncio.wait_for(close_call_resources(failed,stalled,later,timeout_secs=.01),.1)
+        later.aclose.assert_awaited_once()
+    asyncio.run(run())
+
+
+def test_call_cancellation_is_requested_before_waiting_for_owned_cleanup():
+    from unittest.mock import AsyncMock
+
+    from roma.core.turn_epoch import TurnEpoch
+    from roma.realtime.pipeline import cancel_call_media
+    async def run():
+        epoch=TurnEpoch()
+        task=SimpleNamespace(cancel=AsyncMock())
+        async def stalled(): await asyncio.Event().wait()
+        controller=SimpleNamespace(_stop_pacer=stalled)
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(.01):
+                await cancel_call_media(task,epoch=epoch,controller=controller)
+        task.cancel.assert_awaited_once()
+        assert epoch.current == 1
+    asyncio.run(run())

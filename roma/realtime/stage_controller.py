@@ -28,6 +28,9 @@ from datetime import datetime
 
 from pipecat.frames.frames import (
     BotStartedSpeakingFrame,
+    CancelFrame,
+    EndFrame,
+    InterruptionFrame,
     LLMContextFrame,
     LLMFullResponseEndFrame,
     LLMFullResponseStartFrame,
@@ -39,6 +42,7 @@ from pipecat.frames.frames import (
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.settings import LLMSettings
 
+from roma.core.logging import LogEvent, log_event
 from roma.core.voice_errors import VoiceFailure
 from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.confirmguard import SAFE_SIGNOFF_LINE, lead_wants_out
@@ -68,6 +72,7 @@ from roma.realtime.filler import SAMPLE_RATE as FILLER_RATE
 from roma.realtime.filler import intent_for
 from roma.services.live_call_state import CheckpointMilestone, checkpoint_milestone
 from roma.services.safety_service import SafetyService
+from roma.services.streaming_text import PunctuationChunker
 
 _log = logging.getLogger("roma.realtime")
 
@@ -168,11 +173,16 @@ class StageControllerProcessor(FrameProcessor):
         safety=None,
         knowledge=None,
         dialogue_language="code_mix",
+        knowledge_wait=None,
+        turn_epoch=None,
+        playback_window=None,
         **advance_kwargs,
     ) -> None:
         super().__init__()
         self.state = state
         self.knowledge = knowledge
+        self.knowledge_wait = knowledge_wait
+        self.turn_epoch, self.playback_window = turn_epoch, playback_window
         self.dialogue_language = dialogue_language
         self.safety = safety if safety is not None else SafetyService()
         self._client = client
@@ -256,6 +266,7 @@ class StageControllerProcessor(FrameProcessor):
             if user_text is None:
                 return False
             decision = self._route_decision or classify_turn(self.state, user_text)
+            knowledge_reply = False
             line = canned_reply(self.state, user_text)
             if line is None and decision.route in {KnowledgeRoute.SAFETY, KnowledgeRoute.NO_EVIDENCE}:
                 line = decision.reply
@@ -267,8 +278,10 @@ class StageControllerProcessor(FrameProcessor):
                         answer = await self.knowledge.answer_turn(
                             self.state, user_text, decision.topic,
                             output_language=self.dialogue_language,
+                            **({"on_wait": self.knowledge_wait} if self.knowledge_wait else {}),
                         )
                         line = answer.text
+                        knowledge_reply = not getattr(answer, "fallback", True)
                     except Exception:  # noqa: BLE001 — unavailable evidence always defers.
                         line = NO_EVIDENCE_LINE
             if not line:
@@ -296,7 +309,14 @@ class StageControllerProcessor(FrameProcessor):
             # Nothing left to mask: the reply is a string constant, not a round trip.
             await self._stop_pacer()
             await self.push_frame(LLMFullResponseStartFrame(), FrameDirection.DOWNSTREAM)
-            await self.push_frame(TextFrame(line), FrameDirection.DOWNSTREAM)
+            if knowledge_reply:
+                # The complete evidence/JSON/audit fence passes before sentence delivery.
+                chunker = PunctuationChunker(max_chars=800)
+                lines = (*chunker.feed(line), *chunker.finish())
+            else:
+                lines = (line,)
+            for sentence in lines:
+                await self.push_frame(TextFrame(sentence), FrameDirection.DOWNSTREAM)
             await self.push_frame(LLMFullResponseEndFrame(), FrameDirection.DOWNSTREAM)
             _log.info("short-circuit: answered without a completion (#%d)", self.short_circuits)
             return True
@@ -309,7 +329,21 @@ class StageControllerProcessor(FrameProcessor):
             return True
 
     async def process_frame(self, frame, direction: FrameDirection) -> None:
+        control = isinstance(frame, (InterruptionFrame, CancelFrame, EndFrame))
+        if control:
+            # Invalidate before Pipecat awaits cancellation/final accounting of old work.
+            if self.turn_epoch is not None:
+                self.turn_epoch.advance()
+            if self.playback_window is not None:
+                self.playback_window.reset()
         await super().process_frame(frame, direction)
+        if control:
+            interrupt = getattr(self.knowledge, 'interrupt', None)
+            if interrupt is not None:
+                if self.turn_epoch is not None:
+                    await interrupt(advance_epoch=False)
+                else:
+                    await interrupt()
         # Roma has started speaking, so nothing needs covering any more. This — not the end
         # of `_drive` — is when the wait is actually over.
         if isinstance(frame, (BotStartedSpeakingFrame, TTSAudioRawFrame)):
@@ -373,6 +407,9 @@ class StageControllerProcessor(FrameProcessor):
 
     async def cleanup(self) -> None:
         await self._stop_pacer()
+        close = getattr(self.knowledge, 'aclose', None)
+        if close is not None:
+            await close()
         await super().cleanup()
 
     def _should_fill(self, frame: LLMContextFrame) -> bool:
@@ -534,6 +571,7 @@ class StageControllerProcessor(FrameProcessor):
             self._pending_transition = None
         self._last_driven_text = user_text
         self._route_decision = classify_turn(self.state, user_text)
+        log_event(LogEvent.KNOWLEDGE_ROUTED, route=self._route_decision.route.value, chunk_ids=[])
         begin_turn = getattr(self._client, "begin_turn", None)
         if begin_turn is not None:
             begin_turn()

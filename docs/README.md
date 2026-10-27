@@ -18,8 +18,8 @@ Read the [progression/gate policy](10-build-order.md) and [current readiness](13
 | 7 | [Real-time reliability](levels/level-07.md) | Sections 22–25 plus persistent capture/epochs, retained TTS, local full duplex/AEC and synthetic audio labs; native reliability and full gate pending |
 | 8 | [Secure jobs/access](levels/level-08.md) | Sections 26–31 jobs, JWT/RBAC, callback/stream capabilities, shared limits and managed privacy implemented offline; local keys/Admin/migrations configured after isolated rehearsal; policy/live acceptance and full gate pending |
 | 9 | [Governed retrieval](levels/level-09.md) | Sections 32–40 governance/ingestion/pinned local embeddings/exact pgvector/extractive answers implemented; synthetic local report recorded, RAG defaults off, real Claude/native/full quality gate pending |
-| 10 | [Telephony/model serving](levels/level-10.md) | Twilio cloud baseline; local integration planned |
-| 11 | [Observability/analytics](levels/level-11.md) | Structured logging foundation; full telemetry planned |
+| 10 | [Telephony/model serving](levels/level-10.md) | Sections 41–44 opt-in local HTTP telephony/live retrieval, recording diagnostics and bounded serving present; final checks/native acceptance pending |
+| 11 | [Observability/analytics](levels/level-11.md) | Sections 45–46 bounded telemetry and exact usage/cost projections present; final checks/native acceptance pending; 47–48 unstarted |
 | 12 | [Evaluation/capacity](levels/level-12.md) | Offline foundation; production report pending |
 | 13 | [Container deployment](levels/level-13.md) | Pre-v4 infrastructure only; full packaging planned |
 | 14 | [Optional optimization](levels/level-14.md) | No experiment selected |

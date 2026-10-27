@@ -366,3 +366,20 @@ def test_alembic_has_no_pending_metadata_operations(
 ) -> None:
     command.upgrade(alembic_config, "head")
     command.check(alembic_config)
+
+
+def test_programmatic_migrations_preserve_existing_application_loggers():
+    import logging
+    logger = logging.getLogger('roma.realtime')
+    handlers = logging.getLogger().handlers[:]
+    saved = logger.disabled
+    logger.disabled = False
+    try:
+        with _local_postgres_url() as url:
+            config = Config('alembic.ini')
+            config.set_main_option('sqlalchemy.url', url)
+            command.upgrade(config, 'head')
+            assert not logger.disabled
+            assert logging.getLogger().handlers == handlers
+    finally:
+        logger.disabled = saved

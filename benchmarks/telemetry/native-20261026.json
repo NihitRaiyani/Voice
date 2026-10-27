@@ -1,0 +1,97 @@
+{
+  "configuration_sha256": {
+    "configs/observability/dashboards/roma-operations.json": "82f632935f052a1ab91e3bcb955ba7e92b3cdc12227067af79a56de64ad0d64b",
+    "configs/observability/grafana.ini": "36d9fecafe0de62d6d5a2c6cc569c7d73339546686c20708277945c9b1a46295",
+    "configs/observability/prometheus.yml": "0c7077f0894c7e2cdaf97650a35476b87147580b46b946304a634e1754497acd",
+    "configs/observability/provisioning/dashboards/roma.yml": "3655840b9750b9f17e3f4812ed93d2328cd81ffbe716cebfad3bc4668608e034",
+    "configs/observability/provisioning/datasources/prometheus.yml": "775fcfacd485191845dc9c162bd0d224c819c4aa48a850b6e7b9bababc6659f4",
+    "roma/core/telemetry.py": "26036c26fb362a43d25d033fc4b2710d6700f3e9b40c3efa424e26f29ddc4314"
+  },
+  "counts": {
+    "grafana_provisioned_panels": 10,
+    "owned_native_processes_started": 2,
+    "prometheus_up_series": 1,
+    "synthetic_audio_queue_depth": 2,
+    "synthetic_call_counter": 3,
+    "synthetic_metric_sample_lines": 54,
+    "synthetic_turn_observations": 2
+  },
+  "downloads": {
+    "grafana_oss": {
+      "platform": "darwin-arm64",
+      "sha256": "a910966466359212f1d875748a72a4638c7d3724448d0c369210b31d763b165d",
+      "size": 454523201,
+      "source": "https://grafana.com/grafana/download/13.2.4?edition=oss&platform=mac",
+      "unpacked_bytes": 1349101942,
+      "url": "https://dl.grafana.com/grafana/release/13.2.4/grafana_13.2.4_38252365904_darwin_arm64.tar.gz",
+      "verified_sha256": "a910966466359212f1d875748a72a4638c7d3724448d0c369210b31d763b165d",
+      "version": "13.2.4"
+    },
+    "prometheus": {
+      "platform": "darwin-arm64",
+      "sha256": "0d4d3d9837d27e4fcd0bd16d115b1b8d6732a4bf3e69107f1190d9ef653ae471",
+      "size": 109721715,
+      "source": "https://prometheus.io/download/",
+      "unpacked_bytes": 258383643,
+      "url": "https://github.com/prometheus/prometheus/releases/download/v3.15.1/prometheus-3.15.1.darwin-arm64.tar.gz",
+      "verified_sha256": "0d4d3d9837d27e4fcd0bd16d115b1b8d6732a4bf3e69107f1190d9ef653ae471",
+      "version": "3.15.1"
+    }
+  },
+  "finished_at": "2026-10-26T18:45:28.518229+00:00",
+  "lab_probes_passed": true,
+  "limitations": [
+    "Synthetic samples do not prove real call stage correctness, acoustic latency, capacity, native speech quality or production acceptance.",
+    "No browser rendering or visual dashboard review is claimed.",
+    "API-process registry only; worker/multiprocess aggregation is not established."
+  ],
+  "microphone_used": false,
+  "models_loaded": false,
+  "paid_provider_called": false,
+  "platform": "darwin-arm64",
+  "private_env_changed": false,
+  "probes": {
+    "grafana_analytics_disabled": true,
+    "grafana_anonymous_dashboard_denied": true,
+    "grafana_anonymous_disabled": true,
+    "grafana_dashboard_provisioned": true,
+    "grafana_datasource_health": true,
+    "grafana_datasource_loopback": true,
+    "grafana_health": true,
+    "grafana_plugin_key_fetch_disabled": true,
+    "grafana_plugin_preinstall_disabled": true,
+    "grafana_update_checks_disabled": true,
+    "owned_loopback_listeners_stopped": true,
+    "owned_native_processes_stopped": true,
+    "private_admin_password_mode_0600": true,
+    "prometheus_ready": true,
+    "prometheus_roma_counter_query": true,
+    "prometheus_roma_histogram_query": true,
+    "prometheus_roma_queue_query": true,
+    "prometheus_up_query": true,
+    "prometheus_version_api": true,
+    "promtool_lab_config_valid": true,
+    "promtool_metrics_valid": true,
+    "promtool_source_config_valid": true
+  },
+  "production_gate_passed": false,
+  "real_call_telemetry": false,
+  "runner_sha256": "3f9a682983200585e13d2afeddf71ede17df54b0f0672b5c45ccb92fb52b4f1f",
+  "schema_version": 1,
+  "scope": "Native pinned binaries; loopback synthetic Roma metrics and checked-in dashboard provisioning only",
+  "synthetic": true,
+  "verified_at": "2026-10-26T18:44:56.699688+00:00",
+  "versions": {
+    "grafana_oss": {
+      "binary_sha256": "bbe6dc0d20ebcf6177349549e32511ca91fa2832e802cca93a06591df1e93695",
+      "native_version_command_passed": true,
+      "version": "13.2.4"
+    },
+    "prometheus": {
+      "binary_sha256": "ee1195bd1668d5fe37df7b6a9b2f7f7eed95ac74f96a90a817ebdbfcca09b327",
+      "native_version_command_passed": true,
+      "version": "3.15.1"
+    }
+  },
+  "working_database_used": false
+}

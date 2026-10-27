@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass
 from hashlib import sha256
 from numbers import Real
 
+from roma.core.telemetry import get_telemetry
 from roma.domain.audio.pcm import AudioFormatError, pack, unpack
 
 FRAME_MS = 20
@@ -253,6 +254,7 @@ class AdaptiveJitterBuffer:
                     output.append(PCMPlayout(self.expected, timestamp + delta, self.turn_epoch,
                                              self._conceal(), concealed=True, missing_frames=1))
                     self.metrics.concealed_frames += 1
+                    get_telemetry().event('plc')
                     count = 1
                 else:
                     due = (final_sequence if final_sequence is not None else

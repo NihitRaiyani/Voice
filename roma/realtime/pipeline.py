@@ -79,6 +79,7 @@ from roma.core.call_capabilities import CallCapabilities, RedisStreamReplay
 from roma.core.config import get_settings
 from roma.core.logging import LogEvent, RedactionFilter, current_call_sid, log_event
 from roma.core.recording_consent import verified_recording_consent
+from roma.core.turn_epoch import TurnEpoch
 from roma.core.voice_errors import VoiceFailure
 from roma.domain.calls import consent_signed_off
 from roma.domain.conversation import CallState, ConversationStage
@@ -105,6 +106,8 @@ from roma.realtime.backchannel import (
 from roma.realtime.closing import CallCloser
 from roma.realtime.filler import FillerPicker, load_fillers, load_holding
 from roma.realtime.health import CallHealth
+from roma.realtime.local_speech import LocalSTTProcessor, LocalTTSProcessor
+from roma.realtime.media_limits import BoundedMediaWebSocket
 from roma.realtime.opening import (
     NoiseGate,
     OpeningTurnGuard,
@@ -112,6 +115,11 @@ from roma.realtime.opening import (
     opening_posture,
 )
 from roma.realtime.phrasecache import PhraseCache, saved_inr
+from roma.realtime.playback_window import (
+    PlaybackAdmissionProcessor,
+    PlaybackWindow,
+    WindowedWebsocketTransport,
+)
 from roma.realtime.pretts import PreTTSFilterProcessor
 from roma.realtime.provider_llm import CallLLMProvider, ProviderLLMService
 from roma.realtime.recorder import (
@@ -123,6 +131,7 @@ from roma.realtime.recorder import (
 from roma.realtime.sentences import InterruptibleSentenceAggregator
 from roma.realtime.silence import SilenceWatchdog
 from roma.realtime.stage_controller import StageControllerProcessor
+from roma.realtime.telemetry import RealtimeTurnTelemetry, TelemetryFrameProbe
 from roma.realtime.transcript import TranscriptionLogger
 from roma.realtime.tts import TTSAudioSanitizer
 from roma.realtime.turnflight import TurnFlight
@@ -311,6 +320,28 @@ async def _restore_call_state(store, call_sid, *, seed, booking_factory=None):
         raise
 
 
+async def cancel_call_media(task, *, epoch, controller, knowledge=None, playback_window=None):
+    """Request urgent cancellation before awaiting best-effort owned cleanup."""
+    epoch.advance()
+    if playback_window is not None:
+        playback_window.reset()
+    await task.cancel()
+    await controller._stop_pacer()
+    interrupt = getattr(knowledge, 'interrupt', None)
+    if interrupt:
+        await interrupt(advance_epoch=False)
+
+
+async def close_call_resources(*resources, timeout_secs=1):
+    """Every owned resource gets bounded cleanup even when an earlier close fails."""
+    for resource in resources:
+        close = getattr(resource, 'aclose', None)
+        if close is not None:
+            with contextlib.suppress(Exception):
+                async with asyncio.timeout(timeout_secs):
+                    await close()
+
+
 async def finalize_call(
     *,
     state,
@@ -346,7 +377,11 @@ async def finalize_call(
 
     if recorder is not None:
         try:
-            recorder.close()
+            async_close = getattr(recorder, 'aclose', None)
+            if async_close is not None:
+                await async_close()
+            else:
+                recorder.close()
         except Exception:  # noqa: BLE001 — teardown continues regardless
             _log.warning("recording close failed")
 
@@ -378,6 +413,7 @@ async def finalize_call(
                 final_stage=state.stage.value,
                 turn_count=state.turn_count,
                 caller_digest=caller_digest,
+                recording_timing=recorder.timing_summary() if recorder is not None and hasattr(recorder, 'timing_summary') else None,
                 recording_consent_at=(recording_consent or {}).get("granted_at"),
                 recording_disclosure_version=(recording_consent or {}).get(
                     "disclosure_version"
@@ -669,6 +705,9 @@ class NonBlockingStartSarvamSTT(SarvamSTTService):
 def build_stt(settings) -> SarvamSTTService:
     """Sarvam Saaras streaming STT in code-mix mode (docs/01). The Sarvam API key is
     read via `.get_secret_value()` here — the exact secret boundary (docs/07)."""
+    if getattr(settings, 'voice_speech_mode', 'legacy_cloud') == 'local_http':
+        from roma.providers.ai.speech_http import HTTPSTTProvider
+        return LocalSTTProcessor(HTTPSTTProvider(settings))
     return NonBlockingStartSarvamSTT(
         api_key=settings.sarvam_api_key.get_secret_value(),
         mode=STT_MODE,
@@ -682,6 +721,7 @@ def build_llm(settings, *, provider=None) -> ProviderLLMService:
         provider if provider is not None else build_llm_provider(settings),
         max_tokens=stage_max_tokens(OPENING_STAGE),
         owns_provider=provider is None,
+        output_policy="voice_hi" if getattr(settings, "voice_speech_mode", "legacy_cloud") == "local_http" else None,
     )
 
 
@@ -803,6 +843,9 @@ def build_tts(settings, phrases=None) -> SarvamTTSService:
     TOKEN aggregation: the pre-TTS filter already emits whole sentences, so speak each as it
     arrives. v3 forces preprocessing on (number/mixed-language normalization). Secret read
     at this boundary (docs/07)."""
+    if getattr(settings, 'voice_speech_mode', 'legacy_cloud') == 'local_http':
+        from roma.providers.ai.speech_http import HTTPTTSProvider
+        return LocalTTSProcessor(HTTPTTSProvider(settings), phrases=phrases)
     return NonBlockingStartSarvamTTS(
         phrases=phrases,
         api_key=settings.sarvam_api_key.get_secret_value(),
@@ -1286,20 +1329,32 @@ def build_media_app(
             params=ValidatedTwilioSerializer.InputParams(auto_hang_up=auto_hang_up),
         )
         vad = build_vad_fn(settings)
-        transport = FastAPIWebsocketTransport(
-            websocket=websocket,
+        media_socket = BoundedMediaWebSocket(websocket, send_timeout_secs=getattr(settings, 'voice_media_send_timeout_secs', 1))
+        playback_window = PlaybackWindow() if getattr(settings, 'voice_speech_mode', 'legacy_cloud') == 'local_http' else None
+        transport_type = WindowedWebsocketTransport if playback_window is not None else FastAPIWebsocketTransport
+        transport = transport_type(
+            websocket=media_socket,
+            **({'window': playback_window} if playback_window is not None else {}),
             params=FastAPIWebsocketParams(
                 audio_in_enabled=True,
                 audio_out_enabled=True,
                 add_wav_header=False,
                 audio_in_sample_rate=_RATE,
                 audio_out_sample_rate=_RATE,
+                **({"audio_out_end_silence_secs": 0} if playback_window is not None else {}),
                 serializer=serializer,
             ),
         )
 
         counter = InboundAudioCounter()
+        speech_epoch = TurnEpoch()
         stt = build_stt_fn(settings)
+        if isinstance(stt, LocalSTTProcessor):
+            stt.epoch = speech_epoch
+            if not await stt.provider.ready():
+                await stt.provider.aclose()
+                await websocket.close(code=1013)
+                return
         health = CallHealth()
         flight = TurnFlight()
         transcript = TranscriptionLogger(flight=flight)
@@ -1385,20 +1440,39 @@ def build_media_app(
             context,
             user_params=build_user_params(settings.enable_barge_in, settings),
         )
+        cost_factory = getattr(app.state, 'call_cost_factory', None)
+        call_costs = cost_factory(state) if cost_factory else None
+        if isinstance(stt, LocalSTTProcessor) and call_costs:
+            stt.usage_sink = call_costs.speech
+            stt.usage_turn_snapshot = lambda: call_costs.capture_turn(max(1, state.turn_count + 1))
         slot_client = CallLLMProvider(
             app.state.slot_client_factory(settings),
             ledger=SpendLedger(spend_ledger_path(settings)),
             call_sid=call_sid,
+            usage_sink=call_costs.llm if call_costs else None,
+            usage_turn_snapshot=call_costs.capture_turn if call_costs else None,
+            epoch=speech_epoch,
         )
         safety = SafetyService(safety_store)
         if getattr(store, "checkpoint", None) is not None:
             safety.store = CheckpointSafetyEventStore(safety.store, store, state)
         knowledge_factory = getattr(app.state, "knowledge_answer_factory", None)
         knowledge = knowledge_factory(settings, slot_client, safety) if knowledge_factory else None
+        if knowledge is not None and hasattr(knowledge, 'epoch'):
+            knowledge.epoch = speech_epoch
+        rag_fillers = FillerPicker(load_fillers()) if knowledge is not None else None
+        async def knowledge_wait():
+            clip = rag_fillers.next() if rag_fillers else None
+            if clip is not None:
+                await task.queue_frames([OutputAudioRawFrame(clip.pcm, _RATE, 1)])
         stage_ctrl = StageControllerProcessor(
             state,
             safety=safety,
             knowledge=knowledge,
+            turn_epoch=speech_epoch,
+            playback_window=playback_window,
+            knowledge_wait=knowledge_wait if knowledge is not None else None,
+            dialogue_language="voice_hi" if isinstance(stt, LocalSTTProcessor) else "code_mix",
             client=slot_client,
             store=store,
             flight=flight,
@@ -1473,7 +1547,17 @@ def build_media_app(
             ),
         )
         tts = build_tts_fn(settings, getattr(app.state, "phrase_cache", None))
+        if isinstance(tts, LocalTTSProcessor):
+            tts.epoch, tts.state, tts.safety = speech_epoch, state, safety
+            tts.speech.safety = safety
+            tts.playback_window = playback_window
+            if call_costs:
+                tts.usage_sink = call_costs.speech
+                tts.usage_turn_snapshot = call_costs.capture_turn
         sanitizer = TTSAudioSanitizer()
+        turn_metrics = RealtimeTurnTelemetry()
+        def probe(boundary):
+            return TelemetryFrameProbe(turn_metrics, boundary=boundary)
 
         task = PipelineTask(
             Pipeline(
@@ -1488,19 +1572,29 @@ def build_media_app(
                     # The greeter needs no transcript: VADUserStartedSpeakingFrame from
                     # `vad_stage` already tells it the lead made a sound.
                     greeter,
+                    probe('stt_input'),
                     stt,
+                    probe('stt_output'),
                     transcript,
                     noise_gate,
                     opening_guard,
                     aggregators.user(),
+                    probe('brain_input'),
                     stage_ctrl,
+                    probe('brain_output'),
+                    probe('llm_input'),
                     llm,
+                    probe('llm_output'),
                     sentence_agg,
                     pretts,
+                    probe('tts_input'),
                     tts,
+                    probe('tts_output'),
                     usage,
                     sanitizer,
+                    *([PlaybackAdmissionProcessor(playback_window)] if playback_window is not None else []),
                     transport.output(),
+                    probe('output'),
                     *([capture] if capture is not None else []),
                     watchdog,
                     closer,
@@ -1558,6 +1652,20 @@ def build_media_app(
                 _log.exception("call opening failed; cancelling stream_sid=%s", stream_sid)
                 await task.queue_frames([CancelFrame()])
 
+        async def cancel_stream():
+            await cancel_call_media(task, epoch=speech_epoch, controller=stage_ctrl,
+                knowledge=knowledge, playback_window=playback_window)
+
+        media_socket.on_failure = cancel_stream
+        if playback_window is not None:
+            async def playback_pressure():
+                await media_socket._close(1013)
+            playback_window.on_pressure = playback_pressure
+
+        @transport.event_handler("on_client_disconnected")
+        async def _on_disconnected(_transport, _client):
+            await cancel_stream()
+
         handles = CallHandles(
             counter=counter,
             transcript=transcript,
@@ -1572,14 +1680,16 @@ def build_media_app(
             try:
                 await PipelineRunner(handle_sigint=False).run(task)
             finally:
-                if booking_session is not None:
-                    await booking_session.aclose()
-                with contextlib.suppress(Exception):
-                    async with asyncio.timeout(1):
-                        await slot_client.aclose()
+                turn_metrics.cancel()
+                if call_costs is not None:
+                    with contextlib.suppress(Exception):
+                        await call_costs.finish(call_started_at)
+                await close_call_resources(knowledge, booking_session, slot_client)
                 # Before `_registered_call`'s own finally: pops this call out of
                 # `app.state.calls` and it stops existing anywhere in the process (docs/13).
-                await _mark_call_ended(app, lead_token, "won" if stage_ctrl.won else "")
+                with contextlib.suppress(Exception):
+                    async with asyncio.timeout(1):
+                        await _mark_call_ended(app, lead_token, "won" if stage_ctrl.won else "")
                 postcall = await finalize_call(
                     state=state,
                     store=store,

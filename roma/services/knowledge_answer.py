@@ -5,6 +5,7 @@ import json
 import re
 from dataclasses import dataclass
 
+from roma.core.telemetry import get_telemetry, observed
 from roma.core.turn_epoch import require_current_epoch
 from roma.domain.conversation.confirmguard import is_phantom_confirmation
 from roma.domain.conversation.stage import ConversationStage
@@ -57,11 +58,14 @@ class KnowledgeAnswerService:
         self.safety = safety or SafetyService()
         self.timeout_secs = timeout_secs
 
+    @observed("rag_answer")
     async def answer(self, query, filters, *, output_language='code_mix', known_name=None,
                      call_id=None, turn_id=None, request_id=None, safety_context=None):
         context = safety_context or SafetyContext('knowledge', 1, ConversationStage.VALUE.value)
         decision = classify_turn(CallState(stage=ConversationStage.VALUE), query)
+        get_telemetry().event('rag_route')
         if decision.route != KnowledgeRoute.KNOWLEDGE:
+            get_telemetry().event('rag_fallback', outcome='fallback')
             safe = await self.safety.check(decision.reply or NO_EVIDENCE_LINE, context)
             return KnowledgeAnswer(safe.text, reason='route_bypass')
         evidence, selected, line, reason, latency = (), (), NO_EVIDENCE_LINE, 'no_evidence', 0
@@ -134,5 +138,7 @@ class KnowledgeAnswerService:
             line, selected, reason = HARD_FAIL_LINE, (), 'audit_unavailable'
         require_current_epoch()
         checked = await self.safety.check(line, context)
+        if reason != 'grounded':
+            get_telemetry().event('rag_fallback', outcome='fallback')
         return KnowledgeAnswer(checked.text, selected if reason == 'grounded' else (),
                                reason != 'grounded', reason)

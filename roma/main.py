@@ -4,7 +4,8 @@ Only this module assembles concrete providers, repositories, routes, and the
 realtime pipeline. Lower layers remain importable without starting the server.
 """
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from hashlib import sha256
 
 from fastapi import FastAPI
@@ -18,8 +19,15 @@ from roma.core.field_encryption import configure_field_encryption
 from roma.core.logging import RequestLogMiddleware, configure_logging
 from roma.core.privacy_settings import PrivacySettings
 from roma.core.rate_limit import RequestRateLimitMiddleware
+from roma.core.telemetry import (
+    get_telemetry,
+    monitor_event_loop,
+    sample_process_resources,
+    tracing_runtime,
+)
 from roma.core.tokenizer import require_nltk_data
 from roma.providers.ai.contracts import EmbeddingRequest
+from roma.realtime.knowledge import LiveKnowledge
 from roma.realtime.pipeline import build_media_app
 from roma.repositories.postgres.booking import PostgresBookingStore
 from roma.repositories.postgres.conversation_state import PostgresConversationStateStore
@@ -35,6 +43,8 @@ from roma.repositories.redis.webhook_window import RedisWebhookWindow
 from roma.services.auth_service import AuthService
 from roma.services.booking_service import BookingService
 from roma.services.booking_session import BookingSession
+from roma.services.call_costs import CallCostRecorder
+from roma.services.cost_service import CostService
 from roma.services.knowledge_runtime import bind_knowledge_answers, build_knowledge_components
 from roma.services.live_call_state import LiveCallStateStore
 from roma.services.privacy_service import PrivacyService
@@ -98,12 +108,45 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app):
+        # Opt-in only: private SDK, bounded safe local metadata, no exporter.
+        with tracing_runtime(get_telemetry(), enabled=getattr(settings, 'tracing_enabled', False)) as traces:
+            _app.state.recent_trace_spans = traces
+            try:
+                async with application_resources(_app):
+                    yield
+            finally:
+                _app.state.recent_trace_spans = None
+
+    @asynccontextmanager
+    async def application_resources(_app):
+        monitor = asyncio.create_task(monitor_event_loop(get_telemetry()))
         try:
+            sample_process_resources()
+            if getattr(settings, 'voice_speech_mode', 'legacy_cloud') == 'local_http':
+                from roma.providers.ai.speech_http import HTTPSTTProvider
+                probe = HTTPSTTProvider(settings)
+                try:
+                    if not await probe.ready():
+                        raise RuntimeError('Local speech is not warmed and ready')
+                finally:
+                    await probe.aclose()
+                if settings.rag_enabled:
+                    from roma.providers.ai.speech_http import HTTPTTSProvider
+                    from roma.realtime.local_speech import prime_local_deferral
+                    voice = HTTPTTSProvider(settings)
+                    try:
+                        await prime_local_deferral(_app.state.phrase_cache, voice)
+                    finally:
+                        await voice.aclose()
             if knowledge is not None and settings.rag_enabled:
                 # Cache-only readiness finishes before callers arrive; no paid generation.
                 await knowledge.provider.embed(EmbeddingRequest(('readiness',), kind='query'))
             yield
         finally:
+            monitor.cancel()
+            with suppress(asyncio.CancelledError):
+                await monitor
+            sample_process_resources()
             try:
                 if auth is not None:
                     await auth.aclose()
@@ -139,12 +182,16 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestRateLimitMiddleware)
     app.add_middleware(RequestLogMiddleware)
+    app.state.telemetry = get_telemetry()
+    app.state.cost_service = CostService(database.session_factory) if database else None
+    app.state.call_cost_factory = (lambda state: CallCostRecorder(database.session_factory, app.state.cost_service, state)) if database else None
     app.state.knowledge_service = knowledge.catalog if knowledge else None
     app.state.knowledge_search_service = knowledge.search if knowledge and settings.rag_enabled else None
     app.state.knowledge_answer_factory = (
-        (lambda call_settings, llm, safety: bind_knowledge_answers(
+        (lambda call_settings, llm, safety: LiveKnowledge(bind_knowledge_answers(
             database.session_factory, knowledge, llm, safety=safety,
-            timeout_secs=call_settings.rag_generation_timeout_secs))
+            timeout_secs=call_settings.rag_generation_timeout_secs),
+            timeout_secs=call_settings.voice_rag_timeout_secs, filler_after_secs=call_settings.voice_rag_filler_after_secs))
         if knowledge and settings.rag_enabled else None)
 
     app.state.privacy_settings = privacy_settings

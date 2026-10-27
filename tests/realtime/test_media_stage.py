@@ -252,3 +252,36 @@ def test_live_optional_knowledge_preserves_static_safety_unknown_and_booking_pri
         assert await proc._maybe_short_circuit(frame)
         knowledge.answer_turn.assert_not_awaited()
     asyncio.run(run())
+
+
+def test_validated_live_knowledge_is_delivered_as_separate_complete_sentences():
+    from pipecat.frames.frames import TextFrame
+    async def run():
+        state=CallState(stage='discover',lead_name='Test Student')
+        knowledge=SimpleNamespace(answer_turn=AsyncMock(return_value=SimpleNamespace(text='यह ब्रांच खुली है। यहाँ प्रैक्टिकल सिखाते हैं।',fallback=False)))
+        proc=StageControllerProcessor(state,knowledge=knowledge,now_fn=lambda:NOW)
+        frames=[]
+        async def capture(frame,*_): frames.append(frame)
+        proc.push_frame=capture
+        frame=LLMContextFrame(_ctx('discover','Branch address?'))
+        await proc._drive(frame)
+        assert await proc._maybe_short_circuit(frame)
+        assert [f.text for f in frames if isinstance(f,TextFrame)] == ['यह ब्रांच खुली है।','यहाँ प्रैक्टिकल सिखाते हैं।']
+    asyncio.run(run())
+
+
+def test_controller_owns_one_interruption_epoch_even_without_rag(monkeypatch):
+    from pipecat.frames.frames import InterruptionFrame
+    from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+    from roma.core.turn_epoch import TurnEpoch
+    from roma.realtime.knowledge import LiveKnowledge
+    monkeypatch.setattr(FrameProcessor, "process_frame", AsyncMock())
+    async def run():
+        for enabled in (False,True):
+            epoch=TurnEpoch()
+            knowledge=LiveKnowledge(SimpleNamespace(),epoch=epoch) if enabled else None
+            proc=StageControllerProcessor(CallState(),knowledge=knowledge,turn_epoch=epoch)
+            proc.push_frame=AsyncMock()
+            await proc.process_frame(InterruptionFrame(),FrameDirection.DOWNSTREAM)
+            assert epoch.current == 1
+    asyncio.run(run())

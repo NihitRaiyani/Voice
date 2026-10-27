@@ -18,11 +18,47 @@ identifier and `locked_slot` is a time-of-day string; both are already logged el
 """
 
 import json
+import math
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from types import MappingProxyType
 
 from roma.domain.postcall import OUTCOME_LOCKED, OUTCOME_NO_LOCK, OUTCOME_UNKNOWN
 
 JOB_VERSION = 1
+
+# Fixed numeric schema: no arbitrary event names/text, arrays, or unbounded traces.
+_TIMING_LIMITS = {
+    "bytes_written": 32_000 * 3600,
+    "chunks_written": 1_000_000,
+    "audio_secs": 3600,
+    "write_total_ms": 3_600_000,
+    "write_max_ms": 3_600_000,
+    "close_ms": 3_600_000,
+}
+
+
+def validated_recording_timing(value):
+    if value is None:
+        return None
+    if not isinstance(value, Mapping) or set(value) - (_TIMING_LIMITS.keys() | {"failed"}):
+        raise ValueError("Invalid recording timing fields")
+    cleaned = {}
+    for key, item in value.items():
+        if key == "failed":
+            valid = type(item) is bool
+        else:
+            valid = (
+                type(item) in (int, float)
+                and 0 <= item <= _TIMING_LIMITS[key]
+                and math.isfinite(item)
+            )
+            if key in {"bytes_written", "chunks_written"}:
+                valid = valid and type(item) is int
+        if not valid:
+            raise ValueError("Invalid recording timing value")
+        cleaned[key] = item
+    return cleaned
 
 
 @dataclass(frozen=True)
@@ -52,10 +88,22 @@ class PostcallJob:
     recording_disclosure_version: str | None = None
     recording_retention_until: str | None = None
 
+    recording_timing: Mapping[str, int | float | bool] | None = None
+
     raw: "str | None" = field(default=None, compare=False, repr=False)
+
+    def __post_init__(self):
+        timing = validated_recording_timing(self.recording_timing)
+        if timing is not None:
+            object.__setattr__(self, "recording_timing", MappingProxyType(timing))
 
     def to_dict(self) -> dict:
         return {
+            **(
+                {"recording_timing": dict(self.recording_timing)}
+                if self.recording_timing is not None
+                else {}
+            ),
             "v": JOB_VERSION,
             "call_sid": self.call_sid,
             "recording_ref": self.recording_ref,
@@ -103,6 +151,7 @@ class PostcallJob:
             recording_consent_at=d.get("recording_consent_at"),
             recording_disclosure_version=d.get("recording_disclosure_version"),
             recording_retention_until=d.get("recording_retention_until"),
+            recording_timing=d.get("recording_timing"),
             raw=raw,
         )
 
@@ -117,6 +166,11 @@ class PostcallJob:
         """The metadata written next to the recording — exactly docs/09's list, plus a
         version. Nothing more in v1: no transcript, no name, no phone."""
         return {
+            **(
+                {"recording_timing": dict(self.recording_timing)}
+                if self.recording_timing is not None
+                else {}
+            ),
             "v": JOB_VERSION,
             "call_sid": self.call_sid,
             "timestamp": self.started_at,

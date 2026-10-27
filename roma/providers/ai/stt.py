@@ -89,7 +89,9 @@ def _result(result: STTResult) -> STTResult:
     # A language-detection probability is not a transcript confidence score.
     if result.error_code not in {None, "ASR-BATCH-REJECTED"}:
         raise ValueError("Invalid STT result error code")
-    return STTResult(normalize_transcript(result.text), result.language, None, result.error_code)
+    return STTResult(
+        normalize_transcript(result.text), result.language, None, result.error_code
+    )
 
 
 class _STTSetupError(ProviderUnavailable):
@@ -104,12 +106,21 @@ class _LocalSTT:
         self._loader = loader
         self._inference: Inference | None = None
         self._slot = threading.BoundedSemaphore(1)
+        self._native_idle = threading.Event()
+        self._native_idle.set()
+
+    async def wait_idle(self) -> None:
+        """Wait for native ownership, which outlives coroutine timeout/cancellation."""
+        # This thread-safe event spans caller loops; no abandoned executor waiter.
+        while not self._native_idle.is_set():  # noqa: ASYNC110
+            await asyncio.sleep(0.01)
 
     async def _run(self, request: STTRequest, language: str | None) -> STTResult:
         if remaining_timeout(self.timeout_secs) <= 0:
             raise ProviderFailure(FailureKind.TIMEOUT)
         if not self._slot.acquire(blocking=False):
             raise ProviderUnavailable("STT worker is busy; wait for native inference to finish")
+        self._native_idle.clear()
         loop = asyncio.get_running_loop()
         future: asyncio.Future[STTResult] = loop.create_future()
 
@@ -136,6 +147,9 @@ class _LocalSTT:
                     "STT model loading or inference failed; check cached files and runtime compatibility"
                 )
             finally:
+                # Publish idle before releasing admission so a successor cannot
+                # clear it and then be overwritten by this worker's completion.
+                self._native_idle.set()
                 self._slot.release()
             try:
                 loop.call_soon_threadsafe(deliver, result, error)
@@ -146,6 +160,7 @@ class _LocalSTT:
         try:
             worker.start()
         except RuntimeError:
+            self._native_idle.set()
             self._slot.release()
             raise ProviderUnavailable("STT worker could not start") from None
         try:

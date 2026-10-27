@@ -6,6 +6,8 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from time import perf_counter
 
+from roma.core.telemetry import get_telemetry
+
 
 class QueuePolicy(StrEnum):
     DROP_OLDEST = "drop_oldest"
@@ -46,6 +48,7 @@ class BoundedChannel:
         self._changed = asyncio.Condition()
         self._closed = False
         self.pressured = False
+        self._reported_depth = 0
 
     @property
     def depth(self):
@@ -54,9 +57,19 @@ class BoundedChannel:
     def snapshot(self):
         return {**asdict(self.metrics), "depth": self.depth}
 
+    def _publish(self, *, wait_seconds=None, dropped=0):
+        telemetry = get_telemetry()
+        telemetry.adjust_queue_depth(self.name, self.depth - self._reported_depth)
+        self._reported_depth = self.depth
+        if wait_seconds is not None:
+            telemetry.observe_latency('queue_wait', wait_seconds)
+        if dropped:
+            telemetry.queue_drops(self.name, dropped)
+
     async def put(self, item):
         started = perf_counter()
         async with self._changed:
+            dropped_before = self.metrics.dropped_oldest + self.metrics.dropped_newest
             try:
                 if self._closed:
                     return False
@@ -87,6 +100,8 @@ class BoundedChannel:
                 elapsed = (perf_counter() - started) * 1000
                 self.metrics.wait_ms += elapsed
                 self.metrics.put_wait_ms += elapsed
+                dropped = self.metrics.dropped_oldest + self.metrics.dropped_newest - dropped_before
+                self._publish(wait_seconds=elapsed / 1000, dropped=dropped)
 
     async def get(self):
         started = perf_counter()
@@ -105,6 +120,7 @@ class BoundedChannel:
                 elapsed = (perf_counter() - started) * 1000
                 self.metrics.wait_ms += elapsed
                 self.metrics.get_wait_ms += elapsed
+                self._publish(wait_seconds=elapsed / 1000)
 
     async def close(self, *, discard=False):
         async with self._changed:
@@ -115,6 +131,7 @@ class BoundedChannel:
                     self._queue.task_done()
                     self.metrics.discarded += 1
             self._changed.notify_all()
+            self._publish()
 
     def __aiter__(self):
         return self

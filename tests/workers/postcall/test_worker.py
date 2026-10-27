@@ -379,3 +379,43 @@ def test_exhausted_recording_hands_off_terminal_reason_before_dead_letter(tmp_pa
     stats = asyncio.run(run())
     assert persisted == [(5, "processing_failed")]
     assert stats.dead_lettered == 1 and deps.queue.inflight_depth() == 0
+
+
+def test_synthetic_stereo_conversion_preserves_samples_duration_and_timing(tmp_path):
+    import json
+    import struct
+    import wave
+
+    deps = _deps(tmp_path)
+    job = _job(audio_secs=1.0, recording_timing={"audio_secs": 1.0, "chunks_written": 1})
+    raw = Path(deps.media_root) / job.recording_ref
+    raw.parent.mkdir(parents=True)
+    samples = b"".join(
+        struct.pack("<hh", index % 1000, -(index % 1000)) for index in range(8000)
+    )
+    raw.write_bytes(samples)
+    assert asyncio.run(handle_job(job, deps)) is JobResult.ACK
+    wav_path = deps.store.root / "2026-07-26" / "CA_w.wav"
+    with wave.open(str(wav_path), "rb") as wav:
+        assert wav.getnchannels() == 2
+        assert wav.getsampwidth() == 2
+        assert wav.getframerate() == 8000
+        assert wav.getnframes() / wav.getframerate() == 1.0
+        assert wav.readframes(8000) == samples
+    sidecar = json.loads(wav_path.with_suffix(".json").read_text())
+    assert sidecar["recording_timing"] == dict(job.recording_timing)
+    assert not raw.exists()
+
+
+def test_postcall_persists_timing_in_durable_recording_job_payload():
+    from roma.services.postcall_service import PostcallService
+
+    class Store:
+        async def save_call_and_jobs(self, call, jobs, **options):
+            self.jobs = jobs
+
+    store = Store()
+    timing = {"bytes_written": 32000, "audio_secs": 1.0}
+    asyncio.run(PostcallService(store).persist(_job(recording_timing=timing)))
+    recording_job = next(job for job in store.jobs if job.job_type == "process_recording")
+    assert recording_job.payload["recording_timing"] == timing

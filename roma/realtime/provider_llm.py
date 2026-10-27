@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 import time
 from contextlib import aclosing
+from dataclasses import replace
+from uuid import uuid4
 
 from pipecat.frames.frames import (
     LLMContextFrame,
@@ -17,9 +19,37 @@ from pipecat.frames.frames import (
 from pipecat.metrics.metrics import LLMTokenUsage, LLMUsageMetricsData, TTFBMetricsData
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
+from roma.core.telemetry import get_telemetry
+from roma.core.turn_epoch import current_turn_epoch, require_current_epoch
 from roma.domain.safety.lexicon import HARD_FAIL_LINE
 from roma.providers.ai.contracts import LLMChunk, LLMMessage, LLMRequest
-from roma.providers.reliability import bounded_stream
+from roma.providers.reliability import FailureKind, ProviderFailure, bounded_stream
+
+
+def _require_epoch(guard, epoch):
+    require_current_epoch()
+    scoped = current_turn_epoch()
+    if scoped is not None and epoch is not None and scoped != epoch:
+        raise asyncio.CancelledError('Stale turn')
+    if guard is not None:
+        guard.require_current(epoch)
+
+
+def _generation_outcome(provider, chunk):
+    code = chunk.metrics.error_code if chunk.metrics is not None else chunk.finish_reason
+    if code is None or (chunk.metrics is None and code not in {
+            'provider_timeout', 'provider_unavailable', 'budget_exhausted'}):
+        return 'ok'
+    if code == 'provider_timeout':
+        return 'timeout'
+    if code == 'budget_exhausted':
+        return 'rejected'
+    failure = getattr(provider, '_last_failure', None)
+    if (code == 'provider_unavailable' and chunk.metrics is not None
+            and chunk.metrics.attempts > 0 and isinstance(failure, ProviderFailure)
+            and failure.kind == FailureKind.RATE_LIMIT):
+        return 'rate_limit'
+    return 'error'
 
 
 class CallLLMProvider:
@@ -29,10 +59,13 @@ class CallLLMProvider:
     arrives. Persist their delta, rather than dropping those charges at interruption.
     """
 
-    def __init__(self, provider, *, ledger=None, call_sid=None) -> None:
+    def __init__(self, provider, *, ledger=None, call_sid=None, usage_sink=None,
+                 usage_turn_snapshot=None, epoch=None) -> None:
         self.provider = provider
         self.ledger = ledger
         self.call_sid = call_sid
+        self.usage_sink = usage_sink
+        self.usage_turn_snapshot, self.epoch = usage_turn_snapshot, epoch
         self.spent_inr = 0.0
         self.prefix_fn = None
         self._lock = asyncio.Lock()
@@ -55,6 +88,46 @@ class CallLLMProvider:
         self._turn_deadline = time.monotonic() + duration if duration is not None else None
 
     async def generate(self, request):
+        telemetry, outcome, completed = get_telemetry(), 'ok', False
+        started = telemetry.clock()
+        try:
+            epoch = request.turn_epoch
+            if epoch is None:
+                epoch = current_turn_epoch()
+            if epoch is None and self.epoch is not None:
+                epoch = self.epoch.snapshot()
+            _require_epoch(self.epoch, epoch)
+            request = replace(request, turn_epoch=epoch)
+            async with aclosing(self._deadline_generate(request)) as stream:
+                async for chunk in stream:
+                    if chunk.metrics is not None or chunk.finish_reason in {
+                            'provider_timeout', 'provider_unavailable', 'budget_exhausted'}:
+                        outcome = _generation_outcome(self.provider, chunk)
+                        completed = chunk.metrics is not None or chunk.finish_reason is not None
+                    _require_epoch(self.epoch, epoch)
+                    yield chunk
+        except asyncio.CancelledError:
+            outcome = 'cancelled'
+            raise
+        except GeneratorExit:
+            if not completed:
+                outcome = 'cancelled'
+            raise
+        except TimeoutError:
+            outcome = 'timeout'
+            raise
+        except ProviderFailure as exc:
+            outcome = ('rate_limit' if exc.kind == FailureKind.RATE_LIMIT else
+                       'timeout' if exc.kind == FailureKind.TIMEOUT else 'error')
+            raise
+        except BaseException:
+            outcome = 'error'
+            raise
+        finally:
+            telemetry.observe_latency('provider', max(0, telemetry.clock() - started), outcome=outcome)
+            telemetry.event('claude', outcome=outcome)
+
+    async def _deadline_generate(self, request):
         deadline = self._turn_deadline
         if deadline is None:
             async with aclosing(self._generate(request)) as stream:
@@ -63,6 +136,7 @@ class CallLLMProvider:
             return
         remaining = deadline - time.monotonic()
         if remaining <= 0:
+            _require_epoch(self.epoch, request.turn_epoch)
             yield LLMChunk(HARD_FAIL_LINE, "provider_timeout")
             return
         try:
@@ -70,20 +144,29 @@ class CallLLMProvider:
                 async for chunk in stream:
                     yield chunk
         except TimeoutError:
+            _require_epoch(self.epoch, request.turn_epoch)
             yield LLMChunk(HARD_FAIL_LINE, "provider_timeout")
 
     async def _generate(self, request):
+        # Capture attribution before admission can yield to another turn.
+        usage_turn = self.usage_turn_snapshot() if self.usage_turn_snapshot is not None else None
+        _require_epoch(self.epoch, request.turn_epoch)
         async with self._lock:
+            _require_epoch(self.epoch, request.turn_epoch)
             if self.accounting_failed:
                 raise RuntimeError("Call accounting unavailable")
             before = getattr(self.provider, "spent_cents", 0)
             final = None
+            usage_request_id = str(uuid4())
             interrupted = False
             try:
                 async with aclosing(self.provider.generate(request)) as stream:
                     async for chunk in stream:
                         if chunk.metrics is not None:
+                            # Late usage is still a durable cost fact even when its
+                            # associated text is no longer allowed to escape.
                             final = chunk.metrics
+                        _require_epoch(self.epoch, request.turn_epoch)
                         yield chunk
             except (asyncio.CancelledError, GeneratorExit):
                 interrupted = True
@@ -113,6 +196,17 @@ class CallLLMProvider:
                         if not interrupted:
                             raise
 
+                if self.usage_sink is not None:
+                    try:
+                        if self.usage_turn_snapshot is None:
+                            await self.usage_sink(final, usage_request_id)
+                        else:
+                            await self.usage_sink(final, usage_request_id, turn=usage_turn)
+                    except Exception:  # noqa: BLE001 — unknown durable usage blocks further paid work.
+                        self.accounting_failed = True
+                        if not interrupted:
+                            raise RuntimeError("Durable usage accounting unavailable") from None
+
     async def aclose(self):
         close = getattr(self.provider, "aclose", None)
         if close is not None:
@@ -122,11 +216,14 @@ class CallLLMProvider:
 class ProviderLLMService(FrameProcessor):
     """Translate only text context/settings/results; downstream safety still owns speech."""
 
-    def __init__(self, provider, *, max_tokens=256, owns_provider=True, **kwargs):
+    def __init__(self, provider, *, max_tokens=256, owns_provider=True, output_policy=None,
+                 epoch=None, **kwargs):
         super().__init__(**kwargs)
         self.provider = provider
         self.max_tokens = max_tokens
         self.owns_provider = owns_provider
+        self.output_policy = output_policy
+        self.epoch = epoch
 
     async def _metrics_frames(self, metrics):
         data = []
@@ -172,6 +269,11 @@ class ProviderLLMService(FrameProcessor):
         if not isinstance(frame, LLMContextFrame) or direction != FrameDirection.DOWNSTREAM:
             await self.push_frame(frame, direction)
             return
+        guard = self.epoch or getattr(self.provider, 'epoch', None)
+        epoch = current_turn_epoch()
+        if epoch is None and guard is not None:
+            epoch = guard.snapshot()
+        _require_epoch(guard, epoch)
         cancelled = False
         await self.push_frame(LLMFullResponseStartFrame())
         try:
@@ -190,10 +292,14 @@ class ProviderLLMService(FrameProcessor):
                     messages.append(LLMMessage("assistant", content))
                 else:
                     raise ValueError("Unsupported model context role")
+            if self.output_policy == 'voice_hi':
+                from roma.services.conversation_prompts import LANGUAGE_INSTRUCTIONS
+                messages.append(LLMMessage('system', LANGUAGE_INSTRUCTIONS['voice_hi']))
             async with aclosing(
                 self.provider.generate(
                     LLMRequest(
                         messages=tuple(messages),
+                        turn_epoch=epoch,
                         max_tokens=min(
                             self.max_tokens,
                             getattr(self.provider, "max_output_tokens", self.max_tokens),
@@ -202,6 +308,7 @@ class ProviderLLMService(FrameProcessor):
                 )
             ) as stream:
                 async for chunk in stream:
+                    _require_epoch(guard, epoch)
                     if chunk.text:
                         await self.push_frame(LLMTextFrame(chunk.text))
                     if chunk.metrics is not None:
@@ -210,11 +317,13 @@ class ProviderLLMService(FrameProcessor):
             cancelled = True
             raise
         except Exception:  # noqa: BLE001 -- fail closed without logging caller/provider text.
+            _require_epoch(guard, epoch)
             await self.push_frame(LLMTextFrame(HARD_FAIL_LINE))
         finally:
             # An end frame flushes buffered sentences. On interruption Pipecat clears
             # those buffers; never flush a half-generated sentence during teardown.
             if not cancelled:
+                _require_epoch(guard, epoch)
                 await self.push_frame(LLMFullResponseEndFrame())
 
     async def cleanup(self):

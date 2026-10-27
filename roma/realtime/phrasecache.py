@@ -98,6 +98,15 @@ class PhraseCache:
         self._clips: dict[str, bytes] = {}
         self.load_assets(assets_dir or PHRASE_ASSETS)
 
+    def install_knowledge_deferral(self, pcm: bytes) -> None:
+        """Install only the readiness-synthesized approved deferral, never arbitrary text."""
+        from roma.domain.audio.pcm import validate_pcm16
+        from roma.domain.knowledge.routing import NO_EVIDENCE_LINE
+        validate_pcm16(pcm)
+        if not MIN_CLIP_BYTES <= len(pcm) <= 8000 * 2 * 30:
+            raise ValueError('Invalid deferral audio duration')
+        self._clips[phrase_key(NO_EVIDENCE_LINE)] = bytes(pcm)
+
     def load_assets(self, assets_dir: Path) -> int:
         """Load every manifest clip whose text still matches the live constant."""
         manifest_path = assets_dir / MANIFEST_NAME

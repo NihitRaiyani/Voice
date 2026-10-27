@@ -1,0 +1,11 @@
+# Run from the repository root; never auto-start a service from application code.
+global:
+  scrape_interval: 5s
+  scrape_timeout: 3s
+  evaluation_interval: 15s
+scrape_configs:
+  - job_name: roma
+    metrics_path: /metrics
+    honor_labels: false
+    static_configs:
+      - targets: ['127.0.0.1:8000']

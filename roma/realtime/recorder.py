@@ -48,8 +48,11 @@ forwards system frames on. That is a load-bearing pipecat default — `test_reco
 pins it, because if a version bump ever flips it the lead's side vanishes in silence.
 """
 
+import asyncio
 import logging
 import os
+import threading
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -82,6 +85,12 @@ class CallRecorder:
         self.failed = False
         self._fh = None
         self._closed = False
+        self._lock = threading.Lock()
+        self._async_lock = asyncio.Lock()
+        self._chunks_written = 0
+        self._write_total_ms = 0.0
+        self._write_max_ms = 0.0
+        self._close_ms = 0.0
 
     def _ensure_open(self):
         if self._fh is None and not self._closed:
@@ -89,39 +98,92 @@ class CallRecorder:
         return self._fh
 
     def append(self, pcm: bytes) -> None:
-        """Write captured audio. Never raises — a disk problem must not end a live call."""
-        if self._closed or self.failed or not pcm:
-            return
+        """Thread-safe compatibility sink; realtime callers use ``aappend``."""
+        with self._lock:
+            if self._closed or self.failed or not pcm:
+                return
+            started = time.perf_counter()
+            try:
+                fh = self._ensure_open()
+                written = fh.write(pcm)
+                self.bytes_written += written
+                if written != len(pcm):
+                    raise OSError("Incomplete recording write")
+                self._chunks_written += 1
+            except Exception as exc:  # noqa: BLE001 — capture must never kill a call
+                self.failed = True
+                _log.error(
+                    "recording failed after %d bytes (%s); call continues without capture",
+                    self.bytes_written,
+                    type(exc).__name__,
+                )
+            finally:
+                elapsed = (time.perf_counter() - started) * 1000
+                self._write_total_ms += elapsed
+                self._write_max_ms = max(self._write_max_ms, elapsed)
+
+    async def _off_loop(self, operation, *args) -> None:
+        # Cancellation cannot abandon a submitted disk operation and let close overtake
+        # it in the executor. Drain the one admitted operation before releasing admission.
+        task = asyncio.create_task(asyncio.to_thread(operation, *args))
         try:
-            fh = self._ensure_open()
-            fh.write(pcm)
-            self.bytes_written += len(pcm)
-        except Exception as exc:  # noqa: BLE001 — recording must never kill a call (docs/08)
-            self.failed = True
-            _log.error(
-                "recording failed after %d bytes (%s); call continues without capture",
-                self.bytes_written,
-                type(exc).__name__,
-            )
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            await task
+            raise
+
+    async def aappend(self, pcm: bytes) -> None:
+        """Await each off-loop write, with at most five seconds per submitted chunk.
+
+        No background audio queue: pipecat's awaited event callback applies backpressure.
+        The async admission lock submits one thread operation at a time; the thread lock
+        also protects compatibility append/close and operations surviving cancellation.
+        """
+        async with self._async_lock:
+            view = memoryview(pcm)
+            for offset in range(0, len(view), FLUSH_BYTES):
+                await self._off_loop(self.append, view[offset : offset + FLUSH_BYTES])
 
     def close(self) -> None:
-        """Flush and fsync. Idempotent — teardown may call it more than once."""
-        if self._closed:
-            return
-        self._closed = True
-        fh, self._fh = self._fh, None
-        if fh is None:
-            return
-        try:
-            fh.flush()
-            os.fsync(fh.fileno())
-        except Exception as exc:  # noqa: BLE001 — best effort; the bytes are already there
-            _log.error("recording close/fsync failed (%s)", type(exc).__name__)
-        finally:
+        """Thread-safe, idempotent flush/fsync; realtime teardown uses ``aclose``."""
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+            fh, self._fh = self._fh, None
+            if fh is None:
+                return
+            started = time.perf_counter()
             try:
-                fh.close()
-            except Exception:  # noqa: BLE001
-                pass
+                fh.flush()
+                os.fsync(fh.fileno())
+            except Exception as exc:  # noqa: BLE001 — best effort on disk failure
+                self.failed = True
+                _log.error("recording close/fsync failed (%s)", type(exc).__name__)
+            finally:
+                try:
+                    fh.close()
+                except Exception:  # noqa: BLE001
+                    self.failed = True
+                self._close_ms = (time.perf_counter() - started) * 1000
+
+    async def aclose(self) -> None:
+        """Finish admitted writes before off-loop flush/fsync."""
+        async with self._async_lock:
+            await self._off_loop(self.close)
+
+    def timing_summary(self) -> dict:
+        """Bounded numeric diagnostics only; no audio, timestamps or caller content."""
+        with self._lock:
+            return {
+                "bytes_written": self.bytes_written,
+                "chunks_written": self._chunks_written,
+                "audio_secs": self.audio_secs(),
+                "write_total_ms": round(self._write_total_ms, 3),
+                "write_max_ms": round(self._write_max_ms, 3),
+                "close_ms": round(self._close_ms, 3),
+                "failed": self.failed,
+            }
 
     def audio_secs(self) -> float:
         """Captured duration derived from the byte count."""
@@ -158,7 +220,7 @@ def attach_recorder(recorder: CallRecorder) -> AudioBufferProcessor:
 
     @processor.event_handler("on_audio_data")
     async def _on_audio(_processor, audio: bytes, _sample_rate: int, _num_channels: int):
-        recorder.append(audio)
+        await recorder.aappend(audio)
 
     return processor
 

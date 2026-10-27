@@ -3,6 +3,8 @@
 from hashlib import sha256
 from secrets import token_urlsafe
 
+from roma.core.telemetry import get_telemetry, observed
+
 _RELEASE = """
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
@@ -28,10 +30,16 @@ class RedisCallLease:
         self._owner = token_urlsafe(32)
         self._ttl_seconds = ttl_seconds
 
+    @observed('lock')
     async def acquire(self) -> bool:
-        return bool(
-            await self._client.set(self._key, self._owner, nx=True, ex=self._ttl_seconds)
-        )
+        telemetry = get_telemetry()
+        try:
+            acquired = bool(await self._client.set(self._key, self._owner, nx=True, ex=self._ttl_seconds))
+        except BaseException:
+            telemetry.event('lock', outcome='error')
+            raise
+        telemetry.event('lock', outcome='ok' if acquired else 'rejected')
+        return acquired
 
     async def owned(self) -> bool:
         """Atomically check ownership with time for a bounded checkpoint write."""

@@ -83,3 +83,18 @@ Only active IST branch reference data and configured future slots within existin
 | POST | `/api/v1/knowledge/search` | Admin/Counsellor `rag.debug`; explicitly configured enabled retrieval, metadata-only exact search |
 
 Upload never runs inference or self-approves content. Draft/approved/active/archived versions remain immutable after approval; updated facts require a new version. Processing is the bounded SQL worker drain, with status inspection rather than a fabricated synchronous success. Search accepts query/category/language, optional course/branch/version and explicit English fallback policy; it returns document/chunk IDs, scores, applied filters and retrieval/embedding timings without source text or raw query. Validation/auth/permission, conflict and unavailable errors use the shared v1 envelope with sanitized knowledge codes. Retrieval auditing must succeed before debug output or a grounded fact is released. Counsellor/Viewer have no knowledge mutation/debug grant. Runtime stays off by default; [Level 9](levels/level-09.md) owns its separate quality gate and [runbook](runbook.md#governed-ingestion-retrieval-and-golden-evaluation-sections-3440) owns operation.
+
+## Section 46 protected usage/cost projections
+
+All cost routes require `analytics.view`, use the shared v1 success/error envelope and return `Cache-Control: no-store`:
+
+| Method | Path | Selection |
+|---|---|---|
+| GET | `/api/v1/analytics/cost/today` | Current UTC day by default; optional `day=YYYY-MM-DD` or `month=YYYY-MM` |
+| GET | `/api/v1/analytics/cost/provider` | Same UTC period, optional provider filter and provider groups |
+| GET | `/api/v1/analytics/cost/call/{call_id}` | Existing durable call across its lifetime, optional populated turn groups |
+| GET | `/api/v1/analytics/cost/average` | Same period and per-currency average among calls with priced usage |
+
+Choose day or month, never both. Reports expose usage/call counts, normalized units, unknown-unit counts, unpriced events, completeness, exclusive UTC period bounds and per-currency Decimal-string amounts. Empty results are incomplete; missing durable call is 404. No exchange conversion or all-currency grand total is returned. Populated turn groups require recorded turn identity; missing historic identity is not invented. Final source/test evidence is [pending](12-verification.md#sections-4146-telephony-serving-telemetry-and-costs--2026-10-26).
+
+`GET /metrics` is a separate private Prometheus text route outside OpenAPI/resource envelopes; actual socket loopback or a live active Admin may scrape. See [observation privacy](07-security.md#sections-4346-service-and-observation-privacy).

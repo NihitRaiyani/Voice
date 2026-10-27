@@ -382,3 +382,125 @@ def test_call_budget_does_not_cancel_downstream_consumer_between_pulls():
         finally:
             await generation.aclose()
     asyncio.run(run())
+
+
+@pytest.mark.parametrize(('code', 'failure', 'outcome'), [
+    (None, None, 'ok'),
+    ('provider_timeout', None, 'timeout'),
+    ('provider_unavailable', 'rate_limit', 'rate_limit'),
+    ('provider_unavailable', 'unavailable', 'error'),
+    ('budget_exhausted', None, 'rejected'),
+    ('private@example.invalid', None, 'error'),
+])
+def test_call_provider_records_bounded_final_outcomes_without_provider_payload(code, failure, outcome):
+    from dataclasses import replace
+
+    from roma.core.telemetry import Telemetry, set_telemetry
+    from roma.providers.reliability import FailureKind, ProviderFailure
+    async def run():
+        class Completed(FakeProvider):
+            async def generate(self, request):
+                if failure is not None:
+                    self._last_failure = ProviderFailure(FailureKind(failure))
+                yield LLMChunk('caller@example.invalid', 'stop', replace(METRICS, error_code=code))
+        telemetry = Telemetry()
+        previous = set_telemetry(telemetry)
+        try:
+            provider = CallLLMProvider(Completed())
+            result = [c async for c in provider.generate(LLMRequest((LLMMessage('user', 'private'),)))]
+            assert result[0].text == 'caller@example.invalid'
+            body = telemetry.render()
+            assert f'roma_events_total{{event="claude",outcome="{outcome}"}} 1' in body
+            assert f'stage="provider",outcome="{outcome}"' in body
+            assert 'private' not in body and 'caller@example.invalid' not in body
+        finally:
+            set_telemetry(previous)
+    asyncio.run(run())
+
+
+def test_late_final_chunk_is_discarded_but_usage_and_admitted_turn_are_preserved():
+    from roma.core.turn_epoch import TurnEpoch
+    async def run():
+        epoch, recorded = TurnEpoch(), []
+        turn = [1]
+        admitted = []
+        class Late(FakeProvider):
+            async def generate(self, request):
+                admitted.append(request.turn_epoch)
+                try:
+                    self.spent_cents += 1
+                    turn[0] = 2
+                    epoch.advance()
+                    yield LLMChunk('stale private text', 'stop', METRICS)
+                finally:
+                    self.stream_closed = True
+        async def record(final, request_id, *, turn):
+            recorded.append((final, turn))
+        raw = Late()
+        provider = CallLLMProvider(raw, epoch=epoch, usage_sink=record,
+                                   usage_turn_snapshot=lambda: turn[0])
+        bridge = ProviderLLMService(provider, enable_direct_mode=True)
+        frames = capture_frames(bridge)
+        with pytest.raises(asyncio.CancelledError):
+            await bridge.process_frame(context(), FrameDirection.DOWNSTREAM)
+        assert raw.stream_closed and admitted == [0]
+        assert recorded == [(METRICS, 1)]
+        assert provider.spent_inr == METRICS.charged_inr
+        assert not any(isinstance(frame, (LLMTextFrame, LLMFullResponseEndFrame)) for frame in frames)
+    asyncio.run(run())
+
+
+def test_stale_admission_and_scope_mismatch_never_start_underlying_io():
+    from roma.core.turn_epoch import TurnEpoch, epoch_scope
+    async def run():
+        raw, epoch = FakeProvider(), TurnEpoch()
+        provider = CallLLMProvider(raw, epoch=epoch)
+        epoch.advance()
+        request = LLMRequest((LLMMessage('user', 'fixture'),), turn_epoch=0)
+        with pytest.raises(asyncio.CancelledError):
+            _ = [c async for c in provider.generate(request)]
+        assert not raw.requests
+        with epoch_scope(epoch, 1):
+            with pytest.raises(asyncio.CancelledError):
+                _ = [c async for c in CallLLMProvider(raw).generate(request)]
+        assert not raw.requests
+    asyncio.run(run())
+
+
+def test_turn_snapshot_precedes_lock_wait_and_queued_stale_work_is_not_started():
+    from roma.core.turn_epoch import TurnEpoch
+    async def run():
+        raw, epoch, snapshots = FakeProvider(), TurnEpoch(), []
+        provider = CallLLMProvider(raw, epoch=epoch,
+                                   usage_turn_snapshot=lambda: snapshots.append(epoch.current))
+        await provider._lock.acquire()
+        request = LLMRequest((LLMMessage('user', 'fixture'),))
+        async def collect():
+            return [c async for c in provider.generate(request)]
+        task = asyncio.create_task(collect())
+        await asyncio.sleep(0)
+        assert snapshots == [0]
+        epoch.advance()
+        provider._lock.release()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not raw.requests
+    asyncio.run(run())
+
+
+def test_closing_after_final_metrics_preserves_completed_outcome():
+    from roma.core.telemetry import Telemetry, set_telemetry
+    async def run():
+        telemetry = Telemetry()
+        previous = set_telemetry(telemetry)
+        try:
+            provider = CallLLMProvider(FakeProvider())
+            stream = provider.generate(LLMRequest((LLMMessage('user', 'fixture'),)))
+            while (await anext(stream)).metrics is None:
+                pass
+            await stream.aclose()
+            assert 'event="claude",outcome="ok"' in telemetry.render()
+            assert 'event="claude",outcome="cancelled"' not in telemetry.render()
+        finally:
+            set_telemetry(previous)
+    asyncio.run(run())

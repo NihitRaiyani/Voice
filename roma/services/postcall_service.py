@@ -9,6 +9,7 @@ from roma.core.privacy_paths import safe_call_sid
 from roma.core.recording_consent import recording_consent_valid
 from roma.domain.persistence import CallRecord, FollowupJobRecord
 from roma.domain.postcall import OUTCOME_LOCKED, CompletedCall
+from roma.workers.postcall.job import validated_recording_timing
 
 
 class PostcallService:
@@ -50,7 +51,8 @@ class PostcallService:
             created_at=ended_at,
             updated_at=ended_at,
             retention_until=(ended_at + timedelta(days=self._retention_days))
-                if self._retention_days is not None else None,
+            if self._retention_days is not None
+            else None,
         )
         facts = {
             "v": 1,
@@ -60,6 +62,9 @@ class PostcallService:
             "outcome": message.outcome,
             "final_stage": message.final_stage,
         }
+        recording_timing = validated_recording_timing(
+            getattr(message, "recording_timing", None)
+        )
         types = ["compute_statistics", "summarize_call", "update_lead"]
         if message.recording_ref is not None:
             types.insert(0, "process_recording")
@@ -80,7 +85,16 @@ class PostcallService:
                         else {}
                     ),
                     **(
-                        {"result": recording_outcome} if job_type == "process_recording" else {}
+                        {
+                            "result": recording_outcome,
+                            **(
+                                {"recording_timing": recording_timing}
+                                if recording_timing is not None
+                                else {}
+                            ),
+                        }
+                        if job_type == "process_recording"
+                        else {}
                     ),
                 },
                 status=(
@@ -115,7 +129,8 @@ class PostcallService:
             options["recording"] = {
                 "storage_provider": "local",
                 "object_key": started_at.strftime("%Y-%m-%d") + "/" + sid + ".wav",
-                "media_type": "audio/wav", "status": "available",
+                "media_type": "audio/wav",
+                "status": "available",
                 "consent_at": datetime.fromisoformat(message.recording_consent_at),
                 "disclosure_version": message.recording_disclosure_version,
                 "retention_until": datetime.fromisoformat(message.recording_retention_until),

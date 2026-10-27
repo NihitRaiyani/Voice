@@ -34,6 +34,7 @@ import contextlib
 import logging
 from typing import Protocol, runtime_checkable
 
+from roma.core.telemetry import get_telemetry
 from roma.workers.postcall.job import PostcallJob
 
 _log = logging.getLogger("roma.workers.postcall")
@@ -100,6 +101,7 @@ class InMemoryPostcallQueue:
     async def dead(self, job: PostcallJob) -> None:
         await self.ack(job)
         self.dead_letters.append(job.raw if job.raw is not None else job.to_json())
+        get_telemetry().event('dead_letter')
 
     async def recover_inflight(self) -> int:
         n = len(self._inflight)
@@ -180,6 +182,7 @@ class RedisPostcallQueue:
     async def dead(self, job: PostcallJob) -> None:
         raw = job.raw if job.raw is not None else job.to_json()
         await self._r.lpush(DEAD_KEY, raw)
+        get_telemetry().event('dead_letter')
         await self.ack(job)
         _log.error(
             "postcall: job dead-lettered after %d attempts, call_sid=%s",
@@ -253,6 +256,7 @@ class SpoolPostcallQueue:
         path = self._inflight.pop(job.call_sid, None)
         if path is not None:
             self._spool.dead_letter(path)
+            get_telemetry().event('dead_letter')
         _log.error(
             "postcall: job dead-lettered after %d attempts, call_sid=%s",
             job.attempts,

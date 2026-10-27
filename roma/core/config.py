@@ -15,12 +15,14 @@ from roma.core.claude_llm_settings import ClaudeLLMSettings
 from roma.core.embedding_settings import EmbeddingSettings
 from roma.core.openai_llm_settings import OpenAILLMSettings
 from roma.core.rag_settings import RAGSettings
+from roma.core.serving_settings import SpeechServingSettings
 from roma.core.speech_settings import SpeechSettings
+from roma.core.telephony_settings import TelephonySettings
 from roma.core.tts_settings import TTSSettings
 
 
 # BaseSettings automatically reads values from environment variables.
-class Settings(ClaudeLLMSettings, OpenAILLMSettings, SpeechSettings, TTSSettings, EmbeddingSettings, RAGSettings):
+class Settings(ClaudeLLMSettings, OpenAILLMSettings, SpeechSettings, TTSSettings, EmbeddingSettings, RAGSettings, SpeechServingSettings, TelephonySettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -30,12 +32,23 @@ class Settings(ClaudeLLMSettings, OpenAILLMSettings, SpeechSettings, TTSSettings
         hide_input_in_errors=True,
     )
 
+    @model_validator(mode="after")
+    def validate_voice_profile(self):
+        if self.voice_speech_mode == "legacy_cloud":
+            if not self.sarvam_api_key.get_secret_value():
+                raise ValueError("SARVAM_API_KEY is required for legacy cloud speech")
+        else:
+            self.require_key()
+            if self.llm_provider != "claude" or self.stt_provider != "whisper_mlx" or self.tts_provider != "indic_tts":
+                raise ValueError("Local voice requires Claude, pinned Whisper MLX and Indic-TTS")
+        return self
+
     # --- Twilio -------------------------------------------------------------------------
     twilio_account_sid: SecretStr = SecretStr("")
     twilio_auth_token: SecretStr = SecretStr("")
     twilio_from_number: SecretStr = SecretStr("")
 
-    sarvam_api_key: SecretStr
+    sarvam_api_key: SecretStr = SecretStr("")
     openai_api_key: SecretStr = SecretStr("")
     anthropic_budget_inr: float = Field(default=200, gt=0, allow_inf_nan=False)
     # Retained legacy carrier prompt reaches18KB before history; narrow labs use16KB/20k.
@@ -92,6 +105,7 @@ class Settings(ClaudeLLMSettings, OpenAILLMSettings, SpeechSettings, TTSSettings
 
     app_env: str = "dev"
     log_level: str = "INFO"
+    tracing_enabled: bool = False
 
     # Where Twilio reaches this process. ONE base, https — the `/answer` URL and `/ws`
     # websocket URL are both derived from it, so the two cannot disagree.

@@ -14,6 +14,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+observability = ["opentelemetry-sdk>=1.30,<2"]
+
 embeddings = [
     "torch>=2.5,<3",
     "transformers>=4.46,<6",
@@ -34,6 +36,7 @@ dev = [
     "testcontainers[postgres]>=4.12,<5",
 ]
 telephony = [
+    "httpx>=0.28,<1",
     "anthropic>=0.76,<1",
     "fastapi>=0.139.2",
     "pipecat-ai[sarvam,silero,openai]>=1.6.0",
@@ -71,6 +74,22 @@ markers = [
 [tool.mypy]
 python_version = "3.11"
 files = [
+    "roma/core/telemetry.py",
+    "roma/core/serving_settings.py",
+    "roma/core/telephony_settings.py",
+    "roma/realtime/local_speech.py",
+    "roma/realtime/playback_window.py",
+    "roma/realtime/knowledge.py",
+    "roma/realtime/media_limits.py",
+    "roma/realtime/telemetry.py",
+    "roma/serving",
+    "roma/domain/costs/usage.py",
+    "roma/services/cost_service.py",
+    "roma/services/call_costs.py",
+    "roma/repositories/postgres/costs.py",
+    "roma/schemas/costs.py",
+    "roma/api/v1/costs.py",
+    "roma/api/v1/observability.py",
     "roma/core/embedding_settings.py",
     "roma/core/rag_settings.py",
     "roma/services/knowledge_answer.py",

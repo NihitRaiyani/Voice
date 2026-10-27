@@ -1,0 +1,430 @@
+{
+  "uid": "roma-operations",
+  "title": "Roma measured operations",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": [
+    "roma",
+    "observability"
+  ],
+  "editable": false,
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Stage P50 / P95 / P99",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "description": "Measured boundaries only. STT starts at VAD stop confirmation; turn ends at software playback complete. No acoustic latency claim. Absent stages stay absent.",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le, stage) (rate(roma_latency_seconds_bucket{job=\"roma\",outcome=\"ok\",stage!=\"endpointing\"}[$__rate_interval])))",
+          "legendFormat": "{{stage}} P50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(roma_latency_seconds_bucket{job=\"roma\",outcome=\"ok\",stage!=\"endpointing\"}[$__rate_interval])))",
+          "legendFormat": "{{stage}} P95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, stage) (rate(roma_latency_seconds_bucket{job=\"roma\",outcome=\"ok\",stage!=\"endpointing\"}[$__rate_interval])))",
+          "legendFormat": "{{stage}} P99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Reported VAD quiet window",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "description": "Pipecat stop_secs is the reported VAD silence window, not measured end-of-speech/acoustic latency.",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(roma_latency_seconds_bucket{job=\"roma\",stage=\"endpointing\",outcome=\"ok\"}[$__rate_interval])))",
+          "legendFormat": "P95 reported quiet window",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Operation errors, timeout and cancellation",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "description": "",
+      "targets": [
+        {
+          "expr": "sum by (stage,outcome) (rate(roma_latency_seconds_count{job=\"roma\",outcome!=\"ok\"}[$__rate_interval]))",
+          "legendFormat": "{{stage}} {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Safety / RAG / lock / checkpoint outcomes",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "description": "",
+      "targets": [
+        {
+          "expr": "sum by (event,outcome) (rate(roma_events_total{job=\"roma\",event=~\"safety|rag_route|rag_fallback|lock|checkpoint\"}[$__rate_interval]))",
+          "legendFormat": "{{event}} {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Active queue depth",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "description": "Sum of queued items across active process-local channels. No per-call labels.",
+      "targets": [
+        {
+          "expr": "sum by (queue) (roma_queue_depth{job=\"roma\"})",
+          "legendFormat": "{{queue}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Queue drops / PLC / dead letters",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "description": "",
+      "targets": [
+        {
+          "expr": "sum by (queue) (rate(roma_queue_drops_total{job=\"roma\"}[$__rate_interval]))",
+          "legendFormat": "drops {{queue}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (event) (rate(roma_events_total{job=\"roma\",event=~\"plc|dead_letter\"}[$__rate_interval]))",
+          "legendFormat": "{{event}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Process CPU seconds per second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "description": "Native process user+system CPU observations sampled on scrape. One equals one CPU core.",
+      "targets": [
+        {
+          "expr": "sum(rate(roma_resource_value{job=\"roma\",resource=\"cpu_seconds\"}[$__rate_interval]))",
+          "legendFormat": "CPU cores",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Process high-water RSS",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "description": "High-water resident memory from resource.getrusage; this is not current resident memory.",
+      "targets": [
+        {
+          "expr": "roma_resource_value{job=\"roma\",resource=\"peak_rss_bytes\"}",
+          "legendFormat": "{{instance}} peak RSS",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Queue wait / event-loop lag P95",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "description": "",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(roma_latency_seconds_bucket{job=\"roma\",stage=~\"queue_wait|event_loop_stall\",outcome=\"ok\"}[$__rate_interval])))",
+          "legendFormat": "{{stage}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "GPU memory (only when measured)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "roma-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "description": "No collector is configured by default. No data means unavailable; never interpret it as zero GPU use.",
+      "targets": [
+        {
+          "expr": "roma_resource_value{job=\"roma\",resource=\"gpu_bytes\"}",
+          "legendFormat": "{{instance}} observed GPU bytes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-27T03:27:25.438175+00:00",
+  "synthetic": true,
+  "models_loaded": false,
+  "paid_provider_called": false,
+  "working_database_used": false,
+  "quality_gate_passed": false,
+  "cases": [
+    {
+      "schema_version": 1,
+      "evidence_mode": "fake",
+      "operation": "mixed",
+      "requests": 20,
+      "concurrency": 1,
+      "successes": 20,
+      "errors": 0,
+      "error_rate": 0.0,
+      "status_counts": {
+        "200": 20
+      },
+      "elapsed_secs": 0.2634982080053305,
+      "throughput_success_per_sec": 75.90184446186215,
+      "latency_ms": {
+        "p50": 11.885624997375999,
+        "p95": 12.562208001327235,
+        "p99": 39.002375000563916
+      },
+      "latency_population": "all_attempts_including_rejections",
+      "peak_cpu_percent": 73.32458029705118,
+      "peak_ram_bytes": 58687488,
+      "resource_scope": "fake_harness_process",
+      "resource_capability": "self_rusage_cpu_percent_and_peak_rss",
+      "peak_vram_bytes": null,
+      "vram_capability": "unavailable_not_inferred",
+      "asr_batch_mode": "serialized_http_requests_existing_internal_chunks_unchanged",
+      "quality_gate_passed": false
+    },
+    {
+      "schema_version": 1,
+      "evidence_mode": "fake",
+      "operation": "mixed",
+      "requests": 20,
+      "concurrency": 2,
+      "successes": 2,
+      "errors": 18,
+      "error_rate": 0.9,
+      "status_counts": {
+        "429": 18,
+        "200": 2
+      },
+      "elapsed_secs": 0.022919167000509333,
+      "throughput_success_per_sec": 87.26320637899073,
+      "latency_ms": {
+        "p50": 0.8042089975788258,
+        "p95": 11.358750001818407,
+        "p99": 12.02716599800624
+      },
+      "latency_population": "all_attempts_including_rejections",
+      "peak_cpu_percent": 92.8195790379422,
+      "peak_ram_bytes": 59228160,
+      "resource_scope": "fake_harness_process",
+      "resource_capability": "self_rusage_cpu_percent_and_peak_rss",
+      "peak_vram_bytes": null,
+      "vram_capability": "unavailable_not_inferred",
+      "asr_batch_mode": "serialized_http_requests_existing_internal_chunks_unchanged",
+      "quality_gate_passed": false
+    }
+  ],
+  "limitations": [
+    "Fake HTTP/inference scheduling measures the harness only; it is not native ASR/TTS throughput or GPU capacity.",
+    "All-attempt latency includes deliberate admission rejections; cannot be used as a successful-call SLO."
+  ]
+}

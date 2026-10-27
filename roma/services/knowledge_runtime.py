@@ -1,7 +1,9 @@
 """Explicit knowledge composition shared by API, worker and per-call adapters."""
 from dataclasses import dataclass
+from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 
 from roma.domain.knowledge.retrieval import RetrievalFilters
 from roma.domain.knowledge.routing import NO_EVIDENCE_LINE
@@ -10,7 +12,7 @@ from roma.providers.ai.registry import build_embedding_provider
 from roma.repositories.postgres.knowledge import KnowledgeRepository
 from roma.repositories.postgres.knowledge_ingestion import KnowledgeIngestionRepository
 from roma.repositories.postgres.knowledge_search import KnowledgeSearchRepository
-from roma.repositories.postgres.models.calls import Call
+from roma.repositories.postgres.models.calls import Call, CallTurn
 from roma.repositories.postgres.models.organization import Branch, BranchCourse, Course
 from roma.services.knowledge_answer import KnowledgeAnswer, KnowledgeAnswerService
 from roma.services.knowledge_ingestion import KnowledgeIngestionService
@@ -48,7 +50,8 @@ class ScopedKnowledgeAnswers:
 
     async def answer_turn(self, state, text, topic, *, output_language='code_mix'):
         try:
-            async with self.session_factory() as session:
+            turn_number, stage = max(1, state.turn_count), state.stage.value
+            async with self.session_factory() as session, session.begin():
                 rows = (await session.execute(
                     select(Course.id, Branch.id).join(BranchCourse, BranchCourse.course_id == Course.id)
                     .join(Branch, Branch.id == BranchCourse.branch_id).where(
@@ -56,7 +59,18 @@ class ScopedKnowledgeAnswers:
                         Course.institute_id == Branch.institute_id,
                         func.lower(Branch.name) == state.branch.casefold())
                     .limit(2))).all()
-                call_id = await session.scalar(select(Call.id).where(Call.provider_call_id == state.call_sid))
+                call = await session.scalar(select(Call).where(
+                    Call.provider_call_id == state.call_sid, Call.deleted_at.is_(None)))
+                if len(rows) != 1 or call is None:
+                    return KnowledgeAnswer(NO_EVIDENCE_LINE, reason='unknown_scope')
+                call_id = call.id
+                await session.execute(insert(CallTurn).values(
+                    id=uuid5(NAMESPACE_URL, f'roma:{call_id}:turn:{turn_number}'),
+                    call_id=call_id, turn_number=turn_number, speaker='agent',
+                    conversation_stage=stage, route='knowledge', retention_until=call.retention_until
+                ).on_conflict_do_nothing(index_elements=[CallTurn.call_id, CallTurn.turn_number]))
+                turn_id = await session.scalar(select(CallTurn.id).where(
+                    CallTurn.call_id == call_id, CallTurn.turn_number == turn_number))
             if len(rows) != 1:
                 return KnowledgeAnswer(NO_EVIDENCE_LINE, reason='unknown_scope')
             # Cross-lingual queries target the approved spoken-output evidence policy.
@@ -64,9 +78,8 @@ class ScopedKnowledgeAnswers:
             language = 'hi' if output_language == 'voice_hi' else 'hi-en'
             return await self.answer.answer(text, RetrievalFilters(topic, language,
                         course_id=rows[0][0], branch_id=rows[0][1]),
-                        output_language=output_language, known_name=state.lead_name, call_id=call_id,
-                        safety_context=SafetyContext(state.call_sid, max(1, state.turn_count),
-                                                     state.stage.value))
+                        output_language=output_language, known_name=state.lead_name, call_id=call_id, turn_id=turn_id,
+                        safety_context=SafetyContext(state.call_sid, turn_number, stage))
         except Exception:  # noqa: BLE001 — unknown scope/storage cannot authorize a fact.
             return KnowledgeAnswer(NO_EVIDENCE_LINE, reason='scope_unavailable')
 

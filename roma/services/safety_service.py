@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import Protocol
 
+from roma.core.telemetry import get_telemetry, observed
 from roma.domain.safety.audit import SafetyActivation, SafetyContext, activation, check_sentence
 from roma.domain.safety.lexicon import HARD_FAIL_LINE, BlockCategory
 from roma.domain.safety.pronunciation import (
@@ -83,14 +84,18 @@ class SafetyService:
             return False
         return True
 
+    @observed("safety")
     async def check(
         self, text: str, context: SafetyContext, *, extra: tuple[SafetyActivation, ...] = ()
     ) -> SafeSpeech:
         safe, _, events = check_sentence(text)
         all_events = extra + events
         ok = await self.persist(context, all_events)
+        get_telemetry().event('safety', outcome='error' if not ok else
+                              'rejected' if all_events else 'ok')
         return SafeSpeech(safe if ok else HARD_FAIL_LINE, all_events, ok)
 
+    @observed("safety")
     async def check_pronunciation(
         self, pronunciation: SafetyPronunciation, context: SafetyContext
     ) -> SafeSpeech:
@@ -120,6 +125,7 @@ class SafetyService:
             pronunciation.canonical_text,
         )
         ok = await self.persist(context, (event,))
+        get_telemetry().event('safety', outcome='ok' if ok else 'error')
         if not ok:
             # Explicit bounded outage route: no recursion or unaudited original.
             fallback = pronunciation_for(HARD_FAIL_LINE)

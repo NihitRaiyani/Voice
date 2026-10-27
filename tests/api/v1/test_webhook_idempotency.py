@@ -157,7 +157,10 @@ def test_acceptance_timeout_is_retryable(monkeypatch):
 
 
 @pytest.mark.parametrize("with_database", [True, False])
-def test_production_composition_wires_service_and_closes_database(monkeypatch, with_database):
+@pytest.mark.parametrize("tracing_enabled", [False, True])
+def test_production_composition_wires_service_and_closes_database(monkeypatch, with_database, tracing_enabled):
+    if tracing_enabled:
+        pytest.importorskip('opentelemetry.sdk.trace')
     import roma.main as module
 
     database = SimpleNamespace(session_factory=object(), close=AsyncMock())
@@ -178,6 +181,7 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch, w
             booking_db_timeout_secs=3,
             booking_redis_timeout_secs=1,
             rag_enabled=False,
+            tracing_enabled=tracing_enabled,
         ),
     )
     monkeypatch.setattr(module.Database, "from_settings", lambda _settings: database)
@@ -223,7 +227,11 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch, w
         return app
 
     monkeypatch.setattr(module, "build_media_app", build_app)
-    with TestClient(module.create_app()) as client:
+    original_tracer = module.get_telemetry().tracer
+    app = module.create_app()
+    with TestClient(app) as client:
+        assert (client.app.state.recent_trace_spans is not None) is tracing_enabled
+        assert (module.get_telemetry().tracer is not None) is tracing_enabled
         assert client.app.state.knowledge_service is (knowledge.catalog if with_database else None)
         assert client.app.state.knowledge_search_service is None
         assert client.app.state.knowledge_answer_factory is None
@@ -243,6 +251,8 @@ def test_production_composition_wires_service_and_closes_database(monkeypatch, w
         database.close.assert_awaited_once()
     else:
         database.close.assert_not_awaited()
+    assert module.get_telemetry().tracer is original_tracer
+    assert app.state.recent_trace_spans is None
     redis.aclose.assert_awaited_once()
 
 

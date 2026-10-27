@@ -201,3 +201,105 @@ def test_stt_audio_passthrough_default_still_holds():
 
     sig = inspect.signature(STTService.__init__)
     assert sig.parameters["audio_passthrough"].default is True
+
+
+def test_async_recording_io_runs_off_loop_and_close_waits(tmp_path, monkeypatch):
+    import threading
+
+    import roma.realtime.recorder as module
+
+    loop_thread = threading.get_ident()
+    io_threads = []
+    original_open, original_fsync = module.open_private, module.os.fsync
+
+    def opened(*args, **kwargs):
+        io_threads.append(threading.get_ident())
+        return original_open(*args, **kwargs)
+
+    def synced(fd):
+        io_threads.append(threading.get_ident())
+        return original_fsync(fd)
+
+    monkeypatch.setattr(module, "open_private", opened)
+    monkeypatch.setattr(module.os, "fsync", synced)
+    recorder = CallRecorder(tmp_path / "async.s16le")
+
+    async def drive():
+        await recorder.aappend(b"\x01\x02\x03\x04" * 8000)
+        await recorder.aclose()
+        await recorder.aclose()
+
+    asyncio.run(drive())
+    assert io_threads and loop_thread not in io_threads
+    assert recorder.path.stat().st_size == 32000
+    timing = recorder.timing_summary()
+    assert timing["audio_secs"] == 1.0
+    assert timing["bytes_written"] == 32000
+    assert timing["chunks_written"] == 1
+    assert timing["write_total_ms"] >= 0
+    assert timing["close_ms"] >= 0
+
+
+def test_async_sink_awaits_bounded_chunks(tmp_path, monkeypatch):
+    from roma.realtime.recorder import FLUSH_BYTES
+
+    recorder = CallRecorder(tmp_path / "bounded.s16le")
+    chunks = []
+    original = recorder.append
+
+    def tracked(pcm):
+        chunks.append(len(pcm))
+        original(pcm)
+
+    monkeypatch.setattr(recorder, "append", tracked)
+    asyncio.run(recorder.aappend(b"\0" * (FLUSH_BYTES * 2 + 4)))
+    asyncio.run(recorder.aclose())
+    assert chunks == [FLUSH_BYTES, FLUSH_BYTES, 4]
+
+
+def test_concurrent_append_close_is_serialized(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    recorder = CallRecorder(tmp_path / "race.s16le")
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(recorder.append, b"\x01\x02\x03\x04" * 80) for _ in range(30)]
+        futures.append(pool.submit(recorder.close))
+        for future in futures:
+            future.result()
+    recorder.close()
+    assert not recorder.failed
+    assert recorder.path.stat().st_size == recorder.bytes_written
+
+
+def test_cancelled_async_write_drains_before_close(tmp_path, monkeypatch):
+    import threading
+
+    recorder = CallRecorder(tmp_path / "cancel.s16le")
+    entered, release = threading.Event(), threading.Event()
+    original = recorder.append
+
+    def blocked(pcm):
+        entered.set()
+        assert release.wait(2)
+        original(pcm)
+
+    monkeypatch.setattr(recorder, "append", blocked)
+
+    async def drive():
+        write = asyncio.create_task(recorder.aappend(b"\x01\x02\x03\x04"))
+        assert await asyncio.to_thread(entered.wait, 2)
+        write.cancel()
+        close = asyncio.create_task(recorder.aclose())
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        try:
+            assert not write.done()
+            assert not close.done()
+        finally:
+            release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await write
+        await close
+
+    asyncio.run(drive())
+    assert recorder.path.read_bytes() == b"\x01\x02\x03\x04"

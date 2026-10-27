@@ -138,6 +138,7 @@ class _LoggingSettings(BaseSettings):
     pii_hash_key: SecretStr = SecretStr("")
     pii_encryption_key: SecretStr = SecretStr("")
     recording_url_signing_key: SecretStr = SecretStr("")
+    speech_service_key: SecretStr = SecretStr("")
     database_url: SecretStr = SecretStr("")
     redis_url: SecretStr = SecretStr("")
 
@@ -155,6 +156,8 @@ def _secret_values(settings: Settings | _LoggingSettings):
         privacy_secrets.pii_encryption_key.get_secret_value(),
         privacy_secrets.recording_url_signing_key.get_secret_value(),
         privacy_secrets.database_url.get_secret_value(),
+        privacy_secrets.speech_service_key.get_secret_value(),
+        getattr(settings, "speech_service_key", SecretStr("")).get_secret_value(),
         auth_secret.get_secret_value(),
         settings.twilio_account_sid.get_secret_value(),
         settings.twilio_auth_token.get_secret_value(),
@@ -217,6 +220,7 @@ def configure_logging(settings: Settings | None = None) -> None:
 class LogEvent(StrEnum):
     """Reviewed operational vocabulary; never derive an event from caller text."""
 
+    KNOWLEDGE_ROUTED = "knowledge_routed"
     SECURITY_REJECTED = "security_rejected"
     SECURITY_ACCEPTED = "security_accepted"
     RATE_LIMITED = "rate_limited"
@@ -333,10 +337,16 @@ class JsonFormatter(logging.Formatter):
             row["queue"] = {key: value for key, value in queue_metrics.items()
                             if key in {"capacity", "peak_depth", "depth", "dropped_oldest", "dropped_newest", "discarded", "high_water_hits", "wait_ms", "put_wait_ms", "get_wait_ms"}
                             and type(value) in (int, float) and math.isfinite(value) and value >= 0}
+        route = getattr(record, "route", None)
+        if route in {"knowledge", "fallback", "booking", "state", "safety", "deterministic", "no_evidence"}:
+            row["route"] = route
+        chunk_ids = getattr(record, "chunk_ids", None)
+        if isinstance(chunk_ids, list) and len(chunk_ids) <= 20:
+            row["chunk_ids"] = [value for value in chunk_ids if isinstance(value, str) and _ID.fullmatch(value)]
         return json.dumps(row, ensure_ascii=True, allow_nan=False, separators=(",", ":"))
 
 
-def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None, status_code=None, queue_name=None, queue_metrics=None, checkpoint_metrics=None):
+def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None, status_code=None, queue_name=None, queue_metrics=None, checkpoint_metrics=None, route=None, chunk_ids=None):
     if not isinstance(event, LogEvent):
         raise ValueError("Use a reviewed LogEvent")
     failed = event in {LogEvent.CHECKPOINT_FAILED, LogEvent.STATE_CACHE_FAILED, LogEvent.REQUEST_FAILED, LogEvent.TURN_FAILED, LogEvent.LLM_FAILED}
@@ -345,7 +355,8 @@ def log_event(event: LogEvent, *, latency_ms=None, error_code=None, status=None,
         extra={"event": event, "roma_context": dict(_log_context.get() or {}),
                "latency_ms": latency_ms, "error_code": error_code,
                "status": status, "status_code": status_code,
-               "queue_name": queue_name, "queue_metrics": queue_metrics, "checkpoint_metrics": checkpoint_metrics},
+               "queue_name": queue_name, "queue_metrics": queue_metrics, "checkpoint_metrics": checkpoint_metrics,
+               "route": route, "chunk_ids": chunk_ids},
     )
 
 
