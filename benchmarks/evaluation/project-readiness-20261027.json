@@ -1,0 +1,1356 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-27T09:41:12.050573+00:00",
+  "full_gate_passed": false,
+  "checks": [
+    {
+      "id": "asr.gu",
+      "metrics": {
+        "wer": null,
+        "cer": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "asr.hi",
+      "metrics": {
+        "wer": null,
+        "cer": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "asr.en",
+      "metrics": {
+        "wer": null,
+        "cer": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "asr.mixed",
+      "metrics": {
+        "wer": null,
+        "cer": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "asr.noisy_phone",
+      "metrics": {
+        "wer": null,
+        "cer": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "endpointing",
+      "metrics": {
+        "false_cuts": null,
+        "turn_end_p95_ms": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "false_cuts": null,
+        "turn_end_p95_ms": null
+      },
+      "existing_evidence": "docs/05-endpointing-vad.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "llm.scripted_turns",
+      "metrics": {
+        "json_validity_rate": null,
+        "ttft_p95_ms": null,
+        "input_tokens": null,
+        "output_tokens": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 70,
+      "targets": {
+        "json_validity_rate": null,
+        "ttft_p95_ms": null,
+        "input_tokens": null,
+        "output_tokens": null
+      },
+      "existing_evidence": "evals/scripts; scripts/run_eval.py",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "llm.scripted_turns",
+          "kind": "mock",
+          "samples": 70,
+          "metrics": {
+            "json_validity_rate": 1.0,
+            "ttft_p95_ms": 0.005333000444807112,
+            "input_tokens": null,
+            "output_tokens": null
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "6101f3900e85ba44df22f5e45ad2df09218d0f279ab6ef5cb425ba7a72dc807d",
+            "configuration_sha256": "14f8c032c370071f947f739371941c5b25f781b220a924d5b1fe67ceeff224e8",
+            "hardware": "Darwin arm64",
+            "conditions": "warm public fixture mock; working-tree source"
+          },
+          "source": "scripts/evaluate_project.py --run-offline",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "safety.escape",
+      "metrics": {
+        "escape_rate": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "escape_rate": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "roma/eval/checks.py",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "tts.short",
+      "metrics": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "existing_evidence": "benchmarks/tts/section19-report.json",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "tts.medium",
+      "metrics": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "existing_evidence": "benchmarks/tts/section19-report.json",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "tts.long",
+      "metrics": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "existing_evidence": "benchmarks/tts/section19-report.json",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "barge_in.early",
+      "metrics": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "existing_evidence": "docs/levels/level-07.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "barge_in.middle",
+      "metrics": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "existing_evidence": "docs/levels/level-07.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "barge_in.late",
+      "metrics": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "existing_evidence": "docs/levels/level-07.md",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "hardware.gpu",
+      "metrics": {
+        "utilization_percent": null,
+        "vram_peak_mb": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "utilization_percent": null,
+        "vram_peak_mb": null
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "end_to_end.real_calls",
+      "metrics": {
+        "turn_p95_ms": null,
+        "error_rate": null
+      },
+      "accepted_kinds": [
+        "real_call"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "turn_p95_ms": null,
+        "error_rate": null
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "conversation.stage_accuracy",
+      "metrics": {
+        "accuracy": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 70,
+      "targets": {
+        "accuracy": null
+      },
+      "existing_evidence": "evals/scripts",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "conversation.stage_accuracy",
+          "kind": "synthetic",
+          "samples": 124,
+          "metrics": {
+            "accuracy": 1.0
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "6101f3900e85ba44df22f5e45ad2df09218d0f279ab6ef5cb425ba7a72dc807d",
+            "configuration_sha256": "14f8c032c370071f947f739371941c5b25f781b220a924d5b1fe67ceeff224e8",
+            "hardware": "Darwin arm64",
+            "conditions": "warm public fixture mock; working-tree source"
+          },
+          "source": "roma.eval.runner fixture extraction/reference replies",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "booking.race100",
+      "metrics": {
+        "winners": 1,
+        "conflicts": 99,
+        "attempts": 100
+      },
+      "accepted_kinds": [
+        "disposable_backend"
+      ],
+      "minimum_samples": 100,
+      "targets": {
+        "winners": {
+          "direction": "exact",
+          "value": 1
+        },
+        "conflicts": {
+          "direction": "exact",
+          "value": 99
+        },
+        "attempts": {
+          "direction": "exact",
+          "value": 100
+        }
+      },
+      "existing_evidence": "tests/repositories/postgres/test_booking_module.py::test_100_http_requests_have_exactly_one_commit",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "booking.race100",
+          "kind": "disposable_backend",
+          "samples": 100,
+          "metrics": {
+            "winners": 1,
+            "conflicts": 99,
+            "attempts": 100
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "d3c440bc9994576fd51cb5b157d1426330aa4d2d443d3ca66fa56460b15f4b0e",
+            "configuration_sha256": "cec7b847ad6ee0697e0849a4906683662e779e70b730368cb284729799a2d499",
+            "hardware": "Darwin arm64",
+            "conditions": "offline fault injection; fake AI; disposable backend only where selected"
+          },
+          "source": "fresh passing assertions: test_100_http_requests_have_exactly_one_commit",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "native_review.gu",
+      "metrics": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "accepted_kinds": [
+        "human"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "native_review.hi",
+      "metrics": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "accepted_kinds": [
+        "human"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "native_review.en",
+      "metrics": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "accepted_kinds": [
+        "human"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "native_review.mixed",
+      "metrics": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "accepted_kinds": [
+        "human"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "injection",
+      "metrics": {
+        "escape_rate": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "escape_rate": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "runtime.event_loop",
+      "metrics": {
+        "stall_p95_ms": null,
+        "stall_max_ms": null
+      },
+      "accepted_kinds": [
+        "native",
+        "disposable_backend"
+      ],
+      "minimum_samples": 100,
+      "targets": {
+        "stall_p95_ms": null,
+        "stall_max_ms": null
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "rag.quality",
+      "metrics": {
+        "recall_at_k": null,
+        "mrr": null,
+        "groundedness": null,
+        "deferral_accuracy": null,
+        "safety_rate": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 38,
+      "targets": {
+        "recall_at_k": null,
+        "mrr": null,
+        "groundedness": null,
+        "deferral_accuracy": null,
+        "safety_rate": null
+      },
+      "existing_evidence": "benchmarks/rag/local-v1-report.json",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "rag.latency",
+      "metrics": {
+        "retrieval_p95_ms": null,
+        "answer_p95_ms": null
+      },
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 38,
+      "targets": {
+        "retrieval_p95_ms": null,
+        "answer_p95_ms": null
+      },
+      "existing_evidence": "benchmarks/rag/local-v1-report.json",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "chaos.redis_loss",
+      "metrics": {
+        "passed_scenarios": 3,
+        "failed_scenarios": 0
+      },
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "chaos.redis_loss",
+          "kind": "synthetic",
+          "samples": 3,
+          "metrics": {
+            "passed_scenarios": 3,
+            "failed_scenarios": 0
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "d3c440bc9994576fd51cb5b157d1426330aa4d2d443d3ca66fa56460b15f4b0e",
+            "configuration_sha256": "cec7b847ad6ee0697e0849a4906683662e779e70b730368cb284729799a2d499",
+            "hardware": "Darwin arm64",
+            "conditions": "offline fault injection; fake AI; disposable backend only where selected"
+          },
+          "source": "reviewed pytest selectors; hashed JUnit outcome evidence",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "chaos.provider_timeout",
+      "metrics": {
+        "passed_scenarios": 9,
+        "failed_scenarios": 0
+      },
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "chaos.provider_timeout",
+          "kind": "synthetic",
+          "samples": 9,
+          "metrics": {
+            "passed_scenarios": 9,
+            "failed_scenarios": 0
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "d3c440bc9994576fd51cb5b157d1426330aa4d2d443d3ca66fa56460b15f4b0e",
+            "configuration_sha256": "cec7b847ad6ee0697e0849a4906683662e779e70b730368cb284729799a2d499",
+            "hardware": "Darwin arm64",
+            "conditions": "offline fault injection; fake AI; disposable backend only where selected"
+          },
+          "source": "reviewed pytest selectors; hashed JUnit outcome evidence",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "chaos.queue_pressure",
+      "metrics": {
+        "passed_scenarios": 1,
+        "failed_scenarios": 0
+      },
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "chaos.queue_pressure",
+          "kind": "synthetic",
+          "samples": 1,
+          "metrics": {
+            "passed_scenarios": 1,
+            "failed_scenarios": 0
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "d3c440bc9994576fd51cb5b157d1426330aa4d2d443d3ca66fa56460b15f4b0e",
+            "configuration_sha256": "cec7b847ad6ee0697e0849a4906683662e779e70b730368cb284729799a2d499",
+            "hardware": "Darwin arm64",
+            "conditions": "offline fault injection; fake AI; disposable backend only where selected"
+          },
+          "source": "reviewed pytest selectors; hashed JUnit outcome evidence",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "chaos.disconnect",
+      "metrics": {
+        "passed_scenarios": 6,
+        "failed_scenarios": 0
+      },
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "chaos.disconnect",
+          "kind": "synthetic",
+          "samples": 6,
+          "metrics": {
+            "passed_scenarios": 6,
+            "failed_scenarios": 0
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "d3c440bc9994576fd51cb5b157d1426330aa4d2d443d3ca66fa56460b15f4b0e",
+            "configuration_sha256": "cec7b847ad6ee0697e0849a4906683662e779e70b730368cb284729799a2d499",
+            "hardware": "Darwin arm64",
+            "conditions": "offline fault injection; fake AI; disposable backend only where selected"
+          },
+          "source": "reviewed pytest selectors; hashed JUnit outcome evidence",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "chaos.rag_timeout",
+      "metrics": {
+        "passed_scenarios": 2,
+        "failed_scenarios": 0
+      },
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "chaos.rag_timeout",
+          "kind": "synthetic",
+          "samples": 2,
+          "metrics": {
+            "passed_scenarios": 2,
+            "failed_scenarios": 0
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "d3c440bc9994576fd51cb5b157d1426330aa4d2d443d3ca66fa56460b15f4b0e",
+            "configuration_sha256": "cec7b847ad6ee0697e0849a4906683662e779e70b730368cb284729799a2d499",
+            "hardware": "Darwin arm64",
+            "conditions": "offline fault injection; fake AI; disposable backend only where selected"
+          },
+          "source": "reviewed pytest selectors; hashed JUnit outcome evidence",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "chaos.rate_limit_budget",
+      "metrics": {
+        "passed_scenarios": 10,
+        "failed_scenarios": 0
+      },
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json",
+      "status": "pending",
+      "evidence": [
+        {
+          "check_id": "chaos.rate_limit_budget",
+          "kind": "synthetic",
+          "samples": 10,
+          "metrics": {
+            "passed_scenarios": 10,
+            "failed_scenarios": 0
+          },
+          "identity": {
+            "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+            "dataset_sha256": "d3c440bc9994576fd51cb5b157d1426330aa4d2d443d3ca66fa56460b15f4b0e",
+            "configuration_sha256": "cec7b847ad6ee0697e0849a4906683662e779e70b730368cb284729799a2d499",
+            "hardware": "Darwin arm64",
+            "conditions": "offline fault injection; fake AI; disposable backend only where selected"
+          },
+          "source": "reviewed pytest selectors; hashed JUnit outcome evidence",
+          "approved": false
+        }
+      ]
+    },
+    {
+      "id": "approval.latency_resource_slos",
+      "metrics": {
+        "approved": null
+      },
+      "accepted_kinds": [
+        "account_review"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "approved": {
+          "direction": "min",
+          "value": 1
+        }
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "approval.privacy_consent",
+      "metrics": {
+        "approved": null
+      },
+      "accepted_kinds": [
+        "account_review"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "approved": {
+          "direction": "min",
+          "value": 1
+        }
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "approval.provider_account_terms",
+      "metrics": {
+        "approved": null
+      },
+      "accepted_kinds": [
+        "account_review"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "approved": {
+          "direction": "min",
+          "value": 1
+        }
+      },
+      "existing_evidence": "",
+      "status": "pending",
+      "evidence": []
+    }
+  ],
+  "limitations": [
+    "Evidence acceptance requires independent review; CLI never grants approval.",
+    "Mock/backend concurrency is not Claude, speech GPU or real-call capacity."
+  ],
+  "identity": {
+    "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+    "dataset_sha256": "6101f3900e85ba44df22f5e45ad2df09218d0f279ab6ef5cb425ba7a72dc807d",
+    "configuration_sha256": "14f8c032c370071f947f739371941c5b25f781b220a924d5b1fe67ceeff224e8",
+    "hardware": "Darwin arm64",
+    "conditions": "warm public fixture mock; working-tree source"
+  },
+  "offline_experiment": {
+    "kind": "mock_and_synthetic_only",
+    "scripted_turns": 70,
+    "selected_scripts": [
+      {
+        "script": "clean_lock",
+        "turns": 12
+      },
+      {
+        "script": "close_slot_revision",
+        "turns": 13
+      },
+      {
+        "script": "evasive_discover_valve",
+        "turns": 13
+      },
+      {
+        "script": "five_minute_budget",
+        "turns": 7
+      },
+      {
+        "script": "gujarati_cost_objection",
+        "turns": 14
+      },
+      {
+        "script": "inbound_name_capture",
+        "turns": 11
+      }
+    ],
+    "full_controller_replay_turns": 124,
+    "controller_stage_accuracy": 1.0,
+    "controller_findings": 0,
+    "canary_cases": 10,
+    "canary_failures": 0,
+    "mock_model_requests": 50,
+    "mock_json_validity": 1.0,
+    "mock_ttft_ms": {
+      "p50": 0.002916996891144663,
+      "p95": 0.005333000444807112,
+      "p99": 0.009832998330239207,
+      "max": 0.009832998330239207
+    },
+    "mock_provider_errors": 0,
+    "unsafe_final_sentences": 0,
+    "native_input_tokens": null,
+    "native_output_tokens": null,
+    "native_semantic_quality": null,
+    "limitations": [
+      "JSON/TTFT describe deterministic mock chunks, never real Claude quality or latency.",
+      "Full replay uses fixture reference replies and injected extraction, not database bookings.",
+      "No native models, private transcripts, paid API, real calls, audio or human scoring."
+    ]
+  },
+  "chaos_experiment": {
+    "schema_version": 1,
+    "generated_at": "2026-10-27T09:41:12.037244+00:00",
+    "kind": "offline_failure_drills_with_disposable_backend",
+    "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+    "source_state": "working_tree",
+    "source_tree_sha256": "d3c440bc9994576fd51cb5b157d1426330aa4d2d443d3ca66fa56460b15f4b0e",
+    "selected_test_source_sha256": {
+      "tests/integration/test_degraded_acceptance.py": "b345a15a2dd052a2d0a844508f8c12d88f9142d245944b36c837cd5b1bf10b4f",
+      "tests/integration/test_disconnect_acceptance.py": "21c5c0da15a64e92340dd68611d24a648c08f085e1db7682bdc9a0a0bfb5a6d6",
+      "tests/providers/ai/test_claude_llm.py": "e9ff3a822a53e5cae825df7f7ae2174118ab39cd3c68bd0891c644c7bf1bd862",
+      "tests/providers/ai/test_stt.py": "05845e0d1695c97ad550b4eb29fabfc6bc4e6b7ea2ef577deccd80712d67e7dd",
+      "tests/repositories/postgres/test_booking_module.py": "5aae317d7810aa2be825a7a2199a41c07d7263806ef90a25584a9b28dffd2a17",
+      "tests/repositories/postgres/test_live_call_state.py": "a00423fbbb40ed0e176460c72acb3a057118b0e7aec6e5b38e7d0d01676933a7",
+      "tests/services/test_knowledge_answer.py": "31a4780483c7787d089a7ee1ec02f6c22f31a414a74129e78f3e4f5abce97529",
+      "tests/services/test_live_call_state.py": "0226db0c201e23a579c5f178cfc7d2d39c9decf2aed20ee5b2552149c8921a29",
+      "tests/services/test_streaming_voice.py": "6193e703539a03f6cbb58bb013fca97aa97803163e1133ebe89ba31eef7c213d",
+      "tests/services/test_tts_service.py": "11020115aa4de26376b693c7ee32579fd27f319c3d17fe37cf893cfc1289b677"
+    },
+    "configuration_sha256": "cec7b847ad6ee0697e0849a4906683662e779e70b730368cb284729799a2d499",
+    "hardware": "Darwin arm64",
+    "python_version": "3.12.12",
+    "selected_test_selectors": [
+      "tests/repositories/postgres/test_live_call_state.py::test_new_owner_restores_sql_stage_and_slots_after_hot_state_loss",
+      "tests/services/test_live_call_state.py::test_failed_durable_write_is_ordered_immutable_and_never_published_to_redis",
+      "tests/providers/ai/test_stt.py::test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes",
+      "tests/providers/ai/test_stt.py::test_daemon_work_does_not_block_event_loop",
+      "tests/providers/ai/test_claude_llm.py::test_partial_text_never_retries_and_timeout_cancel_close_transport",
+      "tests/services/test_tts_service.py::test_timeout_and_admission_bound_cleanup",
+      "tests/services/test_streaming_voice.py::test_output_backpressure_fails_with_fallback_or_transport_close_not_silence",
+      "tests/services/test_streaming_voice.py::test_disconnect_uses_same_cancel_clear_release_and_marks_terminal_call",
+      "tests/integration/test_disconnect_acceptance.py::test_transport_disconnect_cancels_pending_stage_without_task_or_output_leak",
+      "tests/integration/test_disconnect_acceptance.py::test_normal_audio_source_eof_drains_pending_recognition_and_final_response",
+      "tests/services/test_knowledge_answer.py::test_generation_timeout_closes_stream_and_audits_deferral",
+      "tests/integration/test_degraded_acceptance.py::test_retrieval_timeout_cancels_search_before_llm_and_next_call_recovers",
+      "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error",
+      "tests/providers/ai/test_claude_llm.py::test_missing_usage_retains_reservation_fail_closed",
+      "tests/providers/ai/test_claude_llm.py::test_token_and_spend_budget_block_before_http",
+      "tests/providers/ai/test_claude_llm.py::test_retry_after_is_honored_and_cannot_exceed_total_deadline",
+      "tests/repositories/postgres/test_booking_module.py::test_100_http_requests_have_exactly_one_commit",
+      "tests/integration/test_degraded_acceptance.py::test_llm_and_hot_cache_outage_preserve_durable_slots_and_safe_unbooked_response",
+      "tests/services/test_streaming_voice.py::test_minimum_speech_barge_in_cancels_every_stage_and_resumes"
+    ],
+    "unmeasured_selectors": [],
+    "cases": [
+      {
+        "case_id": "redis_sql_recovery",
+        "status": "passed",
+        "selected": [
+          "tests/repositories/postgres/test_live_call_state.py::test_new_owner_restores_sql_stage_and_slots_after_hot_state_loss",
+          "tests/services/test_live_call_state.py::test_failed_durable_write_is_ordered_immutable_and_never_published_to_redis"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 3
+        },
+        "results": [
+          {
+            "node_id": "tests/repositories/postgres/test_live_call_state.py::test_new_owner_restores_sql_stage_and_slots_after_hot_state_loss[missing]",
+            "outcome": "passed",
+            "duration_secs": 1.703
+          },
+          {
+            "node_id": "tests/repositories/postgres/test_live_call_state.py::test_new_owner_restores_sql_stage_and_slots_after_hot_state_loss[expired]",
+            "outcome": "passed",
+            "duration_secs": 0.54
+          },
+          {
+            "node_id": "tests/services/test_live_call_state.py::test_failed_durable_write_is_ordered_immutable_and_never_published_to_redis",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          }
+        ]
+      },
+      {
+        "case_id": "slow_stt",
+        "status": "passed",
+        "selected": [
+          "tests/providers/ai/test_stt.py::test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes",
+          "tests/providers/ai/test_stt.py::test_daemon_work_does_not_block_event_loop"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 5
+        },
+        "results": [
+          {
+            "node_id": "tests/providers/ai/test_stt.py::test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes[WhisperSTT-False]",
+            "outcome": "passed",
+            "duration_secs": 0.045
+          },
+          {
+            "node_id": "tests/providers/ai/test_stt.py::test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes[WhisperSTT-True]",
+            "outcome": "passed",
+            "duration_secs": 0.003
+          },
+          {
+            "node_id": "tests/providers/ai/test_stt.py::test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes[WhisperMLXSTT-False]",
+            "outcome": "passed",
+            "duration_secs": 0.043
+          },
+          {
+            "node_id": "tests/providers/ai/test_stt.py::test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes[WhisperMLXSTT-True]",
+            "outcome": "passed",
+            "duration_secs": 0.003
+          },
+          {
+            "node_id": "tests/providers/ai/test_stt.py::test_daemon_work_does_not_block_event_loop",
+            "outcome": "passed",
+            "duration_secs": 0.035
+          }
+        ]
+      },
+      {
+        "case_id": "slow_llm",
+        "status": "passed",
+        "selected": [
+          "tests/providers/ai/test_claude_llm.py::test_partial_text_never_retries_and_timeout_cancel_close_transport"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 3
+        },
+        "results": [
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_partial_text_never_retries_and_timeout_cancel_close_transport[timeout]",
+            "outcome": "passed",
+            "duration_secs": 0.043
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_partial_text_never_retries_and_timeout_cancel_close_transport[cancel]",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_partial_text_never_retries_and_timeout_cancel_close_transport[failure]",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          }
+        ]
+      },
+      {
+        "case_id": "slow_tts",
+        "status": "passed",
+        "selected": [
+          "tests/services/test_tts_service.py::test_timeout_and_admission_bound_cleanup"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 1
+        },
+        "results": [
+          {
+            "node_id": "tests/services/test_tts_service.py::test_timeout_and_admission_bound_cleanup",
+            "outcome": "passed",
+            "duration_secs": 0.021
+          }
+        ]
+      },
+      {
+        "case_id": "queue_pressure",
+        "status": "passed",
+        "selected": [
+          "tests/services/test_streaming_voice.py::test_output_backpressure_fails_with_fallback_or_transport_close_not_silence"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 1
+        },
+        "results": [
+          {
+            "node_id": "tests/services/test_streaming_voice.py::test_output_backpressure_fails_with_fallback_or_transport_close_not_silence",
+            "outcome": "passed",
+            "duration_secs": 0.064
+          }
+        ]
+      },
+      {
+        "case_id": "disconnect",
+        "status": "passed",
+        "selected": [
+          "tests/services/test_streaming_voice.py::test_disconnect_uses_same_cancel_clear_release_and_marks_terminal_call",
+          "tests/integration/test_disconnect_acceptance.py::test_transport_disconnect_cancels_pending_stage_without_task_or_output_leak",
+          "tests/integration/test_disconnect_acceptance.py::test_normal_audio_source_eof_drains_pending_recognition_and_final_response"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 6
+        },
+        "results": [
+          {
+            "node_id": "tests/services/test_streaming_voice.py::test_disconnect_uses_same_cancel_clear_release_and_marks_terminal_call",
+            "outcome": "passed",
+            "duration_secs": 0.001
+          },
+          {
+            "node_id": "tests/integration/test_disconnect_acceptance.py::test_transport_disconnect_cancels_pending_stage_without_task_or_output_leak[asr]",
+            "outcome": "passed",
+            "duration_secs": 0.001
+          },
+          {
+            "node_id": "tests/integration/test_disconnect_acceptance.py::test_transport_disconnect_cancels_pending_stage_without_task_or_output_leak[generation]",
+            "outcome": "passed",
+            "duration_secs": 0.003
+          },
+          {
+            "node_id": "tests/integration/test_disconnect_acceptance.py::test_transport_disconnect_cancels_pending_stage_without_task_or_output_leak[synthesis]",
+            "outcome": "passed",
+            "duration_secs": 0.003
+          },
+          {
+            "node_id": "tests/integration/test_disconnect_acceptance.py::test_transport_disconnect_cancels_pending_stage_without_task_or_output_leak[playback]",
+            "outcome": "passed",
+            "duration_secs": 0.007
+          },
+          {
+            "node_id": "tests/integration/test_disconnect_acceptance.py::test_normal_audio_source_eof_drains_pending_recognition_and_final_response",
+            "outcome": "passed",
+            "duration_secs": 0.018
+          }
+        ]
+      },
+      {
+        "case_id": "rag_timeout",
+        "status": "passed",
+        "selected": [
+          "tests/services/test_knowledge_answer.py::test_generation_timeout_closes_stream_and_audits_deferral",
+          "tests/integration/test_degraded_acceptance.py::test_retrieval_timeout_cancels_search_before_llm_and_next_call_recovers"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 2
+        },
+        "results": [
+          {
+            "node_id": "tests/services/test_knowledge_answer.py::test_generation_timeout_closes_stream_and_audits_deferral",
+            "outcome": "passed",
+            "duration_secs": 0.012
+          },
+          {
+            "node_id": "tests/integration/test_degraded_acceptance.py::test_retrieval_timeout_cancels_search_before_llm_and_next_call_recovers",
+            "outcome": "passed",
+            "duration_secs": 0.013
+          }
+        ]
+      },
+      {
+        "case_id": "provider_429_5xx_budget",
+        "status": "passed",
+        "selected": [
+          "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error",
+          "tests/providers/ai/test_claude_llm.py::test_missing_usage_retains_reservation_fail_closed",
+          "tests/providers/ai/test_claude_llm.py::test_token_and_spend_budget_block_before_http",
+          "tests/providers/ai/test_claude_llm.py::test_retry_after_is_honored_and_cannot_exceed_total_deadline"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 10
+        },
+        "results": [
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error[429-rate_limit_error-True]",
+            "outcome": "passed",
+            "duration_secs": 0.009
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error[503-overloaded_error-True]",
+            "outcome": "passed",
+            "duration_secs": 0.003
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error[429-insufficient_quota-False]",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error[429-billing_error-False]",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error[401-authentication_error-False]",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error[400-invalid_request_error-False]",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_missing_usage_retains_reservation_fail_closed",
+            "outcome": "passed",
+            "duration_secs": 0.014
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_token_and_spend_budget_block_before_http[values0]",
+            "outcome": "passed",
+            "duration_secs": 0.001
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_token_and_spend_budget_block_before_http[values1]",
+            "outcome": "passed",
+            "duration_secs": 0.001
+          },
+          {
+            "node_id": "tests/providers/ai/test_claude_llm.py::test_retry_after_is_honored_and_cannot_exceed_total_deadline",
+            "outcome": "passed",
+            "duration_secs": 0.035
+          }
+        ]
+      },
+      {
+        "case_id": "booking_100_race",
+        "status": "passed",
+        "selected": [
+          "tests/repositories/postgres/test_booking_module.py::test_100_http_requests_have_exactly_one_commit"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 1
+        },
+        "results": [
+          {
+            "node_id": "tests/repositories/postgres/test_booking_module.py::test_100_http_requests_have_exactly_one_commit",
+            "outcome": "passed",
+            "duration_secs": 1.276
+          }
+        ]
+      },
+      {
+        "case_id": "combined_cache_llm_outage",
+        "status": "passed",
+        "selected": [
+          "tests/integration/test_degraded_acceptance.py::test_llm_and_hot_cache_outage_preserve_durable_slots_and_safe_unbooked_response"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 1
+        },
+        "results": [
+          {
+            "node_id": "tests/integration/test_degraded_acceptance.py::test_llm_and_hot_cache_outage_preserve_durable_slots_and_safe_unbooked_response",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          }
+        ]
+      },
+      {
+        "case_id": "barge_in_all_stages",
+        "status": "passed",
+        "selected": [
+          "tests/services/test_streaming_voice.py::test_minimum_speech_barge_in_cancels_every_stage_and_resumes"
+        ],
+        "unmeasured": [],
+        "missing_results": [],
+        "counts": {
+          "passed": 3
+        },
+        "results": [
+          {
+            "node_id": "tests/services/test_streaming_voice.py::test_minimum_speech_barge_in_cancels_every_stage_and_resumes[generation]",
+            "outcome": "passed",
+            "duration_secs": 0.002
+          },
+          {
+            "node_id": "tests/services/test_streaming_voice.py::test_minimum_speech_barge_in_cancels_every_stage_and_resumes[synthesis]",
+            "outcome": "passed",
+            "duration_secs": 0.004
+          },
+          {
+            "node_id": "tests/services/test_streaming_voice.py::test_minimum_speech_barge_in_cancels_every_stage_and_resumes[playback]",
+            "outcome": "passed",
+            "duration_secs": 0.005
+          }
+        ]
+      }
+    ],
+    "counts": {
+      "passed": 36
+    },
+    "exit_code": 0,
+    "timed_out": false,
+    "elapsed_secs": 6.835927042004187,
+    "executed_suites_passed": true,
+    "plan_complete": true,
+    "junit_sha256": "031f0842eee1002179afa59ac1ff15963789c642c2eb7eb3b4b8dbc8e34dec2a",
+    "process_output_sha256": "81fe590206549c31ec7edc29e17420dd99174ebc1d93806ea90f617ddcd561a2",
+    "native_quality": null,
+    "native_stop_latency_ms": null,
+    "production_slo_passed": false,
+    "limitations": [
+      "Synthetic/fake AI and transport only; no paid API, model inference or microphone.",
+      "Native SQL/Redis fixtures own temporary loopback services only when explicitly selected; Docker is disabled.",
+      "Test wall times measure regression execution, never acoustic latency or production SLOs.",
+      "Passed engineering drills require separate review and do not grant product approval."
+    ]
+  },
+  "source_sha256": {
+    "roma/eval/project_readiness.py": "69ffd9a4330c2a93886dcb61066c046fcfb04469f45726ba01317b2b379b12f1",
+    "roma/eval/backend_lab.py": "1081f4c890b7d968510e43a041ade40fb3d5a304ee98413704b59bff51984797",
+    "scripts/evaluate_project.py": "6c1d383555c2f164f17159712a688b0d73aae656147e1ef000fce64cf6720cdb",
+    "roma/eval/regressions.py": "b0e0617bcb081a1619561048f4170ffaae7b40decf97e96b2aa2d60ea2a5553f",
+    "roma/services/streaming_voice.py": "88cb56e4a4ab3621e5791a60ae1a71b5b3b32e51272de3a63616bc91e3d8c7da"
+  }
+}

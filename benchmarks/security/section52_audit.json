@@ -1,0 +1,131 @@
+{
+  "checked_at": "2026-10-27T14:48:23.576694+00:00",
+  "dependency_audit": {
+    "compatibility_upgrade": {
+      "pipecat-ai": "1.14.0",
+      "reason": "Earlier checked 1.6-1.13 versions require Pillow<13; patched Pillow requires13.0.0. Roma retains explicit patched NLTK."
+    },
+    "dependency_resolution_disabled": true,
+    "hashes_required": true,
+    "ignored_advisories": [],
+    "initial_audit": {
+      "advisory_rows": 103,
+      "affected_packages": 9,
+      "duplicate_advisory_ids_possible": true,
+      "packages": 109
+    },
+    "linux_method": "Evaluate the same hashed export markers for Linux x86_64/Python 3.12, remove satisfied markers, and audit exact locked versions without installing runtime or models.",
+    "minimal_patched_locked_versions": {
+      "aiohttp": "3.14.4",
+      "certifi": "2026.10.19",
+      "cryptography": "50.0.0",
+      "filelock": "4.2.1",
+      "multidict": "6.9.1",
+      "nltk": "3.10.4",
+      "pillow": "13.0.0",
+      "pyjwt": "2.15.0",
+      "virtualenv": "21.14.10"
+    },
+    "platforms": {
+      "linux_x86_64_python312": {
+        "advisory_rows": 0,
+        "packages": 191,
+        "skipped_packages": 0
+      },
+      "macos_arm64_python312": {
+        "advisory_rows": 0,
+        "packages": 178,
+        "skipped_packages": 0
+      }
+    },
+    "selected_extras": [
+      "backend",
+      "telephony",
+      "workers",
+      "observability",
+      "embeddings",
+      "voice-lab",
+      "mlx-asr",
+      "duplex",
+      "dev",
+      "security",
+      "load"
+    ],
+    "service": "pypi",
+    "tool": "pip-audit",
+    "version": "2.10.1"
+  },
+  "evidence_kind": "real_public_advisory_and_secret_scanners_plus_offline_tests",
+  "limits": [
+    "Dated public-advisory coverage, not a future-vulnerability guarantee.",
+    "Linux marker audit is not a native Linux runtime test.",
+    "Independently provisioned Indic-TTS/model artifacts are outside this dependency export.",
+    "No paid API, model download, microphone, working database, private environment edit, native voice acceptance or production rollout.",
+    "Whole-catalog and Docker evidence are recorded separately."
+  ],
+  "lock": {
+    "file": "uv.lock",
+    "sha256": "5cd98e26cdcd32a7c004fb7238cbee8a965062959b7db21872ffaf60c4cb8310"
+  },
+  "schema_version": 1,
+  "secret_scan": {
+    "allowlist_policy": "Rule AND path AND reviewed exact synthetic content or source-hash-map syntax; no baseline or whole-path exclusions.",
+    "archive_sha256": {
+      "darwin_arm64": "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5",
+      "linux_x64": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    },
+    "checksum_source": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt",
+    "fresh_official_download_verified": true,
+    "history": "all Git refs with full history, including first-parent merge patches",
+    "history_log_options": [
+      "--all",
+      "--full-history",
+      "--diff-merges=first-parent"
+    ],
+    "ignored_runtime_and_private_environment_read": false,
+    "outstanding_findings": 0,
+    "passed": true,
+    "regression": {
+      "failing_before": true,
+      "incomplete_shallow_history_rejected": true,
+      "inline_allow_directives_ignored": true,
+      "merge_only_removed_secret_test": "test_real_scanner_finds_a_removed_secret_introduced_only_in_merge_commit",
+      "passing_after": true,
+      "real_pinned_scanner_used": true,
+      "removed_linear_history_and_untracked_worktree_detection": true,
+      "shallow_history_failing_before": true
+    },
+    "release_source": "https://github.com/gitleaks/gitleaks/releases/tag/v8.30.1",
+    "tool": "gitleaks",
+    "version": "8.30.1",
+    "worktree": "all Git-visible tracked and untracked current files"
+  },
+  "section": 52,
+  "source_sha256": {
+    ".github/workflows/ci.yml": "9976ac8c0d46df9416afd495a7e1e3ab169bd4bcdb22bebf6747a17e065519ed",
+    "configs/production.local.env": "8819d38abc7352e173fcde1a64194de3410587d07d3313a0628b4446a4e43a79",
+    "configs/security/gitleaks-release.json": "89873fcec5d30f8eaee39c0125fb20ecf4937d2e40a346a7ca7bdff3ccb82840",
+    "configs/security/gitleaks.toml": "f36160c02d2de76264ffab71af0bf38b250484ded963019ada9d3547009bdd58",
+    "configs/security/gitleaksignore": "0551c3ecb6f2b618ba1244cfc04f410a13e6cf4ebb34d944caa91f1a831600b9",
+    "roma/providers/telephony/twilio/audio.py": "478efd18b1214f4343526f570f7f5ae5e1c6b6407252ed8a7b87f4ccf70c356d",
+    "roma/realtime/turntaking.py": "19b1860220cc9be6bbd6abfa8288256360a2ed6311389132abc85f0ae6d0c595",
+    "scripts/check_production_policy.py": "e8b6334f543e098b1be7260fe94b3df7dc6eb01d3a33ae8fef264dfd8bafb0ce",
+    "scripts/install_gitleaks.py": "fe8df14294b982be10ee9b00f020d4898dea6c1960f8902913182c7affdaa279",
+    "scripts/scan_secrets.py": "4cadc6d7ea42b56f2094ec20dcd3223320ceec2a43306af45db421520decb397",
+    "tests/realtime/test_turntaking.py": "4f227547d8f7a049a4015168fbccbd6d3bfcdf61d552f8d4ad0abd852803f61e",
+    "tests/security/test_production_policy.py": "1d1a95f1275a04c6a2f3b5fa2a5a6b731b4654aa3b33f20ca8d46acd8fc868a6",
+    "tests/security/test_secret_scanner.py": "71b9752983a570b98c771d4f2b549288ad74622a3c97e7bbd365ce79a6d403c1"
+  },
+  "verification": {
+    "ci_yaml_and_pyproject_toml_parse_passed": true,
+    "compatibility_mypy_files": 2,
+    "lightweight_security_ci_tests_passed": 8,
+    "production_target_policy_passed": true,
+    "realtime_carrier_architecture_tests_passed": 582,
+    "scoped_ruff_passed": true,
+    "security_jwt_encryption_pii_tokenizer_tests_passed": 33,
+    "security_scripts_mypy_files": 3,
+    "post_packaging_workflow_unique_mapping_check_passed": true,
+    "post_packaging_per_service_image_builds_passed": true
+  }
+}

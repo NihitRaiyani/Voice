@@ -1,0 +1,301 @@
+{
+  "section": 53,
+  "captured_at_utc": "2026-10-27T09:49:27.943989+00:00",
+  "scope": "isolated local full mock stack; not production/native acceptance",
+  "base_commit": "b638f7d",
+  "project": "roma-stack-section53-proof",
+  "build": {
+    "result": "passed",
+    "locked_backend_extra": true,
+    "private_dotenv_loaded": false,
+    "paid_calls": 0,
+    "model_downloads": 0
+  },
+  "services": {
+    "api": {
+      "health": "healthy",
+      "image": "roma-stack-api:section53-previous",
+      "image_id": "sha256:2290212552e88ed4b8dae0ff5c9489ef3edafa9fc359b6219144140883e267c0",
+      "configured_user": "10001:10001",
+      "pid1_uid": 10001,
+      "read_only_root": true,
+      "memory_limit_bytes": 402653184
+    },
+    "worker": {
+      "health": "healthy",
+      "image": "roma-stack-worker:section53-previous",
+      "image_id": "sha256:11a997e6f2f6ba87ddcabb497691001430a0fbd145e013380159d1f0bfbc0efa",
+      "configured_user": "10001:10001",
+      "pid1_uid": 10001,
+      "read_only_root": true,
+      "memory_limit_bytes": 402653184
+    },
+    "postgres": {
+      "health": "healthy",
+      "image": "pgvector/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0",
+      "image_id": "sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0",
+      "configured_user": "",
+      "pid1_uid": 999,
+      "read_only_root": false,
+      "memory_limit_bytes": 402653184
+    },
+    "redis": {
+      "health": "healthy",
+      "image": "redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98",
+      "image_id": "sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98",
+      "configured_user": "redis",
+      "pid1_uid": 999,
+      "read_only_root": true,
+      "memory_limit_bytes": 134217728
+    },
+    "prometheus": {
+      "health": "healthy",
+      "image": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+      "image_id": "sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+      "configured_user": "65534:65534",
+      "pid1_uid": 65534,
+      "read_only_root": true,
+      "memory_limit_bytes": 268435456
+    },
+    "grafana": {
+      "health": "healthy",
+      "image": "grafana/grafana:12.2.1@sha256:35c41e0fd0295f5d0ee5db7e780cf33506abfaf47686196f825364889dee878b",
+      "image_id": "sha256:35c41e0fd0295f5d0ee5db7e780cf33506abfaf47686196f825364889dee878b",
+      "configured_user": "472:0",
+      "pid1_uid": 472,
+      "read_only_root": true,
+      "memory_limit_bytes": 268435456
+    }
+  },
+  "migration": {
+    "isolated_database": "roma_stack",
+    "revision": "20261026_0007",
+    "working_roma_modified": false
+  },
+  "smoke": {
+    "api_health": 200,
+    "api_ready": 200,
+    "metrics_unauthenticated": 401,
+    "metrics_authenticated": 200,
+    "prometheus_target": "up",
+    "grafana_health": 200,
+    "grafana_provisioned_datasource": "OK",
+    "worker_synthetic_job": "succeeded_with_one_durable_event; generated rows removed"
+  },
+  "rollback": {
+    "result": "passed",
+    "previous_compatible_tag": "section53-previous",
+    "previous_api_image_id": "sha256:2290212552e88ed4b8dae0ff5c9489ef3edafa9fc359b6219144140883e267c0",
+    "current_api_image_id": "sha256:2290212552e88ed4b8dae0ff5c9489ef3edafa9fc359b6219144140883e267c0",
+    "same_digest_tag_rehearsal": true,
+    "historical_release_rollback_verified": false,
+    "schema_downgraded": false,
+    "synthetic_marker_survived": true,
+    "marker_removed_after_verification": true,
+    "durable_volumes_preserved": true,
+    "registry_pull": "never"
+  },
+  "native_contracts": {
+    "gpu": {
+      "exit_code": 1,
+      "reason": "Retained Whisper Turbo MLX 4-bit requires native Apple Silicon Mac; NVIDIA device reservation does not make it CUDA compatible",
+      "models_mounted": false,
+      "network": "none"
+    },
+    "native-mac": {
+      "exit_code": 1,
+      "reason": "Native Mac speech requires an explicitly configured authenticated external bridge; loopback-only native service is not Docker-reachable",
+      "models_mounted": false,
+      "network": "none"
+    }
+  },
+  "resources": {
+    "daemon_memory_bytes": 4108632064,
+    "sample_kind": "single idle snapshot, not capacity or peak RAM evidence",
+    "snapshot": [
+      {
+        "Name": "roma-stack-section53-proof-api-1",
+        "CPUPerc": "12.13%",
+        "MemUsage": "72.23MiB / 384MiB",
+        "MemPerc": "18.81%",
+        "PIDs": "6"
+      },
+      {
+        "Name": "roma-stack-section53-proof-worker-1",
+        "CPUPerc": "5.60%",
+        "MemUsage": "53.69MiB / 384MiB",
+        "MemPerc": "13.98%",
+        "PIDs": "2"
+      },
+      {
+        "Name": "roma-stack-section53-proof-postgres-1",
+        "CPUPerc": "0.20%",
+        "MemUsage": "31.77MiB / 384MiB",
+        "MemPerc": "8.27%",
+        "PIDs": "11"
+      },
+      {
+        "Name": "roma-stack-section53-proof-redis-1",
+        "CPUPerc": "0.80%",
+        "MemUsage": "9.75MiB / 128MiB",
+        "MemPerc": "7.62%",
+        "PIDs": "6"
+      },
+      {
+        "Name": "roma-stack-section53-proof-prometheus-1",
+        "CPUPerc": "0.35%",
+        "MemUsage": "36.34MiB / 256MiB",
+        "MemPerc": "14.19%",
+        "PIDs": "6"
+      },
+      {
+        "Name": "roma-stack-section53-proof-grafana-1",
+        "CPUPerc": "1.48%",
+        "MemUsage": "88.71MiB / 256MiB",
+        "MemPerc": "34.65%",
+        "PIDs": "8"
+      }
+    ]
+  },
+  "source_sha256": {
+    "Dockerfile": "f51b9a234cc14278173b45ffe5c5231ab35b28b6ad2d78fd063a204993f59995",
+    ".dockerignore": "cb9671e3c484f6cb524231b488ef8ef825faa8523cd0e83e3452f8e407c3b4de",
+    "compose.stack.yaml": "020230911302f21f0a1493e3e15b659d11d2ed228ff76a96d32da8d75669d3f5",
+    "docker/redis-start.sh": "b2172a8f71d547b67ba9ca6224f3871be333b87c07652212e187f2aafdc127aa",
+    "docker/prometheus.yaml": "59da0e13bcbac82362f8796fe628a430a904df8437130f627eb22a21f8c25935",
+    "docker/grafana-datasource.yaml": "8d318c02cb72cdc4d32466f26ffe076a5f1e8cb72f5a47be044a786310b163ec",
+    "scripts/container_stack.py": "0287de06a17fd152fdbfa9fd0ff789db6828d17be60e8634df81a92c425779ba",
+    "pyproject.toml": "a82dce69491531172419d28841a555773abdc11b0ccb87db565fd2890ea41367",
+    "uv.lock": "5cd98e26cdcd32a7c004fb7238cbee8a965062959b7db21872ffaf60c4cb8310",
+    "roma/api/v1/analytics.py": "d6d96542d3090c71d9fae4cb8607f20978841c14bbd267883f7efa1216dea734",
+    "roma/api/v1/calls.py": "0919d689d16f294ee4ce8f215268f2d94a71dea5476471bf725a1e6491047532",
+    "roma/api/v1/supervisor.py": "b8c74a85e5deaee967e088e36a1f56a3d6caaa21678c27ac4c096477aa8751eb",
+    "roma/backend_app.py": "02426a8e5442466516dd648f2a4cf673c7aafacd5d83e71fb7831b169f636420",
+    "roma/container_runtime.py": "229ee5137cbd28557fa53316d73b5eea11405bad17da2bcde105eebf9fad5a9b",
+    "roma/eval/backend_lab.py": "1081f4c890b7d968510e43a041ade40fb3d5a304ee98413704b59bff51984797",
+    "roma/eval/load.py": "aa403701711651bacf4d455f8f91c79211ddef930d0c9d25c2597d50164ef47d",
+    "roma/eval/native_services.py": "3e74331c57d909f104a349f55be3eb365ab78228f1dc7817132856905ceccdff",
+    "roma/eval/project_readiness.py": "69ffd9a4330c2a93886dcb61066c046fcfb04469f45726ba01317b2b379b12f1",
+    "roma/eval/regressions.py": "b0e0617bcb081a1619561048f4170ffaae7b40decf97e96b2aa2d60ea2a5553f",
+    "roma/main.py": "931ebc20c09c3c48cc7e8fa1661ba64c88a06e75072286852d88373df38cea62",
+    "roma/providers/telephony/twilio/audio.py": "478efd18b1214f4343526f570f7f5ae5e1c6b6407252ed8a7b87f4ccf70c356d",
+    "roma/realtime/pipeline.py": "db137e4b2fdc6c26c5a2401ca54335eb8bcfdce045a05b68a1ff99b72bcf8d3c",
+    "roma/realtime/telemetry.py": "67873f253df07e1ad586d56ee31fe255e0a8f25945e37598d67097784c8f45c0",
+    "roma/realtime/turntaking.py": "19b1860220cc9be6bbd6abfa8288256360a2ed6311389132abc85f0ae6d0c595",
+    "roma/repositories/postgres/analytics.py": "d9231d977e687791349ae961117e7453205645474e58351ef2fe4e9f84ec1de7",
+    "roma/repositories/postgres/supervisor.py": "475ef74be4e421422cd404301b9f6a1c4c37d82af9b27bf79ccf9323a4275489",
+    "roma/schemas/analytics.py": "51448d60634b3e01d69484bb4aa3166dfb63b369a5f76016e2eb6cc0e9e28bb2",
+    "roma/schemas/supervisor.py": "6ba62baeed2c001431ccf012a74c7aaac36f73e4615bccb2843ca766c418d71c",
+    "roma/services/analytics_service.py": "8d4cd6c9fe428e4374cff9cccad03fc57f92f07f07f47ab5b0db4dabf6edefbc",
+    "roma/services/live_call_state.py": "816258da2683740f55bcbc0f5f3f2c2d0fb6505672fd39a5ea2bfafeaf98298c",
+    "roma/services/streaming_voice.py": "88cb56e4a4ab3621e5791a60ae1a71b5b3b32e51272de3a63616bc91e3d8c7da",
+    "roma/services/supervisor.py": "59e69d1243794702f50b846c0aa08d0890858360643a5dc261625990b4628b00",
+    "docker/Dockerfile.worker": "7503ba841efbd1b90f34eaaa55d1faee72c200fd75cbfeeca623b9e102ed2613",
+    "docker/Dockerfile.model-contract": "e8eca78e341a384e4f89ba918ffd85fbc025bdfdd286c40a357df419c812f95a",
+    ".github/workflows/ci.yml": "9976ac8c0d46df9416afd495a7e1e3ab169bd4bcdb22bebf6747a17e065519ed",
+    "tests/deployment/test_container_stack.py": "01e36f3e7e3cd62a57af7b92789a401f19a9c4a808842c1f4cdeaaf9c509cd6f"
+  },
+  "verification": {
+    "deployment_tests_passed": 19,
+    "independent_focused_review_tests_passed": 43,
+    "docker_sdk_import_regression": "passed; helper moved to roma.container_runtime",
+    "ruff": "scoped lint and format passed",
+    "retained_key_regressions_failed_before_passed_after": 7,
+    "per_service_dockerfile_contract_failed_before_passed_after": true
+  },
+  "remaining_gates": [
+    "native MLX/container incompatibility; no CUDA backend or model substitution",
+    "native speech/representative quality and combined-memory acceptance",
+    "historical distinct-image release rollback",
+    "fresh physical clean-host install and production deployment ownership"
+  ],
+  "image_source_hashes_verified_against_workspace": {
+    "roma/api/v1/analytics.py": "d6d96542d3090c71d9fae4cb8607f20978841c14bbd267883f7efa1216dea734",
+    "roma/api/v1/calls.py": "0919d689d16f294ee4ce8f215268f2d94a71dea5476471bf725a1e6491047532",
+    "roma/api/v1/supervisor.py": "b8c74a85e5deaee967e088e36a1f56a3d6caaa21678c27ac4c096477aa8751eb",
+    "roma/backend_app.py": "02426a8e5442466516dd648f2a4cf673c7aafacd5d83e71fb7831b169f636420",
+    "roma/container_runtime.py": "229ee5137cbd28557fa53316d73b5eea11405bad17da2bcde105eebf9fad5a9b",
+    "roma/eval/backend_lab.py": "1081f4c890b7d968510e43a041ade40fb3d5a304ee98413704b59bff51984797",
+    "roma/eval/load.py": "aa403701711651bacf4d455f8f91c79211ddef930d0c9d25c2597d50164ef47d",
+    "roma/eval/native_services.py": "3e74331c57d909f104a349f55be3eb365ab78228f1dc7817132856905ceccdff",
+    "roma/eval/project_readiness.py": "69ffd9a4330c2a93886dcb61066c046fcfb04469f45726ba01317b2b379b12f1",
+    "roma/eval/regressions.py": "b0e0617bcb081a1619561048f4170ffaae7b40decf97e96b2aa2d60ea2a5553f",
+    "roma/main.py": "931ebc20c09c3c48cc7e8fa1661ba64c88a06e75072286852d88373df38cea62",
+    "roma/providers/telephony/twilio/audio.py": "478efd18b1214f4343526f570f7f5ae5e1c6b6407252ed8a7b87f4ccf70c356d",
+    "roma/realtime/pipeline.py": "db137e4b2fdc6c26c5a2401ca54335eb8bcfdce045a05b68a1ff99b72bcf8d3c",
+    "roma/realtime/telemetry.py": "67873f253df07e1ad586d56ee31fe255e0a8f25945e37598d67097784c8f45c0",
+    "roma/realtime/turntaking.py": "19b1860220cc9be6bbd6abfa8288256360a2ed6311389132abc85f0ae6d0c595",
+    "roma/repositories/postgres/analytics.py": "d9231d977e687791349ae961117e7453205645474e58351ef2fe4e9f84ec1de7",
+    "roma/repositories/postgres/supervisor.py": "475ef74be4e421422cd404301b9f6a1c4c37d82af9b27bf79ccf9323a4275489",
+    "roma/schemas/analytics.py": "51448d60634b3e01d69484bb4aa3166dfb63b369a5f76016e2eb6cc0e9e28bb2",
+    "roma/schemas/supervisor.py": "6ba62baeed2c001431ccf012a74c7aaac36f73e4615bccb2843ca766c418d71c",
+    "roma/services/analytics_service.py": "8d4cd6c9fe428e4374cff9cccad03fc57f92f07f07f47ab5b0db4dabf6edefbc",
+    "roma/services/live_call_state.py": "816258da2683740f55bcbc0f5f3f2c2d0fb6505672fd39a5ea2bfafeaf98298c",
+    "roma/services/streaming_voice.py": "88cb56e4a4ab3621e5791a60ae1a71b5b3b32e51272de3a63616bc91e3d8c7da",
+    "roma/services/supervisor.py": "59e69d1243794702f50b846c0aa08d0890858360643a5dc261625990b4628b00"
+  },
+  "cleanup": {
+    "dedicated_containers_removed": true,
+    "durable_and_secret_volumes_retained": 10,
+    "runtime_secret_material": "owner-only generated files, ignored var/container-stack/section53-proof",
+    "unrelated_resources_touched": false
+  },
+  "retained_key_recovery": {
+    "captured_at_utc": "2026-10-27T14:49:16.865307+00:00",
+    "project": "roma-stack-section53-proof",
+    "scope": "real Docker retained mock volumes; isolated temporary missing-key drill; existing verified images, no rebuild",
+    "checks": {
+      "partial_keyset_refused_without_replacement": true,
+      "restored_original_keyset_accepted": true,
+      "entirely_lost_state_refused_before_key_creation_real_volume_probe": true,
+      "no_build_start_1_smoke_and_all_original_keys_retained": true,
+      "no_build_start_2_smoke_and_all_original_keys_retained": true,
+      "down_preserved_volumes_and_keys": true
+    },
+    "keys_or_hashes_disclosed": false,
+    "paid_calls": 0,
+    "model_downloads": 0,
+    "unrelated_resources_touched": false,
+    "script_source_sha256": "0287de06a17fd152fdbfa9fd0ff789db6828d17be60e8634df81a92c425779ba",
+    "test_source_sha256": "52e6e011fba3f16e14f6e8e0c7d35c9ee3778abac723c4aa1ec8c1b9b1756767"
+  },
+  "per_service_dockerfiles": {
+    "captured_at_utc": "2026-10-27T15:08:55.482287+00:00",
+    "built_targets": {
+      "api": "sha256:4b639d2218dcaf8bb9be7e013abc9e3f87761c00957330f8142284455f8eba5f",
+      "worker": "sha256:d97a5d8cafd9ce1c58d12b43c3f4b9b770b436a073e37865b7bbb8ecf35f8a8a",
+      "model-contract": "sha256:7709f4f754af4a1e107c0689ec0b7161e0e280bc8e28baac797fa8ef5447ce73"
+    },
+    "source_sha256": {
+      "docker/Dockerfile.worker": "7503ba841efbd1b90f34eaaa55d1faee72c200fd75cbfeeca623b9e102ed2613",
+      "docker/Dockerfile.model-contract": "e8eca78e341a384e4f89ba918ffd85fbc025bdfdd286c40a357df419c812f95a",
+      "compose.stack.yaml": "020230911302f21f0a1493e3e15b659d11d2ed228ff76a96d32da8d75669d3f5",
+      ".github/workflows/ci.yml": "9976ac8c0d46df9416afd495a7e1e3ab169bd4bcdb22bebf6747a17e065519ed",
+      "tests/deployment/test_container_stack.py": "01e36f3e7e3cd62a57af7b92789a401f19a9c4a808842c1f4cdeaaf9c509cd6f"
+    },
+    "mock_up_migrate_health_smoke": "passed",
+    "rollback_to_previous_compatible_packaging_image": "passed",
+    "previous_api_image_id": "sha256:2290212552e88ed4b8dae0ff5c9489ef3edafa9fc359b6219144140883e267c0",
+    "current_api_image_id": "sha256:4b639d2218dcaf8bb9be7e013abc9e3f87761c00957330f8142284455f8eba5f",
+    "distinct_image_rollback": true,
+    "historical_release_rollback_verified": false,
+    "all_original_keys_retained": true,
+    "owned_containers_removed": true,
+    "durable_volumes_retained": true,
+    "paid_calls": 0,
+    "model_downloads": 0,
+    "unrelated_resources_touched": false,
+    "source_file_identities": [
+      {
+        "path": "docker/Dockerfile.api",
+        "sha256": "915002495201b3781939eb97d97792ded7737e42e33b3e57e8ba945287d712d5"
+      }
+    ]
+  },
+  "source_file_identities": [
+    {
+      "path": "docker/Dockerfile.api",
+      "sha256": "915002495201b3781939eb97d97792ded7737e42e33b3e57e8ba945287d712d5"
+    }
+  ]
+}

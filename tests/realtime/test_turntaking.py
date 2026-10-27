@@ -13,6 +13,7 @@ import asyncio
 import time
 
 import pytest
+from pipecat.clocks.system_clock import SystemClock
 from pipecat.frames.frames import (
     BotStartedSpeakingFrame,
     BotStoppedSpeakingFrame,
@@ -20,6 +21,7 @@ from pipecat.frames.frames import (
     VADUserStartedSpeakingFrame,
     VADUserStoppedSpeakingFrame,
 )
+from pipecat.processors.frame_processor import FrameProcessorSetup
 from pipecat.turns.types import ProcessFrameResult
 from pipecat.utils.asyncio.task_manager import TaskManager
 from roma.realtime.backchannel import (
@@ -36,6 +38,12 @@ from roma.realtime.turntaking import (
 START_SECS = 0.2
 STOP_SECS = 0.85
 ARM = 0.05
+
+
+def _frame_setup():
+    return FrameProcessorSetup(
+        clock=SystemClock(), task_manager=TaskManager(), pipeline_worker=None
+    )
 
 
 def _text(s: str) -> TranscriptionFrame:
@@ -94,7 +102,7 @@ async def _make(arm: float = BACKCHANNEL_MAX_SECS, **kwargs):
     strategy = BackchannelAwareUserTurnStartStrategy(
         enable_interruptions=True, backchannel_max_secs=arm, **kwargs
     )
-    await strategy.setup(TaskManager())
+    await strategy.setup(_frame_setup())
     return strategy, _Controller().attach(strategy)
 
 
@@ -365,7 +373,7 @@ def test_stale_bot_speaking_cannot_survive_a_turn_boundary():
 
 async def _timeout_after(*texts: str) -> float:
     s = AdaptiveEndpointStopStrategy()
-    await s.setup(TaskManager())
+    await s.setup(_frame_setup())
     for t in texts:
         await s._handle_transcription(_text(t))
     timeout = s._user_speech_timeout
@@ -392,7 +400,7 @@ async def _armed_sleeps(text: str, *, since_vad_stop: float) -> list[float]:
     """
     armed: list[float] = []
     s = AdaptiveEndpointStopStrategy()
-    await s.setup(TaskManager())
+    await s.setup(_frame_setup())
 
     def _record(timeout: float):
         armed.append(timeout)
@@ -450,7 +458,7 @@ def test_adaptive_policy_value_survives_the_rearm():
 
     async def run():
         s = AdaptiveEndpointStopStrategy()
-        await s.setup(TaskManager())
+        await s.setup(_frame_setup())
         armed: list[float] = []
 
         def _record(timeout: float):
@@ -498,7 +506,7 @@ def test_adaptive_timeout_resets_to_default_on_a_new_turn():
 
     async def run():
         s = AdaptiveEndpointStopStrategy()
-        await s.setup(TaskManager())
+        await s.setup(_frame_setup())
         await s._handle_transcription(_text("એક મિનિટ"))
         stretched = s._user_speech_timeout
         await s.handle_user_turn_started()
@@ -542,9 +550,11 @@ def test_pipecat_upgrade_canary():
         "_user_speech_timeout",
         "_user_speech_timeout_task",
         "_user_speech_wait_done",
-        "_vad_stopped_time",
+        "_vad_stopped",
     ):
         assert attr in state, attr
+
+    assert "_endpoint_vad_stopped_at" in vars(AdaptiveEndpointStopStrategy())
 
     import inspect
 
@@ -559,7 +569,7 @@ def test_injected_user_speech_timeout_is_honoured_as_the_per_turn_default():
 
     async def run():
         s = AdaptiveEndpointStopStrategy(user_speech_timeout=0.7)
-        await s.setup(TaskManager())
+        await s.setup(_frame_setup())
         await s.handle_user_turn_started()
         after_turn_start = s._user_speech_timeout
         await s._handle_transcription(_text("એક મિનિટ"))
@@ -582,7 +592,7 @@ def test_multi_segment_text_does_not_fuse_tokens_at_the_boundary():
 
     async def run():
         s = AdaptiveEndpointStopStrategy()
-        await s.setup(TaskManager())
+        await s.setup(_frame_setup())
         await s._handle_transcription(_text("મને જોઈએ છે"))
         await s._handle_transcription(_text("એક મિનિટ"))
         timeout = s._user_speech_timeout
@@ -651,7 +661,7 @@ def _drive_real(frames, *, wait=0.0):
 
     async def run():
         agg = _real_user_aggregator()
-        await agg._user_turn_controller.setup(TaskManager())
+        await agg._user_turn_controller.setup(_frame_setup())
         strategy, controller = _strategy_of(agg)
 
         real_trigger = strategy.trigger_user_turn_started
@@ -683,7 +693,7 @@ def test_a_bot_speaking_frame_actually_reaches_the_strategy():
 
     async def run():
         agg = _real_user_aggregator()
-        await agg._user_turn_controller.setup(TaskManager())
+        await agg._user_turn_controller.setup(_frame_setup())
         strategy, controller = _strategy_of(agg)
 
         await controller.process_frame(BotStartedSpeakingFrame())

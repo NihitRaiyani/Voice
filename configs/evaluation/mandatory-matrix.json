@@ -1,0 +1,633 @@
+{
+  "schema_version": 1,
+  "target_policy": "Unset targets block acceptance; proposed numbers require owner approval.",
+  "checks": [
+    {
+      "id": "asr.gu",
+      "metrics": [
+        "wer",
+        "cer"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md"
+    },
+    {
+      "id": "asr.hi",
+      "metrics": [
+        "wer",
+        "cer"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md"
+    },
+    {
+      "id": "asr.en",
+      "metrics": [
+        "wer",
+        "cer"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md"
+    },
+    {
+      "id": "asr.mixed",
+      "metrics": [
+        "wer",
+        "cer"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md"
+    },
+    {
+      "id": "asr.noisy_phone",
+      "metrics": [
+        "wer",
+        "cer"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "wer": null,
+        "cer": null
+      },
+      "existing_evidence": "benchmarks/asr; docs/levels/level-04.md"
+    },
+    {
+      "id": "endpointing",
+      "metrics": [
+        "false_cuts",
+        "turn_end_p95_ms"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "false_cuts": null,
+        "turn_end_p95_ms": null
+      },
+      "existing_evidence": "docs/05-endpointing-vad.md"
+    },
+    {
+      "id": "llm.scripted_turns",
+      "metrics": [
+        "json_validity_rate",
+        "ttft_p95_ms",
+        "input_tokens",
+        "output_tokens"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 70,
+      "targets": {
+        "json_validity_rate": null,
+        "ttft_p95_ms": null,
+        "input_tokens": null,
+        "output_tokens": null
+      },
+      "existing_evidence": "evals/scripts; scripts/run_eval.py"
+    },
+    {
+      "id": "safety.escape",
+      "metrics": [
+        "escape_rate"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "escape_rate": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "roma/eval/checks.py"
+    },
+    {
+      "id": "tts.short",
+      "metrics": [
+        "rtf",
+        "first_audio_p95_ms"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "existing_evidence": "benchmarks/tts/section19-report.json"
+    },
+    {
+      "id": "tts.medium",
+      "metrics": [
+        "rtf",
+        "first_audio_p95_ms"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "existing_evidence": "benchmarks/tts/section19-report.json"
+    },
+    {
+      "id": "tts.long",
+      "metrics": [
+        "rtf",
+        "first_audio_p95_ms"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "rtf": null,
+        "first_audio_p95_ms": null
+      },
+      "existing_evidence": "benchmarks/tts/section19-report.json"
+    },
+    {
+      "id": "barge_in.early",
+      "metrics": [
+        "cancel_p95_ms",
+        "stale_audio_frames"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "existing_evidence": "docs/levels/level-07.md"
+    },
+    {
+      "id": "barge_in.middle",
+      "metrics": [
+        "cancel_p95_ms",
+        "stale_audio_frames"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "existing_evidence": "docs/levels/level-07.md"
+    },
+    {
+      "id": "barge_in.late",
+      "metrics": [
+        "cancel_p95_ms",
+        "stale_audio_frames"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "cancel_p95_ms": null,
+        "stale_audio_frames": null
+      },
+      "existing_evidence": "docs/levels/level-07.md"
+    },
+    {
+      "id": "hardware.gpu",
+      "metrics": [
+        "utilization_percent",
+        "vram_peak_mb"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "utilization_percent": null,
+        "vram_peak_mb": null
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "end_to_end.real_calls",
+      "metrics": [
+        "turn_p95_ms",
+        "error_rate"
+      ],
+      "accepted_kinds": [
+        "real_call"
+      ],
+      "minimum_samples": 10,
+      "targets": {
+        "turn_p95_ms": null,
+        "error_rate": null
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "conversation.stage_accuracy",
+      "metrics": [
+        "accuracy"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 70,
+      "targets": {
+        "accuracy": null
+      },
+      "existing_evidence": "evals/scripts"
+    },
+    {
+      "id": "booking.race100",
+      "metrics": [
+        "winners",
+        "conflicts",
+        "attempts"
+      ],
+      "accepted_kinds": [
+        "disposable_backend"
+      ],
+      "minimum_samples": 100,
+      "targets": {
+        "winners": {
+          "direction": "exact",
+          "value": 1
+        },
+        "conflicts": {
+          "direction": "exact",
+          "value": 99
+        },
+        "attempts": {
+          "direction": "exact",
+          "value": 100
+        }
+      },
+      "existing_evidence": "tests/repositories/postgres/test_booking_module.py::test_100_http_requests_have_exactly_one_commit"
+    },
+    {
+      "id": "native_review.gu",
+      "metrics": [
+        "intelligibility_score",
+        "relevance_score"
+      ],
+      "accepted_kinds": [
+        "human"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "native_review.hi",
+      "metrics": [
+        "intelligibility_score",
+        "relevance_score"
+      ],
+      "accepted_kinds": [
+        "human"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "native_review.en",
+      "metrics": [
+        "intelligibility_score",
+        "relevance_score"
+      ],
+      "accepted_kinds": [
+        "human"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "native_review.mixed",
+      "metrics": [
+        "intelligibility_score",
+        "relevance_score"
+      ],
+      "accepted_kinds": [
+        "human"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "intelligibility_score": null,
+        "relevance_score": null
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "injection",
+      "metrics": [
+        "escape_rate"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 30,
+      "targets": {
+        "escape_rate": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "runtime.event_loop",
+      "metrics": [
+        "stall_p95_ms",
+        "stall_max_ms"
+      ],
+      "accepted_kinds": [
+        "native",
+        "disposable_backend"
+      ],
+      "minimum_samples": 100,
+      "targets": {
+        "stall_p95_ms": null,
+        "stall_max_ms": null
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "rag.quality",
+      "metrics": [
+        "recall_at_k",
+        "mrr",
+        "groundedness",
+        "deferral_accuracy",
+        "safety_rate"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 38,
+      "targets": {
+        "recall_at_k": null,
+        "mrr": null,
+        "groundedness": null,
+        "deferral_accuracy": null,
+        "safety_rate": null
+      },
+      "existing_evidence": "benchmarks/rag/local-v1-report.json"
+    },
+    {
+      "id": "rag.latency",
+      "metrics": [
+        "retrieval_p95_ms",
+        "answer_p95_ms"
+      ],
+      "accepted_kinds": [
+        "native"
+      ],
+      "minimum_samples": 38,
+      "targets": {
+        "retrieval_p95_ms": null,
+        "answer_p95_ms": null
+      },
+      "existing_evidence": "benchmarks/rag/local-v1-report.json"
+    },
+    {
+      "id": "chaos.redis_loss",
+      "metrics": [
+        "passed_scenarios",
+        "failed_scenarios"
+      ],
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json"
+    },
+    {
+      "id": "chaos.provider_timeout",
+      "metrics": [
+        "passed_scenarios",
+        "failed_scenarios"
+      ],
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json"
+    },
+    {
+      "id": "chaos.queue_pressure",
+      "metrics": [
+        "passed_scenarios",
+        "failed_scenarios"
+      ],
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json"
+    },
+    {
+      "id": "chaos.disconnect",
+      "metrics": [
+        "passed_scenarios",
+        "failed_scenarios"
+      ],
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json"
+    },
+    {
+      "id": "chaos.rag_timeout",
+      "metrics": [
+        "passed_scenarios",
+        "failed_scenarios"
+      ],
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json"
+    },
+    {
+      "id": "chaos.rate_limit_budget",
+      "metrics": [
+        "passed_scenarios",
+        "failed_scenarios"
+      ],
+      "accepted_kinds": [
+        "synthetic",
+        "disposable_backend"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "passed_scenarios": {
+          "direction": "min",
+          "value": 1
+        },
+        "failed_scenarios": {
+          "direction": "max",
+          "value": 0
+        }
+      },
+      "existing_evidence": "configs/evaluation/chaos-regressions.json"
+    },
+    {
+      "id": "approval.latency_resource_slos",
+      "metrics": [
+        "approved"
+      ],
+      "accepted_kinds": [
+        "account_review"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "approved": {
+          "direction": "min",
+          "value": 1
+        }
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "approval.privacy_consent",
+      "metrics": [
+        "approved"
+      ],
+      "accepted_kinds": [
+        "account_review"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "approved": {
+          "direction": "min",
+          "value": 1
+        }
+      },
+      "existing_evidence": ""
+    },
+    {
+      "id": "approval.provider_account_terms",
+      "metrics": [
+        "approved"
+      ],
+      "accepted_kinds": [
+        "account_review"
+      ],
+      "minimum_samples": 1,
+      "targets": {
+        "approved": {
+          "direction": "min",
+          "value": 1
+        }
+      },
+      "existing_evidence": ""
+    }
+  ]
+}

@@ -424,11 +424,22 @@ def test_http_pcm_controller_grounded_answer_safety_and_twilio_wire_share_real_a
 
 
 def test_stalled_grounding_uses_readiness_cached_deferral_without_turn_tts(
-    cost_database, tmp_path
+    cost_database, tmp_path, monkeypatch
 ):
+    scoped_answer = ScopedKnowledgeAnswers.answer_turn
+
+    async def delayed_scope(self, *args, **kwargs):
+        # Scope lookup/turn persistence share the outer deadline. Deliberately
+        # model scheduling/SQL delay so the test reaches the intended LLM stall
+        # without relying on an idle machine completing SQL inside 100 ms.
+        await asyncio.sleep(0.15)
+        return await scoped_answer(self, *args, **kwargs)
+
+    monkeypatch.setattr(ScopedKnowledgeAnswers, "answer_turn", delayed_scope)
+
     async def run():
         async with _flow(
-            cost_database, blocked=True, deadline_secs=0.1, cache_dir=tmp_path
+            cost_database, blocked=True, deadline_secs=1, cache_dir=tmp_path
         ) as flow:
             await asyncio.wait_for(flow.wire.done.wait(), 3)
             assert flow.selector.entered.is_set() and flow.selector.exited.is_set()

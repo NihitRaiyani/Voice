@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "evidence_scope": "Offline fake AI; native SQL/Redis only where test fixtures explicitly own disposable services.",
+  "cases": {
+    "redis_sql_recovery": [
+      "tests/repositories/postgres/test_live_call_state.py::test_new_owner_restores_sql_stage_and_slots_after_hot_state_loss",
+      "tests/services/test_live_call_state.py::test_failed_durable_write_is_ordered_immutable_and_never_published_to_redis"
+    ],
+    "slow_stt": [
+      "tests/providers/ai/test_stt.py::test_cancel_or_timeout_keeps_native_worker_busy_until_it_finishes",
+      "tests/providers/ai/test_stt.py::test_daemon_work_does_not_block_event_loop"
+    ],
+    "slow_llm": [
+      "tests/providers/ai/test_claude_llm.py::test_partial_text_never_retries_and_timeout_cancel_close_transport"
+    ],
+    "slow_tts": [
+      "tests/services/test_tts_service.py::test_timeout_and_admission_bound_cleanup"
+    ],
+    "queue_pressure": [
+      "tests/services/test_streaming_voice.py::test_output_backpressure_fails_with_fallback_or_transport_close_not_silence"
+    ],
+    "disconnect": [
+      "tests/services/test_streaming_voice.py::test_disconnect_uses_same_cancel_clear_release_and_marks_terminal_call",
+      "tests/integration/test_disconnect_acceptance.py::test_transport_disconnect_cancels_pending_stage_without_task_or_output_leak",
+      "tests/integration/test_disconnect_acceptance.py::test_normal_audio_source_eof_drains_pending_recognition_and_final_response"
+    ],
+    "rag_timeout": [
+      "tests/services/test_knowledge_answer.py::test_generation_timeout_closes_stream_and_audits_deferral",
+      "tests/integration/test_degraded_acceptance.py::test_retrieval_timeout_cancels_search_before_llm_and_next_call_recovers"
+    ],
+    "provider_429_5xx_budget": [
+      "tests/providers/ai/test_claude_llm.py::test_transient_retry_is_bounded_and_never_exposes_raw_error",
+      "tests/providers/ai/test_claude_llm.py::test_missing_usage_retains_reservation_fail_closed",
+      "tests/providers/ai/test_claude_llm.py::test_token_and_spend_budget_block_before_http",
+      "tests/providers/ai/test_claude_llm.py::test_retry_after_is_honored_and_cannot_exceed_total_deadline"
+    ],
+    "booking_100_race": [
+      "tests/repositories/postgres/test_booking_module.py::test_100_http_requests_have_exactly_one_commit"
+    ],
+    "combined_cache_llm_outage": [
+      "tests/integration/test_degraded_acceptance.py::test_llm_and_hot_cache_outage_preserve_durable_slots_and_safe_unbooked_response"
+    ],
+    "barge_in_all_stages": [
+      "tests/services/test_streaming_voice.py::test_minimum_speech_barge_in_cancels_every_stage_and_resumes"
+    ]
+  }
+}

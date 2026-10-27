@@ -1,0 +1,282 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "mock_backend",
+  "transport": "http_asgi_in_process",
+  "workload": "full scripted text calls; mocked LLM/extraction; optional native SQL/Redis probes",
+  "policy_status": "unset",
+  "stop_limits": {
+    "max_error_rate": null,
+    "max_fallback_rate": null,
+    "max_p95_ms": null,
+    "max_stall_ms": null,
+    "max_peak_rss_mb": null
+  },
+  "stopped": null,
+  "tiers": [
+    {
+      "concurrency": 1,
+      "attempts": 2,
+      "completed": 2,
+      "failures": 0,
+      "fallbacks": 0,
+      "quality_failures": 0,
+      "turns": 24,
+      "status_counts": {
+        "200": 2
+      },
+      "elapsed_secs": 0.07245554199471371,
+      "throughput_calls_per_sec": 27.6031335207722,
+      "latency_ms": {
+        "p50": 24.797833000775427,
+        "p95": 41.66287499538157,
+        "p99": 41.66287499538157,
+        "max": 41.66287499538157
+      },
+      "redis_latency_ms": {
+        "p50": 0.36666700179921463,
+        "p95": 2.245084004243836,
+        "p99": 2.245084004243836,
+        "max": 2.245084004243836
+      },
+      "rag_latency_ms": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "event_loop_stall_ms": {
+        "p50": 0.14920800196705375,
+        "p95": 22.175708004506305,
+        "p99": 22.175708004506305,
+        "max": 22.175708004506305
+      },
+      "event_loop_samples": 5,
+      "db_connections_max": 1,
+      "process_cpu_seconds": 0.04982699999999994,
+      "process_peak_rss_mb": 92.1875,
+      "gpu_utilization_percent": null,
+      "vram_peak_mb": null,
+      "native_ttft_ms": null
+    },
+    {
+      "concurrency": 10,
+      "attempts": 20,
+      "completed": 20,
+      "failures": 0,
+      "fallbacks": 0,
+      "quality_failures": 0,
+      "turns": 240,
+      "status_counts": {
+        "200": 20
+      },
+      "elapsed_secs": 0.42112633299984736,
+      "throughput_calls_per_sec": 47.49168701356714,
+      "latency_ms": {
+        "p50": 158.92883299966343,
+        "p95": 263.19545799924526,
+        "p99": 283.7903749968973,
+        "max": 283.7903749968973
+      },
+      "redis_latency_ms": {
+        "p50": 19.979666998551693,
+        "p95": 152.30733300268184,
+        "p99": 166.7104579973966,
+        "max": 166.7104579973966
+      },
+      "rag_latency_ms": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "event_loop_stall_ms": {
+        "p50": 18.39787500386592,
+        "p95": 99.09516700019594,
+        "p99": 99.09516700019594,
+        "max": 99.09516700019594
+      },
+      "event_loop_samples": 12,
+      "db_connections_max": 10,
+      "process_cpu_seconds": 0.3562770000000001,
+      "process_peak_rss_mb": 92.1875,
+      "gpu_utilization_percent": null,
+      "vram_peak_mb": null,
+      "native_ttft_ms": null
+    },
+    {
+      "concurrency": 25,
+      "attempts": 50,
+      "completed": 50,
+      "failures": 0,
+      "fallbacks": 0,
+      "quality_failures": 0,
+      "turns": 600,
+      "status_counts": {
+        "200": 50
+      },
+      "elapsed_secs": 0.6011851250004838,
+      "throughput_calls_per_sec": 83.1690571185702,
+      "latency_ms": {
+        "p50": 271.41587500227615,
+        "p95": 302.57183399953647,
+        "p99": 315.43387500278186,
+        "max": 315.43387500278186
+      },
+      "redis_latency_ms": {
+        "p50": 21.309374998963904,
+        "p95": 49.274291995971,
+        "p99": 61.5146670024842,
+        "max": 61.5146670024842
+      },
+      "rag_latency_ms": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "event_loop_stall_ms": {
+        "p50": 46.35791700013215,
+        "p95": 61.568041998834815,
+        "p99": 61.568041998834815,
+        "max": 61.568041998834815
+      },
+      "event_loop_samples": 15,
+      "db_connections_max": 10,
+      "process_cpu_seconds": 0.580239,
+      "process_peak_rss_mb": 92.1875,
+      "gpu_utilization_percent": null,
+      "vram_peak_mb": null,
+      "native_ttft_ms": null
+    },
+    {
+      "concurrency": 50,
+      "attempts": 100,
+      "completed": 100,
+      "failures": 0,
+      "fallbacks": 0,
+      "quality_failures": 0,
+      "turns": 1200,
+      "status_counts": {
+        "200": 100
+      },
+      "elapsed_secs": 1.2382727910007816,
+      "throughput_calls_per_sec": 80.75764946686685,
+      "latency_ms": {
+        "p50": 584.1978749958798,
+        "p95": 619.7425419959472,
+        "p99": 641.5319580046344,
+        "max": 644.8320419949596
+      },
+      "redis_latency_ms": {
+        "p50": 36.71333300007973,
+        "p95": 85.24266700260341,
+        "p99": 89.95399999548681,
+        "max": 110.5635420026374
+      },
+      "rag_latency_ms": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "event_loop_stall_ms": {
+        "p50": 16.716041999752633,
+        "p95": 95.54291699634632,
+        "p99": 96.97312500531552,
+        "max": 96.97312500531552
+      },
+      "event_loop_samples": 26,
+      "db_connections_max": 10,
+      "process_cpu_seconds": 1.1733360000000004,
+      "process_peak_rss_mb": 93.203125,
+      "gpu_utilization_percent": null,
+      "vram_peak_mb": null,
+      "native_ttft_ms": null
+    },
+    {
+      "concurrency": 100,
+      "attempts": 200,
+      "completed": 200,
+      "failures": 0,
+      "fallbacks": 0,
+      "quality_failures": 0,
+      "turns": 2400,
+      "status_counts": {
+        "200": 200
+      },
+      "elapsed_secs": 2.5564836249977816,
+      "throughput_calls_per_sec": 78.23245885260602,
+      "latency_ms": {
+        "p50": 1191.9039999993402,
+        "p95": 1344.355583001743,
+        "p99": 1365.158833003079,
+        "max": 1373.4194579956238
+      },
+      "redis_latency_ms": {
+        "p50": 42.53104099916527,
+        "p95": 97.59612500056392,
+        "p99": 141.83029199921293,
+        "max": 144.17979100107914
+      },
+      "rag_latency_ms": {
+        "p50": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      },
+      "event_loop_stall_ms": {
+        "p50": 27.1024579970981,
+        "p95": 113.06716700084507,
+        "p99": 152.26816700043855,
+        "max": 152.26816700043855
+      },
+      "event_loop_samples": 46,
+      "db_connections_max": 10,
+      "process_cpu_seconds": 2.451602,
+      "process_peak_rss_mb": 93.609375,
+      "gpu_utilization_percent": null,
+      "vram_peak_mb": null,
+      "native_ttft_ms": null
+    }
+  ],
+  "real_model_capacity": null,
+  "production_slo_passed": false,
+  "resource_scope": "load generator and ASGI backend process; SQL/Redis server CPU/RAM unmeasured",
+  "generated_at": "2026-10-27T09:41:42.693680+00:00",
+  "revision": "b638f7d9830ad4cbd1751b5a33673518f9277b91",
+  "dataset_sha256": "8b5e078f2017a694f398c7dace39cd05562a90cd78c4994a03225666ac998ba5",
+  "configuration_sha256": "98e73534a2bad8aa4bffa4cb187c627e0227c1e30601b4fda20172a242240d84",
+  "hardware": "Darwin arm64",
+  "conditions": "unprimed first request; mock calls; sequential tiers share process",
+  "source_state": "working_tree",
+  "python_version": "3.12.12",
+  "source_sha256": {
+    "roma/eval/backend_lab.py": "1081f4c890b7d968510e43a041ade40fb3d5a304ee98413704b59bff51984797",
+    "roma/eval/load.py": "aa403701711651bacf4d455f8f91c79211ddef930d0c9d25c2597d50164ef47d",
+    "roma/eval/native_services.py": "3e74331c57d909f104a349f55be3eb365ab78228f1dc7817132856905ceccdff",
+    "scripts/load_backend.py": "8b0628b2f668e8ef5a9f059cf1f4cc2452fc730a93ae99fe7cc8f4e1c3f6c8d7"
+  },
+  "dependency_versions": {
+    "fastapi": "0.139.2",
+    "httpx": "0.28.1",
+    "SQLAlchemy": "2.0.54",
+    "asyncpg": "0.31.0",
+    "redis": "8.0.1"
+  },
+  "models": {
+    "llm": "fixture-driven MockLLMProvider",
+    "stt": null,
+    "tts": null,
+    "embeddings": null
+  },
+  "services": {
+    "postgres": "owned_disposable_native",
+    "redis": "owned_disposable_native"
+  },
+  "limitations": [
+    "In-process ASGI excludes sockets, carrier, speech, paid Claude and cross-process workers.",
+    "SQL SELECT/probe connections and Redis PING are measured; these are not per-turn durable checkpoints.",
+    "Twelve fixture turns execute production text orchestration, extraction parsing and final safety; no booking commit.",
+    "RAG not invoked: RAG latency remains null. Process peak RSS includes imports and prior tiers."
+  ]
+}

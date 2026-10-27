@@ -1,0 +1,253 @@
+# Isolated full mock stack; existing compose.yaml remains compatibility tooling.
+x-app: &app
+  image: roma-stack-api:${ROMA_IMAGE_TAG:-local}
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.api
+    target: api
+  read_only: true
+  user: "10001:10001"
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ["/tmp:size=32m,mode=1777"]
+  volumes: [app-secrets:/run/secrets:ro]
+  environment:
+    ROMA_CONTAINER_MOCK: "1"
+    APP_ENV: container_mock
+    ROMA_DATA_DIR: /var/roma
+    METRICS_SCRAPE_TOKEN_FILE: /run/secrets/metrics_token
+    DATABASE_POOL_SIZE: "2"
+    DATABASE_MAX_OVERFLOW: "0"
+    DATABASE_POOL_PROCESSES: "2"
+    DATABASE_CONNECTION_BUDGET: "10"
+    LLM_PROVIDER: mock
+    STT_PROVIDER: mock
+    TTS_PROVIDER: mock
+    EMBEDDING_PROVIDER: mock
+    TELEPHONY_PROVIDER: mock
+    RECORDING_ENABLED: "false"
+    RAG_ENABLED: "false"
+  cpus: 1
+  mem_limit: 384m
+  pids_limit: 128
+  stop_grace_period: 20s
+
+services:
+  secrets-init:
+    <<: *app
+    user: "0:0"
+    command: [secrets-init]
+    restart: "no"
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    secrets: [postgres_password, redis_password, auth_jwt_secret, pii_hash_key, pii_encryption_key, metrics_token, grafana_password]
+    volumes:
+      - app-secrets:/out/app
+      - redis-secrets:/out/redis
+      - prometheus-secrets:/out/prometheus
+      - grafana-secrets:/out/grafana
+    network_mode: none
+    mem_limit: 128m
+
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0
+    environment:
+      POSTGRES_DB: roma_stack
+      POSTGRES_USER: roma_stack
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U roma_stack -d roma_stack"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    mem_limit: 384m
+    cpus: 1
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+    networks: [private]
+
+  redis:
+    image: redis:7.4.6-alpine@sha256:3b73847e72874be07e6657b129a94761662b79bc0f679273757d4218573b2a98
+    user: redis
+    entrypoint: [sh, /etc/roma/redis-start.sh]
+    volumes:
+      - redis-data:/data
+      - redis-secrets:/run/secrets:ro
+      - ./docker/redis-start.sh:/etc/roma/redis-start.sh:ro
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli ping | grep -q PONG']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 64
+    networks: [private]
+
+  migrator:
+    <<: *app
+    networks: [private]
+    command: [migrate]
+    restart: "no"
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  api:
+    <<: *app
+    networks: [private, loopback]
+    command: [api]
+    volumes: [runtime-data:/var/roma, app-secrets:/run/secrets:ro]
+    ports: ["127.0.0.1:18020:8020"]
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      migrator: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, python, -m, roma.container_runtime, api-health]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  worker:
+    <<: *app
+    networks: [private]
+    image: roma-stack-worker:${ROMA_IMAGE_TAG:-local}
+    build: {context: ., dockerfile: docker/Dockerfile.worker, target: worker}
+    command: [worker]
+    volumes: [worker-data:/var/roma, app-secrets:/run/secrets:ro]
+    depends_on:
+      secrets-init: {condition: service_completed_successfully}
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      migrator: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, python, -m, roma.container_runtime, worker-health]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  prometheus:
+    image: prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7
+    user: "65534:65534"
+    command: [--config.file=/etc/prometheus/prometheus.yml, --storage.tsdb.path=/prometheus, --storage.tsdb.retention.size=128MB]
+    volumes:
+      - ./docker/prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+      - prometheus-secrets:/run/secrets:ro
+    ports: ["127.0.0.1:19090:9090"]
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:9090/-/ready]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 64
+    networks: [private, loopback]
+
+  grafana:
+    image: grafana/grafana:12.2.1@sha256:35c41e0fd0295f5d0ee5db7e780cf33506abfaf47686196f825364889dee878b
+    user: "472:0"
+    environment:
+      GF_SECURITY_ADMIN_USER: roma
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - grafana-secrets:/run/secrets:ro
+      - ./docker/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/roma.yaml:ro
+    ports: ["127.0.0.1:13000:3000"]
+    depends_on:
+      prometheus: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:3000/api/health]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    read_only: true
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    networks: [private, loopback]
+
+  speech-gpu:
+    <<: *app
+    networks: [private]
+    profiles: [gpu]
+    image: roma-stack-model:${ROMA_IMAGE_TAG:-local}
+    build: {context: ., dockerfile: docker/Dockerfile.model-contract, target: model-contract}
+    command: [gpu]
+    volumes: ["${ROMA_WEIGHTS_DIR:?Set runtime weights directory}:/models:ro"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: [CMD, python, -m, roma.container_runtime, model-health]
+      interval: 5s
+      timeout: 3s
+      retries: 2
+
+  speech-native-bridge:
+    <<: *app
+    networks: [private]
+    profiles: [native-mac]
+    image: roma-stack-model:${ROMA_IMAGE_TAG:-local}
+    build: {context: ., dockerfile: docker/Dockerfile.model-contract, target: model-contract}
+    command: [native-mac]
+    volumes: ["${ROMA_WEIGHTS_DIR:?Set runtime weights directory}:/models:ro"]
+    healthcheck:
+      test: [CMD, python, -m, roma.container_runtime, model-health]
+      interval: 5s
+      timeout: 3s
+      retries: 2
+
+networks:
+  private: {internal: true}
+  loopback: {driver: bridge}
+volumes:
+  app-secrets:
+  redis-secrets:
+  prometheus-secrets:
+  grafana-secrets:
+  postgres-data:
+  redis-data:
+  runtime-data:
+  worker-data:
+  prometheus-data:
+  grafana-data:
+secrets:
+  postgres_password: {file: "${STACK_STATE_DIR:?Use the stack runner}/postgres_password"}
+  redis_password: {file: "${STACK_STATE_DIR:?Use the stack runner}/redis_password"}
+  auth_jwt_secret: {file: "${STACK_STATE_DIR:?Use the stack runner}/auth_jwt_secret"}
+  pii_encryption_key: {file: "${STACK_STATE_DIR:?Use the stack runner}/pii_encryption_key"}
+  pii_hash_key: {file: "${STACK_STATE_DIR:?Use the stack runner}/pii_hash_key"}
+  metrics_token: {file: "${STACK_STATE_DIR:?Use the stack runner}/metrics_token"}
+  grafana_password: {file: "${STACK_STATE_DIR:?Use the stack runner}/grafana_password"}

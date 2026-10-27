@@ -36,12 +36,13 @@ async def checkpoint_milestone(store, state, milestone):
 
 
 class LiveCallStateStore:
-    def __init__(self, hot, durable, *, lease_factory=None, timeout=1.0, retry_delay=0.05, clock=monotonic):
+    def __init__(self, hot, durable, *, lease_factory=None, timeout=1.0, retry_delay=0.05, clock=monotonic, observer=None):
         if not math.isfinite(timeout) or not 0 < timeout <= 1.5:
             raise ValueError('Checkpoint timeout must be 0..1.5 seconds')
         if not math.isfinite(retry_delay) or not 0 <= retry_delay <= 0.25:
             raise ValueError('Checkpoint retry delay must be 0..0.25 seconds')
         self.hot, self.durable = hot, durable
+        self.observer = observer
         self.lease_factory, self.lease = lease_factory, None
         self._lease_acquired = False
         self.timeout, self.retry_delay, self.clock = timeout, retry_delay, clock
@@ -179,6 +180,11 @@ class LiveCallStateStore:
             self._pending = self._pending_at = None
             log_event(LogEvent.CHECKPOINT_COMPLETED, latency_ms=lag_ms, checkpoint_metrics=self.metrics())
             await self._cache(snapshot)
+            if self.observer is not None:
+                try:
+                    self.observer(snapshot, milestone=milestone.value)
+                except Exception:  # noqa: BLE001 — best-effort supervision never breaks SQL authority.
+                    pass
 
     async def aclose(self):
         async with self._lock:

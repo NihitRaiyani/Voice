@@ -343,10 +343,24 @@ class AdaptiveEndpointStopStrategy(SpeechTimeoutUserTurnStopStrategy):
         self._default_user_speech_timeout = user_speech_timeout
         self._terminal_secs = terminal_secs
         self._continuation_secs = continuation_secs
+        # Pipecat owns whether VAD stopped; Roma owns the timestamp for its deadline.
+        self._endpoint_vad_stopped_at: float | None = None
+
+    async def process_frame(self, frame: Frame) -> ProcessFrameResult:
+        if isinstance(frame, VADUserStartedSpeakingFrame):
+            self._endpoint_vad_stopped_at = None
+        elif isinstance(frame, VADUserStoppedSpeakingFrame):
+            self._endpoint_vad_stopped_at = frame.timestamp
+        return await super().process_frame(frame)
+
+    async def handle_user_turn_stopped(self):
+        self._endpoint_vad_stopped_at = None
+        await super().handle_user_turn_stopped()
 
     async def handle_user_turn_started(self):
         """Reset to the per-turn default so a previous turn's 1300ms can't leak into this
         one. The default is whatever was injected at construction, not the constant."""
+        self._endpoint_vad_stopped_at = None
         await super().handle_user_turn_started()
         self._user_speech_timeout = self._default_user_speech_timeout
 
@@ -362,13 +376,13 @@ class AdaptiveEndpointStopStrategy(SpeechTimeoutUserTurnStopStrategy):
         float is **bound as an argument at arm time**. On our stack the VAD stop always
         lands first (Sarvam flushes its socket only on `VADUserStoppedSpeakingFrame`), so
         by the time a transcript arrives the timer is already sleeping on the old value,
-        and the base class's own re-arm branch is gated behind `_vad_stopped_time is None`
+        and the base class's own re-arm branch is gated behind `not _vad_stopped`
         — never true here. Mutating the attribute alone is a silent no-op: every turn
         would quietly run at the 850ms default no matter what the lead said, with no error
         and a green test suite.
 
         So after the base class has run we re-arm explicitly — to the *remaining* time to
-        the deadline, `_vad_stopped_time + timeout`, not to the full timeout again.
+        the deadline, `_endpoint_vad_stopped_at + timeout`, not to the full timeout again.
         Sleeping the new value from now would push a 500ms terminal answer out to roughly
         transcript-arrival + 500ms, i.e. LATER than the 850ms it was meant to beat.
         `_user_speech_timeout` is the policy floor measured from end-of-speech; honouring
@@ -392,14 +406,14 @@ class AdaptiveEndpointStopStrategy(SpeechTimeoutUserTurnStopStrategy):
                 changed, the base re-armed it and already picked up the new value.
         """
         if (
-            self._vad_stopped_time is None
+            self._endpoint_vad_stopped_at is None
             or self._user_speech_wait_done
             or self._user_speech_timeout_task is None
             or self._user_speech_timeout_task is not armed
         ):
             return
 
-        remaining = max(0.0, self._vad_stopped_time + self._user_speech_timeout - time.time())
+        remaining = max(0.0, self._endpoint_vad_stopped_at + self._user_speech_timeout - time.time())
         policy = self._user_speech_timeout
         self._user_speech_timeout = remaining
         try:

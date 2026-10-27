@@ -59,7 +59,10 @@ class ValidatedTwilioSerializer(TwilioFrameSerializer):
             message = json.loads(data)
             if not isinstance(message, dict):
                 raise ValueError("Expected media object")
-            if message.get("event") != "media":
+            event = message.get("event")
+            if event not in ("connected", "start", "media", "stop", "mark", "dtmf"):
+                raise ValueError("Unknown or missing carrier event")
+            if event != "media":
                 # Controls share the global sequence but never increment media-gap counts.
                 raw_sequence = message.get("sequenceNumber")
                 control_sequence = _positive(raw_sequence) if raw_sequence is not None else None

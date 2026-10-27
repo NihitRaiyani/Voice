@@ -201,6 +201,7 @@ class StreamingInput:
         outcomes = []
         original_scorer = speech.scorer
         control_task = None
+        input_workers = []
         voice = self.voice
         class BargeScorer:
             def probability(self, pcm):
@@ -224,6 +225,10 @@ class StreamingInput:
                         raise VoiceFailure(VoiceErrorCode.ASR)
             except WebSocketDisconnect:
                 await self.voice.disconnect()
+                # Terminal transport loss must also stop pending ASR. Normal
+                # source EOF still drains recognition/finals below.
+                for worker in input_workers:
+                    worker.cancel()
             finally:
                 await self.audio.close()
         async def recognize():
@@ -259,8 +264,8 @@ class StreamingInput:
             async with asyncio.timeout(remaining):
                 async with asyncio.TaskGroup() as group:
                     group.create_task(capture())
-                    group.create_task(recognize())
-                    group.create_task(respond())
+                    input_workers.append(group.create_task(recognize()))
+                    input_workers.append(group.create_task(respond()))
         except BaseException as error:
             # Input loss/ASR failure is terminal too: never leave old output buffered.
             try:

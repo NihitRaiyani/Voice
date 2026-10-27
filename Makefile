@@ -128,3 +128,25 @@ rag-benchmark:
 
 knowledge-worker:
 	$(UV) run --no-sync python -m roma.workers.knowledge --drain --allow-database-write $(ARGS)
+
+.PHONY: evaluation-lab load-backend security-policy secret-scan stack-up stack-down stack-smoke
+evaluation-lab:
+	$(UV) run --no-sync python scripts/evaluate_project.py $(ARGS)
+
+load-backend:
+	$(UV) run --no-sync python scripts/load_backend.py $(ARGS)
+
+security-policy:
+	$(UV) run --no-sync python scripts/check_production_policy.py
+
+secret-scan:
+	$(UV) run --no-sync python scripts/scan_secrets.py $(ARGS)
+
+stack-up:
+	$(UV) run --no-sync python scripts/container_stack.py up $(ARGS)
+
+stack-down:
+	$(UV) run --no-sync python scripts/container_stack.py down $(ARGS)
+
+stack-smoke:
+	$(UV) run --no-sync python scripts/container_stack.py smoke $(ARGS)

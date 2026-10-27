@@ -50,6 +50,7 @@ from roma.services.live_call_state import LiveCallStateStore
 from roma.services.privacy_service import PrivacyService
 from roma.services.recording_service import RecordingService
 from roma.services.safety_service import UnavailableSafetyEventStore
+from roma.services.supervisor import SupervisorHub
 from roma.services.webhook_service import WebhookService
 from roma.workers.postcall.paths import recordings_dir
 
@@ -85,6 +86,8 @@ def create_app() -> FastAPI:
         else None
     )
 
+    supervisor = SupervisorHub(database.session_factory, redis) if database else None
+
     booking = BookingService(
         PostgresBookingStore(database.session_factory) if database else None,
         RedisAppointmentHolds(redis, ttl_seconds=settings.booking_hold_ttl_secs),
@@ -100,16 +103,21 @@ def create_app() -> FastAPI:
             hot,
             PostgresConversationStateStore(database.session_factory),
             lease_factory=lambda sid: RedisCallLease(redis, sid),
+            observer=supervisor.on_state if supervisor else None,
         )
 
-    if settings.rag_enabled and settings.embedding_provider != 'local_multilingual':
-        raise ValueError('Enabled runtime RAG requires configured local embeddings')
-    knowledge = build_knowledge_components(database.session_factory, settings) if database else None
+    if settings.rag_enabled and settings.embedding_provider != "local_multilingual":
+        raise ValueError("Enabled runtime RAG requires configured local embeddings")
+    knowledge = (
+        build_knowledge_components(database.session_factory, settings) if database else None
+    )
 
     @asynccontextmanager
     async def lifespan(_app):
         # Opt-in only: private SDK, bounded safe local metadata, no exporter.
-        with tracing_runtime(get_telemetry(), enabled=getattr(settings, 'tracing_enabled', False)) as traces:
+        with tracing_runtime(
+            get_telemetry(), enabled=getattr(settings, "tracing_enabled", False)
+        ) as traces:
             _app.state.recent_trace_spans = traces
             try:
                 async with application_resources(_app):
@@ -120,19 +128,23 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def application_resources(_app):
         monitor = asyncio.create_task(monitor_event_loop(get_telemetry()))
+        if supervisor is not None:
+            supervisor.start()
         try:
             sample_process_resources()
-            if getattr(settings, 'voice_speech_mode', 'legacy_cloud') == 'local_http':
+            if getattr(settings, "voice_speech_mode", "legacy_cloud") == "local_http":
                 from roma.providers.ai.speech_http import HTTPSTTProvider
+
                 probe = HTTPSTTProvider(settings)
                 try:
                     if not await probe.ready():
-                        raise RuntimeError('Local speech is not warmed and ready')
+                        raise RuntimeError("Local speech is not warmed and ready")
                 finally:
                     await probe.aclose()
                 if settings.rag_enabled:
                     from roma.providers.ai.speech_http import HTTPTTSProvider
                     from roma.realtime.local_speech import prime_local_deferral
+
                     voice = HTTPTTSProvider(settings)
                     try:
                         await prime_local_deferral(_app.state.phrase_cache, voice)
@@ -140,9 +152,11 @@ def create_app() -> FastAPI:
                         await voice.aclose()
             if knowledge is not None and settings.rag_enabled:
                 # Cache-only readiness finishes before callers arrive; no paid generation.
-                await knowledge.provider.embed(EmbeddingRequest(('readiness',), kind='query'))
+                await knowledge.provider.embed(EmbeddingRequest(("readiness",), kind="query"))
             yield
         finally:
+            if supervisor is not None:
+                await supervisor.aclose()
             monitor.cancel()
             with suppress(asyncio.CancelledError):
                 await monitor
@@ -182,17 +196,39 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestRateLimitMiddleware)
     app.add_middleware(RequestLogMiddleware)
+    app.state.supervisor_hub = supervisor
     app.state.telemetry = get_telemetry()
     app.state.cost_service = CostService(database.session_factory) if database else None
-    app.state.call_cost_factory = (lambda state: CallCostRecorder(database.session_factory, app.state.cost_service, state)) if database else None
+    app.state.call_cost_factory = (
+        (
+            lambda state: CallCostRecorder(
+                database.session_factory, app.state.cost_service, state
+            )
+        )
+        if database
+        else None
+    )
     app.state.knowledge_service = knowledge.catalog if knowledge else None
-    app.state.knowledge_search_service = knowledge.search if knowledge and settings.rag_enabled else None
+    app.state.knowledge_search_service = (
+        knowledge.search if knowledge and settings.rag_enabled else None
+    )
     app.state.knowledge_answer_factory = (
-        (lambda call_settings, llm, safety: LiveKnowledge(bind_knowledge_answers(
-            database.session_factory, knowledge, llm, safety=safety,
-            timeout_secs=call_settings.rag_generation_timeout_secs),
-            timeout_secs=call_settings.voice_rag_timeout_secs, filler_after_secs=call_settings.voice_rag_filler_after_secs))
-        if knowledge and settings.rag_enabled else None)
+        (
+            lambda call_settings, llm, safety: LiveKnowledge(
+                bind_knowledge_answers(
+                    database.session_factory,
+                    knowledge,
+                    llm,
+                    safety=safety,
+                    timeout_secs=call_settings.rag_generation_timeout_secs,
+                ),
+                timeout_secs=call_settings.voice_rag_timeout_secs,
+                filler_after_secs=call_settings.voice_rag_filler_after_secs,
+            )
+        )
+        if knowledge and settings.rag_enabled
+        else None
+    )
 
     app.state.privacy_settings = privacy_settings
     privacy_repository = SQLPrivacyRepository(database.session_factory) if database else None

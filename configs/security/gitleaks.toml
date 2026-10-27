@@ -1,0 +1,41 @@
+title = "Roma default Gitleaks rules with reviewed content-scoped false positives"
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Source identity map entries are SHA-256 evidence, not credentials"
+condition = "AND"
+paths = ['''(^|/)benchmarks/voice-integration/verification-[0-9]{8}\.json$''', '''(^|/)benchmarks/security/section52_audit\.json$''']
+regexTarget = "line"
+regexes = ['''(?m)^\s*"[a-zA-Z0-9_./-]+\.(py|json|md|toml|yml|yaml)": "[a-f0-9]{64}",?\s*$''']
+
+[[rules.allowlists]]
+description = "Exact synthetic credential literals in redaction tests only"
+condition = "AND"
+paths = ['''(^|/)tests/(core/)?test_(logging|logging_lead_token|config)\.py$''']
+regexTarget = "secret"
+regexes = ['''^(AC)?0123456789abcdef0123456789abcdef$''', '''^Xq7bL2n-mK4pR8sT1vW3yZ_aB5cD6eF0$''']
+
+[[rules.allowlists]]
+description = "Reviewed deterministic metric comparator, not key assignment"
+condition = "AND"
+paths = ['''(^|/)roma/eval/rag_benchmark\.py$''']
+regexTarget = "line"
+regexes = ['''(?m)^\s*and \(summary\[key\] <= minimum if key == "retrieval_p95_ms" else summary\[key\] >= minimum\)\s*$''']
+
+[[rules.allowlists]]
+description = "Historical verification checklist prose with a token lifecycle heading"
+condition = "AND"
+paths = ['''(^|/)docs/12-verification\.md$''']
+regexTarget = "line"
+regexes = ['''(?m)^\| L8 \| Roles/token lifecycle, forged/stale/duplicate callback policy, job crash/replay/retention and PII/access approvals \|\s*$''']
+
+[[rules.allowlists]]
+description = "Exact synthetic rollback image tag in the Docker evidence receipt"
+condition = "AND"
+paths = ['''(^|/)benchmarks/deployment/section53_mock_stack\.json$''']
+regexTarget = "secret"
+regexes = ['''^section53-previous$''']

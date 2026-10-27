@@ -12,6 +12,8 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://roma:roma@127.0.0.1:54329/roma
       REDIS_URL: redis://127.0.0.1:6380/0
+      # Native integration fixtures must not select a bare Postgres Docker image.
+      DOCKER_HOST: unix:///tmp/roma-native-ci-no-docker.sock
       APP_ENV: dev
       API_TOKEN: ci-local-token
       PII_HASH_KEY: ci-local-pii-hash-key-change-before-shared-use
@@ -49,5 +51,49 @@ jobs:
         run: make type
       - name: Apply migrations
         run: make db-upgrade
-      - name: Offline CI catalog
+      - name: Offline unit and native integration catalog
         run: make test-ci
+      - name: Golden RAG mechanical regression (always, without paid APIs or models)
+        run: uv run --no-sync python scripts/rag_benchmark.py --mode mock --check --report /tmp/roma-rag-golden.json
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install locked audit tooling
+        run: uv sync --locked --extra security --extra dev
+      - name: Install checksum-pinned official Gitleaks
+        run: python scripts/install_gitleaks.py --destination /tmp/roma-tools/gitleaks
+      - name: Verify scanner detection and supply-chain rejection
+        run: PATH="/tmp/roma-tools:$PATH" uv run --no-sync python -m pytest --confcutdir=tests/security -q -p no:cacheprovider tests/security
+      - name: Scan full history and current Git-visible files
+        run: python scripts/scan_secrets.py --binary /tmp/roma-tools/gitleaks
+      - name: Validate the explicit local production target
+        run: python scripts/check_production_policy.py
+      - name: Export locked runtime and development dependency closure
+        run: uv export --locked --no-emit-project --extra backend --extra telephony --extra workers --extra observability --extra embeddings --extra voice-lab --extra mlx-asr --extra duplex --extra dev --extra security --extra load --format requirements-txt --output-file /tmp/roma-audit.txt > /dev/null
+      - name: Audit locked dependencies (no model downloads)
+        run: uv run --no-sync pip-audit --no-deps --disable-pip --require-hashes -r /tmp/roma-audit.txt
+
+  container-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        target: [api, worker, model-contract]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - name: Build reviewed runtime target
+        run: docker buildx build --file "docker/Dockerfile.${{ matrix.target }}" --target "${{ matrix.target }}" --tag "roma-ci:${{ matrix.target }}" --load .
+      - name: Verify unprivileged image identity
+        run: test "$(docker image inspect --format '{{.Config.User}}' "roma-ci:${{ matrix.target }}")" = "10001:10001"

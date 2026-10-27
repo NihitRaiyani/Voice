@@ -1,0 +1,2 @@
+# Exact finding fingerprints only, each preceded by a reviewed synthetic-fixture reason.
+# No baseline or whole-path exclusion is permitted.

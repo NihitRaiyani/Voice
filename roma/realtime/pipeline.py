@@ -1555,7 +1555,11 @@ def build_media_app(
                 tts.usage_sink = call_costs.speech
                 tts.usage_turn_snapshot = call_costs.capture_turn
         sanitizer = TTSAudioSanitizer()
-        turn_metrics = RealtimeTurnTelemetry()
+        supervisor = getattr(app.state, 'supervisor_hub', None)
+        turn_metrics = RealtimeTurnTelemetry(
+            capture_turn=lambda: (state.turn_count, state.stage.value) if state.turn_count > 0 else None,
+            on_complete=(lambda identity, ms: supervisor.on_turn(state.call_sid, identity[0], identity[1], ms)) if supervisor else None,
+        )
         def probe(boundary):
             return TelemetryFrameProbe(turn_metrics, boundary=boundary)
 

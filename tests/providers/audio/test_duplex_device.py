@@ -348,8 +348,6 @@ def test_echo_cleanup_failure_still_aborts_and_closes_native_output():
 
 
 def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
-    from time import perf_counter
-
     from roma.services.duplex_voice import DuplexVoiceSession
     from tests.services.test_duplex_voice import Voice, speech
 
@@ -360,7 +358,15 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
 
     async def run():
         backend, echo = Backend(), CleanEcho()
-        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo)
+        input_frames = [0]
+
+        def clock():
+            return 10 + input_frames[0] / 50
+
+        # Each callback contains 20 ms of PCM. Device and coordinator must share
+        # that sample clock even when callbacks arrive in bounded fast bursts;
+        # wall-clock pacing would otherwise put fake ADC timestamps in the future.
+        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo, clock=clock)
         class PlayingVoice(Voice):
             async def respond(self, final):
                 if final.turn_epoch == 1:
@@ -373,7 +379,7 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
                 owner.cancel()
                 await device.clear()
         voice = PlayingVoice()
-        voice.clock, voice._started = perf_counter, perf_counter()
+        voice.clock, voice._started = clock, clock()
         voice.speaker = device
         device.bind_epoch_guard(voice.epochs)
         service = speech()
@@ -383,13 +389,15 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
         async def feed():
             await opened.wait()
             for value in [1] * 12 + [0] * 12:
+                input_frames[0] += 1
                 backend.emit(value)
-                await asyncio.sleep(.006)
+                await asyncio.sleep(0)
             assert await asyncio.to_thread(backend.writing.wait, 1)
             assert device.capture_mode == 'ACTIVE'
             for value in [2] * 16 + [0] * 12:
+                input_frames[0] += 1
                 backend.emit(value)
-                await asyncio.sleep(.006)
+                await asyncio.sleep(0)
         feeding = asyncio.create_task(feed())
         try:
             outcomes = await asyncio.wait_for(

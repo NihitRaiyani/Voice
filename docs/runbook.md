@@ -824,3 +824,41 @@ For a separately authorized native service probe, explicitly select `--mode loca
 Protected `/api/v1/analytics/cost/today`, `/provider`, `/call/{call_id}` and `/average` require `analytics.view`. Use one optional UTC `day=YYYY-MM-DD` or `month=YYYY-MM`, with provider filtering on `/provider`; the call route covers its lifetime and populated turn groups. Inspect `unpriced_events`, `unknown_units`, `complete` and each currency separately before reading totals/averages. Empty reports remain incomplete. Local/carrier rates and GPU time are unknown until verified, not zero. The versioned direct-standard Haiku estimate is documented in [pricing provenance](16-observability-testing-and-delivery.md#section-46-normalized-usage-and-costs); historical records and conservative INR admission reservations remain unchanged.
 
 After interrupted/failed writes, retry the same immutable usage identity; changed content must conflict rather than double-count. Recording write/close numeric diagnostics travel through the existing original-payload post-call handoff. This does not authorize capture, replay of private audio or retention changes. No sections 47–48/outcome supervisor feature is activated by these operations.
+
+
+## Analytics, supervisor and evaluation — sections 47–53
+
+Run the selected voice app through its existing operational path; this increment does not migrate working `roma`. `GET /api/v1/analytics/overview`, `/funnel` and `/branches` require `analytics.view` and optional `start_date`/`end_date` (exclusive) ISO dates, at most 366 days. Responses have `Cache-Control: no-store`; empty denominators and unknown latency/cost/branch attribution stay explicit. The funnel starts from call-start cohorts and requires ordered observed events plus SQL appointment confirmation, never final-stage inference.
+
+Only an active Admin can fetch `/api/v1/supervisor/snapshot` or connect `/api/v1/supervisor/ws`. Use a same-origin WebSocket, then send a first frame containing only `{"token":"<short-lived Admin JWT>"}` within five seconds. Do not put tokens in URLs. One connection per Admin uses an owned 30-second Redis lease; auth/role/lease checks repeat every five seconds. Admission allows ten attempts per socket peer/minute, ignoring forwarded identities. On `resync_required`, fetch the authenticated SQL snapshot and reconcile internal call UUIDs; deduplicate live event IDs. Slow/offline clients disconnect instead of accumulating data. There is no durable Pub/Sub replay. The channel never sends caller text, names, phone numbers or carrier SID. The backend channel has no new visual dashboard.
+
+Use an isolated locked environment for checks to preserve the existing speech environment:
+
+```sh
+UV_PROJECT_ENVIRONMENT=/tmp/roma-checks uv sync --locked --extra dev --extra backend --extra telephony --extra workers --extra observability --extra security
+UV_PROJECT_ENVIRONMENT=/tmp/roma-checks uv run --no-sync python scripts/evaluate_project.py --run-offline --run-chaos --allow-disposable-services --output /tmp/roma-readiness.json
+UV_PROJECT_ENVIRONMENT=/tmp/roma-checks uv run --no-sync python scripts/load_backend.py --native-services --requests-per-user 2 --output /tmp/roma-mock-load.json
+UV_PROJECT_ENVIRONMENT=/tmp/roma-checks uv run --no-sync python scripts/check_production_policy.py
+```
+
+Native evaluation creates and cleans owned random-port PostgreSQL/Redis and never reads private settings. It requires installed native binaries/pgvector and existing tokenizer data. The mock load ladder is 1/10/25/50/100 sessions, with finite fixture-driven text calls and SQL connection/Redis probes; it does not exercise speech models, carrier sockets, durable booking/checkpoint load, GPU or paid Claude. Optional `--max-error-rate`, `--max-fallback-rate`, `--max-p95-ms`, `--max-stall-ms` and `--max-peak-rss-mb` stop further tiers. Unset limits are not accepted SLOs. `--require-full-gate` deliberately fails while representative native/human/governance evidence remains missing. See [Level 12](levels/level-12.md) for the actual report and limitations.
+
+For the reviewed scanner, install the pinned checksum-verified official binary with `python scripts/install_gitleaks.py --destination /tmp/roma-tools/gitleaks`, then run `python scripts/scan_secrets.py --binary /tmp/roma-tools/gitleaks`. No scan output should expose secret values. Security CI also exports the hashed locked runtime/dev closure and runs `pip-audit`; it does not ignore advisories or download models. The explicit local target policy validates configuration only; it is not proof of live production traffic. The legacy-cloud rollout default stays unchanged.
+
+## Full mock Docker stack — section 53
+
+An image is an immutable packaged filesystem; a container is its running process; named volumes retain SQL/Redis/monitoring data across container replacement. Compose declares their private networks, runtime limits, ports and health dependencies. PostgreSQL/pgvector and Redis must be healthy before migration/API/worker startup. Application images contain code/dependencies, not speech weights, runtime audio or private `.env`.
+
+With an installed running Docker engine and enough local disk/RAM:
+
+```sh
+python scripts/container_stack.py up
+python scripts/container_stack.py smoke
+python scripts/container_stack.py down
+```
+
+The wrapper uses the named `roma-stack-local` project, generates owner-only local keys under ignored `var/container-stack/local/`, builds the mock images, starts dependencies, migrates and checks API/worker/monitoring. It passes an empty Compose env file rather than loading the private project `.env`. API `http://127.0.0.1:18020`, Prometheus `http://127.0.0.1:19090` and Grafana `http://127.0.0.1:13000` bind to loopback. Grafana's generated private password is in the owner-only stack directory. Do not paste credentials into chat or track them. The datastore/worker network is internal; published services use a separate bridge for Docker Desktop forwarding. Metrics require their private scrape credential or a live active Admin outside trusted loopback.
+
+`down` preserves named volumes and never creates replacement secrets. Startup refuses missing/partial keys or a lost local state directory when the named project has retained volumes; restore the original owner-only keyset before retrying. A complete legacy keyset is adopted without rotation. Keep approved encrypted backups of these keys separate from the retained data. Do not use `down -v` for normal operation. A separately approved backup/recovery policy is required before deleting volumes or changing schemas. For an already-built compatible previous application tag, use `python scripts/container_stack.py rollback --previous-tag TAG`; it does not pull an invented image or downgrade migrations. The recorded same-image tag rehearsal and later distinct compatible local-image rollback prove orchestration/persistence; real historical-release rollback and clean-second-host proof remain open.
+
+GPU and native-Mac profiles explicitly fail closed: selected MLX ASR is Mac-specific and no approved Linux/NVIDIA backend or Mac serving bridge is packaged. A future compatible GPU profile needs NVIDIA host runtime and mounted approved weights. Do not switch models or claim live speech from mock stack success. [Level 13](levels/level-13.md) records the local rehearsal and remaining gate.
