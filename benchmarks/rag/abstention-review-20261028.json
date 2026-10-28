@@ -1,0 +1,49 @@
+{
+  "schema": "roma-rag-retrospective-abstention-review-v1",
+  "source_report": "benchmarks/rag/local-v1-report.json",
+  "source_report_sha256": "8f3efa3794bb8f72f54aba4fccb43b938392fae1e382823a62ccdbf47f5c8e50",
+  "review_base_commit": "c10292ba4e0075a5ce004986d3504f93970a4d20",
+  "evidence_kind": "retrospective_saved_case_rows_only",
+  "new_native_inference_executed": false,
+  "paid_provider_called": false,
+  "original_report_modified": false,
+  "original_material_fingerprint": "7ed59696184d376d1a22a8dcdf256959b513ce5add1026eac4b2da6b418b3e63",
+  "split": "heldout",
+  "summary": {
+    "deferral_accuracy": 1.0,
+    "retrieval_abstention_accuracy": 0.7272727272727273,
+    "negative_query_retrieval_failure_rate": 0.2727272727272727,
+    "failed_negative_query_ids": [
+      "heldout-unknown-course-gu",
+      "heldout-unknown-course-hi-en",
+      "heldout-unknown-policy-hi-en",
+      "heldout-unknown-branch-hi-en",
+      "heldout-unknown-schedule-gu",
+      "heldout-unknown-schedule-hi-en"
+    ],
+    "search_executed_negative_query_failure_rate": 0.6,
+    "search_executed_failed_negative_query_ids": [
+      "heldout-unknown-course-gu",
+      "heldout-unknown-course-hi-en",
+      "heldout-unknown-policy-hi-en",
+      "heldout-unknown-branch-hi-en",
+      "heldout-unknown-schedule-gu",
+      "heldout-unknown-schedule-hi-en"
+    ],
+    "counts": {
+      "cases": 38,
+      "answerable": 16,
+      "expected_deferrals": 22,
+      "failed_negative_queries": 6,
+      "search_executed_negative_queries": 10,
+      "search_executed_failed_negative_queries": 6,
+      "generated": 15,
+      "safety": 5,
+      "retrieval_timed": 26
+    }
+  },
+  "search_executed_definition": "Observed search method was called (retrieval_ms present), including rejected/unavailable outcomes; not proof of completed embedding/SQL.",
+  "diagnostic_thresholds_added": false,
+  "quality_gate_passed": false,
+  "limits": "Original answer deferral uses a deterministic oracle fixture selector with quote=None for negative queries. It can return 100% deferral despite irrelevant admitted evidence. No real Claude semantic-groundedness/native-quality claim follows."
+}

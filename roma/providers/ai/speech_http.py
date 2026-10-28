@@ -21,6 +21,7 @@ from roma.serving.protocol import (
     STTBody,
     STTResponse,
     TTSBody,
+    TTSIdentityResponse,
     TTSResponse,
     stt_payload,
     tts_payload,
@@ -120,6 +121,15 @@ class HTTPSTTProvider(_SpeechHTTP):
 
 
 class HTTPTTSProvider(_SpeechHTTP):
+    async def cache_identity(self, request: TTSRequest) -> str:
+        body = tts_payload(request)
+        TTSBody.model_validate(body).contract(self.settings)
+        data = await self._post("/v1/tts/identity", body)
+        try:
+            return TTSIdentityResponse.model_validate(data).identity
+        except (ValueError, ValidationError):
+            raise ProviderUnavailable("Invalid local TTS identity") from None
+
     async def synthesize(self, request: TTSRequest) -> TTSResult:
         body = tts_payload(request)
         TTSBody.model_validate(body).contract(self.settings)

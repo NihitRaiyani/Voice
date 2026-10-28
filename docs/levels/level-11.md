@@ -38,3 +38,8 @@ Combined checks passed; exact test counts and source fingerprints are recorded i
 No full Level 11 gate passes from offline/synthetic evidence. Sections 49–53 are separately owner-authorized.
 
 Return to the [documentation index](../README.md).
+
+
+## 2026-10-28 supervisor view
+
+The optional zero-build supervisor view at `/admin/supervisor` reuses existing Admin JWT/RBAC, SQL snapshots/analytics and Redis/WebSocket events. The public HTML shell exposes no data. Local script/style assets use a restrictive CSP; text is rendered as text, and tokens remain only in page memory. Session ownership prevents old responses from restoring cleared data; request ownership prevents an older history window replacing a newer one. Actual SQL milestones and per-currency amounts are shown, with unknown values preserved. There is no synthetic historical funnel backfill or invented compute/carrier tariff. Browser QA used synthetic in-memory services and real API/WS contracts; real-call dashboard/SQL/invoice reconciliation remains pending.

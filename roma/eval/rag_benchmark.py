@@ -21,17 +21,26 @@ from roma.domain.knowledge.ingestion import PIPELINE_VERSION, chunk_document
 from roma.domain.knowledge.retrieval import Evidence, RetrievalFilters, cosine_similarity
 from roma.domain.knowledge.routing import classify_turn
 from roma.domain.safety.filter import screen
+from roma.eval.project_readiness import load_matrix
 from roma.services.knowledge_answer import PROMPT_VERSION, RULES, KnowledgeAnswerService
 from roma.services.knowledge_retrieval import KnowledgeSearchService
 
-THRESHOLDS = {
-    "recall_at_5": 0.80,
-    "mrr": 0.70,
-    "grounded_span_support": 0.90,
-    "deferral_accuracy": 0.95,
-    "safety_accuracy": 0.95,
-    "retrieval_p95_ms": 450,
-}
+
+def thresholds_from_matrix(matrix):
+    """Share agreed numeric targets; fixture spans remain mechanical evidence only."""
+    checks = {row["id"]: row for row in matrix["checks"]}
+    quality = checks["rag.quality"]["targets"]
+    return {
+        "recall_at_5": quality["recall_at_5"]["value"],
+        "mrr": quality["mrr"]["value"],
+        "grounded_span_support": quality["groundedness"]["value"],
+        "deferral_accuracy": quality["deferral_accuracy"]["value"],
+        "safety_accuracy": quality["safety_rate"]["value"],
+        "retrieval_p95_ms": checks["rag.latency"]["targets"]["retrieval_p95_ms"]["value"],
+    }
+
+
+THRESHOLDS = thresholds_from_matrix(load_matrix())
 
 
 def digest(value):
@@ -54,6 +63,9 @@ def percentile(values, quantile):
 def summarize(rows):
     answerable = [row for row in rows if row["relevant"]]
     deferred = [row for row in rows if row["expected_deferral"]]
+    failed_negative = [row for row in deferred if row["retrieved"]]
+    searched_negative = [row for row in deferred if row["retrieval_ms"] is not None]
+    searched_failed_negative = [row for row in searched_negative if row["retrieved"]]
     generated = [row for row in rows if not row["fallback"]]
     safety = [row for row in rows if row["safety_case"]]
     latencies = [row["retrieval_ms"] for row in rows if row["retrieval_ms"] is not None]
@@ -84,6 +96,21 @@ def summarize(rows):
         ),
         "grounded_span_support": average([int(row["span_supported"]) for row in generated]),
         "deferral_accuracy": average([int(row["fallback"]) for row in deferred]),
+        # The oracle selector can defer despite irrelevant admitted evidence.
+        # Keep retrieval abstention separate from answer-release mechanics.
+        "retrieval_abstention_accuracy": average(
+            [int(not row["retrieved"]) for row in deferred]
+        ),
+        "negative_query_retrieval_failure_rate": average(
+            [int(bool(row["retrieved"])) for row in deferred]
+        ),
+        "failed_negative_query_ids": [row["case_id"] for row in failed_negative],
+        "search_executed_negative_query_failure_rate": average(
+            [int(bool(row["retrieved"])) for row in searched_negative]
+        ),
+        "search_executed_failed_negative_query_ids": [
+            row["case_id"] for row in searched_failed_negative
+        ],
         "safety_accuracy": average([int(row["safe"] and row["fallback"]) for row in safety]),
         "route_accuracy": average([int(row["route_ok"]) for row in rows]),
         "retrieval_p50_ms": percentile(latencies, 0.50),
@@ -94,6 +121,9 @@ def summarize(rows):
             "cases": len(rows),
             "answerable": len(answerable),
             "expected_deferrals": len(deferred),
+            "failed_negative_queries": len(failed_negative),
+            "search_executed_negative_queries": len(searched_negative),
+            "search_executed_failed_negative_queries": len(searched_failed_negative),
             "generated": len(generated),
             "safety": len(safety),
             "retrieval_timed": len(latencies),
@@ -322,6 +352,10 @@ def report_for(golden, rows, identity, *, mode, threshold, calibration=None, sta
         "latency_scope": "query normalization, embedding and exact SQL search; excludes generation/revalidation/audit"
         if mode == "local"
         else "software fixture timing only; no local model or SQL latency claim",
+        "retrieval_diagnostic_scope": "Expected-deferral cases; search-executed means the observed search method ran, including rejected/unavailable outcomes, without implying completed embedding or SQL inference. Diagnostics do not change acceptance thresholds.",
+        "retrieval_diagnostic_failures": [
+            row["case_id"] for row in rows if row["expected_deferral"] and row["retrieved"]
+        ],
         "calibration": calibration,
         "cases": rows,
         "summary": summary,
@@ -345,7 +379,7 @@ def report_for(golden, rows, identity, *, mode, threshold, calibration=None, sta
             row["case_id"]
             for row in rows
             if (row["relevant"] and not row["span_supported"])
-            or (row["expected_deferral"] and not row["fallback"])
+            or (row["expected_deferral"] and (not row["fallback"] or row["retrieved"]))
             or not row["safe"]
             or not row["route_ok"]
         ],
@@ -728,13 +762,16 @@ def benchmark_evidence(report, report_path):
             ("mrr", "answerable"),
             ("grounded_span_support", "generated"),
             ("deferral_accuracy", "expected_deferrals"),
+            ("retrieval_abstention_accuracy", "expected_deferrals"),
+            ("negative_query_retrieval_failure_rate", "expected_deferrals"),
+            ("search_executed_negative_query_failure_rate", "search_executed_negative_queries"),
             ("safety_accuracy", "safety"),
             ("route_accuracy", "cases"),
             ("retrieval_p50_ms", "retrieval_timed"),
             ("retrieval_p95_ms", "retrieval_timed"),
             ("retrieval_p99_ms", "retrieval_timed"),
         ):
-            if summary[key] is not None:
+            if summary.get(key) is not None:
                 metrics.append(
                     AggregateMetric(
                         model.key,

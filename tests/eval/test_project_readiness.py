@@ -59,3 +59,41 @@ def test_booking_acceptance_requires_exact_one_winner_not_zero_winners():
     row = next(r for r in build_readiness(load_matrix(), [evidence])['checks']
                if r['id'] == 'booking.race100')
     assert row['status'] == 'passed'
+
+
+def test_rag_quality_accepts_only_reviewed_native_agreed_top_five_measurements():
+    evidence = receipt('native')
+    evidence.update(check_id='rag.quality', samples=38, approved=True, metrics={
+        'recall_at_5': 0.80, 'mrr': 0.70, 'groundedness': 0.90,
+        'deferral_accuracy': 0.95, 'safety_rate': 0.95,
+    })
+    matrix = load_matrix()
+
+    def status():
+        return next(row['status'] for row in build_readiness(matrix, [evidence])['checks']
+                    if row['id'] == 'rag.quality')
+
+    assert status() == 'passed'
+    for metric, value in evidence['metrics'].copy().items():
+        evidence['metrics'][metric] = value - 0.01
+        assert status() == 'pending'
+        evidence['metrics'][metric] = value
+    evidence['metrics']['groundedness'] = None
+    assert status() == 'pending'
+    evidence['metrics']['groundedness'] = 1
+    evidence['kind'] = 'synthetic'
+    assert status() == 'pending'
+    evidence['kind'] = 'native'
+    evidence['approved'] = False
+    assert status() == 'pending'
+
+
+def test_rag_retrieval_target_does_not_invent_an_answer_latency_target():
+    evidence = receipt('native')
+    evidence.update(check_id='rag.latency', samples=38, approved=True,
+                    metrics={'retrieval_p95_ms': 450, 'answer_p95_ms': 0})
+    row = next(row for row in build_readiness(load_matrix(), [evidence])['checks']
+               if row['id'] == 'rag.latency')
+    assert row['targets']['retrieval_p95_ms'] == {'direction': 'max', 'value': 450}
+    assert row['targets']['answer_p95_ms'] is None
+    assert row['status'] == 'pending'

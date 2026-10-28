@@ -862,3 +862,39 @@ The wrapper uses the named `roma-stack-local` project, generates owner-only loca
 `down` preserves named volumes and never creates replacement secrets. Startup refuses missing/partial keys or a lost local state directory when the named project has retained volumes; restore the original owner-only keyset before retrying. A complete legacy keyset is adopted without rotation. Keep approved encrypted backups of these keys separate from the retained data. Do not use `down -v` for normal operation. A separately approved backup/recovery policy is required before deleting volumes or changing schemas. For an already-built compatible previous application tag, use `python scripts/container_stack.py rollback --previous-tag TAG`; it does not pull an invented image or downgrade migrations. The recorded same-image tag rehearsal and later distinct compatible local-image rollback prove orchestration/persistence; real historical-release rollback and clean-second-host proof remain open.
 
 GPU and native-Mac profiles explicitly fail closed: selected MLX ASR is Mac-specific and no approved Linux/NVIDIA backend or Mac serving bridge is packaged. A future compatible GPU profile needs NVIDIA host runtime and mounted approved weights. Do not switch models or claim live speech from mock stack success. [Level 13](levels/level-13.md) records the local rehearsal and remaining gate.
+
+
+## Remediation investigation and isolated microphone speech
+
+Keep the private `SPEECH_SERVICE_KEY` separate from JWT/API/carrier credentials. Start the existing cache-only service in its own terminal with the already approved cached model settings:
+
+```bash
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 uv run --no-sync python -m roma.serving --allow-local-models
+```
+
+The command deliberately loads/warms native models. It does not open a microphone, place a call or call Claude. Once authenticated `/ready` succeeds, select `--speech-transport local_http` on the existing prototype, or on a newly supervised acceptance invocation:
+
+```bash
+make acceptance-live ARGS="--check --speech-transport local_http --language gu"
+```
+
+This readiness check authenticates to the service and verifies TTS artifact identity. It does not record a native acceptance result. A subsequent actual run still needs the supervisor ready at the device, the existing aggregate INR50 budget ledger, TEST ONLY SQL/Redis and fictional details. Remove `--check` only for that supervised session. No runtime fallback follows from unavailable/busy service; the original `in_process` diagnostic remains explicit. Keep the server worker count at one and do not claim two-call capacity from the default one-inflight admission setting.
+
+Physical receipts now include content-free lifetime capture health. A high callback interval with low queue pressure differs from a high queue watermark with normal callbacks; ADC/native overflow counters differ from application loss. Preserve the complete run's counters and stage timings before attributing loss to a driver, GIL or memory. Do not retain caller audio to debug it without approved recording consent.
+
+Subject erasure extends the existing preview-first tool: `uv run --no-sync python scripts/privacy.py --caller-id <UUID>` previews persisted sibling calls; add `--apply` only for the intended approved subject. The Admin endpoint is `POST /api/v1/privacy/subjects/{caller_id}` with the existing `action`/`apply` fields. Active calls block disposal; 1,000 linked calls/history is the current operator bound. An anonymized caller row, appointment statuses and financial totals remain. SQL changes are atomic; managed file/Redis cleanup is retryable, and the same caller UUID can resume cleanup after links are removed. No wildcard erasure of other calls' holds, provider API execution, legal sign-off or whole-backup erasure is implied. Retain tombstone-ledger restore reapplication and review the returned `external_pending` scope.
+
+
+### Offline acoustic timing analysis
+
+The new analyzer reads an **already approved** stereo PCM16 WAV, never a microphone. Isolate the caller reference and speaker response on separate channels. Choose a quiet calibration window and a reference window enclosing the entire stimulus with silent guards. For example (thresholds and windows are calibration examples, not acceptance targets):
+
+```bash
+uv run --no-sync python scripts/measure_acoustic_ttfa.py --input /private/approved/loopback.wav --approved-input --provenance physical_loopback --reference-channel 0 --speaker-channel 1 --noise-window-ms 0 100 --reference-window-ms 200 700 --signal-rms 0.04 --max-noise-rms 0.005
+```
+
+Only scalar estimates are emitted. Noise, clipping, detectable overlap/bleed, ambiguous boundaries, unsupported files and non-isolated signals fail with fixed error codes. Energy thresholds cannot prove audibility, speaker identity, semantic answer onset or distinguish delayed echo from a reply. `physical_loopback` is the operator's provenance declaration; `physical_setup_verified` and `acceptance_gate_passed` stay false. Calibrate and independently review the physical setup before using measurements in an approved population/P50/P95 report. No caller recording permission is granted by the analyzer flag.
+
+### Supervisor view
+
+Open `/admin/supervisor` on the intended Roma app. The page shell contains no call data; sign in with the existing active Admin account. The page uses same-origin JWT-protected APIs and the existing supervisor WebSocket. Tokens stay in page memory, never URLs or local storage. Logout, revoked access and failed live sessions clear the display; reconnect by signing in for a fresh SQL snapshot. Historical UTC windows use existing SQL aggregates and observed ordered milestones. Unknown latency, pricing, historical stages and branch attribution remain explicit, and currencies remain separate. This is a read-only operator view, not a native voice/operational acceptance receipt.

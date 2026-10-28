@@ -22,6 +22,7 @@ from roma.core.field_encryption import configure_field_encryption  # noqa: E402
 from roma.core.logging import configure_logging  # noqa: E402
 from roma.core.migration_settings import MigrationSettings, current_schema_head  # noqa: E402
 from roma.core.privacy_settings import PrivacySettings  # noqa: E402
+from roma.core.serving_settings import SpeechServingSettings  # noqa: E402
 from roma.core.speech_settings import SpeechSettings  # noqa: E402
 from roma.core.tokenizer import require_nltk_data  # noqa: E402
 from roma.core.tts_settings import TTSSettings  # noqa: E402
@@ -168,10 +169,11 @@ def local_preflight(args):
         cfg = SpeechSettings()
     if cfg.stt_provider not in {"whisper_mlx", "whisper"}:
         raise VoiceFailure(VoiceErrorCode.ASR)
-    packages = ["mlx_whisper" if cfg.stt_provider == "whisper_mlx" else "faster_whisper", "sounddevice"]
+    isolated = getattr(args, "speech_transport", "in_process") == "local_http"
+    packages = ["sounddevice"] if isolated else ["mlx_whisper" if cfg.stt_provider == "whisper_mlx" else "faster_whisper", "sounddevice"]
     if any(importlib.util.find_spec(package) is None for package in packages):
         raise VoiceFailure(VoiceErrorCode.ASR)
-    if cfg.stt_provider == "whisper_mlx":
+    if not isolated and cfg.stt_provider == "whisper_mlx":
         from roma.providers.ai.whisper_mlx import verify_mlx_artifacts
         with voice_boundary(VoiceErrorCode.ASR):
             verify_mlx_artifacts(Path(cfg.whisper_mlx_model_dir))
@@ -356,6 +358,31 @@ async def pause_lab_call(factory, live_state, state, attempt):
             ))
 
 
+async def local_speech_providers(args, cfg, tts_cfg, cleanup):
+    """An explicit process boundary; service failure never loads native fallback."""
+    if getattr(args, "speech_transport", "in_process") == "local_http":
+        from roma.providers.ai.speech_http import HTTPSTTProvider, HTTPTTSProvider
+        settings = SpeechServingSettings()
+        stt, tts = HTTPSTTProvider(settings), HTTPTTSProvider(settings)
+        cleanup.push_async_callback(stt.aclose)
+        cleanup.push_async_callback(tts.aclose)
+        with voice_boundary(VoiceErrorCode.ASR):
+            if not await stt.ready():
+                raise ValueError("Local ASR service is not warmed")
+        with voice_boundary(VoiceErrorCode.TTS):
+            if not await tts.ready():
+                raise ValueError("Local TTS service is not warmed")
+        return stt, tts
+    with voice_boundary(VoiceErrorCode.ASR):
+        stt = build_stt_provider(cfg)
+    with voice_boundary(VoiceErrorCode.TTS):
+        tts = build_tts_provider(tts_cfg)
+    for provider in (stt, tts):
+        if getattr(provider, "aclose", None) is not None:
+            cleanup.push_async_callback(provider.aclose)
+    return stt, tts
+
+
 async def ready_local_models(stt, tts, scorer, *, observer=None):
     # Synthetic readiness only: no participant audio, microphone, paid LLM or DB.
     for language in ("gu", "hi", "en"):
@@ -488,12 +515,7 @@ async def _local_run(args):
                 # Reference timestamps already include DAC latency; let AEC estimate residual delay.
                 echo = WebRTCEchoCanceller(stream_delay_ms=0)
                 echo.preflight()
-        with voice_boundary(VoiceErrorCode.ASR):
-            stt = build_stt_provider(cfg)
-        with voice_boundary(VoiceErrorCode.TTS):
-            tts = build_tts_provider(tts_cfg)
-        if getattr(tts, "aclose", None) is not None:
-            cleanup.push_async_callback(tts.aclose)
+        stt, tts = await local_speech_providers(args, cfg, tts_cfg, cleanup)
         stt = LocalLanguageSTT(stt)
         # Read/verify provisioned TTS artifacts before opening the microphone.
         with voice_boundary(VoiceErrorCode.TTS):
@@ -651,6 +673,8 @@ def parser():
     speech_mode.add_argument("--streaming", action="store_true", help="Audited sentence streaming; default in local mode")
     speech_mode.add_argument("--buffered-speech", action="store_true", help="Wait for the complete reply; input remains full duplex")
     p.add_argument("--mode", choices=("mock", "local"), default="mock")
+    p.add_argument("--speech-transport", choices=("in_process", "local_http"), default="in_process",
+                   help="Explicit isolated, authenticated cache-only speech service; no native fallback")
     p.add_argument("--half-duplex", action="store_true", help="Diagnostic: mute capture while replying instead of full duplex")
     p.add_argument("--llm-provider", choices=("claude", "mock"), default="claude")
     p.add_argument("--allow-microphone", action="store_true")

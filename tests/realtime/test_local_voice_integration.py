@@ -92,6 +92,11 @@ class _Inference:
         self.stt_requests.append(request)
         return STTResult(self.transcript, "hi", turn_epoch=request.turn_epoch)
 
+    async def cache_identity(self, request):
+        # This in-memory model fixture implements the served artifact contract;
+        # no physical model or identity-validation bypass is involved.
+        return "indic-tts:synthetic-local-integration-v1:resident-test"
+
     async def synthesize(self, request):
         self.tts_requests.append(request)
         return TTSResult(b"\x22\x00" * 320, request.format, 40, request.turn_epoch)

@@ -89,3 +89,22 @@ async def dispose_call(
     except (SQLAlchemyError, PrivacyError, OSError, TimeoutError):
         raise ApiError(503, "PRIVACY_UNAVAILABLE", "Privacy storage is unavailable.") from None
     return _private(success_response(value))
+
+
+@router.post("/privacy/subjects/{caller_id}")
+async def dispose_subject(
+    caller_id: UUID, body: DisposalRequest, request: Request, actor: PrivacyActor
+):
+    try:
+        value = await _service(request, "privacy_service").dispose_subject(
+            caller_id, action=body.action, apply=body.apply, actor_id=actor.user_id
+        )
+    except LookupError:
+        raise ApiError(404, "NOT_FOUND", "Caller does not exist.") from None
+    except ValueError:
+        raise ApiError(
+            409, "PRIVACY_DISPOSAL_BLOCKED", "Subject cannot be disposed in its current state."
+        ) from None
+    except (SQLAlchemyError, PrivacyError, OSError, TimeoutError):
+        raise ApiError(503, "PRIVACY_UNAVAILABLE", "Privacy storage is unavailable.") from None
+    return _private(success_response(value))

@@ -21,6 +21,7 @@ from roma.api.v1.costs import router as costs_router
 from roma.api.v1.responses import ApiError, api_error_handler, validation_error_handler
 from roma.api.v1.rest import router as rest_router
 from roma.api.v1.supervisor import router as supervisor_router
+from roma.api.v1.supervisor_ui import router as supervisor_ui_router
 from roma.core.auth_settings import AuthSettings
 from roma.core.field_encryption import configure_field_encryption
 from roma.core.logging import RequestLogMiddleware
@@ -125,7 +126,7 @@ def create_app(*, session_factory=None, redis_client=None):
     app.add_middleware(RequestLogMiddleware)
     app.add_exception_handler(ApiError, api_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
-    for router in (auth_router, rest_router, costs_router, analytics_router, supervisor_router):
+    for router in (auth_router, rest_router, costs_router, analytics_router, supervisor_router, supervisor_ui_router):
         app.include_router(router)
 
     @app.get("/health")

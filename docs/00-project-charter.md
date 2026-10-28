@@ -1,6 +1,6 @@
 # Project and learning charter
 
-Roma is a backend-only counselling/appointment system and a student engineering laboratory. A useful call is safe, interruptible, measurable and truthful about booking. Digital Marketing remains the active course; adding schema entities does not approve new course claims.
+Roma is a backend-led counselling/appointment system with a small read-only Admin supervisor view and a student engineering laboratory. A useful call is safe, interruptible, measurable and truthful about booking. Digital Marketing remains the active course; adding schema entities does not approve new course claims.
 
 The selected [Claude roadmap](roadmaps/README.md) replaces the earlier curriculum. Progress uses Levels 0–14 and concrete acceptance gates. Implementation proceeds one explicitly requested level or section at a time. Level 1 sections 3–9 cover persistence, relational foundations, migrations/separate demo data, architecture, provider contracts, REST and testing/CI; other level gates remain independent.
 

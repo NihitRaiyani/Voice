@@ -142,3 +142,32 @@ def test_http_response_bytes_and_hanging_transport_are_bounded():
                 )
 
     asyncio.run(run())
+
+
+def test_http_tts_identity_tracks_served_artifacts_without_native_client_load():
+    from roma.core.ai_contracts import TTSRequest
+
+    async def run():
+        class VersionedTTS(TTS):
+            identity = "indic-tts:artifact-a:resident-v1"
+
+            async def cache_identity(self, request):
+                return self.identity
+
+        async def warmup():
+            pass
+
+        native = VersionedTTS()
+        app = create_speech_app(settings(), stt=STT(), tts=native, warmup=warmup)
+        async with (app.router.lifespan_context(app),
+                    httpx.AsyncClient(transport=httpx.ASGITransport(app=app)) as client):
+            served = HTTPTTSProvider(settings(), client=client)
+            request = TTSRequest("नमस्ते", language="hi", turn_epoch=3)
+            assert await served.cache_identity(request) == native.identity
+            native.identity = "indic-tts:artifact-b:resident-v1"
+            assert await served.cache_identity(request) == native.identity
+            native.identity = "private/artifact/path"
+            with pytest.raises(ProviderUnavailable):
+                await served.cache_identity(request)
+
+    asyncio.run(run())

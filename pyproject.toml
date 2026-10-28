@@ -78,6 +78,9 @@ markers = [
 [tool.mypy]
 python_version = "3.11"
 files = [
+    "roma/eval/acoustic.py",
+    "scripts/measure_acoustic_ttfa.py",
+    "roma/api/v1/supervisor_ui.py",
     "roma/container_runtime.py",
     "roma/backend_app.py",
     "roma/api/v1/analytics.py",

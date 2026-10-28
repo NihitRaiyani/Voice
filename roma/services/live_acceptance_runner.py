@@ -102,6 +102,7 @@ class AcceptanceObserver:
         self.expected_database = None
         self.claim_times = {}
         self.played_epochs = set()
+        self.capture_health = None
 
     def require_target(self, url):
         from roma.repositories.postgres.demo_database import validate_demo_target
@@ -185,6 +186,12 @@ class AcceptanceObserver:
                                   'interrupt mid-sentence with the changed time. This cue is software scheduling, not acoustic onset.')
                 return await super().play(result, epoch=epoch)
 
+            async def aclose(self):
+                try:
+                    return await super().aclose()
+                finally:
+                    observer.capture_health = self.capture_health
+
             async def clear(self):
                 from time import perf_counter
                 owner, active = self._epoch(), self._output is not None
@@ -219,11 +226,13 @@ async def run_session(invoke, verify, observer, store, source):
     finally:
         common = {**source, 'run_id': observer.run_id}
         store.write('physical', {**common, 'events': observer.events,
-                    'turn_budget': observer.turns, 'acoustic_stop_ms': None,
+                    'turn_budget': observer.turns, 'capture_health': observer.capture_health,
+                    'acoustic_stop_ms': None,
                     'acoustic_first_audible_ms': None, 'full_gate_passed': False,
                     'prepared_booking_scenario': True})
         store.write('session', {**common, 'status': status, 'booking': booking,
-                    'booking_verified': status == 'completed',
+                    'booking_verified': (status == 'completed' and booking.get('committed') is True
+                                         and booking.get('restored') is True),
                     'failure_diagnostics': diagnostics,
                     'microphone_used': any(e['event'] in {'capture_started', 'device_opened'} for e in observer.events), 'recording_retained': False,
                     'full_discovery_verified': False, 'full_gate_passed': False})

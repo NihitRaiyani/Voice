@@ -143,3 +143,12 @@ The supervised follow-up on 2026-10-26 produced two played turns/two playback re
 Recorded 2026-10-26T04:34:04.216967Z; source commit `c338a0ea3e9be90eb0b24e89fd44b6e2e0c40467`. Run `03ebe8aeb13845f28e0d3e54eafa89fd`; status `failed`. Local HMAC receipts establish integrity, not independent acceptance. Acoustic first-audible and playback-stop latency remain unmeasured without independent instrumentation. Software timing and one supervised scenario do not pass the full reliability/concurrency gate.
 
 <!-- END CURRENT LIVE ACCEPTANCE -->
+
+
+## 2026-10-28 capture investigation and process boundary
+
+The [blueprint comparison](../decisions.md#2026-10-28-remediation-blueprint-review) retains the recorded physical failure and adds diagnostics rather than asserting a GIL/Metal/swap cause. `LocalAudioDevice.capture_health` reports detached content-free **device-lifetime** counters/maxima: callback count/maximum interval, native flags, ADC gaps, queue high-water/capacity/contention, frame age, recovery count, and ordinary 10ms event-loop heartbeat lag. This is neither a priority scheduler nor per-turn/P99/acoustic evidence. Signed physical receipts retain the final snapshot after device cleanup.
+
+`--speech-transport local_http` explicitly uses the already warmed private speech service for ASR/TTS; failure has no in-process or cloud fallback. Native speech artifacts are verified/warmed in that process, not imported for inference by the capture process. VAD/AEC and optional RAG embeddings remain separately accounted work; this is not a guarantee of a <180MB capture process or isolation from host-wide memory pressure. The served TTS content identity is validated through a bounded authenticated endpoint so process separation does not silently reuse PCM across different artifacts.
+
+Completed call execution no longer marks booking verified unless the independent SQL probe observes both commit and restore. No physical microphone run, audio recording, model conversion/download, paid request, new human score or acceptance gate follows from these offline changes.

@@ -8,7 +8,7 @@ from sqlalchemy import or_, select, text
 
 from roma.domain.knowledge import governance
 from roma.repositories.postgres.knowledge_ingestion import identity_fields
-from roma.repositories.postgres.models.calls import CallTurn
+from roma.repositories.postgres.models.calls import Call, CallTurn
 from roma.repositories.postgres.models.knowledge import (
     KnowledgeChunk,
     KnowledgeDocument,
@@ -188,6 +188,14 @@ class KnowledgeRepository:
         metadata = RetrievalMetadata.model_validate(metadata.model_dump())
         now = now or datetime.now(UTC)
         async with self.session_factory() as session, session.begin():
+            if metadata.call_id is not None:
+                # Serialize audit admission with call/subject disposal. A delayed
+                # retrieval must not recreate links after the privacy scrub commits.
+                call = await session.scalar(
+                    select(Call).where(Call.id == metadata.call_id).with_for_update()
+                )
+                if call is None or call.deleted_at is not None:
+                    raise governance.KnowledgeError("KNOWLEDGE_EVIDENCE_MISMATCH")
             if metadata.turn_id is not None:
                 linked_call = await session.scalar(
                     select(CallTurn.call_id).where(CallTurn.id == metadata.turn_id)

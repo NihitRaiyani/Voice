@@ -405,7 +405,7 @@
     {
       "id": "rag.quality",
       "metrics": [
-        "recall_at_k",
+        "recall_at_5",
         "mrr",
         "groundedness",
         "deferral_accuracy",
@@ -416,13 +416,29 @@
       ],
       "minimum_samples": 38,
       "targets": {
-        "recall_at_k": null,
-        "mrr": null,
-        "groundedness": null,
-        "deferral_accuracy": null,
-        "safety_rate": null
+        "recall_at_5": {
+          "direction": "min",
+          "value": 0.8
+        },
+        "mrr": {
+          "direction": "min",
+          "value": 0.7
+        },
+        "groundedness": {
+          "direction": "min",
+          "value": 0.9
+        },
+        "deferral_accuracy": {
+          "direction": "min",
+          "value": 0.95
+        },
+        "safety_rate": {
+          "direction": "min",
+          "value": 0.95
+        }
       },
-      "existing_evidence": "benchmarks/rag/local-v1-report.json"
+      "existing_evidence": "benchmarks/rag/local-v1-report.json",
+      "target_basis": "Owner-approved provisional aggregate targets; docs/levels/level-09.md. Groundedness requires real Claude semantic review, not fixture span support."
     },
     {
       "id": "rag.latency",
@@ -435,10 +451,14 @@
       ],
       "minimum_samples": 38,
       "targets": {
-        "retrieval_p95_ms": null,
+        "retrieval_p95_ms": {
+          "direction": "max",
+          "value": 450
+        },
         "answer_p95_ms": null
       },
-      "existing_evidence": "benchmarks/rag/local-v1-report.json"
+      "existing_evidence": "benchmarks/rag/local-v1-report.json",
+      "target_basis": "Owner-approved provisional retrieval target; complete answer latency remains unset."
     },
     {
       "id": "chaos.redis_loss",

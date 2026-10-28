@@ -93,3 +93,47 @@ def test_relative_runtime_root_cleanup_and_legacy_recording_reference(tmp_path, 
         assert not recording.exists() and "local_files" not in result["cleanup_pending"]
 
     asyncio.run(scenario())
+
+
+def test_subject_disposal_previews_all_siblings_and_retries_each_managed_cleanup(tmp_path):
+    async def scenario():
+        caller_id, first, second = uuid4(), uuid4(), uuid4()
+
+        class SubjectRepository(Repository):
+            async def plan_subject(self, subject_id):
+                assert subject_id == caller_id
+                return {"call_ids": [first, second]}
+
+            async def plan(self, call_id):
+                return {
+                    **await super().plan(call_id),
+                    "call_sid": "CA_first" if call_id == first else "CA_second",
+                }
+
+            async def dispose_subject(self, subject_id, *, call_ids, **kwargs):
+                assert subject_id == caller_id and call_ids == [first, second]
+                self.calls.append("subject_disposed")
+
+        repo = SubjectRepository()
+        redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+        for sid in ("CA_first", "CA_second"):
+            raw = tmp_path / f"media/2026-10-28/{sid}.s16le"
+            raw.parent.mkdir(parents=True, exist_ok=True)
+            raw.write_bytes(b"synthetic")
+            await redis.set(f"call:{sid}:state", "synthetic")
+        service = PrivacyService(repo, tmp_path, redis=redis)
+        preview = await service.dispose_subject(caller_id)
+        assert preview["counts"] == {"calls": 2, "transcripts": 2}
+        assert preview["applied"] is False and repo.calls == []
+        assert not (tmp_path / "privacy").exists()
+        result = await service.dispose_subject(caller_id, apply=True)
+        assert result["managed_cleanup_complete"] and result["external_pending"]
+        assert repo.calls == ["subject_disposed", False, False]
+        assert all(
+            not (tmp_path / f"media/2026-10-28/{sid}.s16le").exists()
+            for sid in ("CA_first", "CA_second")
+        )
+        assert await redis.dbsize() == 0
+        await redis.aclose()
+
+    asyncio.run(scenario())

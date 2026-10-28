@@ -72,6 +72,7 @@ def voice_args(options, observer=None):
     args = prototype.parser().parse_args(['--mode', 'local', '--allow-microphone',
         '--allow-paid-api', '--allow-database-write', '--max-turns', '8'])
     args.input_device, args.output_device = options.input_device, options.output_device
+    args.speech_transport = getattr(options, "speech_transport", "in_process")
     args.acceptance_observer = observer
     return args
 
@@ -80,14 +81,15 @@ def check(options):
     from roma.providers.audio.echo import WebRTCEchoCanceller
     from scripts import voice_prototype as prototype
     with environment(speech_environment(options.language)):
-        _, _, tts_cfg = prototype.local_preflight(voice_args(options))
+        args = voice_args(options)
+        cfg, _, tts_cfg = prototype.local_preflight(args)
+        from contextlib import AsyncExitStack
+
         from roma.providers.ai.contracts import TTSRequest
-        tts = prototype.build_tts_provider(tts_cfg)
         async def validate_tts():
-            try:
+            async with AsyncExitStack() as cleanup:
+                _, tts = await prototype.local_speech_providers(args, cfg, tts_cfg, cleanup)
                 await tts.cache_identity(TTSRequest("नमस्ते", language="hi"))
-            finally:
-                await tts.aclose()
         asyncio.run(validate_tts())
         WebRTCEchoCanceller(stream_delay_ms=0).preflight()
         if shutil.which('redis-server') is None:
@@ -221,6 +223,7 @@ def parser():
     modes.add_argument('--update-readiness', action='store_true')
     p.add_argument('--language', choices=('gu', 'hi', 'en'), default='gu')
     p.add_argument('--listener', default='Owner', help='Pseudonymous actual listener label')
+    p.add_argument('--speech-transport', choices=('in_process', 'local_http'), default='in_process')
     p.add_argument('--input-device', type=int)
     p.add_argument('--output-device', type=int)
     p.add_argument('--yes-ready', action='store_true', help='Supervisor already received an explicit ready indication')

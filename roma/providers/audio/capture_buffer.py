@@ -42,6 +42,28 @@ class CaptureBuffer:
         self.muted_discarded = 0
         self.stale_discarded = 0
         self.active_overflows = 0
+        self.capacity_drops = 0
+        self.lock_contentions = 0
+        self.invalid_input_blocks = 0
+        self.high_watermark = 0
+
+    def health(self):
+        """Best-effort cumulative metadata without contending with callbacks."""
+        occupancy = len(self._frames)
+        high_watermark = self.high_watermark
+        return {
+            "ring_buffer_capacity_frames": self.capacity,
+            "ring_buffer_occupancy_frames": occupancy,
+            "ring_buffer_high_watermark_frames": high_watermark,
+            "ring_buffer_occupancy_pct": 100 * occupancy / self.capacity,
+            "ring_buffer_high_watermark_pct": 100 * high_watermark / self.capacity,
+            "ring_buffer_capacity_drops": self.capacity_drops,
+            "callback_lock_contentions": self.lock_contentions,
+            "invalid_input_blocks": self.invalid_input_blocks,
+            "active_capture_losses": self.active_overflows,
+            "muted_discarded": self.muted_discarded,
+            "stale_discarded": self.stale_discarded,
+        }
 
     def activate(self, epoch, *, follow_epochs=False):
         if type(epoch) is not int or epoch < 0 or type(follow_epochs) is not bool:
@@ -77,6 +99,7 @@ class CaptureBuffer:
             # A fixed flag is sufficient: an active turn with any lost block fails.
             self._failed_generation = self.generation
             self.active_overflows += 1
+            self.lock_contentions += 1
             return
         try:
             if self.mode != CaptureMode.ACTIVE:
@@ -85,14 +108,16 @@ class CaptureBuffer:
             if not self.follow_epochs and epoch != self.epoch:
                 self.stale_discarded += 1
                 return
-            if (
-                overflow
-                or (at is not None and (type(at) not in (int, float) or not math.isfinite(at)))
+            invalid = (
+                (at is not None and (type(at) not in (int, float) or not math.isfinite(at)))
                 or type(frames) is not int
                 or frames != 320
                 or len(pcm) != frames * 2
-                or len(self._frames) >= self.capacity
-            ):
+            )
+            capacity_lost = len(self._frames) >= self.capacity
+            if overflow or invalid or capacity_lost:
+                self.invalid_input_blocks += int(invalid)
+                self.capacity_drops += int(capacity_lost)
                 self._failed_generation = self.generation
                 self.active_overflows += 1
                 self._frames.clear()
@@ -100,6 +125,7 @@ class CaptureBuffer:
             self._frames.append(
                 CaptureFrame(bytes(pcm), self.last_callback_at if at is None else at, epoch, self.generation)
             )
+            self.high_watermark = max(self.high_watermark, len(self._frames))
         finally:
             self._lock.release()
 

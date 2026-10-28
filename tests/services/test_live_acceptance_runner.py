@@ -262,3 +262,28 @@ def test_capture_recovery_is_recorded_without_audio_or_a_passed_gate(tmp_path):
         with pytest.raises(ValueError):
             observer.on_event('capture_recovered', {'caller_text': 'private'})
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("booking", [
+    {"committed": False, "restored": False},
+    {"committed": True, "restored": False},
+    {"committed": None, "restored": None},
+])
+def test_completed_call_without_sql_commit_and_restore_is_not_verified(tmp_path, booking):
+    import asyncio
+
+    from roma.services.live_acceptance_evidence import EvidenceStore
+    from roma.services.live_acceptance_runner import AcceptanceObserver, run_session
+
+    async def run():
+        async def invoke():
+            pass
+        async def verify():
+            return booking
+        store = EvidenceStore(tmp_path / "private")
+        await run_session(invoke, verify, AcceptanceObserver("test", emit=lambda _: None),
+                          store, {"source_commit": "a" * 40})
+        receipt = store.read("session")["payload"]
+        assert receipt["status"] == "completed"
+        assert receipt["booking_verified"] is False
+    asyncio.run(run())

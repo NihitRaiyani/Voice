@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roma · Supervisor</title>
+  <link rel="stylesheet" href="/admin/supervisor/assets/style.css">
+  <script src="/admin/supervisor/assets/app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header><div><p class="eyebrow">ROMA / OPERATIONS</p><h1>Call supervisor</h1></div><button id="logout" hidden>Sign out</button></header>
+  <main id="main">
+    <p class="privacy">No caller names, transcripts or audio. Booking reflects SQL records; latency reflects software measurements.</p>
+    <p id="status" role="status" aria-live="polite">Sign in with an active Admin account to view call metadata.</p>
+    <form id="login-form" class="panel">
+      <h2>Admin sign in</h2>
+      <p>Uses the existing Roma account. Credentials and session tokens are never saved by this page.</p>
+      <label for="email">Email</label><input id="email" type="email" autocomplete="username" required maxlength="320">
+      <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required maxlength="256">
+      <button id="signin" type="submit">Sign in</button>
+    </form>
+    <div id="dashboard" hidden>
+      <section class="panel" aria-labelledby="active-title">
+        <div class="section-head"><h2 id="active-title">Live calls</h2><button id="resync">Refresh SQL snapshot</button></div>
+        <p>Up to 100 calls. SQL snapshots refresh every 30 seconds while connected to remove ended calls; background tabs may refresh later. Live updates are ephemeral. Sign in again to reconnect.</p>
+        <div class="table-scroll"><table><caption class="sr-only">Live metadata from SQL and supervisor events</caption><thead><tr><th>Call</th><th>Stage / language</th><th>Turn</th><th>Duration</th><th>Latency P95</th><th>Safety hits</th><th>Booking</th><th>Accrued cost</th><th>Observed</th></tr></thead><tbody id="calls"></tbody></table></div>
+        <p id="empty">No active calls in the latest SQL snapshot.</p>
+      </section>
+      <section class="panel" aria-labelledby="history-title">
+        <h2 id="history-title">SQL history</h2>
+        <form id="history-form" class="window"><label for="start">Start date (UTC)<input id="start" type="date" required></label><label for="end">End date, exclusive (UTC)<input id="end" type="date" required></label><button id="history-refresh" type="submit">Load history</button></form>
+        <p id="history-status" role="status" aria-live="polite">Choose a window of at most 366 days.</p>
+        <dl id="overview" class="metrics"></dl>
+        <table><caption>Ordered funnel evidence</caption><thead><tr><th>Milestone</th><th>Calls</th></tr></thead><tbody id="funnel"></tbody></table>
+        <p>Funnel counts use ordered persisted milestones. Missing historical stages are not inferred. Unknown values remain unknown; currencies are never combined.</p>
+      </section>
+    </div>
+  </main>
+  <footer>Read-only supervision · Access is rechecked by the server · No acoustic or operational acceptance implied</footer>
+</body>
+</html>

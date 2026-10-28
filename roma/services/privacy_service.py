@@ -41,14 +41,20 @@ class PrivacyService:
         sid = safe_call_sid(plan["call_sid"])
         # Mark on disk before SQL mutation, so an in-progress conversion cannot
         # recreate files after cleanup. A failed SQL commit remains safely retryable.
+        self._write_marker(sid, call_id)
+        await self.repository.dispose(
+            call_id, action=action, actor_id=actor_id, now=self.clock()
+        )
+        return {**result, "applied": True, **await self._cleanup(call_id, sid, plan)}
+
+    def _write_marker(self, sid, call_id):
         marker = safe_runtime_path(self.root, f"privacy/tombstones/{sid}.json")
         with open_private(marker, "w") as stream:
             json.dump({"v": 1, "call_id": str(call_id)}, stream)
             stream.flush()
             os.fsync(stream.fileno())
-        await self.repository.dispose(
-            call_id, action=action, actor_id=actor_id, now=self.clock()
-        )
+
+    async def _cleanup(self, call_id, sid, plan):
         pending = []
         try:
             await asyncio.to_thread(self._remove_local, sid, plan.get("recording_refs", []))
@@ -63,10 +69,64 @@ class PrivacyService:
             pending.append("redis")
         await self.repository.cleanup_result(call_id, pending=bool(pending), now=self.clock())
         return {
-            **result,
-            "applied": True,
             "cleanup_pending": pending,
             "managed_cleanup_complete": not pending,
+        }
+
+    async def dispose_subject(self, caller_id, *, action="delete", apply=False, actor_id=None):
+        """Dispose only the persisted caller graph; unknown copies remain explicit."""
+        if action not in {"delete", "anonymize"} or type(apply) is not bool:
+            raise ValueError("Invalid privacy operation.")
+        subject = await self.repository.plan_subject(caller_id)
+        plans = [
+            (call_id, await self.repository.plan(call_id)) for call_id in subject["call_ids"]
+        ]
+        counts = {"calls": len(plans)}
+        for _, plan in plans:
+            for label, count in plan["counts"].items():
+                counts[label] = counts.get(label, 0) + count
+        result = {
+            "caller_id": str(caller_id),
+            "action": action,
+            "applied": False,
+            "counts": counts,
+            "scope": "persisted_caller_links_and_prior_subject_disposals",
+            "external_pending": [
+                "unlinked_or_unidentified_calls",
+                "backups_replicas_and_restore_tombstone_reapplication",
+                "external_provider_and_operator_exports",
+                "unmapped_lead_cache_and_holds_until_ttl",
+                "future_contact_is_not_suppressed",
+            ],
+        }
+        if not apply:
+            return result
+        if any(plan["status"] in {"pending", "ringing", "in_progress"} for _, plan in plans):
+            raise ValueError("Active calls must end before subject disposal.")
+        # Validate all identities before marking any; SQL rechecks the exact graph
+        # and every call status atomically before scrubbing all siblings.
+        targets = [(call_id, safe_call_sid(plan["call_sid"]), plan) for call_id, plan in plans]
+        for call_id, sid, _ in targets:
+            self._write_marker(sid, call_id)
+        await self.repository.dispose_subject(
+            caller_id,
+            call_ids=subject["call_ids"],
+            action=action,
+            actor_id=actor_id,
+            now=self.clock(),
+        )
+        cleanups = []
+        for call_id, sid, plan in targets:
+            cleanups.append(
+                {"call_id": str(call_id), **await self._cleanup(call_id, sid, plan)}
+            )
+        return {
+            **result,
+            "applied": True,
+            "calls": cleanups,
+            "managed_cleanup_complete": all(
+                item["managed_cleanup_complete"] for item in cleanups
+            ),
         }
 
     def _remove_local(self, sid, recording_refs):

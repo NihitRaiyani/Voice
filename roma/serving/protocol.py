@@ -139,3 +139,8 @@ def tts_response(result: TTSResult, epoch: int | None, max_secs: float) -> dict:
     response = TTSResponse.model_validate({**body, "turn_epoch": epoch})
     response.contract(max_secs)
     return response.model_dump()
+
+
+class TTSIdentityResponse(WireModel):
+    # Opaque content identity only: never filesystem paths or model text.
+    identity: str = Field(pattern=r"^indic-tts:[A-Za-z0-9_-]{1,128}(?::[A-Za-z0-9_-]{1,100})?$")

@@ -14,7 +14,14 @@ from pydantic import ValidationError
 
 from roma.core.ai_contracts import ProviderUnavailable, STTProvider, TTSProvider
 from roma.core.serving_settings import SpeechServingSettings
-from roma.serving.protocol import STTBatchBody, STTBody, TTSBody, stt_response, tts_response
+from roma.serving.protocol import (
+    STTBatchBody,
+    STTBody,
+    TTSBody,
+    TTSIdentityResponse,
+    stt_response,
+    tts_response,
+)
 
 
 def create_speech_app(
@@ -200,6 +207,22 @@ def create_speech_app(
             return {"results": results}
 
         return await run(request, operation, stt)
+
+    @app.post("/v1/tts/identity")
+    async def tts_identity(request: Request):
+        data = await body(request)
+        try:
+            contract = TTSBody.model_validate(data).contract(settings)
+        except (ValueError, ValidationError):
+            return JSONResponse({"error": "invalid_payload"}, status_code=422)
+
+        async def operation():
+            identity = getattr(tts, "cache_identity", None)
+            if identity is None:
+                raise ProviderUnavailable("Speech artifact identity unavailable")
+            return TTSIdentityResponse(identity=await identity(contract)).model_dump()
+
+        return await run(request, operation, tts)
 
     @app.post("/v1/tts")
     async def synthesize(request: Request):

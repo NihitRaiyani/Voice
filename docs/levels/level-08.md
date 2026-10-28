@@ -149,3 +149,10 @@ The separate [preview-first operator](../runbook.md#known-resource-provider-eras
 Recorded 2026-10-26T04:34:04.216967Z; source commit `c338a0ea3e9be90eb0b24e89fd44b6e2e0c40467`. Run `03ebe8aeb13845f28e0d3e54eafa89fd`; status `failed`. Local HMAC receipts establish integrity, not independent acceptance. Governance, provider-account terms and whole-person/backup erasure remain pending independent closure. No recording or retention policy is activated by this receipt.
 
 <!-- END CURRENT LIVE ACCEPTANCE -->
+
+
+## 2026-10-28 persisted-subject disposal
+
+The Admin privacy API/CLI now supports preview-first disposal over all calls linked to one persisted caller UUID, including UUID-only prior disposal manifests for retries after detachment. A short SQL transaction holds existing SID advisory locks and granular Caller/Call row locks, rechecks the exact graph and rejects active calls before any SQL scrub. Caller foreign-key associations wait behind that row lock while unrelated caller writes remain independent. Lock waits are bounded at three seconds each; no worst-case transaction SLA is claimed for the 1,000-call/history limit.
+
+Selected caller fields and sibling transcripts/checkpoints/events/jobs/recordings are anonymized through the existing contract. Retrieval audits detach whether linked by call ID or turn ID. The anonymized Caller row, appointment statuses and financial totals are retained; this is managed historical-graph disposal, not a claim that all personal copies have been erased. Managed file/Redis cleanup follows the commit and can be retried. Unidentified/unlinked calls, future contact, unknown exports/lead caches/holds, replicas, backups and external providers remain returned scope limits. No working data, vendor resources or policy were changed. See the [review](../decisions.md#2026-10-28-remediation-blueprint-review) and [commands](../runbook.md#remediation-investigation-and-isolated-microphone-speech).

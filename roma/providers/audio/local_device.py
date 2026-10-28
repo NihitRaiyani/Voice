@@ -80,6 +80,17 @@ class LocalAudioDevice:
         self._echo_epoch = self._epoch()
         self._echo_lock = threading.Lock()
         self.last_clear_ms = None
+        self._callback_at = None
+        self._callback_count = 0
+        self._callback_interval_max_us = 0.0
+        self._input_overflows = 0
+        self._output_underflows = 0
+        self._sequence_gaps = 0
+        self._heartbeat_task = None
+        self._loop_stall_max_ms = 0.0
+        self._loop_heartbeat_samples = 0
+        self._capture_frame_age_max_ms = 0.0
+        self._capture_recoveries = 0
 
     def bind_epoch_guard(self, guard):
         if self._listening:
@@ -101,6 +112,23 @@ class LocalAudioDevice:
     def capture_mode(self):
         return self.capture.mode
 
+    @property
+    def capture_health(self):
+        """Best-effort lifetime metadata; maxima are not acoustic acceptance."""
+        return {
+            "scope": "device_lifetime",
+            "audio_callback_count": self._callback_count,
+            "audio_cb_interval_max_us": self._callback_interval_max_us,
+            "portaudio_input_overflows": self._input_overflows,
+            "portaudio_output_underflows": self._output_underflows,
+            "pcm_sequence_gaps": self._sequence_gaps,
+            "asyncio_loop_stall_max_ms": self._loop_stall_max_ms,
+            "asyncio_loop_heartbeat_samples": self._loop_heartbeat_samples,
+            "capture_frame_age_max_ms": self._capture_frame_age_max_ms,
+            "capture_recoveries": self._capture_recoveries,
+            **self.capture.health(),
+        }
+
     def _audio(self):
         if sys.byteorder != "little":
             raise ValueError("Local PCM device requires a little-endian host")
@@ -113,7 +141,13 @@ class LocalAudioDevice:
     def _capture_callback(self, pcm, frames, time_info, status):
         # Hardware ADC/sample time keeps DSP aligned when Python callbacks jitter.
         at = self.clock()
+        self._callback_count += 1
+        if self._callback_at is not None:
+            self._callback_interval_max_us = max(
+                self._callback_interval_max_us, max(0.0, at - self._callback_at) * 1_000_000)
+        self._callback_at = at
         overflow = bool(getattr(status, "input_overflow", False))
+        self._input_overflows += int(overflow)
         if self.duplex:
             adc = getattr(time_info, "inputBufferAdcTime", None)
             current = getattr(time_info, "currentTime", None)
@@ -129,10 +163,22 @@ class LocalAudioDevice:
                 at = self._input_anchor + self._input_samples / 16000
             if self._last_capture_end is not None and abs(at - self._last_capture_end - frames / 16000) > 0.005:
                 overflow = True
+                self._sequence_gaps += 1
             self._last_capture_end = at
         if self._capture_deadline is not None and at > self._capture_deadline:
             return
         self.capture.push(pcm, frames, self._epoch(), overflow, at=at)
+
+    async def _monitor_loop(self):
+        # An ordinary event-loop timer: diagnostic, not a real-time scheduler.
+        loop = asyncio.get_running_loop()
+        previous = loop.time()
+        while True:
+            await asyncio.sleep(0.010)
+            now = loop.time()
+            self._loop_stall_max_ms = max(self._loop_stall_max_ms, max(0.0, now - previous - 0.010) * 1000)
+            self._loop_heartbeat_samples += 1
+            previous = now
 
     async def start(self):
         async with self._start_lock:
@@ -156,12 +202,16 @@ class LocalAudioDevice:
                 await asyncio.shield(self._start_task)
                 self._check_active()
                 self._started = True
+                self._heartbeat_task = asyncio.create_task(self._monitor_loop(), name="capture-heartbeat")
             except BaseException:
                 await self.aclose()
                 raise
 
     async def _close(self):
         self.capture.close()
+        if self._heartbeat_task is not None:
+            self._heartbeat_task.cancel()
+            await asyncio.gather(self._heartbeat_task, return_exceptions=True)
         try:
             await self.clear()
         finally:
@@ -213,6 +263,8 @@ class LocalAudioDevice:
                             raise VoiceFailure(VoiceErrorCode.DEVICE_CAPTURE_STALLED)
                         await asyncio.sleep(0.005)
                         continue
+                    self._capture_frame_age_max_ms = max(
+                        self._capture_frame_age_max_ms, max(0.0, self.clock() - frame.at) * 1000)
                     if frame.at > self._capture_deadline:
                         break
                     cleaned = await asyncio.to_thread(self._process_echo, frame.pcm, frame.at - 0.020)
@@ -227,6 +279,7 @@ class LocalAudioDevice:
                     if remaining <= 0:
                         raise VoiceFailure(VoiceErrorCode.CAPTURE) from None
                     recoveries += 1
+                    self._capture_recoveries += 1
                     async with asyncio.timeout(min(3, remaining)):
                         await on_discontinuity()
                     self._check_active()
@@ -315,6 +368,8 @@ class LocalAudioDevice:
                         raise VoiceFailure(VoiceErrorCode.DEVICE_CAPTURE_STALLED)
                     await asyncio.sleep(0.005)
                     continue
+                self._capture_frame_age_max_ms = max(
+                    self._capture_frame_age_max_ms, max(0.0, self.clock() - frame.at) * 1000)
                 if frame.at > deadline:
                     break
                 block = frame.pcm[: min(320, sample_limit - samples_read) * 2]
@@ -496,6 +551,7 @@ class LocalAudioDevice:
                     output["io"] = None
                     self._check_output(generation, epoch)
                     if underflow:
+                        self._output_underflows += 1
                         raise ValueError("Speaker underflow")
                 output["io"] = asyncio.create_task(asyncio.to_thread(stream.stop))
                 await asyncio.shield(output["io"])

@@ -1,6 +1,6 @@
 # Roma Voice Agent
 
-Roma is a backend-only counselling voice agent for Weltec's Digital Marketing course. Its goal is a specific branch, day and time with explicit readback and caller confirmation. It understands Gujarati, Hindi, English and code-mix. Live replies remain Hindi-base Hinglish; multilingual output is evaluated separately.
+Roma is a backend-led counselling voice agent for Weltec's Digital Marketing course. Its goal is a specific branch, day and time with explicit readback and caller confirmation. It understands Gujarati, Hindi, English and code-mix. Live replies remain Hindi-base Hinglish; multilingual output is evaluated separately.
 
 **Working repository: `Voice_Agent`.** The [Claude roadmap](docs/roadmaps/AI_VOICE_AGENT_claude_llm.docx) governs future level-by-level development. Start with the [documentation index](docs/README.md) and [engineering rules](CLAUDE.md).
 
@@ -22,7 +22,7 @@ Production booking now uses PostgreSQL availability, expiring Redis holds and a 
 
 [Section 14](docs/levels/level-04.md) adds inspectable 8↔16 kHz conversion, exact framing and a fixed jitter lab (`make audio-lab`). Production retains native serialization/current cloud rates, with per-call sequence/alignment validation. Adaptive jitter/PLC and local ASR gates remain pending.
 
-There is no frontend. Live telephony still uses `/api/call`, `/api/call/{request_uuid}`, `/answer`, `/ws` and `/health`. Durable business resources now use versioned `/api/v1/...` JSON routes with consistent envelopes.
+A small read-only Admin supervisor view is available at `/admin/supervisor`; the existing APIs remain authoritative. Live telephony still uses `/api/call`, `/api/call/{request_uuid}`, `/answer`, `/ws` and `/health`. Durable business resources now use versioned `/api/v1/...` JSON routes with consistent envelopes.
 
 ## Run and verify
 

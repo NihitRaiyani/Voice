@@ -28,6 +28,7 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Preview/apply managed privacy operations")
     operation = parser.add_mutually_exclusive_group(required=True)
     operation.add_argument("--call-id", type=UUID)
+    operation.add_argument("--caller-id", type=UUID)
     operation.add_argument("--expired", action="store_true")
     operation.add_argument("--backfill-encryption", action="store_true")
     parser.add_argument("--action", choices=["delete", "anonymize"], default="delete")
@@ -97,6 +98,10 @@ async def run(args):
             )
         if args.expired:
             return await service.retention(apply=args.apply, limit=args.limit)
+        if args.caller_id:
+            return await service.dispose_subject(
+                args.caller_id, action=args.action, apply=args.apply
+            )
         return await service.dispose(args.call_id, action=args.action, apply=args.apply)
     finally:
         await redis.aclose()

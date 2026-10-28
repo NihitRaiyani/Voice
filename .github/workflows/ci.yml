@@ -45,6 +45,13 @@ jobs:
         run: make services-up
       - name: Enable pgvector in the disposable CI database
         run: psql postgresql://postgres@127.0.0.1:54329/roma -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector'
+      - name: Set up the supervisor client test runtime
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Require the supervisor client runtime
+        run: node --version
       - name: Lint
         run: make lint
       - name: Type check

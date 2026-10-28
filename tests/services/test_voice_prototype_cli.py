@@ -390,3 +390,68 @@ def test_optional_local_knowledge_is_off_by_default_and_reuses_existing_llm_when
             assert module.optional_knowledge(factory,llm,safety,cleanup) == 'scoped-knowledge'
         assert events == ['components_built','same_llm_bound','embedding_closed']
     asyncio.run(run())
+
+
+def test_isolated_speech_transport_never_constructs_native_models(monkeypatch):
+    from contextlib import AsyncExitStack
+
+    from pydantic import SecretStr
+    from roma.core.serving_settings import SpeechServingSettings
+    from roma.core.speech_settings import SpeechSettings
+    from roma.core.tts_settings import TTSSettings
+    from roma.providers.ai.speech_http import HTTPSTTProvider, HTTPTTSProvider
+
+    async def run():
+        module = cli()
+        args = module.parser().parse_args(["--speech-transport", "local_http"])
+        cfg = SpeechServingSettings(_env_file=None,
+            speech_service_key=SecretStr("isolated-speech-test-0123456789abcdef"))
+        monkeypatch.setattr(module, "SpeechServingSettings", lambda: cfg)
+        monkeypatch.setattr(module, "build_stt_provider", lambda _: pytest.fail("native ASR loaded"))
+        monkeypatch.setattr(module, "build_tts_provider", lambda _: pytest.fail("native TTS loaded"))
+        probes = []
+
+        async def ready(self):
+            probes.append(type(self))
+            return True
+
+        monkeypatch.setattr(HTTPSTTProvider, "ready", ready)
+        monkeypatch.setattr(HTTPTTSProvider, "ready", ready)
+        async with AsyncExitStack() as cleanup:
+            stt, tts = await module.local_speech_providers(args, SpeechSettings(_env_file=None),
+                TTSSettings(_env_file=None), cleanup)
+            assert isinstance(stt, HTTPSTTProvider) and isinstance(tts, HTTPTTSProvider)
+            assert probes == [HTTPSTTProvider, HTTPTTSProvider]
+        assert stt._client.is_closed and tts._client.is_closed
+
+    asyncio.run(run())
+
+
+def test_isolated_speech_failure_closes_clients_without_native_fallback(monkeypatch):
+    from contextlib import AsyncExitStack
+
+    from pydantic import SecretStr
+    from roma.core.serving_settings import SpeechServingSettings
+    from roma.providers.ai.speech_http import HTTPSTTProvider, HTTPTTSProvider
+
+    async def run():
+        module = cli()
+        settings = SpeechServingSettings(_env_file=None,
+            speech_service_key=SecretStr("isolated-speech-test-0123456789abcdef"))
+        monkeypatch.setattr(module, "SpeechServingSettings", lambda: settings)
+        monkeypatch.setattr(module, "build_stt_provider", lambda _: pytest.fail("native fallback"))
+        monkeypatch.setattr(module, "build_tts_provider", lambda _: pytest.fail("native fallback"))
+        closed = []
+        async def ready(self):
+            return False
+        async def close(self):
+            closed.append(type(self))
+        monkeypatch.setattr(HTTPSTTProvider, "ready", ready)
+        monkeypatch.setattr(HTTPSTTProvider, "aclose", close)
+        monkeypatch.setattr(HTTPTTSProvider, "aclose", close)
+        with pytest.raises(VoiceFailure):
+            async with AsyncExitStack() as cleanup:
+                await module.local_speech_providers(SimpleNamespace(speech_transport="local_http"),
+                    None, None, cleanup)
+        assert closed == [HTTPTTSProvider, HTTPSTTProvider]
+    asyncio.run(run())
