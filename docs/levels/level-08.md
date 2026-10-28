@@ -146,7 +146,7 @@ The separate [preview-first operator](../runbook.md#known-resource-provider-eras
 
 ## Current live acceptance
 
-Recorded 2026-10-26T04:34:04.216967Z; source commit `c338a0ea3e9be90eb0b24e89fd44b6e2e0c40467`. Run `03ebe8aeb13845f28e0d3e54eafa89fd`; status `failed`. Local HMAC receipts establish integrity, not independent acceptance. Governance, provider-account terms and whole-person/backup erasure remain pending independent closure. No recording or retention policy is activated by this receipt.
+Recorded 2026-10-28T14:20:29.183960Z; source commit `40fb273f3a8db1a813456fb48ec0d3f15d1a9fc0`. Run `0b5d2790e1b24e41aa2da4e1bac11041`; status `completed`. Local HMAC receipts establish integrity, not independent acceptance. Governance, provider-account terms and whole-person/backup erasure remain pending independent closure. No recording or retention policy is activated by this receipt.
 
 <!-- END CURRENT LIVE ACCEPTANCE -->
 

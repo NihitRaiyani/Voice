@@ -257,7 +257,7 @@ def test_booking_pronunciation_preserves_slot_and_requires_exact_controller_line
     )
     canonical = confirmed_line(spoken_slot(state.locked_slot), state.branch)
     spoken = render_voice_line(canonical, state)
-    assert "18" not in spoken and "6:00" in spoken and "वडोदरा" in spoken
+    assert "शाम छह बजे" in spoken and "वडोदरा" in spoken
     assert render_voice_line(canonical + " extra", state) == canonical + " extra"
     state.appointment_id = None
     assert render_voice_line(canonical, state) == canonical
@@ -415,7 +415,7 @@ def test_verified_conflict_reoffer_has_finite_local_pronunciation():
     final, _ = filter_response(canonical, state)
     assert final == canonical and "5:00 PM" in final
     rendered = render_voice_line(final, state)
-    assert "पी एम" in rendered
+    assert "शाम पाँच बजे" in rendered
     assert not any(c.isascii() and c.isalpha() for c in rendered)
 
 
@@ -557,3 +557,22 @@ def test_remaining_call_budget_reaches_provider_work():
         voice.conversation.turn = turn
         assert (await voice.respond(transcript())).status == "played"
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('hour,expected', [(5, 'सुबह पाँच बजे'), (17, 'शाम पाँच बजे'),
+                                         (0, 'रात बारह बजे'), (12, 'दोपहर बारह बजे')])
+def test_controller_readback_keeps_meridian_until_clock_normalization(hour, expected):
+    from roma.domain.audio.speech_normalization import normalize_tts_text
+    from roma.domain.conversation.confirmguard import SAFE_READBACK_HOLD_LINE
+    from roma.domain.conversation.state import spoken_slot
+    from roma.services.voice_pronunciation import render_voice_line
+
+    state = CallState(accepted_slot=f'2026-10-29T{hour:02d}:00:00+05:30')
+    canonical = SAFE_READBACK_HOLD_LINE.format(slot=spoken_slot(state.accepted_slot))
+    rendered = render_voice_line(canonical, state)
+    normalized = normalize_tts_text(rendered, 'hi')
+    assert expected in normalized
+    assert 'पी एम' not in normalized and 'ए एम' not in normalized
+    assert 'थर्सडे उनतीस ऑक्टोबर' in normalized
+    assert normalized.endswith('— ये सही रहेगा आपके लिए?')
+    assert normalize_tts_text(normalized, 'hi') == normalized

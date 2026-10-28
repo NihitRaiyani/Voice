@@ -6,6 +6,7 @@ from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
 from roma.providers.ai.contracts import AudioFormat, TTSResult
 from roma.providers.audio.local_device import LocalAudioDevice
 from roma.services.speech_input import SpeechTranscript
+from tests.providers.audio.test_callback_output import CallbackSpeakerBackend
 
 
 class Stream:
@@ -46,24 +47,36 @@ class Speech:
 
 
 def device(stream, **kwargs):
+    stream.output = CallbackSpeakerBackend(underflow=stream.underflow)
     return LocalAudioDevice(
         backend=SimpleNamespace(
-            RawInputStream=lambda **kwargs: stream, RawOutputStream=lambda **kwargs: stream
+            RawInputStream=lambda **kwargs: stream,
+            RawOutputStream=stream.output.RawOutputStream,
         ),
         **kwargs,
     )
 
 
 @pytest.mark.parametrize("underflow", [False, True])
-def test_playback_writes_pcm_and_always_closes(underflow):
+def test_playback_uses_callback_pcm_and_call_close_owns_native_teardown(underflow):
     async def run():
         stream = Stream(underflow=underflow)
-        if underflow:
-            with pytest.raises(ValueError, match="underflow"):
-                await device(stream).play(TTSResult(b"\0\0" * 800, AudioFormat(8000)))
-        else:
-            await device(stream).play(TTSResult(b"\0\0" * 800, AudioFormat(8000)))
-        assert stream.events[-2:] == ["abort", "close"] and "write" in stream.events
+        audio = device(stream)
+        try:
+            if underflow:
+                with pytest.raises(ValueError, match="underflow"):
+                    await audio.play(TTSResult(b"\1\0" * 800, AudioFormat(8000)))
+            else:
+                await audio.play(TTSResult(b"\1\0" * 800, AudioFormat(8000)))
+                assert any(any(block) for block in stream.output.blocks)
+            assert stream.output.events == ["output_start"]
+        finally:
+            if underflow:
+                with pytest.raises(ValueError, match="underflow"):
+                    await audio.aclose()
+            else:
+                await audio.aclose()
+        assert stream.output.events == ["output_start", "output_abort", "output_close"]
 
     asyncio.run(run())
 
@@ -71,57 +84,51 @@ def test_playback_writes_pcm_and_always_closes(underflow):
 def test_invalid_output_never_opens_a_stream():
     async def run():
         stream = Stream()
+        audio = device(stream)
         with pytest.raises(ValueError):
-            await device(stream).play(TTSResult(b"x", AudioFormat(8000)))
-        assert not stream.events
+            await audio.play(TTSResult(b"x", AudioFormat(8000)))
+        assert not stream.output.events
+        await audio.aclose()
 
     asyncio.run(run())
 
 
-def test_expired_playback_after_native_start_never_writes_audio():
+def test_expired_playback_after_native_start_never_hands_off_audio():
     async def run():
-        expired = [False]
-
-        class Delayed(Stream):
-            def start(self):
-                super().start()
-                expired[0] = True
+        stream = Stream()
 
         def guard():
-            if expired[0]:
+            if stream.output.events:
                 raise VoiceFailure(VoiceErrorCode.CAPTURE)
 
-        stream = Delayed()
-        with pytest.raises(VoiceFailure):
-            await device(stream, check_active=guard).play(
-                TTSResult(b"\0\0" * 800, AudioFormat(8000))
-            )
-        assert "write" not in stream.events and stream.events[-2:] == ["abort", "close"]
+        audio = device(stream, check_active=guard)
+        try:
+            with pytest.raises(VoiceFailure):
+                await audio.play(TTSResult(b"\1\0" * 800, AudioFormat(8000)))
+            assert not any(any(block) for block in stream.output.blocks)
+        finally:
+            await audio.aclose()
+        assert stream.output.events == ["output_start", "output_abort", "output_close"]
 
     asyncio.run(run())
 
 
-def test_expiry_between_playback_blocks_stops_further_native_writes():
+def test_expiry_between_callback_blocks_stops_further_audio_handoffs():
     async def run():
-        expired = [False]
-
-        class Paused(Stream):
-            def write(self, pcm):
-                result = super().write(pcm)
-                expired[0] = True
-                return result
+        stream = Stream()
 
         def guard():
-            if expired[0]:
+            if stream.output.writing.is_set():
                 raise VoiceFailure(VoiceErrorCode.CAPTURE)
 
-        stream = Paused()
-        with pytest.raises(VoiceFailure):
-            await device(stream, check_active=guard).play(
-                TTSResult(b"\0\0" * 4000, AudioFormat(8000))
-            )
-        assert stream.events.count("write") == 1
-        assert stream.events[-2:] == ["abort", "close"]
+        audio = device(stream, check_active=guard)
+        try:
+            with pytest.raises(VoiceFailure):
+                await audio.play(TTSResult(b"\1\0" * 4000, AudioFormat(8000)))
+            assert sum(any(block) for block in stream.output.blocks) == 1
+        finally:
+            await audio.aclose()
+        assert stream.output.events == ["output_start", "output_abort", "output_close"]
 
     asyncio.run(run())
 

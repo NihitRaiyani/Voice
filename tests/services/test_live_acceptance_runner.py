@@ -199,12 +199,36 @@ def test_check_mode_creates_no_evidence_or_budget(tmp_path, monkeypatch):
 
 
 def test_failed_cli_call_cleans_only_its_owned_demo_and_redis(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    from pathlib import Path
+
     import redis
     from roma.repositories.postgres import demo_database
     from roma.services.live_acceptance_evidence import EvidenceStore
     from scripts import acceptance_live as cli
     from scripts import voice_prototype as prototype
+
     events = []
+    platform_temporary_directory = cli.tempfile.TemporaryDirectory
+
+    @contextmanager
+    def platform_temporary_root(*args, **kwargs):
+        assert 'dir' not in kwargs, "Use the platform temporary root, not a macOS path"
+        with platform_temporary_directory(*args, **kwargs, dir=tmp_path) as directory:
+            # Darwin's platform temp root can include a symlink. The owned DB
+            # requires its canonical path, including when it runs on Linux.
+            alias = tmp_path / 'platform-temp-alias'
+            alias.symlink_to(directory, target_is_directory=True)
+            try:
+                yield str(alias)
+            finally:
+                alias.unlink()
+
+    def start_owned_demo(root, **kwargs):
+        assert root == Path(root).resolve()
+        return 'postgresql+asyncpg://roma@127.0.0.1/roma_demo'
+
+    monkeypatch.setattr(cli.tempfile, 'TemporaryDirectory', platform_temporary_root)
     class Process:
         pid = 123
         def poll(self):
@@ -223,7 +247,7 @@ def test_failed_cli_call_cleans_only_its_owned_demo_and_redis(tmp_path, monkeypa
     monkeypatch.setattr(cli, 'check', lambda options: None)
     monkeypatch.setattr(cli, 'reserve_budget', lambda *a: 800)
     monkeypatch.setattr(cli, 'source_identity', lambda: {'source_commit': 'a' * 40})
-    monkeypatch.setattr(demo_database, 'start_demo', lambda *a, **kw: 'postgresql+asyncpg://roma@127.0.0.1/roma_demo')
+    monkeypatch.setattr(demo_database, 'start_demo', start_owned_demo)
     monkeypatch.setattr(demo_database, 'stop_demo', lambda *a, **kw: events.append('stop_demo'))
     monkeypatch.setattr(cli.subprocess, 'Popen', lambda *a, **kw: Process())
     monkeypatch.setattr(redis, 'Redis', Redis)
@@ -287,3 +311,87 @@ def test_completed_call_without_sql_commit_and_restore_is_not_verified(tmp_path,
         assert receipt["status"] == "completed"
         assert receipt["booking_verified"] is False
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('active,pending', [(False, False), (True, True), (False, True)])
+def test_persistent_native_stream_does_not_imply_active_playback(active, pending):
+    import asyncio
+
+    from roma.services.live_acceptance_runner import AcceptanceObserver
+
+    class Device:
+        _output = object()  # The persistent stream stays open between replies.
+        playback_active = active
+        output_pending = pending
+        def _epoch(self):
+            return 2
+        async def clear(self):
+            self.playback_active = False
+
+    class Voice:
+        _busy = True
+        def __init__(self, speaker):
+            self.speaker = speaker
+        def claim_turn(self):
+            return 2
+
+    async def run():
+        observer = AcceptanceObserver('persistent-output', emit=lambda value: None)
+        device = observer.device_type(Device)()
+        voice = observer.voice_type(Voice)(device)
+        voice.claim_turn()
+        await device.clear()
+        assert observer.events[0]['was_playing'] is active
+        assert observer.events[1]['had_output'] is pending
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('language,booking_request,correction', [
+    ('gu', 'કાલે સાંજે પાંચ વાગ્યે વડોદરા બ્રાન્ચમાં મુલાકાત બુક કરો.',
+     'ના, કાલે બપોરે ત્રણ વાગ્યે વડોદરા રાખો.'),
+    ('hi', 'कल शाम पाँच बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए।',
+     'नहीं, कल दोपहर तीन बजे वडोदरा रखिए।'),
+    ('en', 'Book a visit to the Vadodara branch tomorrow at 5pm.',
+     'No, change the Vadodara visit to tomorrow at 3pm.'),
+], ids=['gu', 'hi', 'en'])
+def test_live_instructions_match_selected_language_and_distinct_booking_times(
+        monkeypatch, capsys, language, booking_request, correction):
+    from scripts import acceptance_live as cli
+
+    class StopBeforeBudget(Exception):
+        pass
+
+    def stop(*args):
+        raise StopBeforeBudget
+
+    monkeypatch.setattr(cli, 'check', lambda options: None)
+    monkeypatch.setattr(cli, 'reserve_budget', stop)
+    options = cli.parser().parse_args(['--yes-ready', '--no-rating', '--language', language])
+    with pytest.raises(StopBeforeBudget):
+        cli.live(options, None)
+    output = capsys.readouterr().out
+    assert booking_request in output and correction in output
+    assert 'tomorrow 5pm' in output and 'tomorrow 3pm' in output
+    assert 'CAPTURE_STARTED' in output
+    if language != 'gu':
+        assert 'ના, કાલે' not in output
+
+
+def test_observer_cue_changes_to_three_pm_without_implying_booking():
+    from dataclasses import dataclass
+
+    from roma.domain.conversation.state import CallState
+    from roma.services.live_acceptance_runner import AcceptanceObserver
+
+    @dataclass
+    class Outcome:
+        status: str = 'played'
+
+    emitted = []
+    observer = AcceptanceObserver('guidance', emit=emitted.append)
+    state = CallState(call_sid='voice-lab-guidance')
+    observer.on_result(Outcome(), state)
+    assert len(emitted) == 1 and 'tomorrow 3pm' in emitted[0]
+    assert 'explicitly confirm' in emitted[0] and 'if correct' in emitted[0]
+    assert 'ના, કાલે' not in emitted[0]
+    assert not state.appointment_id and not state.locked_slot and not state.lead_wants_out

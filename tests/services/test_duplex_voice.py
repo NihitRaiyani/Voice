@@ -188,6 +188,130 @@ def test_playback_barge_retains_the_entire_caller_onset_and_runs_fast_vad():
     asyncio.run(run())
 
 
+def test_short_overlap_keeps_playback_and_never_becomes_a_controller_turn():
+    class PlayingVoice(Voice):
+        def __init__(self):
+            super().__init__()
+            self.streaming = StreamConfig()
+            self.playing, self.release = asyncio.Event(), asyncio.Event()
+
+        async def respond(self, final):
+            self.playing.set()
+            await self.release.wait()
+            return await super().respond(final)
+
+    async def run():
+        voice, service = PlayingVoice(), speech()
+
+        async def source():
+            i = 0
+            for turn in range(2):
+                if turn:
+                    await voice.playing.wait()
+                # A 400 ms acknowledgement is shorter than the existing
+                # 600 ms sustained-speech interruption threshold.
+                for value in [turn + 1] * 20 + [0] * 12:
+                    i += 1
+                    yield CaptureFrame(bytes([value, 0]) * 320, i * .02,
+                                       voice.epochs.snapshot(), 0)
+                    await asyncio.sleep(0)
+            assert voice.epochs.snapshot() == 1
+            assert not voice.interrupts
+            assert len(service.provider.requests) == 1
+            voice.release.set()
+
+        outcomes = await DuplexVoiceSession(voice, service).run(source())
+        assert len(outcomes) == 1
+        assert [result.turn_epoch for result in voice.results] == [1]
+        assert not voice.disconnected
+
+    asyncio.run(run())
+
+
+def test_sustained_overlap_at_default_threshold_interrupts_and_retains_all_speech():
+    class PlayingVoice(Voice):
+        def __init__(self):
+            super().__init__()
+            self.streaming = StreamConfig()
+            self.playing = asyncio.Event()
+
+        async def respond(self, final):
+            if final.turn_epoch == 1:
+                self.playing.set()
+                await asyncio.Event().wait()
+            return await super().respond(final)
+
+    async def run():
+        voice, service = PlayingVoice(), speech()
+
+        async def source():
+            i = 0
+            for turn, duration in enumerate((12, 32)):
+                if turn:
+                    await voice.playing.wait()
+                for value in [turn + 1] * duration + [0] * 12:
+                    i += 1
+                    yield CaptureFrame(bytes([value, 0]) * 320, i * .02,
+                                       voice.epochs.snapshot(), 0)
+                    await asyncio.sleep(0)
+
+        outcomes = await DuplexVoiceSession(voice, service).run(source())
+        assert [result.turn_epoch for result in outcomes] == [2]
+        assert voice.interrupts == [2]
+        assert service.provider.requests[1].audio.count(b'\2\0') == 32 * 320
+        assert not voice.disconnected
+
+    asyncio.run(run())
+
+
+def test_short_reply_after_response_finishes_is_preserved_at_default_threshold():
+    async def run():
+        voice, service = Voice(), speech()
+        voice.streaming = StreamConfig()
+        outcomes = await DuplexVoiceSession(voice, service).run(
+            blocks(voice, [1] * 12 + [0] * 12 + [2] * 4 + [0] * 12))
+        assert [result.turn_epoch for result in outcomes] == [1, 2]
+        assert service.provider.requests[1].audio.count(b'\2\0') == 4 * 320
+        assert not voice.interrupts
+
+    asyncio.run(run())
+
+def test_short_overlap_that_outlasts_response_end_does_not_become_consent():
+    class PlayingVoice(Voice):
+        def __init__(self):
+            super().__init__()
+            self.streaming = StreamConfig()
+            self.playing, self.release = asyncio.Event(), asyncio.Event()
+
+        async def respond(self, final):
+            self.playing.set()
+            await self.release.wait()
+            return await super().respond(final)
+
+    async def run():
+        voice, service = PlayingVoice(), speech()
+
+        async def source():
+            i = 0
+            for value in [1] * 12 + [0] * 12:
+                i += 1
+                yield CaptureFrame(bytes([value, 0]) * 320, i * .02, voice.epochs.snapshot(), 0)
+                await asyncio.sleep(0)
+            await voice.playing.wait()
+            for index, value in enumerate([2] * 20 + [0] * 12):
+                if index == 2:
+                    voice.release.set()
+                i += 1
+                yield CaptureFrame(bytes([value, 0]) * 320, i * .02, voice.epochs.snapshot(), 0)
+                await asyncio.sleep(0)
+
+        outcomes = await DuplexVoiceSession(voice, service).run(source())
+        assert len(outcomes) == len(service.provider.requests) == 1
+        assert not voice.interrupts
+
+    asyncio.run(run())
+
+
 def test_fast_vad_continues_while_cancellation_resistant_old_asr_finishes():
     class Blocked(Provider):
         def __init__(self):
@@ -385,6 +509,66 @@ def test_repeated_onset_while_clear_is_pending_never_starts_a_stale_response():
         assert [f.turn_epoch for f in result] == [3]
         assert voice.interrupts == [2]
         assert service.provider.requests[-1].audio.count(b'\3\0') == 16 * 320
+    asyncio.run(run())
+
+
+def test_cancelled_session_does_not_deliver_final_after_control_swallows_cancellation():
+    import pytest
+
+    class ResistantClear(Voice):
+        def __init__(self):
+            super().__init__()
+            self.playing, self.clearing, self.cancelled, self.release = (
+                asyncio.Event() for _ in range(4))
+
+        async def respond(self, final):
+            if final.turn_epoch == 1:
+                self.playing.set()
+                await asyncio.Event().wait()
+            return await super().respond(final)
+
+        async def interrupt(self, *, owner=None, turn_epoch=None):
+            await super().interrupt(owner=owner, turn_epoch=turn_epoch)
+            self.clearing.set()
+            while not self.release.is_set():
+                try:
+                    await self.release.wait()
+                except asyncio.CancelledError:
+                    self.cancelled.set()
+            return True
+
+    async def run():
+        voice, service = ResistantClear(), speech()
+        captured = asyncio.Event()
+
+        async def source():
+            i = 0
+            for turn in range(2):
+                if turn:
+                    await voice.playing.wait()
+                for value in [turn + 1] * 16 + [0] * 12:
+                    i += 1
+                    yield CaptureFrame(bytes([value, 0]) * 320, i * .02,
+                                       voice.epochs.snapshot(), 0)
+                    await asyncio.sleep(0)
+            # Give the independent decoder/result consumer a chance to reach
+            # its control join before the owner cancels the whole session.
+            for _ in range(10):
+                await asyncio.sleep(0)
+            captured.set()
+
+        task = asyncio.create_task(DuplexVoiceSession(voice, service).run(source()))
+        await asyncio.wait_for(captured.wait(), 1)
+        await asyncio.wait_for(voice.clearing.wait(), 1)
+        assert len(service.provider.requests) == 2
+        task.cancel()
+        await asyncio.wait_for(voice.cancelled.wait(), 1)
+        voice.release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert not voice.results
+        assert voice.disconnected
+
     asyncio.run(run())
 
 

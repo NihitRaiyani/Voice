@@ -88,9 +88,9 @@ class EvidenceStore:
         path = self._path(kind)
         payload = payload.copy()
         if kind == 'voice_rating':
-            if not {'source_commit', 'run_id', 'listener', 'language', 'naturalness'} <= payload.keys():
+            if not {'source_commit', 'run_id', 'listener', 'language'} <= payload.keys():
                 raise ValueError('Actual listener and language required')
-            _score(payload['naturalness'])
+            _naturalness_label(payload)
             if payload.get('correctness') is not None:
                 _score(payload['correctness'])
             for field in ('listener', 'language'):
@@ -136,6 +136,21 @@ def _score(value):
     if type(value) not in (int, float) or not 1 <= value <= 5:
         raise ValueError('An actual finite 1–5 listening score is required')
     return value
+
+
+def _naturalness_label(payload):
+    score = payload.get('naturalness')
+    if score is not None:
+        if 'naturalness_range' in payload:
+            raise ValueError('Use one naturalness score or range')
+        return f'{_score(score):g}'
+    interval = payload.get('naturalness_range')
+    if not isinstance(interval, (list, tuple)) or len(interval) != 2:
+        raise ValueError('An actual two-endpoint naturalness range is required')
+    low, high = (_score(value) for value in interval)
+    if low > high:
+        raise ValueError('Naturalness range endpoints must be ordered')
+    return f'{low:g}–{high:g}'
 
 
 def validate_governance(payload):
@@ -200,7 +215,7 @@ def update_readiness(repo_root, store):
               f"Run `{current.get('run_id', 'unidentified')}`; status `{current.get('status', 'unknown')}`. "
               'Local HMAC receipts establish integrity, not independent acceptance. ')
     descriptions = {
-        'level-06.md': (f"Owner listening naturalness: {rating['naturalness']:g}/5. "
+        'level-06.md': (f"Owner listening naturalness: {_naturalness_label(rating)}/5. "
                         if rating else 'No new human listening rating recorded. ') +
                        'Historical scores remain below. Full multilingual/native acceptance stays open.',
         'level-07.md': 'Acoustic first-audible and playback-stop latency remain unmeasured without independent instrumentation. Software timing and one supervised scenario do not pass the full reliability/concurrency gate.',

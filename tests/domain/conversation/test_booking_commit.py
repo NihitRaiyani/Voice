@@ -296,3 +296,48 @@ def test_explicit_readback_confirmation_does_not_depend_on_llm_extraction():
         extract.assert_not_awaited()
         confirm.assert_awaited_once_with(SLOT)
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('text', [
+    'हाँ सही रहेगा', 'हाँ ये सही है', 'ये सही है', 'हाँ, यह सही रहेगा।',
+])
+def test_native_hindi_grammatical_consent_uses_selected_readback_without_extraction(text):
+    async def run():
+        current = state()
+        extract = AsyncMock(side_effect=AssertionError('Consent must stay deterministic'))
+        key = str(uuid4())
+        confirm = AsyncMock(return_value=key)
+        result = await advance_turn(current, text, client=object(), now=NOW,
+                                    extract_time=extract, confirm_booking=confirm)
+        assert result.win and current.appointment_id == key and current.locked_slot == SLOT
+        extract.assert_not_awaited()
+        confirm.assert_awaited_once_with(SLOT)
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('text', [
+    'नहीं ये सही नहीं है', 'हाँ ये सही रहेगा?', 'हाँ ये शायद सही रहेगा',
+    'हाँ ये सही रहेगा लेकिन कल पाँच बजे', 'हाँ ये अज्ञात सही रहेगा',
+    'हाई ये सही', 'हाँ साही रहेगा',
+])
+def test_hindi_grammar_does_not_turn_negation_revision_or_asr_unknown_into_consent(text):
+    async def run():
+        current = state()
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, text, client=object(), now=NOW,
+                                    extract_time=extraction, confirm_booking=confirm)
+        assert not result.win and current.appointment_id is None and current.locked_slot is None
+        confirm.assert_not_awaited()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('stage', ['pivot', 'close'])
+def test_native_hindi_consent_cannot_book_without_selected_readback(stage):
+    async def run():
+        current = CallState(booking_required=True, stage=stage)
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, 'हाँ ये सही है', client=object(), now=NOW,
+                                    extract_time=extraction, confirm_booking=confirm)
+        assert not result.win and current.appointment_id is None and current.locked_slot is None
+        confirm.assert_not_awaited()
+    asyncio.run(run())

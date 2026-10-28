@@ -50,6 +50,7 @@ class DuplexVoiceSession:
         self._origin = None
         self._handoff_until = None
         self._speech_ms = 0
+        self._overlap = False
         self._source_samples = 0
         self._last_at = None
         self._generation = None
@@ -89,6 +90,7 @@ class DuplexVoiceSession:
         self.endpoint.reset()
         self._epoch = self._origin = self._handoff_until = None
         self._speech_ms = self._source_samples = 0
+        self._overlap = False
         self._last_at = self._generation = None
         cleanup = self.voice.streaming.cleanup_timeout_secs if self.voice.streaming else 1
         async with asyncio.timeout(min(self._check_deadline(), cleanup * 3)):
@@ -139,6 +141,14 @@ class DuplexVoiceSession:
             if not segment.pcm:
                 continue
             if self._epoch is None:
+                if self._overlap:
+                    # Speech that began during a response must satisfy the
+                    # sustained-speech gate before it can interrupt. An ended
+                    # short overlap stays below the interruption threshold;
+                    # it cannot become a controller turn/booking affirmation.
+                    self._overlap = False
+                    self._speech_ms = 0
+                    continue
                 self._claim(frame)
             if segment.reason == "max_duration":
                 # Full-duplex capture has a hard bounded turn, not an unbounded
@@ -159,6 +169,7 @@ class DuplexVoiceSession:
                 raise VoiceFailure(VoiceErrorCode.ASR) from None
             self._epoch = self._origin = self._handoff_until = None
             self._speech_ms = 0
+            self._overlap = False
 
     async def _capture(self, source):
         try:
@@ -208,10 +219,14 @@ class DuplexVoiceSession:
                     segments = self.endpoint.feed(pcm, probability)
                     busy = self._response is not None and not self._response.done()
                     threshold = self.voice.streaming.speech_threshold if self.voice.streaming else .8
-                    minimum = self.voice.streaming.minimum_speech_ms if self.voice.streaming else 200
+                    minimum = self.voice.streaming.minimum_speech_ms if self.voice.streaming else 600
+                    if before == "idle" and self.endpoint.state in {"starting", "speaking"}:
+                        self._overlap = busy
                     self._speech_ms = self._speech_ms + FRAME_MS if probability >= threshold else 0
                     onset = before in {"idle", "starting"} and self.endpoint.state in {"speaking", "ending"}
-                    if self._epoch is None and ((onset and not busy) or (busy and self._speech_ms >= minimum)):
+                    if self._epoch is None and (
+                            (onset and not busy and not self._overlap)
+                            or ((busy or self._overlap) and self._speech_ms >= minimum)):
                         self._claim(frame)
                     self._enqueue(segments, frame)
                 # A ready source must still yield to independent decode/control.
@@ -271,6 +286,10 @@ class DuplexVoiceSession:
                         raise
                     if self.voice.disconnected or self._call_ended():
                         raise _SessionComplete from None
+                # A child control may consume cancellation while finishing
+                # teardown. Its return cannot authorize new work for this task.
+                if asyncio.current_task().cancelling():
+                    raise asyncio.CancelledError
             if not self.voice.epochs.is_current(final.turn_epoch):
                 continue
             self._check_deadline()

@@ -152,9 +152,10 @@ class AcceptanceObserver:
             # SQL/restore verification still follows before reporting evidence.
             state.lead_wants_out = True
         else:
-            self.emit('NEXT: while Roma speaks, say a short haan/okay once. Then interrupt with: '
-                      'ના, કાલે સાંજે પાંચ વાગ્યે વડોદરા રાખો. After the corrected readback, '
-                      'explicitly confirm if correct. Do not confirm an incorrect time.')
+            self.emit('NEXT: while Roma speaks, say a short haan/okay once. Then interrupt '
+                      'to change the Vadodara visit to tomorrow 3pm in your selected language. '
+                      'After the corrected readback, explicitly confirm if correct. '
+                      'Do not confirm an incorrect time.')
 
     def voice_type(self, base):
         observer = self
@@ -162,7 +163,7 @@ class AcceptanceObserver:
             def claim_turn(self):
                 from time import perf_counter
                 busy = self._busy
-                playing = getattr(self.speaker, '_output', None) is not None
+                playing = getattr(self.speaker, 'playback_active', False) is True
                 epoch = super().claim_turn()
                 if busy:
                     observer.claim_times[epoch] = perf_counter()
@@ -194,7 +195,7 @@ class AcceptanceObserver:
 
             async def clear(self):
                 from time import perf_counter
-                owner, active = self._epoch(), self._output is not None
+                owner, active = self._epoch(), self.output_pending
                 started = perf_counter()
                 try:
                     return await super().clear()

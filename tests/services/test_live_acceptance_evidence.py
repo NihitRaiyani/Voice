@@ -193,3 +193,70 @@ def test_readiness_requires_verified_matching_physical_receipt_before_writing_do
             update_readiness(repo, store)
 
         assert all(path.read_text() == original for path in levels.iterdir())
+
+
+def test_naturalness_range_keeps_actual_endpoints_in_receipt_and_readiness(tmp_path):
+    from roma.services.live_acceptance_evidence import update_readiness
+    repo = tmp_path / 'repo'
+    levels = repo / 'docs/levels'
+    levels.mkdir(parents=True)
+    for name in ('level-06.md', 'level-07.md', 'level-08.md'):
+        (levels / name).write_text('Historical naturalness: 2.5/5.\n- [ ] Full gate\n')
+    store = EvidenceStore(tmp_path / 'private')
+    store.write('session', dict(source_commit=COMMIT, run_id='r1', status='capture_failed'))
+    store.write('physical', dict(source_commit=COMMIT, run_id='r1', events=[]))
+    store.write('voice_rating', dict(source_commit=COMMIT, run_id='r1', listener='Owner',
+        language='hi-Hinglish', naturalness=None, naturalness_range=[3, 4]))
+
+    payload = store.read('voice_rating')['payload']
+    assert payload['naturalness'] is None
+    assert payload['naturalness_range'] == [3, 4]
+    assert 'correctness' not in payload
+    update_readiness(repo, store)
+    update_readiness(repo, store)
+    text = (levels / 'level-06.md').read_text()
+    assert 'Owner listening naturalness: 3–4/5.' in text
+    assert '3.5/5' not in text
+    assert 'Historical naturalness: 2.5/5.' in text
+    assert '- [ ] Full gate' in text
+    assert 'Full multilingual/native acceptance stays open.' in text
+    assert text.count('BEGIN CURRENT LIVE ACCEPTANCE') == 1
+
+
+def test_naturalness_range_requires_one_valid_finite_ordered_rating(tmp_path):
+    import pytest
+    store = EvidenceStore(tmp_path / 'private')
+    base = dict(source_commit=COMMIT, run_id='r1', listener='Owner', language='hi-Hinglish')
+    invalid = [None, True, '3-4', {'low': 3, 'high': 4}, [], [3], [3, 4, 5],
+               [True, 4], [3, False], [0, 4], [3, 6], [4, 3], [float('nan'), 4],
+               [3, float('nan')], [float('-inf'), 4], [3, float('inf')], ['3', 4]]
+    for interval in invalid:
+        with pytest.raises(ValueError):
+            store.write('voice_rating', {**base, 'naturalness': None,
+                                         'naturalness_range': interval})
+        assert not (store.root / 'voice_rating.json').exists()
+    for fields in ({}, {'naturalness': 3, 'naturalness_range': [3, 4]},
+                   {'naturalness': True, 'naturalness_range': [3, 4]}):
+        with pytest.raises(ValueError):
+            store.write('voice_rating', {**base, **fields})
+        assert not (store.root / 'voice_rating.json').exists()
+
+    store.write('voice_rating', {**base, 'naturalness_range': [3.25, 4.5]})
+    assert store.read('voice_rating')['payload']['naturalness_range'] == [3.25, 4.5]
+    store.write('voice_rating', {**base, 'naturalness_range': [3, 3]})
+    assert store.read('voice_rating')['payload']['naturalness_range'] == [3, 3]
+
+
+def test_cli_exact_rating_remains_a_scalar_without_inferred_correctness(tmp_path):
+    from scripts.acceptance_live import collect_rating
+    store = EvidenceStore(tmp_path / 'private')
+    store.write('session', dict(source_commit=COMMIT, run_id='r1'))
+    answers = iter(('4', 'skip', 'Voice was clear', 'no', 'unsure'))
+    collect_rating(store, listener='Owner', language='hi-Hinglish',
+                   ask=lambda prompt: next(answers))
+    payload = store.read('voice_rating')['payload']
+    assert payload['naturalness'] == 4
+    assert 'naturalness_range' not in payload
+    assert 'correctness' not in payload
+    assert payload['backchannel_preserved_reported'] is False
+    assert payload['interruption_worked_reported'] is None

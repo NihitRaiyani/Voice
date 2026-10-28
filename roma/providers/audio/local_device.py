@@ -9,8 +9,10 @@ from time import perf_counter
 
 from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
 from roma.domain.audio.pcm import validate_pcm16
+from roma.domain.audio.resampling import PCMResampler
 from roma.domain.audio.turn_policy import TurnPolicy
 from roma.providers.ai.contracts import TTSResult
+from roma.providers.audio.callback_output import CallbackOutput
 from roma.providers.audio.capture_buffer import CaptureBuffer, CaptureDiscontinuity
 
 
@@ -55,7 +57,23 @@ class LocalAudioDevice:
         self._input_anchor: float | None = None
         self._adc_offset: float | None = None
         self._last_capture_end: float | None = None
-        self._render_next_at: float | None = None
+        self._adc_was_valid: bool | None = None
+        self._adc_valid_count = 0
+        self._adc_invalid_count = 0
+        self._adc_source_changes = 0
+        self._adc_anomalies = 0
+        self._adc_phase_error_max_ms = 0.0
+        self._adc_subframe_uncertainty_frames = 0
+        self._adc_subframe_uncertainty_max_ms = 0.0
+        self._adc_examples = []
+        self._adc_calibration_max_ms = 0.0
+        self._adc_clock_rebases = 0
+        self._adc_clock_rebase_max_ms = 0.0
+        self._adc_current_clock_error_max_ms = 0.0
+        self._previous_adc = None
+        self._previous_adc_current = None
+        self._previous_adc_samples = 0
+        self._previous_adc_callback = 0
         self.input_device, self.output_device = input_device, output_device
         self._backend = backend
         self.policy = policy or TurnPolicy()
@@ -66,6 +84,7 @@ class LocalAudioDevice:
         self.capture_watchdog_secs = capture_watchdog_secs
         self.capture = CaptureBuffer(capture_capacity, clock=clock)
         self._input_stream = None
+        self._input_open_task = None
         self._start_task = None
         self._close_task = None
         self._start_lock = asyncio.Lock()
@@ -75,6 +94,11 @@ class LocalAudioDevice:
         self._capture_deadline = None
         self._play_lock = asyncio.Lock()
         self._output = None
+        self._output_buffer = None
+        self._output_start_task = None
+        self._output_ready = False
+        self._playback_owner = None
+        self._native_lock = threading.Lock()
         self._output_generation = 0
         self._echo_generation = 0
         self._echo_epoch = self._epoch()
@@ -109,6 +133,31 @@ class LocalAudioDevice:
             self.check_active()
 
     @property
+    def playback_active(self):
+        """Software playback with an actual callback handoff, never acoustic proof."""
+        owner = self._playback_owner
+        return bool(owner is not None and self._output_buffer is not None
+                    and self._output_buffer.first_write_at is not None
+                    and owner[0] == self._output_generation
+                    and (self.epochs is None or self.epochs.is_current(owner[1])))
+
+    @property
+    def output_pending(self):
+        """Queued software PCM or estimated handed DAC tail, independent of epoch."""
+        output = self._output_buffer
+        return bool(output is not None and (output.frames or output.pending_handoff
+                    or (output.last_end_at is not None and self.clock() < output.last_end_at)))
+
+    @property
+    def first_write_at(self):
+        output = getattr(self, "_output_buffer", None)
+        return output.first_write_at if output is not None else getattr(self, "_first_write_at", None)
+
+    @first_write_at.setter
+    def first_write_at(self, value):
+        self._first_write_at = value
+
+    @property
     def capture_mode(self):
         return self.capture.mode
 
@@ -120,13 +169,27 @@ class LocalAudioDevice:
             "audio_callback_count": self._callback_count,
             "audio_cb_interval_max_us": self._callback_interval_max_us,
             "portaudio_input_overflows": self._input_overflows,
-            "portaudio_output_underflows": self._output_underflows,
+            "portaudio_output_underflows": (self._output_buffer.underflows
+                if self._output_buffer is not None else self._output_underflows),
             "pcm_sequence_gaps": self._sequence_gaps,
+            "capture_adc_valid_timestamps": self._adc_valid_count,
+            "capture_adc_invalid_timestamps": self._adc_invalid_count,
+            "capture_adc_source_changes": self._adc_source_changes,
+            "capture_adc_timestamp_anomalies": self._adc_anomalies,
+            "capture_adc_phase_error_max_ms": self._adc_phase_error_max_ms,
+            "capture_adc_subframe_uncertainty_frames": self._adc_subframe_uncertainty_frames,
+            "capture_adc_subframe_uncertainty_max_ms": self._adc_subframe_uncertainty_max_ms,
+            "capture_adc_calibration_max_ms": self._adc_calibration_max_ms,
+            "capture_adc_clock_rebases": self._adc_clock_rebases,
+            "capture_adc_clock_rebase_max_ms": self._adc_clock_rebase_max_ms,
+            "capture_adc_current_clock_error_max_ms": self._adc_current_clock_error_max_ms,
+            "capture_adc_anomaly_examples": [dict(row) for row in self._adc_examples],
             "asyncio_loop_stall_max_ms": self._loop_stall_max_ms,
             "asyncio_loop_heartbeat_samples": self._loop_heartbeat_samples,
             "capture_frame_age_max_ms": self._capture_frame_age_max_ms,
             "capture_recoveries": self._capture_recoveries,
             **self.capture.health(),
+            **(self._output_buffer.health() if self._output_buffer is not None else {}),
         }
 
     def _audio(self):
@@ -142,30 +205,119 @@ class LocalAudioDevice:
         # Hardware ADC/sample time keeps DSP aligned when Python callbacks jitter.
         at = self.clock()
         self._callback_count += 1
+        callback_interval_ms = None if self._callback_at is None else (at - self._callback_at) * 1000
         if self._callback_at is not None:
             self._callback_interval_max_us = max(
                 self._callback_interval_max_us, max(0.0, at - self._callback_at) * 1_000_000)
         self._callback_at = at
         overflow = bool(getattr(status, "input_overflow", False))
         self._input_overflows += int(overflow)
-        if self.duplex:
+        if self.duplex and type(frames) is int and frames == 320:
+            duration = frames / 16000
             adc = getattr(time_info, "inputBufferAdcTime", None)
             current = getattr(time_info, "currentTime", None)
-            if (type(adc) in (int, float) and type(current) in (int, float)
-                    and math.isfinite(adc) and math.isfinite(current) and 0 < adc <= current):
-                if self._adc_offset is None:
+            adc_valid = (type(adc) in (int, float) and type(current) in (int, float)
+                         and math.isfinite(adc) and math.isfinite(current) and 0 < adc <= current)
+            self._adc_valid_count += int(adc_valid)
+            self._adc_invalid_count += int(not adc_valid)
+            source_change = self._adc_was_valid is not None and adc_valid != self._adc_was_valid
+            self._adc_source_changes += int(source_change)
+            self._adc_was_valid = adc_valid
+            # One sample clock covers every block, including timestamp outages.
+            # The independent fallback anchor previously jumped to callback wall
+            # time and counted only ADC-invalid blocks, manufacturing PCM gaps.
+            if self._input_anchor is None:
+                self._input_anchor = at - duration
+                if adc_valid:
                     self._adc_offset = at - current
-                at = self._adc_offset + adc + frames / 16000
-            else:
-                if self._input_anchor is None:
-                    self._input_anchor = at - frames / 16000
-                self._input_samples += frames
-                at = self._input_anchor + self._input_samples / 16000
-            if self._last_capture_end is not None and abs(at - self._last_capture_end - frames / 16000) > 0.005:
-                overflow = True
-                self._sequence_gaps += 1
+                    self._input_anchor = self._adc_offset + adc
+            self._input_samples += frames
+            at = self._input_anchor + self._input_samples / 16000
+            phase_error = adc_delta_ms = current_delta_ms = expected_adc_delta_ms = None
+            current_clock_error_ms = adc_current_delta_error_ms = None
+            clock_rebased = consecutive_adc = False
+            if adc_valid:
+                if self._adc_offset is None:
+                    # A first usable ADC stamp calibrates to the existing clock;
+                    # delayed callback wall time cannot establish a second anchor.
+                    self._adc_offset = at - adc - duration
+                phase_error = self._adc_offset + adc + duration - at
+                self._adc_phase_error_max_ms = max(self._adc_phase_error_max_ms, abs(phase_error) * 1000)
+                if self._previous_adc is not None:
+                    adc_delta_ms = (adc - self._previous_adc) * 1000
+                    current_delta_ms = (current - self._previous_adc_current) * 1000
+                    expected_adc_delta_ms = (self._input_samples - self._previous_adc_samples) / 16
+                    # Compare matching intervals only; a timestamp outage spans
+                    # more blocks than the immediately preceding wall interval.
+                    consecutive_adc = self._previous_adc_callback == self._callback_count - 1
+                    if consecutive_adc:
+                        adc_current_delta_error_ms = adc_delta_ms - current_delta_ms
+                        current_clock_error_ms = current_delta_ms - callback_interval_ms
+                        self._adc_current_clock_error_max_ms = max(
+                            self._adc_current_clock_error_max_ms, abs(current_clock_error_ms))
+                self._previous_adc, self._previous_adc_current = adc, current
+                self._previous_adc_samples = self._input_samples
+                self._previous_adc_callback = self._callback_count
+                anomalous = abs(phase_error) > 0.005
+                self._adc_anomalies += int(anomalous)
+                # A persistent sub-frame offset is repeated observation of one
+                # timestamp uncertainty, not independent missing PCM blocks. Keep
+                # the delivered-sample clock and the uncompensated offset: later
+                # cumulative disagreement reaching a full frame still rejects.
+                # PortAudio ADC/currentTime share a clock domain. A paired step
+                # against monotonic callback time is not evidence of missing PCM.
+                # Rebase only with independent, bounded common-clock evidence:
+                # consecutive full blocks, paced (10–40ms) callbacks, agreeing
+                # hardware-clock deltas and a same-direction >5ms clock mismatch.
+                # Otherwise retain full-frame rejection, including actual gaps.
+                clock_rebased = (
+                    anomalous and not overflow and len(pcm) == frames * 2
+                    and consecutive_adc and expected_adc_delta_ms == 20
+                    and 10 <= callback_interval_ms < 40
+                    and abs(phase_error) <= 0.100
+                    and abs(adc_current_delta_error_ms) <= 5
+                    and abs(current_clock_error_ms) > 5
+                    and phase_error * current_clock_error_ms > 0
+                )
+                if clock_rebased:
+                    self._adc_offset -= phase_error
+                    self._adc_clock_rebases += 1
+                    self._adc_clock_rebase_max_ms = max(self._adc_clock_rebase_max_ms, abs(phase_error) * 1000)
+                elif abs(phase_error) >= duration - 1e-9:
+                    overflow = True
+                    self._sequence_gaps += 1
+                    self._input_anchor += phase_error
+                    at += phase_error
+                elif anomalous:
+                    self._adc_subframe_uncertainty_frames += 1
+                    self._adc_subframe_uncertainty_max_ms = max(
+                        self._adc_subframe_uncertainty_max_ms, abs(phase_error) * 1000)
+                else:
+                    # Track slow clock drift with at most 50us correction/block;
+                    # an anomalous estimate never directly moves accepted PCM.
+                    correction = max(-0.00005, min(0.00005, phase_error / 64))
+                    self._input_anchor += correction
+                    at += correction
+                    self._adc_calibration_max_ms = max(self._adc_calibration_max_ms, abs(correction) * 1000)
+            if (source_change or (phase_error is not None and abs(phase_error) > 0.005)) and len(self._adc_examples) < 8:
+                self._adc_examples.append({
+                    "callback": self._callback_count,
+                    "adc_valid": adc_valid,
+                    "adc_delta_ms": adc_delta_ms,
+                    "current_delta_ms": current_delta_ms,
+                    "expected_adc_delta_ms": expected_adc_delta_ms,
+                    "phase_error_ms": None if phase_error is None else phase_error * 1000,
+                    "callback_interval_ms": callback_interval_ms,
+                    "current_clock_delta_error_ms": current_clock_error_ms,
+                    "adc_current_delta_error_ms": adc_current_delta_error_ms,
+                    "clock_rebased": clock_rebased,
+                    "clock_rebase_ms": phase_error * 1000 if clock_rebased else None,
+                    "native_input_overflow": bool(getattr(status, "input_overflow", False)),
+                    "source_change": source_change,
+                    "rejected": overflow,
+                })
             self._last_capture_end = at
-        if self._capture_deadline is not None and at > self._capture_deadline:
+        if self._capture_deadline is not None and at > self._capture_deadline and not overflow:
             return
         self.capture.push(pcm, frames, self._epoch(), overflow, at=at)
 
@@ -180,6 +332,13 @@ class LocalAudioDevice:
             self._loop_heartbeat_samples += 1
             previous = now
 
+    async def _native(self, function):
+        # Lifecycle APIs share one serial owner; callbacks never take this lock.
+        def invoke():
+            with self._native_lock:
+                return function()
+        return await asyncio.to_thread(invoke)
+
     async def start(self):
         async with self._start_lock:
             if self._closing:
@@ -189,16 +348,15 @@ class LocalAudioDevice:
             self._check_active()
             if self.duplex:
                 self.echo.preflight()
-            self._input_stream = self._audio().RawInputStream(
-                samplerate=16000,
-                channels=1,
-                dtype="int16",
-                blocksize=320,
-                device=self.input_device,
-                callback=self._capture_callback,
-            )
-            self._start_task = asyncio.create_task(asyncio.to_thread(self._input_stream.start))
+            self._input_open_task = asyncio.create_task(self._native(
+                lambda: self._audio().RawInputStream(
+                    samplerate=16000, channels=1, dtype="int16", blocksize=320,
+                    device=self.input_device, callback=self._capture_callback,
+                )
+            ))
             try:
+                self._input_stream = await asyncio.shield(self._input_open_task)
+                self._start_task = asyncio.create_task(asyncio.to_thread(self._input_stream.start))
                 await asyncio.shield(self._start_task)
                 self._check_active()
                 self._started = True
@@ -215,9 +373,18 @@ class LocalAudioDevice:
         try:
             await self.clear()
         finally:
-            await self._close_input()
+            try:
+                await self._close_output()
+            finally:
+                await self._close_input()
 
     async def _close_input(self):
+        if self._input_stream is None and self._input_open_task is not None:
+            # Shielded construction can outlive its cancelled start caller. Join
+            # and adopt the resulting stream before exactly-once native cleanup.
+            result = await asyncio.gather(self._input_open_task, return_exceptions=True)
+            if not isinstance(result[0], BaseException):
+                self._input_stream = result[0]
         stream = self._input_stream
         if stream is not None:
             try:
@@ -227,7 +394,7 @@ class LocalAudioDevice:
                     if self._start_task is not None:
                         await asyncio.gather(self._start_task, return_exceptions=True)
                 finally:
-                    await asyncio.to_thread(stream.close)
+                    await self._native(stream.close)
 
     async def aclose(self):
         if self._close_task is None:
@@ -425,80 +592,102 @@ class LocalAudioDevice:
         if self._closing or generation != self._output_generation:
             raise asyncio.CancelledError
 
-    async def _abort_output(self, output):
-        if output["abort"] is None:
-            output["abort"] = asyncio.create_task(asyncio.to_thread(output["stream"].abort))
-        await asyncio.shield(output["abort"])
-
-    async def _cleanup_output(self, output):
-        try:
-            await self._abort_output(output)
-        finally:
-            try:
-                if output["io"] is not None:
-                    await asyncio.gather(output["io"], return_exceptions=True)
-            finally:
-                try:
-                    await asyncio.to_thread(output["stream"].close)
-                finally:
-                    output["done"].set()
+    def _drain_render_receipts(self):
+        """Called under the DSP lock, outside either native callback."""
+        output = self._output_buffer
+        if output is None:
+            return
+        while (receipt := output.pop_receipt()) is not None:
+            pcm, at = receipt
+            if self.duplex:
+                self.echo.render(pcm, rate=16000, at=at)
 
     def _clear_echo(self):
         with self._echo_lock:
-            self.echo.clear_future(at=self.clock())
-            self._echo_generation = self._output_generation
-            self._echo_epoch = self._epoch()
+            # These receipts already reached the native DAC queue. Keep their
+            # reference across interruption because that acoustic tail still plays.
+            self._drain_render_receipts()
 
     def _process_echo(self, pcm, at):
         with self._echo_lock:
-            # Invalidation is immediate; a delayed clear task cannot expose an
-            # already-cancelled render reference to the capture DSP.
-            if (self._echo_generation != self._output_generation
-                    or (self.epochs is not None and not self.epochs.is_current(self._echo_epoch))):
-                self.echo.clear_future(at=self.clock())
-                self._echo_generation = self._output_generation
-                self._echo_epoch = self._epoch()
+            self._drain_render_receipts()
             return self.echo.process(pcm, at=at)
 
-    def _render_echo(self, block, stream, rate, generation, epoch):
-        with self._echo_lock:
-            self._check_output(generation, epoch)
-            latency = getattr(stream, "latency", 0.0)
-            if type(latency) not in (int, float) or not math.isfinite(latency) or not 0 <= latency <= 1:
-                raise ValueError("Invalid native output latency")
-            at = max(self.clock() + latency, self._render_next_at or 0)
+    async def _ensure_output(self):
+        if self._output_start_task is None:
+            self._output_start_task = asyncio.create_task(self._open_output())
+        # A cancellation owns the caller, not a still-opening native stream.
+        # The call lifecycle retains and joins this task before closing devices.
+        return await asyncio.shield(self._output_start_task)
+
+    async def _open_output(self):
+        output = CallbackOutput(
+            generation=lambda: self._output_generation,
+            current_epoch=lambda epoch: self.epochs is None or self.epochs.is_current(epoch),
+            clock=self.clock,
+        )
+        stream = await self._native(lambda: self._audio().RawOutputStream(
+            samplerate=16000, blocksize=320, channels=1, dtype="int16",
+            device=self.output_device, callback=output.callback,
+        ))
+        self._output, self._output_buffer = stream, output
+        try:
+            await self._native(stream.start)
+            self._output_ready = True
+        except BaseException:
+            await self._close_output()
+            raise
+        return output
+
+    async def _close_output(self):
+        if self._output_start_task is not None and self._output_start_task is not asyncio.current_task():
+            await asyncio.gather(self._output_start_task, return_exceptions=True)
+        self._output_ready = False
+        stream = self._output
+        if stream is None:
+            return
+        try:
+            await self._native(stream.abort)
+        finally:
             try:
-                self.echo.render(block, rate=rate, at=at)
-                self._render_next_at = at + len(block) / 2 / rate
+                await self._native(stream.close)
             finally:
-                if (generation != self._output_generation
-                        or (self.epochs is not None and not self.epochs.is_current(epoch))):
-                    self.echo.clear_future(at=self.clock())
-                self._echo_generation = self._output_generation
-                self._echo_epoch = self._epoch()
-            self._check_output(generation, epoch)
+                self._output = None
+
+    async def _wait_output(self, output, *, generation=None):
+        if output.error is not None:
+            raise ValueError(output.error)
+        previous, started = output.callback_count, self.clock()
+        while generation is not None and output.acknowledged_generation < generation:
+            if self.clock() - started >= .100:
+                output.stalls += 1
+                raise RuntimeError("DEVICE-OUTPUT-CALLBACK-STALLED")
+            await asyncio.sleep(.002)
+            if output.error is not None:
+                raise ValueError(output.error)
+        # Async-side reference work is never performed in the native callback.
+        if self.duplex:
+            await asyncio.to_thread(self._clear_echo)
+        elif output.receipts:
+            output.receipts.clear()
+        return previous
 
     async def clear(self):
-        # Invalidate writes synchronously, before joining any native or DSP work.
+        # No PortAudio API participates in normal interruption. A subsequent
+        # callback acknowledges the new generation after handing off only silence.
         self._output_generation += 1
+        generation, started = self._output_generation, self.clock()
         if not self.duplex:
             self.capture.mute()
-        output, started = self._output, self.clock()
-
-        async def finish():
-            aborting = asyncio.create_task(self._abort_output(output)) if output is not None else None
-            try:
-                if self.duplex:
-                    await asyncio.to_thread(self._clear_echo)
-            finally:
-                if aborting is not None:
-                    try:
-                        await aborting
-                    finally:
-                        await output["done"].wait()
-                self.last_clear_ms = max(0.0, (self.clock() - started) * 1000)
-
-        await _finish_native(asyncio.create_task(finish()))
+        output = self._output_buffer
+        if output is None or self._output is None or not self._output_ready:
+            self.last_clear_ms = max(0., (self.clock() - started) * 1000)
+            return
+        output.clear()
+        try:
+            await self._wait_output(output, generation=generation)
+        finally:
+            self.last_clear_ms = max(0., (self.clock() - started) * 1000)
 
     async def play(self, result: TTSResult, *, epoch=None):
         result_epoch = getattr(result, "turn_epoch", None)
@@ -508,62 +697,57 @@ class LocalAudioDevice:
         generation = self._output_generation
         self._check_output(generation, epoch)
         validate_pcm16(result.audio)
-        if (
-            not result.audio
-            or result.format.channels != 1
-            or result.format.encoding != "pcm_s16le"
-        ):
-            raise ValueError("Speaker requires nonempty mono PCM16")
+        if (not result.audio or result.format.channels != 1
+                or result.format.encoding != "pcm_s16le"
+                or result.format.sample_rate_hz not in (8000, 16000)):
+            raise ValueError("Speaker requires nonempty mono 8/16 kHz PCM16")
         async with self._play_lock:
             self._check_output(generation, epoch)
             if not self.duplex:
                 self.capture.mute()
-            stream = self._audio().RawOutputStream(
-                samplerate=result.format.sample_rate_hz,
-                channels=1,
-                dtype="int16",
-                device=self.output_device,
-            )
-            output = {"stream": stream, "io": None, "abort": None, "done": asyncio.Event()}
-            self._output = output
-            self.first_write_at = None
-            self._render_next_at = None
-
-            def write(block):
-                self._check_output(generation, epoch)
-                if self.first_write_at is None:
-                    self.first_write_at = self.clock()
-                if self.duplex:
-                    self._render_echo(block, stream, result.format.sample_rate_hz, generation, epoch)
-                return stream.write(block)
-
+            output = await self._ensure_output()
+            self._check_output(generation, epoch)
+            self.first_write_at = output.first_write_at = None
+            output.last_end_at = None
+            pcm = await asyncio.to_thread(
+                PCMResampler(result.format.sample_rate_hz, 16000).feed, result.audio)
+            started, last_callback, progressed = self.clock(), output.callback_count, self.clock()
+            self._playback_owner = (generation, epoch)
+            output.begin_clip(generation=generation, epoch=epoch)
             try:
-                output["io"] = asyncio.create_task(asyncio.to_thread(stream.start))
-                await asyncio.shield(output["io"])
-                output["io"] = None
-                self._check_output(generation, epoch)
-                batch = result.format.sample_rate_hz // 50 * 2 if self.duplex else 3200
-                for offset in range(0, len(result.audio), batch):
-                    output["io"] = asyncio.create_task(
-                        asyncio.to_thread(write, result.audio[offset : offset + batch])
-                    )
-                    underflow = await asyncio.shield(output["io"])
-                    output["io"] = None
+                for offset in range(0, len(pcm), 640):
+                    block = pcm[offset:offset + 640].ljust(640, b"\0")
+                    while True:
+                        self._check_output(generation, epoch)
+                        await self._wait_output(output)
+                        if output.callback_count != last_callback:
+                            last_callback, progressed = output.callback_count, self.clock()
+                        if self.clock() - progressed > .250:
+                            output.stalls += 1
+                            raise RuntimeError("DEVICE-OUTPUT-CALLBACK-STALLED")
+                        if output.enqueue(block, generation=generation, epoch=epoch):
+                            break
+                        await asyncio.sleep(.002)
+                output.finish_clip()
+                target_handoff = output.last_enqueued
+                while (output.last_handed < target_handoff or output.frames
+                       or output.last_end_at is None or self.clock() < output.last_end_at):
                     self._check_output(generation, epoch)
-                    if underflow:
-                        self._output_underflows += 1
-                        raise ValueError("Speaker underflow")
-                output["io"] = asyncio.create_task(asyncio.to_thread(stream.stop))
-                await asyncio.shield(output["io"])
-                output["io"] = None
+                    await self._wait_output(output)
+                    if output.callback_count != last_callback:
+                        last_callback, progressed = output.callback_count, self.clock()
+                    if self.clock() - progressed > .250:
+                        output.stalls += 1
+                        raise RuntimeError("DEVICE-OUTPUT-CALLBACK-STALLED")
+                    if self.clock() - started > len(pcm) / 32000 + 1.5:
+                        raise RuntimeError("Speaker playback deadline exceeded")
+                    await asyncio.sleep(.002)
                 self._check_output(generation, epoch)
+            except BaseException:
+                if generation == self._output_generation:
+                    self._output_generation += 1
+                    output.clear()
+                raise
             finally:
-                try:
-                    await _finish_native(asyncio.create_task(self._cleanup_output(output)))
-                finally:
-                    try:
-                        if self.duplex:
-                            await asyncio.to_thread(self._clear_echo)
-                    finally:
-                        if self._output is output:
-                            self._output = None
+                self._playback_owner = None
+                self.first_write_at = output.first_write_at

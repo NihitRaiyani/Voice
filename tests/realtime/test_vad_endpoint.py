@@ -38,6 +38,13 @@ from roma.core.config import Settings
 from roma.realtime.backchannel import vad_span_secs
 from roma.realtime.pipeline import VAD_STOP_SECS, build_vad
 
+
+def _settings():
+    # Offline VAD tests must not depend on a developer's private dotenv/key.
+    return Settings(_env_file=None, voice_speech_mode="legacy_cloud",
+                    sarvam_api_key="test", redis_url="redis://127.0.0.1:6379/0")
+
+
 RATE = 8000
 CHUNK = 256
 SECS_PER_FRAME = CHUNK / RATE  # 32ms
@@ -186,6 +193,6 @@ def test_the_shipped_default_is_the_tuned_value():
     """Settings and the module constant must not drift apart: `build_vad` reads Settings,
     but `media.py` also exports `VAD_STOP_SECS`, and the turn strategies were built against
     it. Two sources of truth for one knob is how a retune half-lands."""
-    assert Settings().vad_stop_secs == TUNED_STOP_SECS
+    assert _settings().vad_stop_secs == TUNED_STOP_SECS
     assert VAD_STOP_SECS == TUNED_STOP_SECS
-    assert build_vad(Settings()).params.stop_secs == TUNED_STOP_SECS
+    assert build_vad(_settings()).params.stop_secs == TUNED_STOP_SECS

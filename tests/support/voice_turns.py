@@ -1,5 +1,7 @@
 """Shared synthetic voice harness: real orchestration, no hardware/models/network."""
 
+import asyncio
+import threading
 from array import array
 from collections import deque
 from types import SimpleNamespace
@@ -78,6 +80,8 @@ class FakeAudio:
         self.input_created = self.input_starts = self.input_closes = 0
         self.callback = self.capture_mode = None
         self.first_write_at = None
+        self.loop = None
+        self.output_tasks = []
 
     def RawInputStream(self, **kwargs):
         owner = self
@@ -112,27 +116,53 @@ class FakeAudio:
 
     def RawOutputStream(self, **kwargs):
         owner = self
+        assert kwargs["samplerate"] == 16000 and kwargs["blocksize"] == 320
+        callback = kwargs["callback"]
+        buffer = callback.__self__
 
         class Output:
+            latency = .020
+
+            def __init__(self):
+                self.closed = threading.Event()
+
             def start(self):
                 assert owner.input_open
                 assert owner.capture_mode() == "MUTED_HALF_DUPLEX"
                 owner.software_muted_before_playback = True
 
-            def write(self, pcm):
-                if owner.first_write_at is None:
-                    owner.first_write_at = owner.clock()
-                owner.clock.advance(1)
-                return False
+                async def pump():
+                    while not self.closed.is_set():
+                        # Explicit native-callback fake: virtual time advances by
+                        # complete audio frames, with a scheduling yield so the
+                        # real async producer can refill its bounded queue.
+                        await asyncio.sleep(.002)
+                        needs_tick = (buffer.frames
+                            or buffer.acknowledged_generation < buffer.generation()
+                            or (buffer.last_end_at is not None
+                                and owner.clock() < buffer.last_end_at))
+                        if not needs_tick or self.closed.is_set():
+                            continue
+                        owner.clock.advance(20)
+                        pcm = bytearray(640)
+                        now = owner.clock()
+                        callback(pcm, 320,
+                                 SimpleNamespace(currentTime=now, outputBufferDacTime=now + .020),
+                                 SimpleNamespace(output_underflow=False))
+                        if any(pcm):
+                            assert owner.capture_mode() == "MUTED_HALF_DUPLEX"
+                            if owner.first_write_at is None:
+                                owner.first_write_at = buffer.first_write_at
 
-            def stop(self):
-                pass
+                def schedule():
+                    owner.output_tasks.append(asyncio.create_task(pump()))
+                owner.loop.call_soon_threadsafe(schedule)
 
             def abort(self):
-                pass
+                self.closed.set()
 
             def close(self):
-                pass
+                self.closed.set()
 
         return Output()
 
@@ -173,12 +203,14 @@ class VoiceHarness:
         self.last_timings = None
 
     async def __aenter__(self):
+        self.backend.loop = asyncio.get_running_loop()
         await self.device.start()
         assert self.device.capture_mode == "MUTED_HALF_DUPLEX"
         return self
 
     async def __aexit__(self, *exc):
         await self.device.aclose()
+        await asyncio.gather(*self.backend.output_tasks, return_exceptions=True)
         assert not self.backend.input_open
         assert self.backend.input_created == self.backend.input_starts == self.backend.input_closes == 1
 

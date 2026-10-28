@@ -8,6 +8,7 @@ from roma.domain.appointments.booking import (
     SLOT_CONFLICT_LINE,
     confirmed_line,
 )
+from roma.domain.audio.speech_normalization import normalize_tts_text
 from roma.domain.conversation.confirmguard import (
     SAFE_READBACK_HOLD_LINE,
     SAFE_REOFFER_LINE,
@@ -103,8 +104,10 @@ def _slot(iso):
     parsed = datetime.fromisoformat(iso)
     if parsed.tzinfo is None:
         raise ValueError("Controller slot needs its timezone")
-    line = spoken_slot(iso)
-    for original, native in {**_DAYS, **_MONTHS, "AM": "ए एम", "PM": "पी एम"}.items():
+    # Consume the intact AM/PM clock before finite script substitutions can
+    # hide its meridian from the final TTS normalization pass.
+    line = normalize_tts_text(spoken_slot(iso), "hi")
+    for original, native in {**_DAYS, **_MONTHS}.items():
         line = line.replace(original, native)
     if any(c.isascii() and c.isalpha() for c in line):
         raise ValueError("Unmapped slot pronunciation")

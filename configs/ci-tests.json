@@ -128,6 +128,7 @@
     "tests/providers/ai/test_stt.py",
     "tests/providers/ai/test_whisper_mlx.py",
     "tests/providers/ai/test_whisper_vocabulary.py",
+    "tests/providers/audio/test_callback_output.py",
     "tests/providers/audio/test_capture_buffer.py",
     "tests/providers/audio/test_capture_diagnostics.py",
     "tests/providers/audio/test_duplex_device.py",

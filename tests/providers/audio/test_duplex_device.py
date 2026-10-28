@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 from roma.providers.ai.contracts import AudioFormat, TTSResult
 from roma.providers.audio.local_device import LocalAudioDevice
+from tests.providers.audio.test_callback_output import CallbackSpeakerBackend
 from tests.providers.audio.test_persistent_capture import CallbackBackend
 
 
@@ -26,24 +27,11 @@ class Echo:
 class Backend(CallbackBackend):
     def __init__(self):
         super().__init__()
-        self.writing, self.release = threading.Event(), threading.Event()
+        self.output = CallbackSpeakerBackend()
+        self.writing, self.release = self.output.writing, self.output.release
+
     def RawOutputStream(self, **kwargs):
-        owner = self
-        class Stream:
-            latency = 0.02
-            def start(self):
-                pass
-            def write(self, pcm):
-                owner.writing.set()
-                owner.release.wait(2)
-                return False
-            def abort(self):
-                owner.release.set()
-            def stop(self):
-                pass
-            def close(self):
-                pass
-        return Stream()
+        return self.output.RawOutputStream(**kwargs)
 
 
 def test_capture_keeps_processing_during_playback_and_output_clear():
@@ -56,17 +44,18 @@ def test_capture_keeps_processing_during_playback_and_output_clear():
         try:
             first = await anext(source)
             assert first.pcm == b"\2\0" * 320
-            playback = asyncio.create_task(device.play(TTSResult(b"\5\0" * 320, AudioFormat(8000))))
+            playback = asyncio.create_task(device.play(TTSResult(b"\5\0" * 8000, AudioFormat(8000))))
             assert await asyncio.to_thread(backend.writing.wait, 1)
             assert device.capture_mode == "ACTIVE"
             backend.emit(2)
             second = await asyncio.wait_for(anext(source), 1)
             assert second.pcm == b"\3\0" * 320 and len(echo.processed) == 2
-            assert echo.rendered and len(echo.rendered[0][0]) == 320  # 20ms8k
+            assert echo.rendered and len(echo.rendered[0][0]) == 640  # 20ms16k
             await device.clear()
             with pytest.raises(asyncio.CancelledError):
                 await playback
-            assert device.capture_mode == "ACTIVE" and echo.cuts
+            assert device.capture_mode == "ACTIVE"
+            assert backend.output.events == ["output_start"]
             backend.emit(3)
             third = await anext(source)
             assert third.pcm == b"\4\0" * 320
@@ -275,23 +264,16 @@ def test_invalid_aec_result_never_enters_capture_recovery():
     asyncio.run(run())
 
 
-def test_clear_during_render_never_exposes_unplayed_reference_to_capture():
+def test_clear_during_receipt_render_preserves_handed_audio_reference():
     class PausedEcho(Echo):
         def __init__(self):
             super().__init__()
             self.entered, self.release = threading.Event(), threading.Event()
-            self.unplayed = False
-            self.polluted = False
+
         def render(self, pcm, rate, *, at):
             self.entered.set()
             assert self.release.wait(2)
-            self.unplayed = True
-        def clear_future(self, *, at=None):
-            self.unplayed = False
-            super().clear_future(at=at)
-        def process(self, pcm, *, at):
-            self.polluted |= self.unplayed
-            return super().process(pcm, at=at)
+            super().render(pcm, rate, at=at)
 
     async def run():
         backend, echo = Backend(), PausedEcho()
@@ -299,51 +281,52 @@ def test_clear_during_render_never_exposes_unplayed_reference_to_capture():
         await device.start()
         source = device.frames(max_seconds=2, on_capture_started=lambda: backend.emit(1))
         await anext(source)
-        playback = asyncio.create_task(device.play(TTSResult(b'\5\0' * 160, AudioFormat(8000))))
-        assert await asyncio.to_thread(echo.entered.wait, 1)
-        clearing = asyncio.create_task(device.clear())
-        await asyncio.sleep(0.01)
-        backend.emit(2)
-        capture = asyncio.create_task(anext(source))
-        echo.release.set()
-        await asyncio.wait_for(capture, 1)
-        await asyncio.wait_for(clearing, 1)
-        await asyncio.gather(playback, return_exceptions=True)
+        playback = asyncio.create_task(device.play(TTSResult(b'\5\0' * 8000, AudioFormat(8000))))
+        clearing = capture = None
         try:
-            assert not echo.polluted
-            assert not backend.writing.is_set()
+            assert await asyncio.to_thread(echo.entered.wait, 1)
+            assert any(any(block) for block in backend.output.blocks)
+            clearing = asyncio.create_task(device.clear())
+            backend.emit(2)
+            capture = asyncio.create_task(anext(source))
+            echo.release.set()
+            await asyncio.wait_for(capture, 1)
+            await asyncio.wait_for(clearing, 1)
+            await asyncio.gather(playback, return_exceptions=True)
+            # References represent actual callback handoffs, including the DAC
+            # tail still audible after generation clear; no speculative PCM.
+            assert echo.rendered and all(len(pcm) == 640 for pcm, _, _ in echo.rendered)
+            assert not echo.cuts
+            assert backend.output.events == ["output_start"]
         finally:
+            echo.release.set()
+            for task in (playback, clearing, capture):
+                if task is not None:
+                    task.cancel()
+            await asyncio.gather(*(task for task in (playback, clearing, capture) if task is not None),
+                                 return_exceptions=True)
             await source.aclose()
             await device.aclose()
     asyncio.run(run())
 
 
-def test_echo_cleanup_failure_still_aborts_and_closes_native_output():
+def test_echo_receipt_failure_still_allows_native_output_close():
     class BrokenEcho(Echo):
-        broken = False
-        def clear_future(self, *, at=None):
-            if self.broken:
-                raise ValueError('DSP cleanup failed')
-            super().clear_future(at=at)
+        def render(self, pcm, rate, *, at):
+            raise ValueError('DSP reference failed')
 
     async def run():
         backend, echo = Backend(), BrokenEcho()
         device = LocalAudioDevice(backend=backend, duplex=True, echo=echo)
         await device.start()
-        playback = asyncio.create_task(device.play(TTSResult(b'\5\0' * 160, AudioFormat(8000))))
-        assert await asyncio.to_thread(backend.writing.wait, 1)
-        echo.broken = True
         try:
-            with pytest.raises(ValueError, match='DSP cleanup failed'):
-                await device.clear()
-            assert backend.release.is_set()
-            await asyncio.gather(playback, return_exceptions=True)
-            assert device._output is None
+            with pytest.raises(ValueError, match='DSP reference failed'):
+                await device.play(TTSResult(b'\5\0' * 8000, AudioFormat(8000)))
+            assert backend.output.writing.is_set()
         finally:
-            echo.broken = False
-            backend.release.set()
-            await asyncio.gather(playback, return_exceptions=True)
             await device.aclose()
+        assert backend.output.events == ["output_start", "output_abort", "output_close"]
+        assert backend.created == 1 and backend.events.count('close') == 1
     asyncio.run(run())
 
 
@@ -358,19 +341,13 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
 
     async def run():
         backend, echo = Backend(), CleanEcho()
-        input_frames = [0]
-
-        def clock():
-            return 10 + input_frames[0] / 50
-
-        # Each callback contains 20 ms of PCM. Device and coordinator must share
-        # that sample clock even when callbacks arrive in bounded fast bursts;
-        # wall-clock pacing would otherwise put fake ADC timestamps in the future.
-        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo, clock=clock)
+        # Pace both fake input and persistent speaker callbacks at 20 ms so
+        # native handoff/watchdog time and capture time use the same clock.
+        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo)
         class PlayingVoice(Voice):
             async def respond(self, final):
                 if final.turn_epoch == 1:
-                    await device.play(TTSResult(b'\5\0' * 160, AudioFormat(8000),
+                    await device.play(TTSResult(b'\5\0' * 8000, AudioFormat(8000),
                                                 turn_epoch=final.turn_epoch))
                 return await super().respond(final)
             async def interrupt(self, *, owner=None, turn_epoch=None):
@@ -379,7 +356,7 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
                 owner.cancel()
                 await device.clear()
         voice = PlayingVoice()
-        voice.clock, voice._started = clock, clock()
+        voice.clock, voice._started = device.clock, device.clock()
         voice.speaker = device
         device.bind_epoch_guard(voice.epochs)
         service = speech()
@@ -389,15 +366,13 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
         async def feed():
             await opened.wait()
             for value in [1] * 12 + [0] * 12:
-                input_frames[0] += 1
                 backend.emit(value)
-                await asyncio.sleep(0)
+                await asyncio.sleep(.020)
             assert await asyncio.to_thread(backend.writing.wait, 1)
             assert device.capture_mode == 'ACTIVE'
             for value in [2] * 16 + [0] * 12:
-                input_frames[0] += 1
                 backend.emit(value)
-                await asyncio.sleep(0)
+                await asyncio.sleep(.020)
         feeding = asyncio.create_task(feed())
         try:
             outcomes = await asyncio.wait_for(
@@ -406,7 +381,7 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
             assert len(outcomes) == 1 and voice.interrupts == [2]
             assert len(service.provider.requests) == 2
             assert service.provider.requests[1].audio.count(b'\2\0') == 16 * 320
-            assert backend.release.is_set()
+            assert backend.output.events == ["output_start"]
             assert sum(pcm == b'\2\0' * 320 for pcm, _ in echo.processed) == 16
         finally:
             backend.release.set()
@@ -418,33 +393,40 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
     asyncio.run(run())
 
 
-def test_epoch_only_invalidation_scrubs_unplayed_render_before_capture():
+def test_epoch_only_invalidation_discards_queued_pcm_without_creating_reference():
     from roma.core.turn_epoch import TurnEpoch
-    guard = TurnEpoch()
-    class EpochEcho(Echo):
-        unplayed = False
-        polluted = False
-        def render(self, pcm, rate, *, at):
-            self.unplayed = True
-            guard.advance()
-        def clear_future(self, *, at=None):
-            self.unplayed = False
-        def process(self, pcm, *, at):
-            self.polluted |= self.unplayed
-            return pcm
-    echo = EpochEcho()
-    device = LocalAudioDevice(duplex=True, echo=echo, epoch_guard=guard)
-    with pytest.raises(asyncio.CancelledError):
-        device._render_echo(b'\5\0' * 160, SimpleNamespace(latency=.02), 8000, 0, 0)
-    device._process_echo(b'\2\0' * 320, device.clock())
-    assert not echo.polluted
+    from roma.providers.audio.callback_output import CallbackOutput
 
-
-def test_epoch_advance_after_render_scrubs_future_reference_before_capture():
-    from roma.core.turn_epoch import TurnEpoch
     guard, echo = TurnEpoch(), Echo()
     device = LocalAudioDevice(duplex=True, echo=echo, epoch_guard=guard)
-    device._render_echo(b'\5\0' * 160, SimpleNamespace(latency=.02), 8000, 0, 0)
+    output = device._output_buffer = CallbackOutput(
+        generation=lambda: device._output_generation,
+        current_epoch=guard.is_current, clock=device.clock)
+    assert output.enqueue(b'\5\0' * 320, generation=0, epoch=0)
+    guard.advance()
+    buffer = bytearray(640)
+    output.callback(buffer, 320, SimpleNamespace(currentTime=10, outputBufferDacTime=10.02),
+                    SimpleNamespace(output_underflow=False))
+    device._process_echo(b'\2\0' * 320, device.clock())
+    assert buffer == bytes(640)
+    assert not echo.rendered and output.stale_discarded == 1
+
+
+def test_epoch_advance_after_callback_preserves_actual_handoff_reference_for_capture():
+    from roma.core.turn_epoch import TurnEpoch
+    from roma.providers.audio.callback_output import CallbackOutput
+
+    guard, echo = TurnEpoch(), Echo()
+    device = LocalAudioDevice(duplex=True, echo=echo, epoch_guard=guard)
+    output = device._output_buffer = CallbackOutput(
+        generation=lambda: device._output_generation,
+        current_epoch=guard.is_current, clock=device.clock)
+    assert output.enqueue(b'\5\0' * 320, generation=0, epoch=0)
+    buffer = bytearray(640)
+    output.callback(buffer, 320, SimpleNamespace(currentTime=10, outputBufferDacTime=10.02),
+                    SimpleNamespace(output_underflow=False))
     guard.advance()
     device._process_echo(b'\2\0' * 320, device.clock())
-    assert echo.cuts
+    assert buffer == b'\5\0' * 320
+    assert echo.rendered and echo.rendered[0][0] == buffer
+    assert not echo.cuts

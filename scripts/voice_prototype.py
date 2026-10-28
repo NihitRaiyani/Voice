@@ -589,7 +589,7 @@ async def _local_run(args):
             await cpu_worker.run(int, 0)
         voice_type = acceptance.voice_type(VoicePrototype) if acceptance else VoicePrototype
         voice = voice_type(state, conversation, synthesis, device, store, budget=budget,
-                               streaming=StreamConfig(minimum_speech_ms=200 if input_duplex(args) else 600)
+                               streaming=StreamConfig()
                                if sentence_streaming(args) else None, cpu_worker=cpu_worker)
         voice.release_on_disconnect = booking.aclose
         voice.attempt = previous_attempts

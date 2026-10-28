@@ -143,25 +143,41 @@ def collect_rating(store, *, listener, language, ask=input):
     store.write('voice_rating', payload)
 
 
+
+def acceptance_instructions(language):
+    examples = {
+        'gu': ('Gujarati', 'કાલે સાંજે પાંચ વાગ્યે વડોદરા બ્રાન્ચમાં મુલાકાત બુક કરો.',
+               'ના, કાલે બપોરે ત્રણ વાગ્યે વડોદરા રાખો.'),
+        'hi': ('Hindi', 'कल शाम पाँच बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए।',
+               'नहीं, कल दोपहर तीन बजे वडोदरा रखिए।'),
+        'en': ('English', 'Book a visit to the Vadodara branch tomorrow at 5pm.',
+               'No, change the Vadodara visit to tomorrow at 3pm.'),
+    }
+    name, booking_request, correction = examples[language]
+    return (
+        'TEST ONLY prepared booking scenario; discovery was prefilled with fictional details. '
+        'No caller audio/transcripts retained. Software metrics do not prove acoustic <50ms.\n'
+        f'1: In {name}, request tomorrow 5pm in Vadodara: {booking_request}\n'
+        '2: Say one short haan/okay during a response. Observe whether it cuts off.\n'
+        f'3: During the next response change to tomorrow 3pm: {correction}\n'
+        'After the corrected readback explicitly confirm ONLY if the time is correct. '
+        'Extra confirmation is allowed. Wait for CAPTURE_STARTED before speaking.'
+    )
+
+
 def live(options, store):
     from roma.repositories.postgres.demo_database import start_demo, stop_demo
     from scripts import voice_prototype as prototype
     check(options)
-    print('TEST ONLY prepared booking scenario; discovery was prefilled with fictional details. '
-          'No caller audio/transcripts retained. Software metrics do not prove acoustic <50ms.\n'
-          '1: Ask in Gujarati for Vadodara visit options: વડોદરા બ્રાન્ચમાં મુલાકાત માટે સમય બતાવો.\n'
-          '2: Say one short haan/okay during a response. Observe whether it cuts off.\n'
-          '3: During the next response change to tomorrow 5pm: ના, કાલે સાંજે પાંચ વાગ્યે વડોદરા રાખો.\n'
-          'After the readback explicitly confirm ONLY if the time is correct. Extra confirmation is allowed. '
-          'Wait for CAPTURE_STARTED before speaking.', flush=True)
+    print(acceptance_instructions(options.language), flush=True)
     if not options.yes_ready and input('Type ready when at the microphone/speakers: ').strip().casefold() != 'ready':
         raise ValueError('No ready indication')
     total = reserve_budget(ROOT / 'var/roma/ops-20261024/acceptance-session-reservations.jsonl', options.language)
     print(f'Aggregate conservative reservations: INR{total / 100:.2f}/50; this launch capped at INR2.', flush=True)
     observer = AcceptanceObserver(uuid4().hex, emit=lambda value: print(value, flush=True))
     source = source_identity()
-    with tempfile.TemporaryDirectory(prefix='roma-live-', dir='/private/tmp') as temporary:
-        root = Path(temporary)
+    with tempfile.TemporaryDirectory(prefix='roma-live-') as temporary:
+        root = Path(temporary).resolve()
         os.chmod(root, 0o700)
         database, redis_process = None, None
         try:

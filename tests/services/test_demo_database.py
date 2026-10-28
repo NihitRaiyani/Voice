@@ -106,3 +106,13 @@ def test_empty_booking_db_stops_cli_before_model_readiness_mic_or_lab_call(monke
         args = cli.parser().parse_args(['--mode', 'local', '--llm-provider', 'mock'])
         with pytest.raises(RuntimeError, match=r'^BOOKING-DATA-MISSING:'):
             asyncio.run(cli.local_run(args))
+
+
+@pytest.mark.parametrize('name', ['initdb', 'pg_ctl', 'createdb'])
+def test_native_demo_tools_honor_explicit_ci_binary_overrides(monkeypatch, name):
+    from roma.repositories.postgres import demo_database
+
+    configured = f'/ci/postgresql/bin/{name}'
+    monkeypatch.setenv(f'POSTGRES_{name.upper()}_BIN', configured)
+    monkeypatch.setattr(demo_database.shutil, 'which', lambda tool: '/path/wrong-version/' + tool)
+    assert demo_database._binary(name) == configured

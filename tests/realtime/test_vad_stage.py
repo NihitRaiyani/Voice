@@ -32,6 +32,13 @@ from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
 from roma.core.config import Settings
 from roma.realtime.pipeline import InboundAudioCounter, build_vad, vad_stage
 
+
+def _settings():
+    # Offline VAD tests must not depend on a developer's private dotenv/key.
+    return Settings(_env_file=None, voice_speech_mode="legacy_cloud",
+                    sarvam_api_key="test", redis_url="redis://127.0.0.1:6379/0")
+
+
 RATE = 8000
 CHUNK = 256
 
@@ -59,7 +66,7 @@ def test_no_analyzer_means_an_empty_stage():
 
 
 def test_an_analyzer_becomes_exactly_one_processor():
-    stage = vad_stage(build_vad(Settings()))
+    stage = vad_stage(build_vad(_settings()))
     assert len(stage) == 1
     assert isinstance(stage[0], FrameProcessor)
 
@@ -67,7 +74,7 @@ def test_an_analyzer_becomes_exactly_one_processor():
 def test_the_stage_carries_the_tuned_stop_secs():
     """`vad_stop_secs` is THE Step-7 knob. It was printed in the teardown line and applied
     to nothing for four calls."""
-    settings = Settings()
+    settings = _settings()
     analyzer = build_vad(settings)
     assert analyzer.params.stop_secs == settings.vad_stop_secs
 
@@ -138,7 +145,7 @@ def _run(processors, frames):
 def test_the_vad_stage_produces_start_and_stop_frames_from_real_audio():
     """THE regression. Not "is the strategy's logic right" — "does anything emit a VAD
     frame at all". The answer was no, for four calls, and no test could tell."""
-    settings = Settings()
+    settings = _settings()
     analyzer = _EnergyVAD(
         sample_rate=RATE,
         params=VADParams(stop_secs=settings.vad_stop_secs, start_secs=0.0, min_volume=0.0),

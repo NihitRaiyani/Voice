@@ -43,6 +43,9 @@ def validate_demo_target(url, app_env):
 
 
 def _binary(name):
+    configured = os.environ.get(f"POSTGRES_{name.upper()}_BIN")
+    if configured:
+        return configured
     value = shutil.which(name)
     bundled = Path('/Library/PostgreSQL/18/bin') / name
     if value:
