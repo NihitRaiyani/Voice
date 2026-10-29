@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import threading
 import time
 from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import AsyncExitStack, aclosing
@@ -46,6 +47,9 @@ class ClaudeLLM:
             else client
         )
         self._owns_client = client is None
+        self._closed = False
+        self._prepare_slot = threading.BoundedSemaphore(1)
+        self._late_client_closes: set[asyncio.Task] = set()
         self._lock = asyncio.Lock()
         self.circuit = circuit if circuit is not None else CircuitBreaker()
         self._last_failure: ProviderFailure | None = None
@@ -59,7 +63,7 @@ class ClaudeLLM:
         if self._client is None:
             from anthropic import AsyncAnthropic
 
-            self._client = AsyncAnthropic(
+            return AsyncAnthropic(
                 api_key=self.settings.anthropic_api_key.get_secret_value(),
                 max_retries=0,
                 timeout=self.settings.anthropic_attempt_timeout_secs,
@@ -67,9 +71,84 @@ class ClaudeLLM:
         return self._client
 
     async def aclose(self) -> None:
+        self._closed = True
         if self._owns_client and self._client is not None:
             await self._client.close()
             self._client = None
+        if self._late_client_closes:
+            await asyncio.wait(tuple(self._late_client_closes),
+                               timeout=min(1.0, self.settings.anthropic_attempt_timeout_secs))
+
+    async def _prepare(self, request):
+        """One bounded owner for cold imports/schema/client CPU work, never API I/O.
+
+        Cancellation withdraws delivery, not worker ownership. A daemon worker
+        retains admission until completion, so a late setup cannot overlap a
+        successor or hold asyncio's executor shutdown open.
+        """
+        if self._closed:
+            raise ProviderUnavailable("Claude adapter is closed")
+        if not self._prepare_slot.acquire(blocking=False):
+            raise ProviderFailure(FailureKind.UNAVAILABLE)
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        client_snapshot = self._client
+        new_client = client_snapshot is None
+
+        async def close_unused(client):
+            try:
+                async with asyncio.timeout(min(1.0, self.settings.anthropic_attempt_timeout_secs)):
+                    await client.close()
+            except Exception:  # noqa: BLE001 -- unused client never sent a request.
+                pass
+
+        def deliver(payload, client, error):
+            try:
+                if future.done() or self._closed:
+                    if new_client and client is not None:
+                        cleanup = asyncio.create_task(close_unused(client))
+                        self._late_client_closes.add(cleanup)
+                        cleanup.add_done_callback(self._late_client_closes.discard)
+                    if not future.done():
+                        future.set_exception(ProviderUnavailable("Claude adapter is closed"))
+                    return
+                if error is not None:
+                    future.set_exception(error)
+                    return
+                if new_client:
+                    self._client = client
+                future.set_result(payload)
+            finally:
+                # Keep ownership through publication: a cancelled waiter can
+                # release the request lock before this loop callback executes.
+                self._prepare_slot.release()
+
+        def work():
+            payload = client = error = None
+            try:
+                payload = self._payload(request)
+                # Shutdown may clear _client while payload work is running.
+                # Reuse the admitted snapshot instead of constructing a new,
+                # unowned replacement after the cached client was closed.
+                client = self._get_client() if new_client else client_snapshot
+            except ProviderUnavailable as exc:
+                error = exc
+            except Exception:  # noqa: BLE001 -- never expose constructor/schema payloads.
+                error = ProviderUnavailable("Claude preparation failed")
+            try:
+                loop.call_soon_threadsafe(deliver, payload, client, error)
+            except RuntimeError:
+                # The caller loop closed. A newly constructed unused client has
+                # opened no API connection and is never installed or reused.
+                self._prepare_slot.release()
+
+        try:
+            threading.Thread(target=work, name="roma-claude-prepare", daemon=True).start()
+        except RuntimeError:
+            self._prepare_slot.release()
+            raise ProviderUnavailable("Claude preparation could not start") from None
+        async with asyncio.timeout(remaining_timeout(self.settings.anthropic_attempt_timeout_secs)):
+            return await future
 
     def _reserve(self, input_bound, cap):
         # Conservatively price the ENTIRE bound as a cache write, never presume a hit.
@@ -93,9 +172,10 @@ class ClaudeLLM:
 
     @staticmethod
     def _failure(exc):
+        import httpx
         from anthropic import APIConnectionError, APIError, APITimeoutError
 
-        if isinstance(exc, (TimeoutError, APITimeoutError)):
+        if isinstance(exc, (TimeoutError, APITimeoutError, httpx.TimeoutException)):
             return ProviderFailure(FailureKind.TIMEOUT)
         if isinstance(exc, APIConnectionError):
             return ProviderFailure(FailureKind.TRANSIENT)
@@ -291,7 +371,7 @@ class ClaudeLLM:
             return await operation()
 
     async def _generate_locked(self, request: LLMRequest, started, progress) -> AsyncGenerator[LLMChunk, None]:
-        options, input_bound, cap = self._payload(request)
+        options, input_bound, cap = await self._prepare(request)
         first = None
         attempts = charged = 0
         error = "provider_unavailable"
@@ -310,7 +390,7 @@ class ClaudeLLM:
             try:
                 async with AsyncExitStack() as stack:
                     stream = await self._attempt_await(
-                        lambda: stack.enter_async_context(self._get_client().messages.stream(**options)),
+                        lambda: stack.enter_async_context(self._client.messages.stream(**options)),
                         attempt_deadline,
                     )
                     texts = stream.text_stream.__aiter__()
@@ -346,6 +426,7 @@ class ClaudeLLM:
                     return
             except Exception as exc:  # noqa: BLE001 -- strip SDK payloads/PII before exposing failure.
                 self._last_failure = self._failure(exc)
+                error = "provider_timeout" if self._last_failure.kind == FailureKind.TIMEOUT else "provider_unavailable"
                 delay = self._retry_delay(exc, self.settings.anthropic_retry_backoff_secs * (2**index))
                 remaining = remaining_timeout(self.settings.anthropic_turn_timeout_secs)
                 if (first is not None or index >= self.settings.anthropic_max_retries

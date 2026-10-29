@@ -97,3 +97,36 @@ def test_rag_retrieval_target_does_not_invent_an_answer_latency_target():
     assert row['targets']['retrieval_p95_ms'] == {'direction': 'max', 'value': 450}
     assert row['targets']['answer_p95_ms'] is None
     assert row['status'] == 'pending'
+
+
+def test_new_failed_measurement_cannot_borrow_a_historical_passing_gate():
+    from copy import deepcopy
+
+    approved = receipt('native')
+    approved.update(check_id='rag.quality', samples=38, approved=True, metrics={
+        'recall_at_5': .90, 'mrr': .80, 'groundedness': .95,
+        'deferral_accuracy': 1.0, 'safety_rate': 1.0,
+    })
+    changed = deepcopy(approved)
+    changed['identity']['configuration_sha256'] = 'c' * 64
+    changed['metrics']['groundedness'] = .10
+    row = next(r for r in build_readiness(load_matrix(), [approved, changed])['checks']
+               if r['id'] == 'rag.quality')
+    assert row['metrics']['groundedness'] == .10 and row['status'] == 'pending'
+    assert len(row['evidence']) == 2
+
+
+def test_new_unapproved_configuration_does_not_inherit_old_approval():
+    from copy import deepcopy
+
+    approved = receipt('native')
+    approved.update(check_id='rag.quality', samples=38, approved=True, metrics={
+        'recall_at_5': .90, 'mrr': .80, 'groundedness': .95,
+        'deferral_accuracy': 1.0, 'safety_rate': 1.0,
+    })
+    changed = deepcopy(approved)
+    changed['identity']['configuration_sha256'] = 'c' * 64
+    changed['approved'] = False
+    row = next(r for r in build_readiness(load_matrix(), [approved, changed])['checks']
+               if r['id'] == 'rag.quality')
+    assert row['status'] == 'pending' and len(row['evidence']) == 2

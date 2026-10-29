@@ -21,6 +21,7 @@ from roma.domain.appointments.slots import (
     _DISCOVERY_SYS,
     _TIME_SYS,
     DiscoveryValue,
+    ExtractionUnavailable,
     TimeSlot,
     _offer_block,
 )
@@ -451,7 +452,7 @@ class TextConversationService:
                     }
                 )
                 errors.append("extraction-unavailable-or-invalid")
-                return schema()
+                raise ExtractionUnavailable from None
 
         async def discovery(client: Any, text: str, slot_name: str) -> DiscoveryValue:
             if slot_name == "lead_name":

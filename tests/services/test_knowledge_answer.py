@@ -280,3 +280,57 @@ def test_provider_exception_details_never_appear_in_answer_or_audit(caplog):
         assert "9876543210" not in caplog.text
 
     asyncio.run(run())
+
+
+def test_final_safety_failure_is_audited_as_fallback_not_grounded_evidence():
+    from roma.services.safety_service import SafeSpeech, SafetyService
+
+    class LateUnavailable(SafetyService):
+        def __init__(self):
+            super().__init__()
+            self.checks = 0
+
+        async def check(self, text, context, **kwargs):
+            self.checks += 1
+            if self.checks == 2:
+                return SafeSpeech(HARD_FAIL_LINE, (), False)
+            return await super().check(text, context, **kwargs)
+
+    async def run():
+        repo = Repository()
+        result = await service(repo, safety=LateUnavailable()).answer(
+            "SEO course curriculum kya hai?", RetrievalFilters("course", "hi-en")
+        )
+        assert result.text == HARD_FAIL_LINE and result.fallback and not result.evidence
+        assert repo.records and repo.records[-1].fallback_used
+        assert not repo.records[-1].chunk_ids
+
+    asyncio.run(run())
+
+
+def test_epoch_change_during_final_safety_cannot_write_late_retrieval_audit():
+    from roma.services.safety_service import SafetyService
+
+    guard = TurnEpoch()
+
+    class InterruptedSafety(SafetyService):
+        def __init__(self):
+            super().__init__()
+            self.checks = 0
+
+        async def check(self, text, context, **kwargs):
+            self.checks += 1
+            result = await super().check(text, context, **kwargs)
+            if self.checks == 2:
+                guard.advance()
+            return result
+
+    async def run():
+        repo = Repository()
+        with epoch_scope(guard, guard.current), pytest.raises(asyncio.CancelledError):
+            await service(repo, safety=InterruptedSafety()).answer(
+                'SEO course curriculum kya hai?', RetrievalFilters('course', 'hi-en')
+            )
+        assert not repo.records
+
+    asyncio.run(run())

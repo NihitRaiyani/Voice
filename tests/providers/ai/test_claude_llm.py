@@ -627,3 +627,229 @@ def test_claude_budget_does_not_cancel_downstream_consumer_between_pulls():
             finally:
                 await generation.aclose()
     asyncio.run(run())
+
+
+
+def test_cold_schema_and_client_setup_keep_the_live_event_loop_responsive(monkeypatch):
+    import threading
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda req: response())) as http:
+            client = AsyncAnthropic(api_key='offline-secret', http_client=http)
+            provider = ClaudeLLM(settings(), client=client)
+            setup_threads, beats = [], []
+            for name in ('_payload', '_get_client'):
+                original = getattr(provider, name)
+                def slow(*args, original=original):
+                    setup_threads.append(threading.get_ident())
+                    time.sleep(.06)  # Synthetic import/schema/client CPU preparation.
+                    return original(*args)
+                monkeypatch.setattr(provider, name, slow)
+            async def heartbeat():
+                while True:
+                    beats.append(time.monotonic())
+                    await asyncio.sleep(.005)
+            monitor = asyncio.create_task(heartbeat())
+            task = asyncio.create_task(collect_chunks(provider))
+            try:
+                await asyncio.sleep(.025)
+                assert not task.done() and len(beats) >= 3
+                chunks = await task
+                assert chunks[-1].metrics.error_code is None
+                assert all(ident != threading.get_ident() for ident in setup_threads)
+            finally:
+                monitor.cancel()
+                await asyncio.gather(monitor, task, return_exceptions=True)
+                await client.close()
+    asyncio.run(run())
+
+
+async def collect_chunks(provider):
+    return [chunk async for chunk in provider.generate(REQUEST)]
+
+
+@pytest.mark.parametrize('partial', [False, True])
+def test_sdk_and_raw_stream_timeouts_keep_sanitized_timeout_metrics_without_partial_retry(partial):
+    class RawTimeout(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield sse(text='partial').split('event: content_block_stop')[0].encode()
+            raise httpx.ReadTimeout('private-timeout-body')
+        async def aclose(self):
+            pass
+    calls = []
+    def handler(request):
+        calls.append(request)
+        if partial:
+            return httpx.Response(200, headers={'content-type':'text/event-stream'}, stream=RawTimeout())
+        raise httpx.ReadTimeout('private-timeout-body', request=request)
+    provider, chunks = asyncio.run(exercise(handler, cfg=settings(anthropic_max_retries=1 if partial else 0)))
+    assert len(calls) == 1
+    assert chunks[-1].metrics.error_code == chunks[-1].finish_reason == 'provider_timeout'
+    assert provider._last_failure.kind.value == 'timeout'
+    assert 'private-timeout-body' not in str(chunks)
+
+
+
+def test_cancelled_setup_retains_single_worker_admission_without_sending_a_request(monkeypatch):
+    import threading
+
+    async def run():
+        entered, release = asyncio.Event(), threading.Event()
+        loop = asyncio.get_running_loop()
+        calls, preparations = [], []
+        def handler(request):
+            calls.append(request)
+            return response()
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            client = AsyncAnthropic(api_key='offline-secret', http_client=http)
+            provider = ClaudeLLM(settings(), client=client)
+            original = provider._payload
+            def blocked(request):
+                preparations.append(1)
+                loop.call_soon_threadsafe(entered.set)
+                assert release.wait(2)
+                return original(request)
+            monkeypatch.setattr(provider, '_payload', blocked)
+            task = asyncio.create_task(collect_chunks(provider))
+            try:
+                await asyncio.wait_for(entered.wait(), 1)
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(task, .2)
+                successor = await collect_chunks(provider)
+                assert successor[-1].metrics.attempts == 0
+                assert successor[-1].metrics.error_code == 'provider_unavailable'
+                assert preparations == [1] and calls == [] and provider.tokens_used == 0
+            finally:
+                release.set()
+                await asyncio.gather(task, return_exceptions=True)
+                await asyncio.sleep(.02)
+                await client.close()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('mode', ['cancel', 'timeout'])
+def test_late_unused_sdk_client_is_closed_after_setup_withdrawal_without_api_io(monkeypatch, mode):
+    import threading
+
+    async def run():
+        entered, release, client_closed = asyncio.Event(), threading.Event(), asyncio.Event()
+        loop = asyncio.get_running_loop()
+        class Client:
+            async def close(self):
+                client_closed.set()
+        client = Client()
+        provider = ClaudeLLM(settings(anthropic_attempt_timeout_secs=.025))
+        def create():
+            loop.call_soon_threadsafe(entered.set)
+            assert release.wait(2)
+            return client
+        monkeypatch.setattr(provider, '_get_client', create)
+        task = asyncio.create_task(collect_chunks(provider))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            if mode == 'cancel':
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await asyncio.wait_for(task, .2)
+            else:
+                chunks = await asyncio.wait_for(task, .2)
+                assert chunks[-1].metrics.error_code == 'provider_timeout'
+                assert chunks[-1].metrics.attempts == 0
+            await asyncio.wait_for(provider.aclose(), .2)
+            assert provider._client is None and provider.tokens_used == 0
+            release.set()
+            await asyncio.wait_for(client_closed.wait(), .5)
+            assert provider._client is None
+            with pytest.raises(ProviderUnavailable, match='closed'):
+                await collect_chunks(provider)
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+    asyncio.run(run())
+
+
+
+def test_cancelled_setup_keeps_admission_until_publication_and_drains_scheduled_unused_close(monkeypatch):
+    async def run():
+        loop = asyncio.get_running_loop()
+        ready, closed = asyncio.Event(), asyncio.Event()
+        deferred, clients = [], []
+        original = loop.call_soon_threadsafe
+        class Client:
+            async def close(self):
+                await asyncio.sleep(.01)
+                closed.set()
+        def create():
+            client = Client()
+            clients.append(client)
+            return client
+        def delay_publication(callback, *args, **kwargs):
+            if getattr(callback, '__name__', '') == 'deliver':
+                deferred.append((callback, args))
+                original(ready.set)
+                return
+            return original(callback, *args, **kwargs)
+        provider = ClaudeLLM(settings())
+        monkeypatch.setattr(provider, '_get_client', create)
+        monkeypatch.setattr(loop, 'call_soon_threadsafe', delay_publication)
+        task = asyncio.create_task(collect_chunks(provider))
+        await asyncio.wait_for(ready.wait(), 1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        successor = asyncio.create_task(collect_chunks(provider))
+        await asyncio.sleep(.01)
+        assert len(clients) == 1
+        assert successor.done() and successor.result()[-1].metrics.attempts == 0
+        callback, args = deferred.pop()
+        callback(*args)
+        await provider.aclose()
+        assert closed.is_set() and not provider._late_client_closes
+        assert provider._client is None
+    asyncio.run(run())
+
+
+
+def test_closing_cached_client_during_payload_setup_cannot_create_an_unowned_replacement(monkeypatch):
+    import threading
+
+    async def run():
+        loop = asyncio.get_running_loop()
+        entered, release = asyncio.Event(), threading.Event()
+        replacements = []
+        class Client:
+            def __init__(self):
+                self.close_count = 0
+            async def close(self):
+                self.close_count += 1
+        cached = Client()
+        provider = ClaudeLLM(settings())
+        provider._client = cached
+        original_payload = provider._payload
+        def payload(request):
+            loop.call_soon_threadsafe(entered.set)
+            assert release.wait(2)
+            return original_payload(request)
+        def get_client():
+            if provider._client is not None:
+                return provider._client
+            client = Client()
+            replacements.append(client)
+            return client
+        monkeypatch.setattr(provider, '_payload', payload)
+        monkeypatch.setattr(provider, '_get_client', get_client)
+        task = asyncio.create_task(collect_chunks(provider))
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            await asyncio.wait_for(provider.aclose(), .2)
+            release.set()
+            with pytest.raises(ProviderUnavailable, match='closed'):
+                await asyncio.wait_for(task, .5)
+            assert cached.close_count == 1 and provider._client is None
+            assert replacements == []
+            assert not provider._late_client_closes and provider.tokens_used == 0
+        finally:
+            release.set()
+            await asyncio.gather(task, return_exceptions=True)
+    asyncio.run(run())

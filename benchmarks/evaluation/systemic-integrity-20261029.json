@@ -1,0 +1,307 @@
+{
+  "schema": "roma-systemic-pipeline-integrity-20261029-v1",
+  "verified_at_utc": "2026-10-29T14:46:47.345873+00:00",
+  "base_commit": "9c8f3bc95a70778fb95ed1f6970f279a6400cdca",
+  "source_manifest": {
+    "sha256": "f4214288465806651982b3ab6fb313b810eb09000d6dfe49f2c58353f4adb731",
+    "paths_count": 716,
+    "paths_reference": "strict-booking-20261029.json:source_manifest.paths",
+    "algorithm": "Same concatenated path/NUL/bytes SHA256 contract and unchanged path set as referenced receipt."
+  },
+  "checks": {
+    "ci": {
+      "exit_code": 0,
+      "seconds": 188.39,
+      "passed": 4470,
+      "warnings": 26,
+      "pytest_seconds": 182.61,
+      "failures": 0,
+      "skips": 0,
+      "log_sha256": "2ed9ff10df11d048798784e69a2c0878bf97f0c44804d24def3c3b0f6ccf93af"
+    },
+    "test": {
+      "exit_code": 0,
+      "seconds": 182.43,
+      "passed": 4470,
+      "warnings": 26,
+      "pytest_seconds": 180.25,
+      "failures": 0,
+      "skips": 0,
+      "log_sha256": "15539f9e3f1db58dddff7364fa538aed0ce7428fa48ba5b504189c2cee951ac1"
+    }
+  },
+  "other_checks": {
+    "ruff": "passed",
+    "configured_mypy_files": 203,
+    "pre_commit_hooks": 3,
+    "gitleaks_version": "8.30.1",
+    "gitleaks_current_and_history_findings": 0,
+    "lock_packages": 208,
+    "production_target_policy": "passed",
+    "cached_speech_aec_config_preflight": "passed; no inference or paid request",
+    "disposable_migration_head": "20261026_0007",
+    "services_stopped": true,
+    "markdown_links_and_anchors": 820
+  },
+  "diagnostics": {
+    "asr_paired": "../asr/section18/systemic-20261029/comparison.json",
+    "aec_vad": "../voice/systemic-aec-vad-20261029.json"
+  },
+  "integrity_fixes": [
+    "One shared RawStream ADC/DAC callback mapping; explicit render coverage.",
+    "Owned off-loop serial VAD and cold Claude preparation; retained cancellation/publication ownership.",
+    "Admitted decode-attempt cap and absolute five-minute deadline.",
+    "Whole-turn ASR rejection for bad/missing/exhausted rows and single SDK segments.",
+    "Clarification preserves pending readback; infrastructure failure preserves discovery/stage budgets in text and shared production extractors.",
+    "Low-confidence selected-offer/clock/calendar promotion requires evidence.",
+    "Typed raw streaming timeout metrics; no partial-output retries.",
+    "Final RAG safety fallback and epoch audit fence; latest eligible readiness evidence."
+  ],
+  "native_test": {
+    "run_id": "7c4074a7829443a5bc62ae7891f88c7a",
+    "recorded_at": "2026-10-29T14:41:00.893425Z",
+    "source_commit": "9c8f3bc95a70778fb95ed1f6970f279a6400cdca",
+    "python_source_tree_sha256": "f80f544a40f095d50f075f63db24fb29ae26cd883d237cac9b821e5d9cc2d2fe",
+    "working_tree_dirty": true,
+    "signed_receipts_verified": true,
+    "harness_status": "completed",
+    "prepared_close_scenario": true,
+    "full_discovery_verified": false,
+    "booking": {
+      "committed": false,
+      "restored": false
+    },
+    "booking_verified": false,
+    "capture_health": {
+      "active_capture_losses": 0,
+      "aec_reference_known_silent_samples": 598720,
+      "aec_reference_unknown_frames": 0,
+      "aec_reference_unknown_samples": 0,
+      "asyncio_loop_heartbeat_samples": 4570,
+      "asyncio_loop_stall_max_ms": 62.36891701177228,
+      "audio_callback_count": 2408,
+      "audio_cb_interval_max_us": 80534.8750000121,
+      "callback_lock_contentions": 0,
+      "capture_adc_anomaly_examples": [
+        {
+          "adc_current_delta_error_ms": -0.02816801134031266,
+          "adc_delta_ms": 47.33304100227542,
+          "adc_valid": true,
+          "callback": 1534,
+          "callback_interval_ms": 24.575374991400167,
+          "clock_rebase_ms": 27.33266136783641,
+          "clock_rebased": true,
+          "current_clock_delta_error_ms": 22.785834022215568,
+          "current_delta_ms": 47.361209013615735,
+          "expected_adc_delta_ms": 20.0,
+          "native_input_overflow": false,
+          "phase_error_ms": 27.33266136783641,
+          "rejected": false,
+          "source_change": false
+        },
+        {
+          "adc_current_delta_error_ms": 0.02099999983329326,
+          "adc_delta_ms": 80.99995901284274,
+          "adc_valid": true,
+          "callback": 1537,
+          "callback_interval_ms": 20.459916995605454,
+          "clock_rebase_ms": 60.999958994216286,
+          "clock_rebased": true,
+          "current_clock_delta_error_ms": 60.51904201740399,
+          "current_delta_ms": 80.97895901300944,
+          "expected_adc_delta_ms": 20.0,
+          "native_input_overflow": false,
+          "phase_error_ms": 60.999958994216286,
+          "rejected": false,
+          "source_change": false
+        }
+      ],
+      "capture_adc_calibration_max_ms": 1.1650172382360324e-05,
+      "capture_adc_clock_rebase_max_ms": 60.999958994216286,
+      "capture_adc_clock_rebases": 2,
+      "capture_adc_current_clock_error_max_ms": 60.52704200556036,
+      "capture_adc_fullframe_uncertainty_frames": 0,
+      "capture_adc_fullframe_uncertainty_max_ms": 0.0,
+      "capture_adc_invalid_timestamps": 0,
+      "capture_adc_phase_error_max_ms": 60.999958994216286,
+      "capture_adc_source_changes": 0,
+      "capture_adc_subframe_uncertainty_frames": 0,
+      "capture_adc_subframe_uncertainty_max_ms": 0.0,
+      "capture_adc_timestamp_anomalies": 2,
+      "capture_adc_valid_timestamps": 2408,
+      "capture_frame_age_max_ms": 95.64929406042211,
+      "capture_recoveries": 0,
+      "duplex_shared_clock_uncertainty_frames": 0,
+      "invalid_input_blocks": 0,
+      "muted_discarded": 537,
+      "output_callback_count": 2408,
+      "output_callback_stalls": 0,
+      "output_queue_capacity_frames": 4,
+      "output_queue_high_watermark_frames": 4,
+      "output_queue_occupancy_frames": 0,
+      "output_queue_starvations": 0,
+      "output_reference_clock_uncertainty_frames": 0,
+      "output_reference_clock_uncertainty_max_ms": 0.015185432857833803,
+      "output_reference_overflows": 0,
+      "output_stale_frames_discarded": 0,
+      "pcm_sequence_gaps": 0,
+      "portaudio_input_overflows": 0,
+      "portaudio_output_underflows": 0,
+      "ring_buffer_capacity_drops": 0,
+      "ring_buffer_capacity_frames": 32,
+      "ring_buffer_high_watermark_frames": 1,
+      "ring_buffer_high_watermark_pct": 3.125,
+      "ring_buffer_occupancy_frames": 0,
+      "ring_buffer_occupancy_pct": 0.0,
+      "scope": "device_lifetime",
+      "stale_discarded": 0
+    },
+    "turn_budget": [
+      {
+        "attempt": 1,
+        "budget": null,
+        "error_code": "ASR-BATCH-REJECTED",
+        "language": "HINDI_ENGLISH",
+        "stage": "close",
+        "status": "failed",
+        "timings": {
+          "asr_ms": 2522.3183749913005,
+          "response_total_ms": 22.386458003893495
+        }
+      },
+      {
+        "attempt": 2,
+        "budget": null,
+        "error_code": "ASR-BATCH-REJECTED",
+        "language": "HINDI_ENGLISH",
+        "stage": "close",
+        "status": "failed",
+        "timings": {
+          "asr_ms": 1752.8882909973618,
+          "response_total_ms": 6.641917003435083
+        }
+      },
+      {
+        "attempt": 4,
+        "budget": {
+          "configured": false,
+          "over_budget": []
+        },
+        "error_code": "LLM",
+        "language": "HINDI",
+        "stage": "close",
+        "status": "played",
+        "timings": {
+          "asr_ms": 2939.1752910014475,
+          "audio_ms": 2578,
+          "llm_ms": 4002.488166996045,
+          "playback_ms": 2735.518667002907,
+          "response_total_ms": 7496.040875004837,
+          "routing_controller_ms": 2.4308330030180514,
+          "safety_ms": 27.287791992421262,
+          "speech_to_first_audio_ms": 8811.853083214373,
+          "tts_inference_ms": 579.6779999946011,
+          "tts_ms": 702.0535000046948
+        }
+      }
+    ],
+    "events": [
+      {
+        "at_monotonic": 86677.23695725,
+        "event": "tts_warmup",
+        "tts_readiness_ms": 214.10808400833048
+      },
+      {
+        "at_monotonic": 86680.409442458,
+        "event": "device_opened"
+      },
+      {
+        "at_monotonic": 86680.574776833,
+        "event": "capture_started"
+      },
+      {
+        "at_monotonic": 86713.011686791,
+        "event": "interruption_claimed",
+        "turn_epoch": 4,
+        "was_playing": false
+      },
+      {
+        "at_monotonic": 86713.030423291,
+        "event": "output_cleared",
+        "had_output": false,
+        "software_clear_ms": 18.41137500014156,
+        "software_stop_after_claim_ms": 18.74037500238046,
+        "turn_epoch": 4
+      },
+      {
+        "at_monotonic": 86725.772982958,
+        "event": "playback_requested",
+        "turn_epoch": 4
+      },
+      {
+        "at_monotonic": 86728.530762,
+        "event": "output_cleared",
+        "had_output": false,
+        "software_clear_ms": 13.006124994717538,
+        "software_stop_after_claim_ms": null,
+        "turn_epoch": 4
+      }
+    ],
+    "failure_diagnostics": [],
+    "recording_retained": false,
+    "active_playback_barge_observed": false,
+    "human_listening_rating": null,
+    "short_backchannel_observation": null,
+    "acoustic_first_audible_ms": null,
+    "acoustic_stop_ms": null,
+    "consent_relaxed": false,
+    "observed_claude_timeout_chunks": 1,
+    "audio_levels": {
+      "before": {
+        "input": 15,
+        "output": 81
+      },
+      "test": {
+        "input": 80,
+        "output": 50
+      },
+      "restored_verified": true
+    },
+    "process_exit_code": 0,
+    "owned_speech_service_stopped": true,
+    "shutdown_warning": "External speech runtime reported one multiprocessing resource-tracker semaphore cleanup warning; source attribution and native-runtime containment remain unproven.",
+    "outcome": "Booking acceptance failed; completed means bounded harness exit, not acceptance. ASR rejected two attempts and corrupted booking wording; final generated safe deferral followed a four-second Claude timeout. No active-playback caller interruption was observed."
+  },
+  "models_or_weights_changed": false,
+  "working_database_upgraded": false,
+  "private_env_changed": false,
+  "recording_enabled": false,
+  "strict_consent_changed": false,
+  "full_acceptance_gate_passed": false,
+  "limitations": [
+    "The public ASR diagnostic remains15 derived cases from3source recordings; WER34.42%, not representative native/entity acceptance.",
+    "Synthetic voice-asset DSP/VAD offsets prove a false-interruption mechanism; hardware/acoustic/caller quality requires independent observation.",
+    "Daemon ownership refuses reuse but cannot kill a hung native audio/DSP call.",
+    "Legal/institute/account-specific retention and provider/backup/whole-person erasure need actual responsible-party evidence.",
+    "RAG semantic/native quality, combined real-model capacity and deployment/rollout/recovery gates remain unaccepted."
+  ],
+  "aggregate_budget": {
+    "currency": "INR",
+    "cap": 50,
+    "conservative_reserved": 42.0,
+    "remaining_unreserved": 8.0,
+    "invoice_cost": null
+  },
+  "provider_metadata_check": {
+    "kind": "non_generation_model_metadata",
+    "configured_model": "claude-haiku-5-5",
+    "timeout_secs": 10,
+    "generation_requests": 0,
+    "outcome": "ok",
+    "returned_models": 14,
+    "configured_model_present": true,
+    "has_more": false,
+    "elapsed_ms": 2608.0027090065414,
+    "scope": "One non-generation official Models GET; confirms configured model is listed for this account and endpoint reachable at probe time. It does not establish inference latency, account tier, ZDR, sustainable throughput or legal approval."
+  }
+}

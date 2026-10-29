@@ -348,3 +348,12 @@ def test_the_recovery_will_not_book_outside_branch_hours():
     slot = TimeSlot(day_offset=0, hour=7, period="morning", confidence=0.9)
     v = resolve_visit_slot(slot, _tue_1530(), anchor_day=date(2026, 7, 29))
     assert v.reason != "ok"
+
+
+@pytest.mark.parametrize("confidence", [0.0, 0.1, 0.699])
+def test_uncertain_offer_choice_cannot_bypass_reask_confidence_gate(confidence):
+    offered = [datetime(2026, 7, 26, 11, tzinfo=IST)]
+    verdict = resolve_visit_slot(
+        TimeSlot(chose_offer=1, accepted=True, confidence=confidence), NOW, offered=offered
+    )
+    assert verdict.reason == "unclear" and verdict.slot is None and verdict.day is None

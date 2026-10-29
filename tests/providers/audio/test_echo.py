@@ -293,3 +293,27 @@ def test_native_backend_releases_gil_while_processing(native_backend):
             assert future.result(timeout=5).shape == samples.shape
     finally:
         sys.setswitchinterval(previous_interval)
+
+
+def test_explicit_render_coverage_distinguishes_known_silence_from_missing_future(backend):
+    aec = WebRTCEchoCanceller(clock=lambda: 1.)
+    aec.require_reference_coverage()
+    aec.reference.advance_through(1.02)
+    assert aec.process(pcm(100), 1.) == pcm(100)
+    assert aec.reference.known_silent_samples == 320
+    with pytest.raises(EchoUnavailable, match='reference'):
+        aec.process(pcm(200), 1.02)
+    assert aec.reference.unknown_frames == 1
+
+
+def test_known_initial_silence_is_valid_but_pruned_history_is_unknown(backend):
+    now = [1.]
+    aec = WebRTCEchoCanceller(clock=lambda: now[0])
+    aec.require_reference_coverage()
+    aec.reference.advance_through(1.02)
+    assert aec.process(pcm(100), .98) == pcm(100)
+    now[0] = 3.
+    aec.reference.advance_through(3.02)
+    with pytest.raises(EchoUnavailable, match='reference'):
+        aec.reference.read(at=1., require_known=True)
+    assert aec.reference.unknown_samples == 320

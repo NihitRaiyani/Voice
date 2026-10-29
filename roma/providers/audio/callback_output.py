@@ -35,6 +35,7 @@ class CallbackOutput:
         self.last_handed = 0
         self._reference_anchor = None
         self._reference_anchor_callback = 0
+        self.reference_known_until = None
         self.reference_clock_uncertainty_frames = 0
         self.reference_clock_uncertainty_max_ms = 0.0
 
@@ -68,10 +69,27 @@ class CallbackOutput:
     def pop_receipt(self):
         return self.receipts.popleft() if self.receipts else None
 
-    def callback(self, outdata, frames, time_info, status):
+    def _reference_time(self, observed_at):
+        if self._reference_anchor is None:
+            self._reference_anchor = observed_at
+            self._reference_anchor_callback = self.callback_count
+        at = self._reference_anchor + (self.callback_count - self._reference_anchor_callback) * .020
+        uncertainty_ms = abs(observed_at - at) * 1000
+        self.reference_clock_uncertainty_frames += int(uncertainty_ms > 5)
+        self.reference_clock_uncertainty_max_ms = max(
+            self.reference_clock_uncertainty_max_ms, uncertainty_ms)
+        return at
+
+    def callback(self, outdata, frames, time_info, status, *, callback_at=None, reference_at=None):
         outdata[:] = bytes(len(outdata))
         self.callback_count += 1
         generation = self.generation()
+        shared_at = None
+        if reference_at is not None:
+            if type(reference_at) not in (int, float) or not math.isfinite(reference_at):
+                self.error = "Invalid shared audio clock"
+            else:
+                shared_at = self._reference_time(reference_at)
         if getattr(status, "output_underflow", False):
             self.underflows += 1
             self.error = "Speaker underflow"
@@ -81,6 +99,8 @@ class CallbackOutput:
             self.acknowledged_generation = generation
             return
         if not self.frames:
+            if shared_at is not None:
+                self.reference_known_until = shared_at + .020
             producer = self.producer
             if (producer is not None and producer[0] == generation
                     and self.current_epoch(producer[1])
@@ -112,7 +132,7 @@ class CallbackOutput:
             self.error = "Output reference receipt overflow"
             self.acknowledged_generation = generation
             return
-        now = self.clock()
+        now = self.clock() if callback_at is None else callback_at
         observed_at = now + dac - current
         # Clock access may yield to an invalidating thread. Fence again at the
         # native handoff; clear waits a subsequent callback acknowledgement too.
@@ -120,17 +140,7 @@ class CallbackOutput:
             self.stale_discarded += 1
             self.acknowledged_generation = self.generation()
             return
-        if self._reference_anchor is None:
-            self._reference_anchor = observed_at
-            self._reference_anchor_callback = self.callback_count
-        # One anchored sample clock owns render alignment. Every native callback
-        # counts, including silence; per-callback scheduling/clock estimates may
-        # vary without implying that delivered PCM overlapped or disappeared.
-        at = self._reference_anchor + (self.callback_count - self._reference_anchor_callback) * .020
-        uncertainty_ms = abs(observed_at - at) * 1000
-        self.reference_clock_uncertainty_frames += int(uncertainty_ms > 5)
-        self.reference_clock_uncertainty_max_ms = max(
-            self.reference_clock_uncertainty_max_ms, uncertainty_ms)
+        at = shared_at if shared_at is not None else self._reference_time(observed_at)
         outdata[:] = pcm
         self.receipts.append((pcm, at))
         self.first_write_at = self.first_write_at if self.first_write_at is not None else now
@@ -138,6 +148,10 @@ class CallbackOutput:
         # Queue removal is not completion: publish this only after the native
         # buffer, render receipt and tail timestamp all belong to this handoff.
         self.last_handed = handoff_id
+        if shared_at is not None:
+            # Publish only after the receipt exists: a DSP reader may run on a
+            # different thread while this callback owns the native buffer.
+            self.reference_known_until = shared_at + .020
         self.acknowledged_generation = generation
 
     def health(self):

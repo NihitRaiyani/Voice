@@ -6,6 +6,7 @@ module never imports an optional runtime at module import time.
 
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from roma.providers.ai.whisper_vocabulary import decoder_vocabulary
@@ -24,19 +25,35 @@ class BatchRejectionPolicy:
             raise ValueError("Invalid batch rejection thresholds")
 
 
-def validated_batch_text(rows, policy=None):
-    """Drop unreliable rows independently; no retry, fallback or raw diagnostics."""
+def validated_batch_text(rows, policy=None, *, sample_len=None):
+    """Accept a complete decode only; losing one row can erase negation or dates.
+
+    The pinned SDK returns dictionaries for single-call segments and dataclasses
+    for batch rows. Both paths require the same quality evidence and thresholds.
+    """
     policy = policy or BatchRejectionPolicy()
     accepted = []
     for row in rows:
-        values = (row.no_speech_prob, row.avg_logprob, row.compression_ratio)
+        field = row.get if isinstance(row, Mapping) else lambda key, source=row: getattr(source, key, None)
+        text = field("text")
+        values = tuple(field(key) for key in
+                       ("no_speech_prob", "avg_logprob", "compression_ratio"))
         if (any(not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v) for v in values)
-                or not 0 <= row.no_speech_prob <= policy.no_speech
-                or not policy.avg_logprob <= row.avg_logprob <= 0
-                or not 0 <= row.compression_ratio <= policy.compression_ratio):
-            continue
-        if row.text.strip():
-            accepted.append(row.text.strip())
+                or not 0 <= values[0] <= policy.no_speech
+                or not policy.avg_logprob <= values[1] <= 0
+                or not 0 <= values[2] <= policy.compression_ratio
+                or not isinstance(text, str) or not text.strip()):
+            return ""
+        if sample_len is not None:
+            tokens = field("tokens")
+            # SDK finalization appends EOT even when generation hit its cap.
+            # Actual decoded tokens exclude EOT, so a full budget proves that
+            # generation never emitted EOT; do not present its partial text.
+            if (not isinstance(tokens, list) or not tokens
+                    or any(type(token) is not int or token < 0 for token in tokens)
+                    or len(tokens) >= sample_len):
+                return ""
+        accepted.append(text.strip())
     return " ".join(accepted)
 
 
@@ -114,7 +131,7 @@ def decode_batch(folder, parts, base, policy=None, *, booking_vocabulary=False,
         ),
     )
     results = task.run(batch)
-    return validated_batch_text(results, policy)
+    return validated_batch_text(results, policy, sample_len=sample_len)
 
 
 def compact_greedy_loop(task, audio_features, tokens):

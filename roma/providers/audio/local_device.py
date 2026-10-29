@@ -53,6 +53,8 @@ class LocalAudioDevice:
         if type(duplex) is not bool or (duplex and echo is None):
             raise ValueError("Full duplex requires an explicit echo canceller")
         self.duplex, self.echo = duplex, echo
+        self._duplex_latency = None
+        self._shared_clock_uncertainty_frames = 0
         self._input_samples = 0
         self._input_anchor: float | None = None
         self._adc_offset: float | None = None
@@ -192,6 +194,10 @@ class LocalAudioDevice:
             "asyncio_loop_heartbeat_samples": self._loop_heartbeat_samples,
             "capture_frame_age_max_ms": self._capture_frame_age_max_ms,
             "capture_recoveries": self._capture_recoveries,
+            "duplex_shared_clock_uncertainty_frames": self._shared_clock_uncertainty_frames,
+            "aec_reference_unknown_frames": getattr(getattr(self.echo, "reference", None), "unknown_frames", 0),
+            "aec_reference_unknown_samples": getattr(getattr(self.echo, "reference", None), "unknown_samples", 0),
+            "aec_reference_known_silent_samples": getattr(getattr(self.echo, "reference", None), "known_silent_samples", 0),
             **self.capture.health(),
             **(self._output_buffer.health() if self._output_buffer is not None else {}),
         }
@@ -205,9 +211,41 @@ class LocalAudioDevice:
             self._backend = sounddevice
         return self._backend
 
-    def _capture_callback(self, pcm, frames, time_info, status):
+    def _duplex_callback(self, pcm, outdata, frames, time_info, status):
+        # One PortAudio stream owns both device clocks. Python callback-entry
+        # delay shifts both mappings equally; it cannot become a differential
+        # ADC/DAC alignment error as it could with separately opened streams.
+        now = self.clock()
+        self._capture_callback(pcm, frames, time_info, status, callback_at=now)
+        adc = getattr(time_info, "inputBufferAdcTime", None)
+        current = getattr(time_info, "currentTime", None)
+        dac = getattr(time_info, "outputBufferDacTime", None)
+        valid = all(type(value) in (int, float) and math.isfinite(value)
+                    for value in (adc, current, dac))
+        if valid and 0 < adc <= current <= dac and dac - adc <= 1:
+            self._duplex_latency = dac - adc
+        else:
+            self._shared_clock_uncertainty_frames += 1
+        output = self._output_buffer
+        if output is None:
+            outdata[:] = bytes(len(outdata))
+            return
+        if self._last_capture_end is None or self._duplex_latency is None:
+            outdata[:] = bytes(len(outdata))
+            output.error = "Shared ADC/DAC alignment unavailable"
+            return
+        if (type(current) not in (int, float) or type(dac) not in (int, float)
+                or not math.isfinite(current) or not math.isfinite(dac)
+                or not 0 <= dac - current <= 1):
+            outdata[:] = bytes(len(outdata))
+            output.error = "Invalid shared native output clock"
+            return
+        output.callback(outdata, frames, time_info, status, callback_at=now,
+                        reference_at=self._last_capture_end - .020 + self._duplex_latency)
+
+    def _capture_callback(self, pcm, frames, time_info, status, *, callback_at=None):
         # Hardware ADC/sample time keeps DSP aligned when Python callbacks jitter.
-        at = self.clock()
+        at = self.clock() if callback_at is None else callback_at
         self._callback_count += 1
         callback_interval_ms = None if self._callback_at is None else (at - self._callback_at) * 1000
         if self._callback_at is not None:
@@ -351,17 +389,32 @@ class LocalAudioDevice:
             self._check_active()
             if self.duplex:
                 self.echo.preflight()
-            self._input_open_task = asyncio.create_task(self._native(
-                lambda: self._audio().RawInputStream(
-                    samplerate=16000, channels=1, dtype="int16", blocksize=320,
-                    device=self.input_device, callback=self._capture_callback,
+            if self.duplex:
+                self._output_buffer = CallbackOutput(
+                    generation=lambda: self._output_generation,
+                    current_epoch=lambda epoch: self.epochs is None or self.epochs.is_current(epoch),
+                    clock=self.clock,
                 )
-            ))
+                require_coverage = getattr(self.echo, "require_reference_coverage", None)
+                if require_coverage is not None:
+                    require_coverage()
+            def factory():
+                if self.duplex:
+                    return self._audio().RawStream(
+                        samplerate=16000, channels=1, dtype="int16", blocksize=320,
+                        device=(self.input_device, self.output_device), callback=self._duplex_callback)
+                return self._audio().RawInputStream(
+                    samplerate=16000, channels=1, dtype="int16", blocksize=320,
+                    device=self.input_device, callback=self._capture_callback)
+            self._input_open_task = asyncio.create_task(self._native(factory))
             try:
                 self._input_stream = await asyncio.shield(self._input_open_task)
                 self._start_task = asyncio.create_task(asyncio.to_thread(self._input_stream.start))
                 await asyncio.shield(self._start_task)
                 self._check_active()
+                if self.duplex:
+                    self._output = self._input_stream
+                    self._output_ready = True
                 self._started = True
                 self._heartbeat_task = asyncio.create_task(self._monitor_loop(), name="capture-heartbeat")
             except BaseException:
@@ -600,10 +653,14 @@ class LocalAudioDevice:
         output = self._output_buffer
         if output is None:
             return
+        known_until = output.reference_known_until
         while (receipt := output.pop_receipt()) is not None:
             pcm, at = receipt
             if self.duplex:
                 self.echo.render(pcm, rate=16000, at=at)
+        reference = getattr(self.echo, "reference", None)
+        if reference is not None and known_until is not None:
+            reference.advance_through(known_until)
 
     def _clear_echo(self):
         with self._echo_lock:
@@ -617,6 +674,10 @@ class LocalAudioDevice:
             return self.echo.process(pcm, at=at)
 
     async def _ensure_output(self):
+        if self.duplex:
+            if not self._output_ready or self._output_buffer is None:
+                raise RuntimeError("Full duplex requires its started shared stream")
+            return self._output_buffer
         if self._output_start_task is None:
             self._output_start_task = asyncio.create_task(self._open_output())
         # A cancellation owns the caller, not a still-opening native stream.
@@ -643,6 +704,12 @@ class LocalAudioDevice:
         return output
 
     async def _close_output(self):
+        if self.duplex:
+            # The shared stream is adopted/aborted/closed exactly once by input
+            # lifecycle ownership, including a cancelled constructor/start.
+            self._output_ready = False
+            self._output = None
+            return
         if self._output_start_task is not None and self._output_start_task is not asyncio.current_task():
             await asyncio.gather(self._output_start_task, return_exceptions=True)
         self._output_ready = False

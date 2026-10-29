@@ -1,0 +1,172 @@
+{
+  "schema": "roma-asr-systemic-paired-summary-v1",
+  "baseline": {
+    "rejected_count": 0,
+    "execution_errors": 0,
+    "totals": {
+      "reference_words": 459,
+      "word_edits": 158,
+      "reference_chars": 2034,
+      "char_edits": 326,
+      "wer": 0.3442265795206972,
+      "cer": 0.16027531956735497
+    },
+    "elapsed_secs": 43.15108016600425,
+    "peak_rss_bytes": 656621568,
+    "peak_metal_bytes": 1512102434,
+    "network_attempts": [],
+    "median_request_ms": 3115.6564580014674,
+    "warm_median_ms": 3143.9737914988655,
+    "cold_first_request_ms": 2211.532375004026,
+    "p95_nearest_rank_ms": 4680.049166010576,
+    "by_language": {
+      "en": {
+        "wer": 0.0,
+        "cer": 0.0
+      },
+      "gu": {
+        "wer": 0.625,
+        "cer": 0.3697916666666667
+      },
+      "hi": {
+        "wer": 0.37777777777777777,
+        "cer": 0.11884057971014493
+      },
+      "gu-en": {
+        "wer": 0.38461538461538464,
+        "cer": 0.17708333333333334
+      },
+      "hi-en": {
+        "wer": 0.2518518518518518,
+        "cer": 0.07635009310986965
+      }
+    }
+  },
+  "fixed": {
+    "rejected_count": 1,
+    "execution_errors": 0,
+    "totals": {
+      "reference_words": 459,
+      "word_edits": 158,
+      "reference_chars": 2034,
+      "char_edits": 361,
+      "wer": 0.3442265795206972,
+      "cer": 0.17748279252704033
+    },
+    "elapsed_secs": 42.73134808300529,
+    "peak_rss_bytes": 720306176,
+    "peak_metal_bytes": 1512102434,
+    "network_attempts": [],
+    "median_request_ms": 3175.504209008068,
+    "warm_median_ms": 3175.565937999636,
+    "cold_first_request_ms": 2073.017249989789,
+    "p95_nearest_rank_ms": 4518.938667009934,
+    "by_language": {
+      "en": {
+        "wer": 0.0,
+        "cer": 0.0
+      },
+      "gu": {
+        "wer": 0.625,
+        "cer": 0.4609375
+      },
+      "hi": {
+        "wer": 0.37777777777777777,
+        "cer": 0.11884057971014493
+      },
+      "gu-en": {
+        "wer": 0.38461538461538464,
+        "cer": 0.17708333333333334
+      },
+      "hi-en": {
+        "wer": 0.2518518518518518,
+        "cer": 0.07635009310986965
+      }
+    }
+  },
+  "all_15_pcm_references_model_runtime_identical": true,
+  "all_native_decoded_rows_identical": true,
+  "independent_word_char_checks": 60,
+  "changed_cases": [
+    {
+      "case_id": "gu-0000:noise",
+      "before": "તિબેટનો બોધવાદ બોધનાવધ્થેશો પર આધારીચે પરંતો ઉપથેનો",
+      "after": "",
+      "before_error": null,
+      "after_error": "ASR-BATCH-REJECTED",
+      "before_metrics": {
+        "reference_words": 24,
+        "word_edits": 24,
+        "substitutions": 7,
+        "deletions": 17,
+        "insertions": 0,
+        "wer": 1.0,
+        "reference_chars": 128,
+        "char_edits": 93,
+        "char_substitutions": 10,
+        "char_deletions": 83,
+        "char_insertions": 0,
+        "cer": 0.7265625
+      },
+      "after_metrics": {
+        "reference_words": 24,
+        "word_edits": 24,
+        "substitutions": 0,
+        "deletions": 24,
+        "insertions": 0,
+        "wer": 1.0,
+        "reference_chars": 128,
+        "char_edits": 128,
+        "char_substitutions": 0,
+        "char_deletions": 128,
+        "char_insertions": 0,
+        "cer": 1.0
+      },
+      "native_rows": [
+        {
+          "case_id": "gu-0000:noise",
+          "path": "batch",
+          "text": "તિબેટનો બોધવાદ બોધનાવધ્થેશો પર આધારીચે પરંતો ઉપથેનો",
+          "no_speech_prob": 9.007334483612794e-06,
+          "avg_logprob": -0.17947561963856648,
+          "compression_ratio": 1.4842105263157894,
+          "tokens": 138,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "gu-0000:noise",
+          "path": "batch",
+          "text": "પરેમના મહાયાન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્થયો દ્વારા વિસ્તાર કરવામામામામામામયો છઈમામમામમામમામમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમ",
+          "no_speech_prob": 6.112632036092691e-06,
+          "avg_logprob": -0.12815427888277706,
+          "compression_ratio": 3.2246376811594204,
+          "tokens": 440,
+          "sample_len": 440,
+          "quality_pass": false,
+          "token_budget_pass": false
+        }
+      ]
+    }
+  ],
+  "source_sha256": {
+    "baseline": {
+      "roma/providers/ai/mlx_batch.py": "53c253a8b778fdd1e4050014b0fe57d04c9c1a76eaf144407bf4a628a0244704",
+      "roma/providers/ai/whisper_mlx.py": "2ce2949f717de0aaa54167505042cb5c8f3d58dc510c63489cbca7f0c69cba0f"
+    },
+    "fixed": {
+      "roma/providers/ai/mlx_batch.py": "44d8804a784810447659e7037a3048d4c1a850b04bc941a97ba26fa06dbbf386",
+      "roma/providers/ai/whisper_mlx.py": "117115657a62b2f54e991fe32f81c9ab02b8183a3ebe08d5771b1b4a0db470d0"
+    }
+  },
+  "worker_sha256": "d5c7937293e5cf30aca15280ee3ffb60b250a055860e0e55587e8978cf36eb2f",
+  "no_entity_groundtruth_declared": true,
+  "representative_or_native_consent_gate_passed": false,
+  "limitations": [
+    "Three source recordings; fifteen derived cases; no retained live failure PCM.",
+    "Sequential single fresh process per revision, not randomized latency/capacity evidence.",
+    "Whole-turn rejection improves failure integrity; does not improve native model output.",
+    "All outcomes scored including rejected output as empty; no omitted failure case."
+  ]
+}

@@ -160,7 +160,9 @@ def test_single_call_only_receives_fixed_opt_in_prompt(monkeypatch, tmp_path, en
     monkeypatch.setitem(sys.modules, "mlx.core", core)
     monkeypatch.setitem(sys.modules, "mlx_whisper", SimpleNamespace(
         transcribe=lambda samples, **kw: calls.append((samples, kw)) or {
-            "text": "unrelated caller words", "language": "gu",
+            "text": "unrelated caller words", "language": "gu", "segments": [
+                {"tokens": [1], "text": "unrelated caller words", "no_speech_prob": .01,
+                 "avg_logprob": -.1, "compression_ratio": 1.}],
         },
     ))
     monkeypatch.setitem(sys.modules, "mlx_whisper.tokenizer", SimpleNamespace(
@@ -310,7 +312,7 @@ def test_prefixed_sdk_batch_positions_output_and_row_compaction(
     text = decode_batch("fake-only", [b"\0\0" * 16000, b"\1\0" * 16000], "gu",
                         booking_vocabulary=not native, native_booking_vocabulary=native)
     expected = [tokenizer.decode(row).strip() for row in outputs]
-    assert text == " ".join(expected[1:] if reject_first else expected)
+    assert text == ("" if reject_first else " ".join(expected))
     assert [row.text for row in captured] == expected
     assert [len(ids) for ids in calls] == [2, 2, 1]
     assert calls[-1] == ([1] if short_first else [0])
@@ -365,7 +367,9 @@ def test_native_single_prompt_uses_existing_language_hint_without_losing_pcm(
     sdk_source.core.clear_cache = lambda: None
     monkeypatch.setattr(sys.modules['mlx_whisper'], 'transcribe',
                         lambda samples, **kw: calls.append((samples.copy(), kw)) or {
-                            'text': 'unrelated caller words', 'language': language}, raising=False)
+                            'text': 'unrelated caller words', 'language': language, 'segments': [
+                                {'tokens': [1], 'text': 'unrelated caller words', 'no_speech_prob': .01,
+                                 'avg_logprob': -.1, 'compression_ratio': 1.}]}, raising=False)
     monkeypatch.setattr(whisper_mlx, 'turn_chunks', lambda pcm, *args: (pcm,))
     provider = whisper_mlx.WhisperMLXSTT(model_id=str(tmp_path),
         booking_vocabulary=legacy, native_booking_vocabulary=True)
@@ -449,3 +453,53 @@ def test_native_vocabulary_serving_composition_forwards_opt_in_without_warmup(mo
     assert result is marker and len(seen) == 1
     assert seen[0]['native_booking_vocabulary'] is True
     assert seen[0]['booking_vocabulary'] is False
+
+
+@pytest.mark.parametrize("emit_eot", [False, True])
+def test_sdk_finalization_cannot_hide_exhausted_output_budget(sdk_source, emit_eot):
+    from roma.providers.ai.mlx_batch import compact_greedy_loop, validated_batch_text
+
+    limit = 8
+    class Inference:
+        calls = 0
+        def logits(self, inputs, features):
+            self.calls += 1
+            logits = np.full((1, inputs.shape[-1], 3), -100.)
+            logits[:, -1, 2 if emit_eot and self.calls == limit else 1] = 0.
+            return logits
+
+    task = SimpleNamespace(
+        inference=Inference(), tokenizer=SimpleNamespace(eot=2, no_speech=0),
+        decoder=sdk_source.decoding.GreedyDecoder(0, 2), logit_filters=[],
+        sample_len=limit, n_ctx=448, sot_index=0,
+    )
+    tokens, scores, _ = compact_greedy_loop(task, np.zeros((1, 1)), np.array([[0]]))
+    finalized, _ = task.decoder.finalize(tokens.reshape(1, 1, -1), scores.reshape(1, 1))
+    generated = finalized[0, 0, 1:].tolist()
+    generated = generated[:generated.index(2)]
+    # Both outputs have EOT after SDK finalization; only one actually emitted it.
+    assert len(generated) == limit - int(emit_eot)
+    row = SimpleNamespace(text="yes book", tokens=generated, no_speech_prob=.01,
+                          avg_logprob=-.1, compression_ratio=1.)
+    assert validated_batch_text([row], sample_len=limit) == ("yes book" if emit_eot else "")
+
+
+@pytest.mark.parametrize("token_count,expected", [(7, "complete row"), (8, "")])
+def test_batch_passes_actual_output_cap_to_complete_turn_validation(
+        monkeypatch, sdk_source, token_count, expected):
+    from roma.providers.ai import mlx_batch
+
+    class Task:
+        def __init__(self, model, options):
+            assert options.sample_len == 8
+
+        def run(self, features):
+            return [SimpleNamespace(text="complete row", tokens=[1] * token_count,
+                                    no_speech_prob=.01, avg_logprob=-.1, compression_ratio=1.)]
+
+    monkeypatch.setattr(mlx_batch, "decoder_vocabulary", lambda *args: (None, 8))
+    monkeypatch.setattr(sdk_source.decoding, "DecodingTask", Task)
+    monkeypatch.setattr(sdk_source.holder, "get_model", lambda *args: object())
+    monkeypatch.setattr(sdk_source.audio, "log_mel_spectrogram", lambda *args, **kw: np.zeros((1, 1)))
+    monkeypatch.setattr(sdk_source.audio, "pad_or_trim", lambda features, *args, **kw: features)
+    assert mlx_batch.decode_batch("fake-only", [b"\0\0" * 16000], "hi") == expected

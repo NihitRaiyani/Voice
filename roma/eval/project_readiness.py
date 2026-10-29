@@ -74,13 +74,17 @@ def build_readiness(matrix: dict, receipts: list[dict]) -> dict:
     for key, spec in specs.items():
         evidence = by_check[key]
         eligible = [r for r in evidence if r['kind'] in spec['accepted_kinds']]
-        approved = [r for r in eligible if r['approved'] and r['samples'] >= spec['minimum_samples']
-                    and all(v is not None for v in r['metrics'].values())]
-        passed = any(all(
-            _meets_target(r['metrics'][metric], target)
-            for metric, target in spec['targets'].items()
-        ) for r in approved)
+        # A current failure or unapproved configuration cannot borrow an older
+        # pass. Keep historical evidence, but evaluate the same latest eligible
+        # observation whose metrics the report actually displays.
         latest = eligible[-1] if eligible else None
+        approved = (latest is not None and latest['approved']
+                    and latest['samples'] >= spec['minimum_samples']
+                    and all(v is not None for v in latest['metrics'].values()))
+        passed = bool(latest is not None and approved and all(
+            _meets_target(latest['metrics'][metric], target)
+            for metric, target in spec['targets'].items()
+        ))
         checks.append({**spec, 'status': 'passed' if passed else 'pending',
                        'metrics': latest['metrics'] if latest else dict.fromkeys(spec['metrics']),
                        'evidence': evidence})

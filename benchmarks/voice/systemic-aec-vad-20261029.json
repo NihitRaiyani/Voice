@@ -1,0 +1,181 @@
+{
+  "schema": "roma.synthetic-agent-asset-aec-vad.v1",
+  "source_head": "9c8f3bc95a70778fb95ed1f6970f279a6400cdca",
+  "source_sha256": {
+    "roma/providers/audio/local_device.py": "a2f0d30e3af96831d9acfab7e4eec39c50c6d7b3e409099dbc9cf6fdd128349e",
+    "roma/providers/audio/callback_output.py": "0141a02dafa11cda14e8ebde7138c97046c9c2c8a076c02042063b549cfdea21",
+    "roma/providers/audio/echo.py": "d21bfe5fb177cf4c5d409008e69c5e9d12bf1a49211fd9b41ce8a75a5396bcda",
+    "roma/services/duplex_voice.py": "828a8b9e5b066fe8aa0a778de78c14a22f42287be6f242583c70118c04f4f323",
+    "roma/providers/ai/silero.py": "031ffd45fe041056c84d353a19bf2bbb7980f19dd5a2f36fbc750e4dad8533e2",
+    "roma/domain/audio/g711.py": "020729ab5fe069633c6994836965497ebdf4124570e30ddb35ef387c7fde17b3",
+    "roma/domain/audio/resampling.py": "31998816bd8a0f2cc5c95cec2426c227681950d17aff0a13e3122d19d3c880ba",
+    "roma/domain/audio/pcm.py": "ed289967dd1eb9049d9a8ee0fcda44638f35003a4458871c676b995185a04e57",
+    "roma/domain/audio/endpointing.py": "ec65a5fdfcf8309196154e60a72b10c2e9e449ab77a97dc1e2ce545e4d3d60bf",
+    "roma/domain/audio/turn_policy.py": "297acdc323df72f0080c8925a93e11c8b215ce6d4f568b10c5aedba8df13826c"
+  },
+  "probe_script": "/private/tmp/roma_asset_aec_vad_probe.py",
+  "probe_script_sha256": "e24c94f0edf2a00fa1e906f135be6d22d944836f8ade4957a0d545d2089e4c37",
+  "python": "3.12.12",
+  "platform": "macOS-26.5.2-arm64-arm-64bit",
+  "dependency_versions": {
+    "numpy": "2.4.6",
+    "onnxruntime": "1.24.4",
+    "pipecat-ai": "1.14.0",
+    "pywebrtc-audio": "0.2.0"
+  },
+  "onnx_asset": {
+    "path": "/private/tmp/roma-47-53-venv/lib/python3.12/site-packages/pipecat/audio/vad/data/silero_vad.onnx",
+    "sha256": "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3",
+    "bytes": 2327524
+  },
+  "cpu_thread_limits": {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "VECLIB_MAXIMUM_THREADS": "1"
+  },
+  "scope": "Approved committed agent assets, synthetic room taps and cached VAD/DSP only. No hardware, caller recording, ASR/TTS inference or physical acceptance. The DSP probe injects mapping offsets directly; shared callback mapping is verified separately by offline tests.",
+  "cases": [
+    {
+      "argv": [
+        "/private/tmp/roma-47-53-venv/bin/python",
+        "/private/tmp/roma_asset_aec_vad_probe.py",
+        "0"
+      ],
+      "elapsed_secs": 2.870402665997972,
+      "exit_code": 0,
+      "result": {
+        "pywebrtc_version": "0.2.0",
+        "pipecat_version": "1.14.0",
+        "assets": [
+          {
+            "path": "roma/realtime/assets/phrases/safe_hold_line.ulaw",
+            "sha256": "118a1e773a023dd688a7442173097b85adeafd812b4d086fa69bfad95654fdb1",
+            "bytes": 35758
+          },
+          {
+            "path": "roma/realtime/assets/opening.ulaw",
+            "sha256": "ac75389d4de1f22c49f5b913aa5d360b92ebbbad83309d78849ac4417afb1968",
+            "bytes": 12095
+          }
+        ],
+        "render_offset_ms": 0.0,
+        "stream_delay_ms": 0,
+        "echo_taps_ms_gain": [
+          [
+            40,
+            0.55
+          ],
+          [
+            60,
+            0.2
+          ]
+        ],
+        "far_only_late_4_to_10s_erle_db": 75.51068453836947,
+        "far_only_vad_max_probability": 0.5101907849311829,
+        "far_only_vad_high_frames": 0,
+        "far_only_vad_longest_high_ms": 0,
+        "double_talk_12_to_18s_energy_ratio": 0.49709475320314084,
+        "near_only_22_to_26s_energy_ratio": 0.9847391556510041,
+        "reference_overflows": 0,
+        "discontinuities": 0,
+        "scope": "committed agent assets plus synthetic room taps; no caller recording or physical-room acceptance"
+      }
+    },
+    {
+      "argv": [
+        "/private/tmp/roma-47-53-venv/bin/python",
+        "/private/tmp/roma_asset_aec_vad_probe.py",
+        "-80"
+      ],
+      "elapsed_secs": 2.495863375006593,
+      "exit_code": 0,
+      "result": {
+        "pywebrtc_version": "0.2.0",
+        "pipecat_version": "1.14.0",
+        "assets": [
+          {
+            "path": "roma/realtime/assets/phrases/safe_hold_line.ulaw",
+            "sha256": "118a1e773a023dd688a7442173097b85adeafd812b4d086fa69bfad95654fdb1",
+            "bytes": 35758
+          },
+          {
+            "path": "roma/realtime/assets/opening.ulaw",
+            "sha256": "ac75389d4de1f22c49f5b913aa5d360b92ebbbad83309d78849ac4417afb1968",
+            "bytes": 12095
+          }
+        ],
+        "render_offset_ms": -80.0,
+        "stream_delay_ms": 0,
+        "echo_taps_ms_gain": [
+          [
+            40,
+            0.55
+          ],
+          [
+            60,
+            0.2
+          ]
+        ],
+        "far_only_late_4_to_10s_erle_db": 0.0907159085040733,
+        "far_only_vad_max_probability": 0.9999980926513672,
+        "far_only_vad_high_frames": 235,
+        "far_only_vad_longest_high_ms": 2144,
+        "double_talk_12_to_18s_energy_ratio": 1.3091113382506077,
+        "near_only_22_to_26s_energy_ratio": 0.9848704767071664,
+        "reference_overflows": 0,
+        "discontinuities": 0,
+        "scope": "committed agent assets plus synthetic room taps; no caller recording or physical-room acceptance"
+      }
+    },
+    {
+      "argv": [
+        "/private/tmp/roma-47-53-venv/bin/python",
+        "/private/tmp/roma_asset_aec_vad_probe.py",
+        "80"
+      ],
+      "elapsed_secs": 2.730637666012626,
+      "exit_code": 0,
+      "result": {
+        "pywebrtc_version": "0.2.0",
+        "pipecat_version": "1.14.0",
+        "assets": [
+          {
+            "path": "roma/realtime/assets/phrases/safe_hold_line.ulaw",
+            "sha256": "118a1e773a023dd688a7442173097b85adeafd812b4d086fa69bfad95654fdb1",
+            "bytes": 35758
+          },
+          {
+            "path": "roma/realtime/assets/opening.ulaw",
+            "sha256": "ac75389d4de1f22c49f5b913aa5d360b92ebbbad83309d78849ac4417afb1968",
+            "bytes": 12095
+          }
+        ],
+        "render_offset_ms": 80.0,
+        "stream_delay_ms": 0,
+        "echo_taps_ms_gain": [
+          [
+            40,
+            0.55
+          ],
+          [
+            60,
+            0.2
+          ]
+        ],
+        "far_only_late_4_to_10s_erle_db": 4.266101090923012,
+        "far_only_vad_max_probability": 0.9939498901367188,
+        "far_only_vad_high_frames": 94,
+        "far_only_vad_longest_high_ms": 608,
+        "double_talk_12_to_18s_energy_ratio": 0.8533600514868651,
+        "near_only_22_to_26s_energy_ratio": 0.9847391556510041,
+        "reference_overflows": 0,
+        "discontinuities": 0,
+        "scope": "committed agent assets plus synthetic room taps; no caller recording or physical-room acceptance"
+      }
+    }
+  ],
+  "elapsed_secs": 8.097067333001178,
+  "source_unchanged_during_run": true,
+  "physical_acceptance_gate_passed": false
+}

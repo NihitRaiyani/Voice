@@ -1167,3 +1167,43 @@ def test_a_resolvable_revision_still_moves_the_slot():
     assert state.accepted_slot == new.isoformat()
     assert state.slot_status == "accepted"
     assert state.locked_slot is None
+
+
+@pytest.mark.parametrize('text,fields', [
+    ('3 baje', {'hour':5}),
+    ('3 baje', {'chose_offer':1}),
+    ('3:45 baje', {'hour':3,'minute':30}),
+])
+def test_low_confidence_floor_requires_the_extracted_or_selected_clock_to_match(text, fields):
+    current = _at_pivot_with_offers()
+    async def wrong(*a, **k):
+        return TimeSlot(accepted=True, confidence=.1, **fields)
+    _advance(current, text, extract_time=wrong)
+    assert current.accepted_slot is None and current.stage == 'pivot'
+
+
+@pytest.mark.parametrize('text,fields,expected_hour,expected_minute', [
+    ('4 બજે', {'hour':4}, 16, 0),
+    ('4બજે', {'hour':4}, 16, 0),
+    ('૪ વાગ્યે', {'hour':16}, 16, 0),
+    ('3:30 baje', {'hour':15,'minute':30}, 15, 30),
+    ('11 baje', {'chose_offer':1}, 11, 0),
+    ('5 baje', {'chose_offer':2}, 17, 0),
+])
+def test_matching_literal_clocks_can_still_corroborate_hedged_extraction(text, fields, expected_hour, expected_minute):
+    current = _at_pivot_with_offers()
+    async def matching(*a, **k):
+        return TimeSlot(accepted=True, confidence=.5, **fields)
+    _advance(current, text, extract_time=matching)
+    assert current.accepted_slot is not None
+    chosen = datetime.fromisoformat(current.accepted_slot)
+    assert (chosen.hour,chosen.minute) == (expected_hour,expected_minute)
+
+
+@pytest.mark.parametrize('calendar_fields', [{'day_offset':1}, {'weekday':'monday'}])
+def test_matching_low_confidence_clock_cannot_corroborate_an_unsupported_calendar_day(calendar_fields):
+    current = _at_pivot_with_offers()
+    async def invented_day(*a, **k):
+        return TimeSlot(hour=4, accepted=True, confidence=.4, **calendar_fields)
+    _advance(current, '4 बजे', extract_time=invented_day)
+    assert current.accepted_slot is None and current.stage == 'pivot'

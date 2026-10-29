@@ -109,7 +109,7 @@ def test_batch_features_match_whisper_waveform_padding(monkeypatch):
 
         def run(self, batch):
             captured.append(batch)
-            return [SimpleNamespace(text="speech", no_speech_prob=0.01,
+            return [SimpleNamespace(text="speech", tokens=[1], no_speech_prob=0.01,
                                     avg_logprob=-0.1, compression_ratio=1.0)]
 
     monkeypatch.setattr(decoding, "DecodingTask", FakeTask)

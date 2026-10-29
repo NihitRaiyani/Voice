@@ -213,6 +213,9 @@ def resolve_visit_slot(
     """
     now_ist = now.astimezone(IST) if now.tzinfo is not None else now.replace(tzinfo=IST)
 
+    if slot.confidence < CONFIDENCE_THRESHOLD:
+        return SlotVerdict("unclear", None, None)
+
     if slot.chose_offer is not None and offered:
         idx = slot.chose_offer - 1
         if 0 <= idx < len(offered):

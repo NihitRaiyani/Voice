@@ -41,6 +41,10 @@ class RenderReference:
         self._last_rate = None
         self._last_end = None
         self.overflows = 0
+        self._known_until = None
+        self.unknown_frames = 0
+        self.unknown_samples = 0
+        self.known_silent_samples = 0
 
     def _prune(self, now):
         oldest = now - self.capacity_samples // 2
@@ -81,10 +85,28 @@ class RenderReference:
             )
             self._last_rate, self._last_end = rate, start + length
 
-    def read(self, *, at):
+    def advance_through(self, at):
+        """Publish callback-confirmed PCM/silence after its receipts are drained."""
+        end = _tick(at)
+        with self._lock:
+            if self._known_until is not None and end < self._known_until:
+                raise ValueError("Render coverage must not go backwards")
+            self._known_until = end
+
+    def read(self, *, at, require_known=False):
         start = _tick(at)
         with self._lock:
             self._prune(_tick(self.clock()))
+            oldest = _tick(self.clock()) - self.capacity_samples // 2
+            unknown = sum(
+                self._known_until is None or tick >= self._known_until or tick < oldest
+                for tick in range(start, start + 320))
+            if require_known and unknown:
+                self.unknown_frames += 1
+                self.unknown_samples += unknown
+                raise EchoUnavailable("AEC render reference is not yet available")
+            if require_known:
+                self.known_silent_samples += sum(start + i not in self._samples for i in range(320))
             return pack(tuple(self._samples.get(start + i, 0) for i in range(320)))
 
     def clear_future(self, at=None):
@@ -123,6 +145,7 @@ class WebRTCEchoCanceller:
         self._processor = self._np = None
         self._last_end = None
         self.discontinuities = 0
+        self._require_reference_coverage = False
 
     def preflight(self):
         if not self._process_lock.acquire(blocking=False):
@@ -157,6 +180,9 @@ class WebRTCEchoCanceller:
                 "Local full duplex requires the pinned duplex optional dependency"
             ) from None
 
+    def require_reference_coverage(self):
+        self._require_reference_coverage = True
+
     def render(self, pcm, rate, at):
         self.reference.render(pcm, rate=rate, at=at)
 
@@ -187,7 +213,7 @@ class WebRTCEchoCanceller:
             self._last_end = start + 320
             np = self._np
             capture = np.frombuffer(near, dtype="<i2").copy()
-            far = np.frombuffer(self.reference.read(at=start / 16000), dtype="<i2").copy()
+            far = np.frombuffer(self.reference.read(at=start / 16000, require_known=self._require_reference_coverage), dtype="<i2").copy()
             frames = []
             for offset in (0, 160):
                 try:
@@ -204,6 +230,8 @@ class WebRTCEchoCanceller:
                     raise EchoUnavailable("AEC returned invalid PCM")
                 frames.append(output.astype("<i2", copy=False).tobytes())
             return b"".join(frames)
+        except EchoUnavailable:
+            raise
         except (RuntimeError, OSError):
             raise EchoUnavailable("Local AEC processing failed") from None
         finally:

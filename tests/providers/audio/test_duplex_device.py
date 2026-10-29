@@ -30,8 +30,26 @@ class Backend(CallbackBackend):
         self.output = CallbackSpeakerBackend()
         self.writing, self.release = self.output.writing, self.output.release
 
-    def RawOutputStream(self, **kwargs):
-        return self.output.RawOutputStream(**kwargs)
+    def RawStream(self, **kwargs):
+        # Lifecycle/marker tests control capture and playback independently.
+        # Shared clock correctness is covered separately with the real combined
+        # callback; this shim never opens a hardware stream.
+        device = kwargs["callback"].__self__
+        input_stream = self.RawInputStream(
+            **{**kwargs, "callback": device._capture_callback})
+        output_stream = self.output.RawOutputStream(
+            **{**kwargs, "callback": device._output_buffer.callback})
+        class Stream:
+            def start(self):
+                input_stream.start()
+                output_stream.start()
+            def abort(self):
+                output_stream.abort()
+                input_stream.abort()
+            def close(self):
+                output_stream.close()
+                input_stream.close()
+        return Stream()
 
 
 def test_capture_keeps_processing_during_playback_and_output_clear():
@@ -379,7 +397,7 @@ def test_device_to_coordinator_barge_keeps_capture_and_caller_onset():
         feeding = asyncio.create_task(feed())
         try:
             outcomes = await asyncio.wait_for(
-                DuplexVoiceSession(voice, service, max_turns=1).run(source), 3)
+                DuplexVoiceSession(voice, service, max_turns=2).run(source), 3)
             await feeding
             assert len(outcomes) == 1 and voice.interrupts == [2]
             assert len(service.provider.requests) == 2
@@ -433,3 +451,98 @@ def test_epoch_advance_after_callback_preserves_actual_handoff_reference_for_cap
     assert buffer == b'\5\0' * 320
     assert echo.rendered and echo.rendered[0][0] == buffer
     assert not echo.cuts
+
+
+def test_one_duplex_callback_preserves_adc_dac_alignment_despite_python_entry_delay():
+    now = [10.08]
+    echo = Echo()
+    device = LocalAudioDevice(duplex=True, echo=echo, clock=lambda: now[0])
+    from roma.providers.audio.callback_output import CallbackOutput
+    output = device._output_buffer = CallbackOutput(
+        generation=lambda: 0, current_epoch=lambda epoch: True, clock=device.clock)
+    device.capture.activate(0, follow_epochs=True)
+    assert output.enqueue(b'\1\0' * 320, generation=0, epoch=0)
+    outdata = bytearray(640)
+    device._duplex_callback(b'\2\0' * 320, outdata, 320,
+        SimpleNamespace(inputBufferAdcTime=99.98, currentTime=100., outputBufferDacTime=100.02),
+        SimpleNamespace(input_overflow=False, output_underflow=False))
+    frame = device.capture.pop(1)
+    _, rendered_at = output.pop_receipt()
+    assert rendered_at - (frame.at - .020) == pytest.approx(.040)
+    assert outdata == b'\1\0' * 320
+
+
+def test_duplex_opens_one_shared_stream_and_marks_initial_silence_known():
+    from roma.providers.audio.echo import RenderReference
+    class ReferenceEcho(Echo):
+        def __init__(self, clock):
+            super().__init__()
+            self.reference = RenderReference(clock=clock)
+            self.required = False
+        def require_reference_coverage(self):
+            self.required = True
+        def render(self, pcm, rate, *, at):
+            self.reference.render(pcm, rate=rate, at=at)
+        def process(self, pcm, *, at):
+            self.processed.append(self.reference.read(at=at, require_known=self.required))
+            return pcm
+    class SharedBackend:
+        def __init__(self, now):
+            self.now, self.kwargs, self.events = now, None, []
+            self.index = 0
+        def emit(self, value=0):
+            self.index += 1
+            self.now[0] = 10. + self.index * .020
+            self.kwargs['callback'](bytes([value, 0]) * 320, bytearray(640), 320,
+                SimpleNamespace(inputBufferAdcTime=100. + (self.index - 1) * .020,
+                    currentTime=100.02 + (self.index - 1) * .020,
+                    outputBufferDacTime=100.04 + (self.index - 1) * .020),
+                SimpleNamespace(input_overflow=False, output_underflow=False))
+        def RawStream(self, **kwargs):
+            assert self.kwargs is None
+            self.kwargs = kwargs
+            backend = self
+            class Stream:
+                def start(self):
+                    backend.events.append('start')
+                    backend.emit()
+                def abort(self):
+                    backend.events.append('abort')
+                def close(self):
+                    backend.events.append('close')
+            return Stream()
+    async def run():
+        now = [10.]
+        backend, echo = SharedBackend(now), ReferenceEcho(lambda: now[0])
+        device = LocalAudioDevice(backend=backend, duplex=True, echo=echo,
+                                  input_device=1, output_device=2, clock=lambda: now[0])
+        await device.start()
+        assert backend.kwargs['device'] == (1, 2)
+        assert backend.kwargs['blocksize'] == 320 and backend.kwargs['samplerate'] == 16000
+        assert device._input_stream is device._output
+        assert device._output_buffer.enqueue(b'\7\0' * 320, generation=0, epoch=0)
+        source = device.frames(max_seconds=2, on_capture_started=lambda: backend.emit(1))
+        try:
+            assert (await anext(source)).pcm == b'\1\0' * 320
+            assert echo.required and echo.processed == [bytes(640)]
+            assert echo.reference.unknown_frames == 0
+        finally:
+            await source.aclose()
+            asyncio.get_running_loop().call_later(.005, backend.emit)
+            await device.aclose()
+        assert backend.events == ['start', 'abort', 'close']
+    asyncio.run(run())
+
+
+def test_shared_callback_rejects_invalid_dac_clock_without_handoff():
+    from roma.providers.audio.callback_output import CallbackOutput
+    device = LocalAudioDevice(duplex=True, echo=Echo(), clock=lambda: 10.)
+    output = device._output_buffer = CallbackOutput(
+        generation=lambda: 0, current_epoch=lambda epoch: True, clock=device.clock)
+    output.enqueue(b'\7\0' * 320, generation=0, epoch=0)
+    outdata = bytearray(640)
+    device._duplex_callback(bytes(640), outdata, 320,
+        SimpleNamespace(inputBufferAdcTime=99.98, currentTime=100., outputBufferDacTime=float('nan')),
+        SimpleNamespace(input_overflow=False, output_underflow=False))
+    assert outdata == bytes(640) and output.error
+    assert not output.receipts and output.reference_known_until is None

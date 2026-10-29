@@ -8,11 +8,88 @@ preventing the next microphone frame from being scored.
 import asyncio
 import inspect
 import math
+import queue as thread_queue
+import threading
+import weakref
 from dataclasses import replace
 
 from roma.core.voice_errors import VoiceErrorCode, VoiceFailure
 from roma.domain.audio.endpointing import FRAME_BYTES, FRAME_MS, EndpointDetector
 from roma.providers.audio.capture_buffer import CaptureFrame
+
+_SCORER_OWNERS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+_SCORER_LOCK = threading.Lock()
+
+
+class _SerialScorer:
+    """One leased recurrent scorer; a poisoned owner cannot be reused.
+
+    The daemon is independent of asyncio's default executor. A hung native call
+    may remain alive, but cannot hang executor shutdown or accept another call.
+    """
+    def __init__(self, scorer):
+        with _SCORER_LOCK:
+            if scorer in _SCORER_OWNERS:
+                raise VoiceFailure(VoiceErrorCode.CAPTURE)
+            _SCORER_OWNERS[scorer] = self
+        self.scorer = scorer
+        self.items = thread_queue.Queue(maxsize=1)
+        self.idle = threading.Event()
+        self.idle.set()
+        self.poisoned = False
+        self.closed = False
+        self.thread = threading.Thread(target=self._work, name="roma-vad", daemon=True)
+        try:
+            self.thread.start()
+        except RuntimeError:
+            with _SCORER_LOCK:
+                del _SCORER_OWNERS[scorer]
+            raise VoiceFailure(VoiceErrorCode.CAPTURE) from None
+
+    def _work(self):
+        while (item := self.items.get()) is not None:
+            pcm, loop, future = item
+            result = error = None
+            try:
+                result = self.scorer.probability(pcm)
+            except Exception as exc:  # noqa: BLE001 -- publish failure to the owning waiter.
+                error = exc
+            finally:
+                self.idle.set()
+            def deliver(result=result, error=error, future=future):
+                if not future.done():
+                    if error is not None:
+                        future.set_exception(error)
+                    else:
+                        future.set_result(result)
+            try:
+                loop.call_soon_threadsafe(deliver)
+            except RuntimeError:
+                pass
+            if self.closed:
+                return
+
+    def submit(self, pcm):
+        if self.closed or self.poisoned or not self.idle.is_set():
+            raise VoiceFailure(VoiceErrorCode.CAPTURE)
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        self.idle.clear()
+        self.items.put_nowait((pcm, loop, future))
+        return future
+
+    def close(self, *, poison=False):
+        self.poisoned |= poison
+        if not self.closed:
+            self.closed = True
+            try:
+                self.items.put_nowait(None)
+            except thread_queue.Full:
+                pass  # The queued operation exits after observing closed.
+        if not self.poisoned:
+            with _SCORER_LOCK:
+                if _SCORER_OWNERS.get(self.scorer) is self:
+                    del _SCORER_OWNERS[self.scorer]
 
 
 class _SessionComplete(Exception):
@@ -36,7 +113,8 @@ class DuplexVoiceSession:
         self.max_turns = max_turns
         self.on_result, self.on_capture_started = on_result, on_capture_started
         self.clock = clock or voice.clock
-        self.remaining = remaining or (lambda: 300 - (self.clock() - voice._started))
+        self._deadline = voice._started + 300
+        self.remaining = remaining or (lambda: self._deadline - self.clock())
         self.decoder = speech.segment_decoder(epoch_guard=voice.epochs)
         self._segments = asyncio.Queue(maxsize=2)
         self._finals = asyncio.Queue(maxsize=2)
@@ -45,6 +123,9 @@ class DuplexVoiceSession:
         self._response = None
         self._used = False
         self._outcomes = []
+        self._attempts = 0
+        self._score_task = None
+        self._scorer_worker = None
         self._carry = bytearray()
         self._epoch = None
         self._origin = None
@@ -64,6 +145,32 @@ class DuplexVoiceSession:
         if not isinstance(remaining, (float, int)) or not math.isfinite(remaining) or remaining <= 0:
             raise VoiceFailure(VoiceErrorCode.CAPTURE)
         return min(300, remaining)
+
+    async def _score(self, pcm):
+        # One owned inference at a time. Cancellation of the waiter never
+        # releases a recurrent scorer while native work can still mutate it.
+        if self._score_task is not None and not self._score_task.done():
+            raise VoiceFailure(VoiceErrorCode.CAPTURE)
+        if self._scorer_worker is None:
+            self._scorer_worker = _SerialScorer(self.speech.scorer)
+        self._score_task = self._scorer_worker.submit(pcm)
+        try:
+            async with asyncio.timeout(min(1., self._check_deadline())):
+                return await asyncio.shield(self._score_task)
+        except TimeoutError:
+            raise VoiceFailure(VoiceErrorCode.CAPTURE) from None
+
+    async def _join_scorer(self, wait_secs):
+        task = self._score_task
+        if task is not None and not task.done():
+            _done, pending = await asyncio.wait({task}, timeout=wait_secs)
+            if pending:
+                task.add_done_callback(lambda future: future.exception() if not future.cancelled() else None)
+                self._scorer_worker.close(poison=True)
+                return False
+        if task is not None and not task.cancelled():
+            task.exception()
+        return True
 
     async def _notify(self, callback, *args):
         if callback is not None:
@@ -167,6 +274,7 @@ class DuplexVoiceSession:
                 self._segments.put_nowait((segment, self._epoch, speech_end))
             except asyncio.QueueFull:
                 raise VoiceFailure(VoiceErrorCode.ASR) from None
+            self._attempts += 1
             self._epoch = self._origin = self._handoff_until = None
             self._speech_ms = 0
             self._overlap = False
@@ -214,7 +322,7 @@ class DuplexVoiceSession:
                 while len(self._carry) >= FRAME_BYTES:
                     pcm = bytes(self._carry[:FRAME_BYTES])
                     del self._carry[:FRAME_BYTES]
-                    probability = self.speech.scorer.probability(pcm)
+                    probability = await self._score(pcm)
                     before = self.endpoint.state
                     segments = self.endpoint.feed(pcm, probability)
                     busy = self._response is not None and not self._response.done()
@@ -229,6 +337,15 @@ class DuplexVoiceSession:
                             or ((busy or self._overlap) and self._speech_ms >= minimum)):
                         self._claim(frame)
                     self._enqueue(segments, frame)
+                    if self._attempts >= self.max_turns:
+                        # The lab limit bounds eligible attempts, including
+                        # interrupted replies. Finish its final admitted reply;
+                        # do not invalidate an in-flight SQL commit or playback.
+                        close_source = getattr(source, "aclose", None)
+                        if close_source is not None:
+                            await close_source()
+                        await self._segments.put(None)
+                        return
                 # A ready source must still yield to independent decode/control.
                 await asyncio.sleep(0)
             self._check_deadline()
@@ -240,7 +357,7 @@ class DuplexVoiceSession:
                 # trims back to the original source sample boundary before ASR.
                 pcm = bytes(self._carry).ljust(FRAME_BYTES, b"\0")
                 self._carry.clear()
-                probability = self.speech.scorer.probability(pcm)
+                probability = await self._score(pcm)
                 self._enqueue(self.endpoint.feed(pcm, probability), frame)
             if self._last_at is not None:
                 self._enqueue(self.endpoint.flush(), frame)
@@ -372,7 +489,12 @@ class DuplexVoiceSession:
             finally:
                 self._carry.clear()
                 self.endpoint.reset()
-                self.speech.reset()
+                if await self._join_scorer(cleanup):
+                    try:
+                        self.speech.reset()
+                    finally:
+                        if self._scorer_worker is not None:
+                            self._scorer_worker.close()
         return self._outcomes
 
 

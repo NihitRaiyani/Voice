@@ -6,6 +6,7 @@ import pytest
 from roma.core.ai_contracts import LLMChunk
 from roma.domain.appointments.slots import (
     DiscoveryValue,
+    ExtractionUnavailable,
     TimeSlot,
     extract_discovery_slot,
     extract_time_slot,
@@ -74,13 +75,10 @@ def test_extract_time_returns_accepted_and_readback_flags():
     assert got.accepted is True and got.day_offset == 1 and got.period == "evening"
 
 
-def test_extraction_never_raises_on_provider_error():
-    got = asyncio.run(
-        extract_discovery_slot(
-            FakeProvider(RuntimeError("provider down")), "anything", "education"
-        )
-    )
-    assert got.value is None and got.confidence == 0.0
+def test_provider_failure_raises_the_typed_upstream_signal():
+    with pytest.raises(ExtractionUnavailable):
+        asyncio.run(extract_discovery_slot(FakeProvider(RuntimeError("provider down")),
+                                          "anything", "education"))
 
 
 @pytest.mark.parametrize(
@@ -96,8 +94,8 @@ def test_extraction_never_raises_on_provider_error():
 )
 def test_invalid_incomplete_and_oversized_booking_json_reasks(content, finish):
     client = FakeProvider(content, finish=finish)
-    got = asyncio.run(extract_time_slot(client, "hmm"))
-    assert got.confidence == 0 and got.accepted is False
+    with pytest.raises(ExtractionUnavailable):
+        asyncio.run(extract_time_slot(client, "hmm"))
     assert client.closed
 
 
@@ -136,3 +134,53 @@ def test_cancellation_propagates_and_closes_stream():
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(extract_time_slot(client, "kal"))
     assert client.closed
+
+
+@pytest.mark.parametrize('outcome', [RuntimeError('synthetic provider outage'), 'not JSON'])
+def test_default_advance_turn_extraction_failure_preserves_discovery_budgets(outcome):
+    from datetime import datetime
+
+    from roma.domain.appointments.timeresolve import IST
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
+
+    async def run():
+        current = CallState(call_sid='synthetic-default-extraction', stage='discover', lead_name='Amit')
+        provider = FakeProvider(outcome)
+        for _ in range(10):
+            await advance_turn(current, 'I am a student', client=provider,
+                               now=datetime(2026,10,29,10,tzinfo=IST))
+            assert current.slot_attempts == {} and current.stage_turn_count == 0
+            assert current.stage == 'discover' and current.next_discovery_slot() == 'current_status'
+        assert current.turn_count == 10 and current.current_status is None
+        assert provider.closed
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('text', ['', '\0', '<invalid>'])
+def test_invalid_caller_input_is_ordinary_ambiguity_without_a_provider_request(text):
+    cap = {}
+    provider = FakeProvider(RuntimeError('must not be called'), cap)
+    discovery = asyncio.run(extract_discovery_slot(provider, text, 'education'))
+    booking = asyncio.run(extract_time_slot(provider, text))
+    assert discovery.value is None and discovery.confidence == 0
+    assert booking.confidence == 0 and not booking.accepted
+    assert cap == {}
+
+
+def test_default_time_extraction_outage_preserves_existing_readback():
+    from datetime import datetime
+
+    from roma.domain.appointments.timeresolve import IST
+    from roma.domain.conversation.state import CallState
+    from roma.domain.conversation.turn import advance_turn
+
+    async def run():
+        slot = '2026-10-30T15:00:00+05:30'
+        current = CallState(stage='close', booking_required=True, accepted_slot=slot,
+                            slot_status='accepted', slots_offered=[slot])
+        await advance_turn(current, 'maybe', client=FakeProvider(RuntimeError('provider outage')),
+                           now=datetime(2026,10,29,10,tzinfo=IST))
+        assert current.accepted_slot == slot and current.slot_status == 'accepted'
+        assert current.stage_turn_count == 0 and current.appointment_id is None
+    asyncio.run(run())

@@ -13,14 +13,21 @@ this is unit-testable with no live API.
 """
 
 import logging
+import re
 from datetime import date, datetime
 
 from roma.domain.appointments.booking import BookingError
 from roma.domain.appointments.calendar import DEFAULT_CALENDAR, VisitCalendar
-from roma.domain.appointments.slots import TimeSlot, extract_discovery_slot, extract_time_slot
+from roma.domain.appointments.slots import (
+    ExtractionUnavailable,
+    TimeSlot,
+    extract_discovery_slot,
+    extract_time_slot,
+)
 from roma.domain.appointments.timeresolve import (
     CONFIDENCE_THRESHOLD,
     SlotVerdict,
+    _resolve_hour,
     resolve_visit_slot,
 )
 from roma.domain.conversation.confirmguard import TIME_CUES, lead_wants_out
@@ -38,6 +45,14 @@ from roma.domain.conversation.state_machine import transition as transition_stat
 from roma.domain.safety.normalize import tokens
 
 _log = logging.getLogger("roma.domain.conversation")
+
+
+_CLARIFICATION_REQUESTS = frozenset(tuple(tokens(phrase)) for phrase in (
+    "नहीं समझ आया", "समझ नहीं आया", "nahi samjha", "samajh nahi aaya",
+    "नहीं सुनाई दिया", "nahi sunai diya", "nahi dobara boliye", "दोबारा बोलिए",
+    "please repeat", "could you repeat", "I did not understand", "I could not hear",
+    "સમજાયું નહીં", "ફરી કહો",
+))
 
 _AFFIRMATIONS = {
     "haan",
@@ -612,43 +627,72 @@ def _sole_offer_day(iso_slots) -> "str | None":
     return days.pop().isoformat() if len(days) == 1 else None
 
 
-def _corroborate(ts, user_text: str):
-    """Floor the extractor's confidence when the lead's own words carry a day or a time.
+_CLOCK_DIGITS = r"(?<![\w\u0900-\u097f\u0a80-\u0aff])(\d{1,2})(?::(\d{2}))?"
+_CLOCK_UNITS = re.compile(_CLOCK_DIGITS + r"\s*(baje|बजे|બજે|વાગ્યે|am|pm)(?![\w\u0900-\u097f\u0a80-\u0aff])", re.I)
+_CLOCK_COLON = re.compile(r"(?<!\w)(\d{1,2}):(\d{2})(?!\w)")
+_PERIOD_EVIDENCE = {
+    "morning": "morning", "subah": "morning", "savare": "morning", "सुबह": "morning", "સવારે": "morning",
+    "afternoon": "afternoon", "dopahar": "afternoon", "bapore": "afternoon", "दोपहर": "afternoon", "બપોરે": "afternoon",
+    "evening": "evening", "shaam": "evening", "saanjhe": "evening", "शाम": "evening", "સાંજે": "evening",
+    "night": "night", "raat": "night", "raatre": "night", "रात": "night", "રાત્રે": "night",
+}
 
-    ## The turn this exists to resolve
 
-    Live call CA4777470 (2026-07-27). The lead said `4 બજે` — "four o'clock" — three times.
-    Every turn:
+def _literal_clock_evidence(text):
+    """Exact decimal clocks only; no word-number, date or fuzzy interpretation."""
+    periods = {_PERIOD_EVIDENCE[word] for word in tokens(text) if word in _PERIOD_EVIDENCE}
+    if len(periods) > 1:
+        return set()
+    period = next(iter(periods), None)
+    matches = [(match[1], match[2], match[3].casefold()) for match in _CLOCK_UNITS.finditer(text)]
+    if not matches:
+        matches = [(match[1], match[2], None) for match in _CLOCK_COLON.finditer(text)]
+    if not matches:
+        bare = re.fullmatch(r"(\d{1,2})(?::(\d{2}))?", text.strip().rstrip(".!?।"))
+        if bare:
+            matches = [(bare[1], bare[2], None)]
+    clocks = set()
+    for raw_hour, raw_minute, unit in matches:
+        hour, minute = int(raw_hour), int(raw_minute or 0)
+        if not 0 <= hour <= 23 or not 0 <= minute <= 59 or (unit in {"am", "pm"} and not 1 <= hour <= 12):
+            return set()
+        stated_period = ("night" if hour == 12 else "morning") if unit == "am" else "afternoon" if unit == "pm" else period
+        resolved = _resolve_hour(TimeSlot(hour=hour, minute=minute, period=stated_period))
+        if (unit in {"am", "pm"} and period is not None
+                and _resolve_hour(TimeSlot(hour=hour, period=period)) != resolved):
+            return set()
+        clocks.add((resolved, minute))
+    return clocks if len(clocks) == 1 else set()
 
-        slot verdict: stage=pivot reason=unclear ... hour=4 anchor=- resolved=- status=none
 
-    `hour=4` was extracted correctly. It was thrown away because the model reported
-    `confidence=0.50`, under `CONFIDENCE_THRESHOLD` (0.70). Nothing about that utterance was
-    unclear; the model was simply hedging.
+def _corroborate(ts, user_text: str, *, offered=None):
+    """Corroborate a hedged extraction only with the same literal spoken clock.
 
-    That threshold exists to stop a slot the model INVENTED FROM NOTHING from reaching the
-    win condition (docs/03: "a confidently-wrong slot burns the lead"). It is the wrong
-    instrument for a model under-confident about words that were plainly spoken — and the
-    transcript is available right here to say which case this is.
-
-    So the floor needs corroboration from two independent places: the model produced
-    structure, AND the lead's own tokens contain a day or a clock time. Neither is the
-    model's opinion of itself. A transcript that independently contains "4" and "બજે" is
-    stronger evidence a time was said than any float the model reports about it.
-
-    This cannot re-open the phantom booking of CA9933275: `નહીં નહીં કોઈ દૂસરા item ના દો`
-    carries no time evidence, so it is never floored — and `_is_refusal_only` vetoes the
-    claim regardless. The residual exposure is STT mishearing a time into existence, which
-    is exactly the exposure a self-reported 0.9 already carries, and the close readback is the
-    designed net for it: the lead hears the time and confirms it before anything locks.
+    The native `4 બજે`/hour=4 regression still resolves through existing 12/24h
+    rules. An unrelated day/time word cannot promote an invented hour or a
+    contradictory offered-slot selection. Worded/ambiguous clocks simply re-ask.
     """
     if ts.confidence >= CONFIDENCE_THRESHOLD:
         return ts
-    if ts.hour is None and not ts.weekday and ts.day_offset is None and ts.chose_offer is None:
+    # Confidence applies to the whole extraction. Matching a clock cannot
+    # independently validate a model-supplied calendar day; keep it uncertain.
+    # Hour-only values can still use the controller's existing day anchor.
+    if ts.day_offset is not None or ts.weekday is not None:
         return ts
-    if not _has_time_evidence(set(tokens(user_text))):
+    spoken = _literal_clock_evidence(user_text)
+    if not spoken:
         return ts
-    _log.info("slot confidence floored: the transcript itself carries a day or a time")
+    candidates = []
+    if ts.hour is not None:
+        candidates.append((_resolve_hour(ts), ts.minute))
+    if ts.chose_offer is not None:
+        index = ts.chose_offer - 1
+        if not offered or not 0 <= index < len(offered):
+            return ts
+        candidates.append((offered[index].hour, offered[index].minute))
+    if not candidates or any(candidate not in spoken for candidate in candidates):
+        return ts
+    _log.info("slot confidence floored: matching literal caller clock")
     return ts.model_copy(update={"confidence": CONFIDENCE_THRESHOLD})
 
 
@@ -804,10 +848,14 @@ async def advance_turn(
         state.lead_wants_out = True
         _log.info("lead asked to end the call; sign-off guard will not hold (stage=%s)", stage)
 
+    clarifying_readback = (
+        stage == ConversationStage.CLOSE and state.accepted_slot is not None
+        and not state.lead_wants_out and tuple(tokens(user_text)) in _CLARIFICATION_REQUESTS
+    )
     if (
         state.booking_required
         and release_holds is not None
-        and (state.lead_wants_out or _is_refusal_only(user_text))
+        and (state.lead_wants_out or (_is_refusal_only(user_text) and not clarifying_readback))
     ):
         await release_holds()
         state.slots_offered = []
@@ -915,7 +963,11 @@ async def advance_turn(
         sig["asks_about_course"] = asks_about_course(user_text)
         slot_name = state.next_discovery_slot()
         if slot_name and client is not None:
-            dv = await extract_discovery(client, user_text, slot_name)
+            try:
+                dv = await extract_discovery(client, user_text, slot_name)
+            except ExtractionUnavailable:
+                state.stage_turn_count -= 1
+                return Transition(stage)
             if dv.value is not None and dv.confidence >= CONFIDENCE_THRESHOLD:
                 setattr(state, slot_name, dv.value)
                 sig["discovery_slot_filled"] = True
@@ -937,13 +989,21 @@ async def advance_turn(
     elif stage in (ConversationStage.PIVOT, ConversationStage.CLOSE):
         if client is not None:
             offered = _parse_offers(state.slots_offered)
-            if (stage == ConversationStage.CLOSE and state.booking_required
+            if clarifying_readback:
+                # Repeat the existing candidate; clarification is neither consent
+                # nor a new extraction/availability/hold-release operation.
+                ts = TimeSlot()
+            elif (stage == ConversationStage.CLOSE and state.booking_required
                     and state.accepted_slot and _booking_affirmation(user_text)):
                 # Consent to an existing readback is code-owned, not another model task.
                 ts = TimeSlot(readback_confirmed=True, confidence=1.0)
             else:
-                ts = await extract_time(client, user_text, offered=_spoken_offers(state))
-            ts = _corroborate(ts, user_text)
+                try:
+                    ts = await extract_time(client, user_text, offered=_spoken_offers(state))
+                except ExtractionUnavailable:
+                    state.stage_turn_count -= 1
+                    return Transition(stage)
+            ts = _corroborate(ts, user_text, offered=offered)
             verdict = resolve_visit_slot(
                 ts, now, offered=offered, anchor_day=_anchor_day(state)
             )
@@ -1100,4 +1160,4 @@ async def advance_turn(
     return transition
 
 
-__all__ = ["advance_turn", "is_affirmation"]
+__all__ = ["ExtractionUnavailable", "advance_turn", "is_affirmation"]

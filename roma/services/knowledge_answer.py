@@ -127,18 +127,25 @@ class KnowledgeAnswerService:
         except Exception:  # noqa: BLE001 — missing/weak/unsafe/unavailable evidence always defers.
             line, selected, reason = NO_EVIDENCE_LINE, (), 'unavailable'
         require_current_epoch()
+        checked = await self.safety.check(line, context)
+        if not checked.audit_ok or checked.text != line:
+            selected = ()
+            reason = 'audit_unavailable' if not checked.audit_ok else 'rejected'
+        line = checked.text
+        require_current_epoch()
         try:
             await self.search.record(filters, selected, fallback=reason != 'grounded',
                                      outcome='eligible' if reason == 'grounded' else
                                      'rejected' if reason == 'rejected' else
-                                     'unavailable' if reason == 'unavailable' else 'no_evidence',
+                                     'unavailable' if reason in {'unavailable', 'audit_unavailable'} else 'no_evidence',
                                      latency_ms=latency, call_id=call_id, turn_id=turn_id,
                                      request_id=request_id)
         except Exception:  # noqa: BLE001 — evidence audit failure never releases a fact.
             line, selected, reason = HARD_FAIL_LINE, (), 'audit_unavailable'
+            checked = await self.safety.check(line, context)
+            line = checked.text
         require_current_epoch()
-        checked = await self.safety.check(line, context)
         if reason != 'grounded':
             get_telemetry().event('rag_fallback', outcome='fallback')
-        return KnowledgeAnswer(checked.text, selected if reason == 'grounded' else (),
+        return KnowledgeAnswer(line, selected if reason == 'grounded' else (),
                                reason != 'grounded', reason)

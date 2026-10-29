@@ -10,7 +10,12 @@ from pathlib import Path
 
 from roma.domain.audio.turn_policy import TurnPolicy
 from roma.providers.ai.contracts import STTRequest, STTResult
-from roma.providers.ai.mlx_batch import BatchRejectionPolicy, decode_batch, turn_chunks
+from roma.providers.ai.mlx_batch import (
+    BatchRejectionPolicy,
+    decode_batch,
+    turn_chunks,
+    validated_batch_text,
+)
 from roma.providers.ai.silero import SileroFrameProbability
 from roma.providers.ai.stt import (
     _PROJECT,
@@ -132,7 +137,14 @@ class WhisperMLXSTT(_LocalSTT):
                     verbose=None,
                     **({"initial_prompt": prompt} if prompt is not None else {}),
                 )
-                return STTResult(result["text"], result["language"])
+                # SDK thresholds choose fallback temperatures; with temperature=0
+                # they do not reject low-quality text. Validate every returned
+                # segment, never trust an aggregate lacking quality metadata.
+                segments = result.get("segments")
+                text = (validated_batch_text(segments, self.rejection, sample_len=sample_len)
+                        if isinstance(segments, list) else "")
+                return STTResult(text, result["language"],
+                                 error_code="ASR-BATCH-REJECTED" if not text else None)
             finally:
                 try:
                     mx.clear_cache()

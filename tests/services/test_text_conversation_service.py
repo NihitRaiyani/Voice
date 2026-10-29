@@ -6,7 +6,7 @@ from roma.domain.appointments.timeresolve import IST
 from roma.domain.conversation.state import CallState
 from roma.domain.conversation.state_machine import restore_state
 from roma.domain.safety.lexicon import HARD_FAIL_LINE
-from roma.providers.ai.contracts import LLMChunk
+from roma.providers.ai.contracts import LLMChunk, ProviderUnavailable
 from roma.providers.ai.mocks import MockLLMProvider
 from roma.services.conversation_prompts import dialogue_request
 from roma.services.text_conversation_service import TextConversationService, filter_response
@@ -289,3 +289,47 @@ def test_explicit_literal_booking_reaches_safe_readback_without_any_llm(text,hou
 def test_literal_booking_parser_defers_ambiguous_refused_or_wrong_branch_requests(text,branch):
     from roma.domain.appointments.literal_time import literal_booking_time
     assert literal_booking_time(text,branch=branch) is None
+
+
+@pytest.mark.parametrize('reply', [ProviderUnavailable('synthetic timeout'), '{invalid json'])
+def test_upstream_extraction_failure_preserves_discovery_attempt_and_stage_budgets(reply):
+    async def run():
+        provider = Scripted([reply] * 10)
+        state = CallState(call_sid='synthetic-upstream', stage='discover', lead_name='Amit')
+        service = TextConversationService(provider)
+        for _ in range(10):
+            trace = await service.turn(state, 'I am a student', now=NOW)
+            assert trace.provider_error == 'extraction-unavailable-or-invalid'
+            assert state.next_discovery_slot() == 'current_status'
+            assert state.slot_attempts == {} and state.stage_turn_count == 0
+            assert state.stage == 'discover' and state.current_status is None
+        assert state.turn_count == 10
+    asyncio.run(run())
+
+
+
+def test_valid_extraction_of_genuine_caller_ambiguity_retains_the_two_attempt_budget():
+    async def run():
+        state = CallState(call_sid='synthetic-unclear', stage='discover', lead_name='Amit')
+        service = TextConversationService(Scripted(['{"value":null,"confidence":0}'] * 2))
+        for _ in range(2):
+            trace = await service.turn(state, 'not sure', now=NOW)
+            assert trace.provider_error is None
+        assert state.slot_attempts == {'current_status': 2}
+        assert state.next_discovery_slot() == 'education' and state.stage_turn_count == 2
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('reply', [ProviderUnavailable('synthetic timeout'), '{invalid json'])
+def test_upstream_time_extraction_failure_preserves_the_pending_readback(reply):
+    async def run():
+        slot = '2026-10-13T15:00:00+05:30'
+        state = CallState(call_sid='synthetic-pending', stage='close', booking_required=True,
+                          accepted_slot=slot, slot_status='accepted', slots_offered=[slot])
+        trace = await TextConversationService(Scripted([reply])).turn(state, 'maybe', now=NOW)
+        assert state.accepted_slot == slot and state.slots_offered == [slot]
+        assert state.stage == 'close' and state.stage_turn_count == 0
+        assert state.locked_slot is None and state.appointment_id is None
+        assert trace.provider_error == 'extraction-unavailable-or-invalid'
+        assert '3:00 PM' in trace.final_response
+    asyncio.run(run())

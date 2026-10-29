@@ -140,7 +140,7 @@ The supervised follow-up on 2026-10-26 produced two played turns/two playback re
 
 ## Current live acceptance
 
-Recorded 2026-10-29T06:53:40.141326Z; source commit `8197ab494d1aed3eb854c99086c01e2aafcf0eb9`. Run `5c1c378b96d64bcf85bd01cdd463a699`; status `interrupted`. Local HMAC receipts establish integrity, not independent acceptance. Acoustic first-audible and playback-stop latency remain unmeasured without independent instrumentation. Software timing and one supervised scenario do not pass the full reliability/concurrency gate.
+Recorded 2026-10-29T14:41:00.893425Z; source commit `9c8f3bc95a70778fb95ed1f6970f279a6400cdca`. Run `7c4074a7829443a5bc62ae7891f88c7a`; status `completed`. Local HMAC receipts establish integrity, not independent acceptance. Acoustic first-audible and playback-stop latency remain unmeasured without independent instrumentation. Software timing and one supervised scenario do not pass the full reliability/concurrency gate.
 
 <!-- END CURRENT LIVE ACCEPTANCE -->
 
@@ -166,3 +166,20 @@ Input/output construction ownership survives caller cancellation; call cleanup a
 ## Delivered PCM and timestamp uncertainty — 2026-10-29
 
 Timestamp disagreement alone no longer marks microphone overflow or an incomplete utterance, including full-frame disagreements. `capture_adc_fullframe_uncertainty_frames` and `capture_adc_fullframe_uncertainty_max_ms` report those observations separately from the existing subframe counters. Native input overflow, invalid PCM, bounded-ring capacity loss and callback contention remain authoritative failures; no dropped block is silently joined. The existing small-error alignment adjustment stays capped at 50 μs per callback. This correction changes neither the dated 2026-10-28 outcomes nor their acceptance status, and proves no shared input/output hardware clock or physical echo alignment.
+
+
+### Shared-clock and event-loop root-cause repair — 2026-10-29
+
+The [systemic decision](../decisions.md#2026-10-29-systemic-live-pipeline-integrity-repair) replaces independently anchored native input/output streams with one persistent duplex `RawStream`. One combined callback maps ADC and DAC through the same clock observation; delayed Python entry cannot create a differential first-anchor offset. Existing queued PCM/epoch clearing remains, and already-handed speaker PCM remains in the render reference through interruption. Coverage distinguishes callback-confirmed silence from unavailable/pruned data; missing coverage fails rather than silently substituting silence. Explicit half-duplex diagnosis remains available.
+
+Synchronous VAD on the event loop reproduced the observed queue-loss mechanism: a 1.31-second fake scorer stall fills the existing 32-frame ring and loses an active frame without native overflow. The production path now uses one bounded serial daemon scorer worker with retained cancellation ownership and poisoned-object reuse denial. Final recurrent reset precedes owner release. This removes synchronous scoring from the loop; it does not kill a hung native driver/DSP call or establish a room-level recovery SLA. The decode-attempt cap includes interrupted responses and uses the unchanged absolute five-minute deadline.
+
+The [approved-agent-asset DSP/VAD receipt](../../benchmarks/voice/systemic-aec-vad-20261029.json) has source/asset/ONNX hashes and three fresh bounded CPU-thread-limited children. Existing committed voice assets pass through real pinned AEC 0.2.0 and the bundled Silero model, with synthetic 40/60 ms room taps and an explicit zero delay hint. No microphone, caller recording, ASR/TTS inference or download is involved. Injected reference mapping offsets produce:
+
+| Render offset | Far-only ERLE, 4–10 s | Longest VAD ≥0.8 run |
+|---|---:|---:|
+| Aligned | 75.51 dB | 0 ms |
+| −80 ms | 0.09 dB | 2,144 ms |
+| +80 ms | 4.27 dB | 608 ms |
+
+Both skewed signals can cross the existing 600 ms barge-in decision despite zero reference-overflow/discontinuity counters. This connects reference misalignment to a sustained false-interruption mechanism; it does not prove attribution for every earlier live echo. Shared device-clock mapping is tested separately with the real combined callback and fake hardware lifecycle. Aligned synthetic near-only energy ratio is 0.985; double-talk energy ratio is 0.497, so clean far-only suppression does not establish near-end intelligibility. Physical device alignment, caller preservation, room echo, speech-onset/acoustic stop and end-to-end latency acceptance remain open until a separately observed run supplies them. No full gate passes from these diagnostics.

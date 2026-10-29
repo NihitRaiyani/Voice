@@ -412,3 +412,51 @@ def test_orthographic_commands_cannot_hide_refusal_revision_or_corrupted_input(t
         assert not result.win and current.appointment_id is None and current.locked_slot is None
         confirm.assert_not_awaited()
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("text", ["नहीं समझ आया", "nahi samjha", "नहीं सुनाई दिया", "nahi dobara boliye"])
+def test_clarification_preserves_pending_readback_without_release_extraction_or_commit(text):
+    async def run():
+        current = state(slots_offered=[SLOT])
+        release = AsyncMock()
+        extract = AsyncMock(return_value=TimeSlot(accepted=True, chose_offer=1, confidence=1))
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, text, client=object(), now=NOW,
+                                    release_holds=release, extract_time=extract,
+                                    confirm_booking=confirm)
+        assert current.accepted_slot == SLOT and current.slot_status == 'accepted'
+        assert current.slots_offered == [SLOT]
+        assert not result.win and current.appointment_id is None and current.locked_slot is None
+        release.assert_not_awaited()
+        extract.assert_not_awaited()
+        confirm.assert_not_awaited()
+        assert '11:00 AM' in canned_reply(current, 'please repeat')
+    asyncio.run(run())
+
+
+
+def test_genuine_refusal_still_releases_pending_readback_and_correction_still_revises_it():
+    async def run():
+        current = state(slots_offered=[SLOT])
+        release, confirm = AsyncMock(), AsyncMock()
+        async def empty(*a, **k):
+            return TimeSlot()
+        result = await advance_turn(current, 'nahi', client=object(), now=NOW,
+                                    release_holds=release, extract_time=empty, confirm_booking=confirm)
+        assert not result.win and current.accepted_slot is None and current.slots_offered == []
+        release.assert_awaited_once()
+        confirm.assert_not_awaited()
+        current = state(slots_offered=[SLOT])
+        release.reset_mock()
+        calendar = AsyncMock()
+        calendar.is_open.return_value = True
+        async def revised(*a, **k):
+            return TimeSlot(day_offset=1, hour=15, accepted=True, confidence=.99)
+        result = await advance_turn(current, 'nahi kal 3 baje', client=object(), now=NOW,
+                                    release_holds=release, extract_time=revised, confirm_booking=confirm,
+                                    calendar=calendar)
+        assert current.accepted_slot == (NOW + timedelta(days=1, hours=6)).isoformat()
+        assert current.slot_status == 'accepted' and not result.win
+        release.assert_not_awaited()
+        confirm.assert_not_awaited()
+    asyncio.run(run())

@@ -789,3 +789,72 @@ def test_real_voice_terminal_signoff_plays_fully_and_stops_later_asr():
         assert voice.speaker.played and not voice.disconnected and not voice._poisoned
         assert voice.attempt == 1
     asyncio.run(run())
+
+
+def test_duplex_scorer_runs_outside_event_loop_with_serial_ownership():
+    class ThreadScorer(Scorer):
+        def probability(self, pcm):
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError('Scorer blocked the event loop')
+            return super().probability(pcm)
+    async def run():
+        voice, service = Voice(), speech()
+        service.scorer = ThreadScorer()
+        outcomes = await DuplexVoiceSession(voice, service).run(
+            blocks(voice, [1] * 12 + [0] * 12))
+        assert len(outcomes) == 1 and service.scorer.frames > 0
+    asyncio.run(run())
+
+
+def test_attempt_limit_bounds_eligible_asr_even_when_responses_are_interrupted():
+    class InterruptibleVoice(Voice):
+        async def respond(self, final):
+            if final.turn_epoch == 1:
+                await asyncio.Event().wait()
+            return await super().respond(final)
+    async def run():
+        voice, service = InterruptibleVoice(), speech()
+        outcomes = await DuplexVoiceSession(voice, service, max_turns=2).run(
+            blocks(voice, ([1] * 16 + [0] * 12) * 6))
+        assert len(service.provider.requests) <= 2
+        assert len(voice.results) <= 1
+        assert len(outcomes) <= 1
+    asyncio.run(run())
+
+
+def test_cancelled_scorer_keeps_daemon_ownership_and_poisons_successor():
+    import threading
+
+    import pytest
+    from roma.core.voice_errors import VoiceFailure
+    class BlockedScorer(Scorer):
+        def __init__(self):
+            super().__init__()
+            self.entered, self.release = threading.Event(), threading.Event()
+        def probability(self, pcm):
+            self.entered.set()
+            assert self.release.wait(2)
+            return super().probability(pcm)
+    async def run():
+        voice, service = Voice(), speech()
+        scorer = service.scorer = BlockedScorer()
+        session = DuplexVoiceSession(voice, service)
+        task = asyncio.create_task(session._score(bytes(1024)))
+        try:
+            assert await asyncio.to_thread(scorer.entered.wait, .5)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert not await session._join_scorer(.01)
+            assert session._scorer_worker.thread.daemon
+            with pytest.raises(VoiceFailure):
+                await DuplexVoiceSession(voice, service)._score(bytes(1024))
+            assert scorer.frames == 0  # The old call still owns the scorer.
+        finally:
+            scorer.release.set()
+            session._scorer_worker.thread.join(.5)
+    asyncio.run(run())

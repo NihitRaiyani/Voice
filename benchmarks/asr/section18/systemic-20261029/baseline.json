@@ -1,0 +1,782 @@
+{
+  "schema": "roma-asr-systemic-audit-20261029-v1",
+  "mode": "baseline",
+  "source_base": "9c8f3bc",
+  "source_sha256": {
+    "roma/providers/ai/mlx_batch.py": "53c253a8b778fdd1e4050014b0fe57d04c9c1a76eaf144407bf4a628a0244704",
+    "roma/providers/ai/whisper_mlx.py": "2ce2949f717de0aaa54167505042cb5c8f3d58dc510c63489cbca7f0c69cba0f"
+  },
+  "model": {
+    "repository": "mlx-community/whisper-large-v3-turbo-4bit",
+    "revision": "0f058d38170d183f9fdee07908f5b515d91793a8",
+    "files": {
+      "config.json": {
+        "bytes": 341,
+        "sha256": "538e24557b8f9bc504700add5e7bbe32087c2353001ff563e64772ad4398671a"
+      },
+      "weights.safetensors": {
+        "bytes": 463462982,
+        "sha256": "e2d6146b49644c13ed7467060d3c43c402bbdfca1f01f1c21f6fbeda23b6567e",
+        "source_filename": "model.safetensors"
+      },
+      "multilingual.tiktoken": {
+        "bytes": 816730,
+        "sha256": "b34b360dbb493e781e479794586d661700670d65564001f23024971d1f2fa126"
+      }
+    }
+  },
+  "manifest_sha256": "adf6eacb36221e77496f66fbb28b658a902d763ba0f3eefeebccab8a147ddaf3",
+  "runtime_versions": {
+    "mlx": "0.32.4",
+    "mlx-metal": "0.32.4",
+    "mlx-whisper": "0.4.3",
+    "numpy": "2.4.6",
+    "pipecat-ai": "1.6.0"
+  },
+  "booking_vocabulary": false,
+  "native_booking_vocabulary": false,
+  "sample_len": 440,
+  "new_audio_recordings": false,
+  "native_acceptance": false,
+  "cases": [
+    {
+      "case_id": "en-0000:clean",
+      "language": "en",
+      "variant": "clean",
+      "pcm_sha256": "14afe6a72de367ae04eed13b992504a606265df728dbaed16ad9b3fdfa4dc72e",
+      "audio_seconds": 6.54,
+      "reference": "when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": true,
+      "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 2211.532375004026,
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "native_rows": [
+        {
+          "case_id": "en-0000:clean",
+          "path": "single",
+          "text": " When you call someone who is thousands of miles away, you are using a satellite.",
+          "no_speech_prob": 7.719478810515323e-13,
+          "avg_logprob": -0.04584942923651801,
+          "compression_ratio": 1.0666666666666667,
+          "tokens": 17,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "en-0000:noise",
+      "language": "en",
+      "variant": "noise",
+      "pcm_sha256": "c98da990c075c44068db752f03cae53e3e8f66ad4701086c94288b95ae6a1a24",
+      "audio_seconds": 6.54,
+      "reference": "when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": false,
+      "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 1328.6587080074241,
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "native_rows": [
+        {
+          "case_id": "en-0000:noise",
+          "path": "single",
+          "text": " When you call someone who is thousands of miles away, you are using a satellite.",
+          "no_speech_prob": 7.285453707331357e-13,
+          "avg_logprob": -0.057350105709499784,
+          "compression_ratio": 1.0666666666666667,
+          "tokens": 17,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "en-0000:telephone",
+      "language": "en",
+      "variant": "telephone",
+      "pcm_sha256": "a661a3c287ee2c1fc9f13c3642b1230498053b35ac619dd63fd2edcca3c8074e",
+      "audio_seconds": 6.54,
+      "reference": "when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": false,
+      "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 1279.7851669893134,
+      "metrics": {
+        "reference_words": 15,
+        "word_edits": 0,
+        "substitutions": 0,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.0,
+        "reference_chars": 64,
+        "char_edits": 0,
+        "char_substitutions": 0,
+        "char_deletions": 0,
+        "char_insertions": 0,
+        "cer": 0.0
+      },
+      "native_rows": [
+        {
+          "case_id": "en-0000:telephone",
+          "path": "single",
+          "text": " When you call someone who is thousands of miles away, you are using a satellite.",
+          "no_speech_prob": 7.785917635443063e-13,
+          "avg_logprob": -0.049703651004367404,
+          "compression_ratio": 1.0666666666666667,
+          "tokens": 17,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "gu-0000:clean",
+      "language": "gu",
+      "variant": "clean",
+      "pcm_sha256": "e141de4cecf798bf8a8564a5317c2c6fb6435fb910e8945f941b8adbe7c1e804",
+      "audio_seconds": 11.88,
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "cold_model_call": false,
+      "text": "તિબેટનો બોધવાદ બોધના ઉપદેશો પર આધારિચે પરંતું તેનો પ્રેમના મહાયન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્તીવ દ્વારા વિસ્તાર કરવામામામામાવયો છે",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 3687.8808330075117,
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 12,
+        "substitutions": 10,
+        "deletions": 2,
+        "insertions": 0,
+        "wer": 0.5,
+        "reference_chars": 128,
+        "char_edits": 26,
+        "char_substitutions": 13,
+        "char_deletions": 9,
+        "char_insertions": 4,
+        "cer": 0.203125
+      },
+      "native_rows": [
+        {
+          "case_id": "gu-0000:clean",
+          "path": "batch",
+          "text": "તિબેટનો બોધવાદ બોધના ઉપદેશો પર આધારિચે પરંતું તેનો",
+          "no_speech_prob": 2.4414557628915645e-05,
+          "avg_logprob": -0.12264896506693826,
+          "compression_ratio": 1.4945054945054945,
+          "tokens": 133,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "gu-0000:clean",
+          "path": "batch",
+          "text": "પ્રેમના મહાયન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્તીવ દ્વારા વિસ્તાર કરવામામામામાવયો છે",
+          "no_speech_prob": 9.31124304770492e-06,
+          "avg_logprob": -0.10506538023431618,
+          "compression_ratio": 1.9312977099236641,
+          "tokens": 248,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "gu-0000:noise",
+      "language": "gu",
+      "variant": "noise",
+      "pcm_sha256": "c9a816f9602d36d92903696996abb1077ee8be0fcb436f858d4ad5fa0bd78caf",
+      "audio_seconds": 11.88,
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "cold_model_call": false,
+      "text": "તિબેટનો બોધવાદ બોધનાવધ્થેશો પર આધારીચે પરંતો ઉપથેનો",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 4680.049166010576,
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 24,
+        "substitutions": 7,
+        "deletions": 17,
+        "insertions": 0,
+        "wer": 1.0,
+        "reference_chars": 128,
+        "char_edits": 93,
+        "char_substitutions": 10,
+        "char_deletions": 83,
+        "char_insertions": 0,
+        "cer": 0.7265625
+      },
+      "native_rows": [
+        {
+          "case_id": "gu-0000:noise",
+          "path": "batch",
+          "text": "તિબેટનો બોધવાદ બોધનાવધ્થેશો પર આધારીચે પરંતો ઉપથેનો",
+          "no_speech_prob": 9.007334483612794e-06,
+          "avg_logprob": -0.17947561963856648,
+          "compression_ratio": 1.4842105263157894,
+          "tokens": 138,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "gu-0000:noise",
+          "path": "batch",
+          "text": "પરેમના મહાયાન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્થયો દ્વારા વિસ્તાર કરવામામામામામામયો છઈમામમામમામમામમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમમ",
+          "no_speech_prob": 6.112632036092691e-06,
+          "avg_logprob": -0.12815427888277706,
+          "compression_ratio": 3.2246376811594204,
+          "tokens": 440,
+          "sample_len": 440,
+          "quality_pass": false,
+          "token_budget_pass": false
+        }
+      ]
+    },
+    {
+      "case_id": "gu-0000:telephone",
+      "language": "gu",
+      "variant": "telephone",
+      "pcm_sha256": "930eaed134cdc7be6c167ecff76b390fa8a96400a8555d77dfbd230a7b870508",
+      "audio_seconds": 11.88,
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે",
+      "cold_model_call": false,
+      "text": "TABET નો બોધવાદ બોધના ઉપદેશો પર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્થયો દ્વારા વિસ્તાર કરવામામાવયો છે",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 3593.144290993223,
+      "metrics": {
+        "reference_words": 24,
+        "word_edits": 9,
+        "substitutions": 7,
+        "deletions": 1,
+        "insertions": 1,
+        "wer": 0.375,
+        "reference_chars": 128,
+        "char_edits": 23,
+        "char_substitutions": 15,
+        "char_deletions": 8,
+        "char_insertions": 0,
+        "cer": 0.1796875
+      },
+      "native_rows": [
+        {
+          "case_id": "gu-0000:telephone",
+          "path": "batch",
+          "text": "TABET નો બોધવાદ બોધના ઉપદેશો પર આધારિત છે પરંતુ તેનો",
+          "no_speech_prob": 1.9535405954229645e-05,
+          "avg_logprob": -0.14943871959563224,
+          "compression_ratio": 1.3617021276595744,
+          "tokens": 123,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "gu-0000:telephone",
+          "path": "batch",
+          "text": "પ્રેમના મહાયાન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્થયો દ્વારા વિસ્તાર કરવામામાવયો છે",
+          "no_speech_prob": 1.6456911907880567e-05,
+          "avg_logprob": -0.10345258712768554,
+          "compression_ratio": 1.8625954198473282,
+          "tokens": 239,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "hi-0000:clean",
+      "language": "hi",
+      "variant": "clean",
+      "pcm_sha256": "936697d7996037eb63be93b38f515682f78d3604adddb7c6e162d12163a90cca",
+      "audio_seconds": 12.24,
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+      "cold_model_call": false,
+      "text": "मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 1725.0880420033354,
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 11,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.36666666666666664,
+        "reference_chars": 115,
+        "char_edits": 12,
+        "char_substitutions": 4,
+        "char_deletions": 5,
+        "char_insertions": 3,
+        "cer": 0.10434782608695652
+      },
+      "native_rows": [
+        {
+          "case_id": "hi-0000:clean",
+          "path": "single",
+          "text": " मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+          "no_speech_prob": 6.027612298176166e-10,
+          "avg_logprob": -0.07033393465239426,
+          "compression_ratio": 2.021857923497268,
+          "tokens": 144,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "hi-0000:noise",
+      "language": "hi",
+      "variant": "noise",
+      "pcm_sha256": "79cc83a198e167c4cbc9734c5632cc26ec2f55e328fa3619b390611c12a97aad",
+      "audio_seconds": 12.24,
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+      "cold_model_call": false,
+      "text": "मेजर किन खाना भूम अदे सागर में सामान शेत्रों की तरह रोटी सब्जीयों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 1632.251749993884,
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 12,
+        "substitutions": 10,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.4,
+        "reference_chars": 115,
+        "char_edits": 14,
+        "char_substitutions": 7,
+        "char_deletions": 5,
+        "char_insertions": 2,
+        "cer": 0.12173913043478261
+      },
+      "native_rows": [
+        {
+          "case_id": "hi-0000:noise",
+          "path": "single",
+          "text": " मेजर किन खाना भूम अदे सागर में सामान शेत्रों की तरह रोटी सब्जीयों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+          "no_speech_prob": 7.73250297125827e-10,
+          "avg_logprob": -0.11986945735083686,
+          "compression_ratio": 2.0054644808743167,
+          "tokens": 143,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "hi-0000:telephone",
+      "language": "hi",
+      "variant": "telephone",
+      "pcm_sha256": "55c90a925dcc520a7b85a7d3717dd86f32ee7f47fcd348ece4584d100951881b",
+      "audio_seconds": 12.24,
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है।",
+      "cold_model_call": false,
+      "text": "मेजर किन खाना भूम अज्जे सागर में सामान शेतरों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 1610.501999995904,
+      "metrics": {
+        "reference_words": 30,
+        "word_edits": 11,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.36666666666666664,
+        "reference_chars": 115,
+        "char_edits": 15,
+        "char_substitutions": 5,
+        "char_deletions": 6,
+        "char_insertions": 4,
+        "cer": 0.13043478260869565
+      },
+      "native_rows": [
+        {
+          "case_id": "hi-0000:telephone",
+          "path": "single",
+          "text": " मेजर किन खाना भूम अज्जे सागर में सामान शेतरों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+          "no_speech_prob": 4.4875705929037224e-10,
+          "avg_logprob": -0.0921078381473071,
+          "compression_ratio": 2.032967032967033,
+          "tokens": 145,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "gu-0000+en-0000:clean",
+      "language": "gu-en",
+      "variant": "clean",
+      "pcm_sha256": "03cb388b6dc96d6997c7a471ff8f493a1804db8eb369b7a32a8c73ed9b3a093e",
+      "audio_seconds": 18.67,
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": false,
+      "text": "તિબેટનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રિમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગ્તિય દવારા વિસ્તાર કરવામામામાવયો છે When you call someone who is thousands of miles away, you are using a satellite.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 3840.694041995448,
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 14,
+        "substitutions": 12,
+        "deletions": 2,
+        "insertions": 0,
+        "wer": 0.358974358974359,
+        "reference_chars": 192,
+        "char_edits": 26,
+        "char_substitutions": 15,
+        "char_deletions": 10,
+        "char_insertions": 1,
+        "cer": 0.13541666666666666
+      },
+      "native_rows": [
+        {
+          "case_id": "gu-0000+en-0000:clean",
+          "path": "batch",
+          "text": "તિબેટનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રિમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગ્તિય દવારા વિસ્તાર કરવામામામાવયો છે",
+          "no_speech_prob": 2.2165353584568948e-05,
+          "avg_logprob": -0.10011772711000674,
+          "compression_ratio": 2.147727272727273,
+          "tokens": 370,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "gu-0000+en-0000:clean",
+          "path": "batch",
+          "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+          "no_speech_prob": 1.2877220990914484e-12,
+          "avg_logprob": -0.06397231419881184,
+          "compression_ratio": 1.0666666666666667,
+          "tokens": 17,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "gu-0000+en-0000:noise",
+      "language": "gu-en",
+      "variant": "noise",
+      "pcm_sha256": "23436c6743d48201cb45467d378344abaeaabc92a1e9edd31b7c036338dc8be2",
+      "audio_seconds": 18.67,
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": false,
+      "text": "तिबेटનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્તીવ દવારા વિસ્તાર કરવામામાા આવયો છે When you're hiking when you're thousands of miles away, you're using a set-up.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 3990.580207988387,
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 19,
+        "substitutions": 16,
+        "deletions": 1,
+        "insertions": 2,
+        "wer": 0.48717948717948717,
+        "reference_chars": 192,
+        "char_edits": 50,
+        "char_substitutions": 32,
+        "char_deletions": 15,
+        "char_insertions": 3,
+        "cer": 0.2604166666666667
+      },
+      "native_rows": [
+        {
+          "case_id": "gu-0000+en-0000:noise",
+          "path": "batch",
+          "text": "तिबेटનો બોદવાદ બોદના ઉપદેશો પર આદારિચે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારથે યોગની ઘણી બધી પ્રયુગ્તીવ દવારા વિસ્તાર કરવામામાા આવયો છે",
+          "no_speech_prob": 1.4353750884765759e-05,
+          "avg_logprob": -0.10646983851557193,
+          "compression_ratio": 2.0211640211640214,
+          "tokens": 367,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "gu-0000+en-0000:noise",
+          "path": "batch",
+          "text": "When you're hiking when you're thousands of miles away, you're using a set-up.",
+          "no_speech_prob": 3.791828396410013e-12,
+          "avg_logprob": -0.672703606741769,
+          "compression_ratio": 1.1304347826086956,
+          "tokens": 20,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "gu-0000+en-0000:telephone",
+      "language": "gu-en",
+      "variant": "telephone",
+      "pcm_sha256": "0fc353395b7c555a8c0f7068d430f33aedd8ed6729fb885cb07802722bac8a63",
+      "audio_seconds": 18.67,
+      "reference": "તીબેટનો બૌદ્ધવાદ બુદ્ધનાં ઉપદેશો ઉપર આધારિત છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દ્વારા અને ભારતીય યોગની ઘણી બધી પ્રયુક્તિઓ દ્વારા વિસ્તાર કરવામાં આવ્યો છે when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": false,
+      "text": "तिबેટનો બોદવાદ બોદના ઉપદેશો પર આધારિચ છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગતીય દવારા વિસ્તાર કરવામામાા આવયો છે When you call someone who is thousands of miles away, you are using a satellite.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 3978.955250000581,
+      "metrics": {
+        "reference_words": 39,
+        "word_edits": 12,
+        "substitutions": 12,
+        "deletions": 0,
+        "insertions": 0,
+        "wer": 0.3076923076923077,
+        "reference_chars": 192,
+        "char_edits": 26,
+        "char_substitutions": 13,
+        "char_deletions": 11,
+        "char_insertions": 2,
+        "cer": 0.13541666666666666
+      },
+      "native_rows": [
+        {
+          "case_id": "gu-0000+en-0000:telephone",
+          "path": "batch",
+          "text": "तिबેટનો બોદવાદ બોદના ઉપદેશો પર આધારિચ છે પરંતુ તેનો પ્રેમના મહાયાન પંથ દવારા અને ભારથે યોગની ગણી બધી પ્રયુગતીય દવારા વિસ્તાર કરવામામાા આવયો છે",
+          "no_speech_prob": 2.3424887331202626e-05,
+          "avg_logprob": -0.10098771092691396,
+          "compression_ratio": 2.0652173913043477,
+          "tokens": 368,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "gu-0000+en-0000:telephone",
+          "path": "batch",
+          "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+          "no_speech_prob": 6.812639645123464e-13,
+          "avg_logprob": -0.05059856838650174,
+          "compression_ratio": 1.0666666666666667,
+          "tokens": 17,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "hi-0000+en-0000:clean",
+      "language": "hi-en",
+      "variant": "clean",
+      "pcm_sha256": "7562e820957b53a093f7b5c399f137f10aff2f8e3c8c3e758c4fcdbe9dbed6f3",
+      "audio_seconds": 19.03,
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": false,
+      "text": "मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सबजियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 3105.584082994028,
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 12,
+        "substitutions": 10,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.26666666666666666,
+        "reference_chars": 179,
+        "char_edits": 13,
+        "char_substitutions": 4,
+        "char_deletions": 6,
+        "char_insertions": 3,
+        "cer": 0.07262569832402235
+      },
+      "native_rows": [
+        {
+          "case_id": "hi-0000+en-0000:clean",
+          "path": "batch",
+          "text": "मेजर किन खाना भूम अद्य सागर में सामान शेत्रों की तरह रोटी सबजियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+          "no_speech_prob": 1.3716306979105752e-09,
+          "avg_logprob": -0.06877343522177802,
+          "compression_ratio": 2.0164835164835164,
+          "tokens": 143,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "hi-0000+en-0000:clean",
+          "path": "batch",
+          "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+          "no_speech_prob": 1.205893674846581e-12,
+          "avg_logprob": -0.052589363521999784,
+          "compression_ratio": 1.0666666666666667,
+          "tokens": 17,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "hi-0000+en-0000:noise",
+      "language": "hi-en",
+      "variant": "noise",
+      "pcm_sha256": "78b2d293ec313e5a45ec8ae75bbfe3417de4bd8a8767d7818cb39d9347edad1e",
+      "audio_seconds": 19.03,
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": false,
+      "text": "मेजर किन खाना भूम अध्य सागर में सामाल शेत्रों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 3172.2911249962635,
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 11,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.24444444444444444,
+        "reference_chars": 179,
+        "char_edits": 12,
+        "char_substitutions": 6,
+        "char_deletions": 4,
+        "char_insertions": 2,
+        "cer": 0.0670391061452514
+      },
+      "native_rows": [
+        {
+          "case_id": "hi-0000+en-0000:noise",
+          "path": "batch",
+          "text": "मेजर किन खाना भूम अध्य सागर में सामाल शेत्रों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योग करता है",
+          "no_speech_prob": 1.6658063817232005e-09,
+          "avg_logprob": -0.10141237850846915,
+          "compression_ratio": 2.0,
+          "tokens": 144,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "hi-0000+en-0000:noise",
+          "path": "batch",
+          "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+          "no_speech_prob": 3.3257691305771386e-12,
+          "avg_logprob": -0.14918073018391928,
+          "compression_ratio": 1.0666666666666667,
+          "tokens": 17,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    },
+    {
+      "case_id": "hi-0000+en-0000:telephone",
+      "language": "hi-en",
+      "variant": "telephone",
+      "pcm_sha256": "8b4a823b74e6cf90f548a9c84a23937ad68fb5f2a05814cd064ea6fe62933799",
+      "audio_seconds": 19.03,
+      "reference": "मेजरकेन खाना भूमध्य सागर में समान क्षेत्रों की तरह रोटी सब्जियों और मांस विशेष रूप से सूअर का मांस पर आधारित है और जैतून के तेल का उपयोग करता है। when you call someone who is thousands of miles away you are using a satellite",
+      "cold_model_call": false,
+      "text": "मेजर किन खाना भूम अद्जे सागर में सामान शेतरों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योब करता है When you call someone who is thousands of miles away, you are using a satellite.",
+      "error_code": null,
+      "status": "ok",
+      "request_ms": 3115.6564580014674,
+      "metrics": {
+        "reference_words": 45,
+        "word_edits": 11,
+        "substitutions": 9,
+        "deletions": 0,
+        "insertions": 2,
+        "wer": 0.24444444444444444,
+        "reference_chars": 179,
+        "char_edits": 16,
+        "char_substitutions": 6,
+        "char_deletions": 6,
+        "char_insertions": 4,
+        "cer": 0.0893854748603352
+      },
+      "native_rows": [
+        {
+          "case_id": "hi-0000+en-0000:telephone",
+          "path": "batch",
+          "text": "मेजर किन खाना भूम अद्जे सागर में सामान शेतरों की तरह रोटी सब्जियों और मास विशेश रूप से सूर का मास पर आधारित है और जैतून के तेल का उप्योब करता है",
+          "no_speech_prob": 1.595062859571783e-09,
+          "avg_logprob": -0.08980131149291992,
+          "compression_ratio": 2.010869565217391,
+          "tokens": 145,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        },
+        {
+          "case_id": "hi-0000+en-0000:telephone",
+          "path": "batch",
+          "text": "When you call someone who is thousands of miles away, you are using a satellite.",
+          "no_speech_prob": 1.0059908635284831e-12,
+          "avg_logprob": -0.046404626634385854,
+          "compression_ratio": 1.0666666666666667,
+          "tokens": 17,
+          "sample_len": 440,
+          "quality_pass": true,
+          "token_budget_pass": true
+        }
+      ]
+    }
+  ],
+  "elapsed_secs": 43.15108016600425,
+  "peak_rss_bytes": 656621568,
+  "peak_metal_bytes": 1512102434,
+  "network_attempts": [],
+  "all_cases_attempted": true,
+  "rejected_count": 0,
+  "execution_errors": 0,
+  "totals": {
+    "reference_words": 459,
+    "word_edits": 158,
+    "reference_chars": 2034,
+    "char_edits": 326,
+    "wer": 0.3442265795206972,
+    "cer": 0.16027531956735497
+  },
+  "elapsed_scope": "sequential 15-case ASR loop including first model load; excludes import/artifact verification/corpus derivation"
+}

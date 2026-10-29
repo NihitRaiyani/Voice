@@ -15,7 +15,9 @@ def row(text='clean reply', **values):
     ([row('silence hallucination', no_speech_prob=0.9)], ''),
     ([row('low probability', avg_logprob=-2)], ''),
     ([row('loop loop loop', compression_ratio=3)], ''),
-    ([row('keep'), row('drop', no_speech_prob=0.9)], 'keep'),
+    # A missing chunk may contain negation or a date; never salvage a partial turn.
+    ([row('keep'), row('drop', no_speech_prob=0.9)], ''),
+    ([row(''), row('keep')], ''),
     ([row(no_speech_prob=0.9), row(compression_ratio=3)], ''),
     ([row(no_speech_prob=float('nan'))], ''),
 ])

@@ -13,8 +13,9 @@ Two hard rules from docs/03 live here:
 - `confidence < threshold` → the caller re-asks; a confidently-wrong slot burns the lead.
 
 The `client` is passed in (the transport-neutral provider protocol) so tests inject a fake and no live API
-is touched. Extraction never raises — on any error it returns a zero-confidence value so
-the caller simply re-asks.
+is touched. Caller ambiguity returns a zero-confidence value. Provider, malformed and
+incomplete-output failures raise ExtractionUnavailable so orchestration can re-ask
+without spending the caller's per-field or stage attempt budget.
 """
 
 import json
@@ -27,6 +28,10 @@ from roma.core.ai_contracts import LLMMessage, LLMRequest
 from roma.domain.safety.inputs import DISCOVERY_FIELDS, caller_text, discovery_value
 
 _log = logging.getLogger("roma.domain.conversation")
+
+
+class ExtractionUnavailable(Exception):
+    """Upstream extraction failed; this is not an unanswered caller question."""
 
 SLOT_MODEL = "claude-haiku-5-5"
 
@@ -175,11 +180,14 @@ async def _extract_json(client, system, text, model, max_tokens):
 
 
 async def extract_discovery_slot(client, text: str, slot_name: str) -> DiscoveryValue:
-    """Extract one bounded profile field; malformed/incomplete output means re-ask."""
+    """Separate caller ambiguity from upstream failure before spending attempts."""
     try:
         text = caller_text(text)
-        if slot_name not in DISCOVERY_FIELDS:
-            return DiscoveryValue()
+    except ValueError:
+        return DiscoveryValue()
+    if not text or slot_name not in DISCOVERY_FIELDS:
+        return DiscoveryValue()
+    try:
         parsed = await _extract_json(
             client,
             _DISCOVERY_SYS + _DISCOVERY_JSON_HINT,
@@ -189,12 +197,12 @@ async def extract_discovery_slot(client, text: str, slot_name: str) -> Discovery
         )
         valid = discovery_value(slot_name, parsed.value)
         if parsed.value is not None and valid is None:
-            return DiscoveryValue()
+            raise ValueError("Invalid extracted discovery value")
         parsed.value = valid
         return parsed
     except Exception:  # noqa: BLE001 -- must not crash the turn or expose caller text.
         _log.warning("discovery slot extraction failed for %s; re-asking", slot_name)
-        return DiscoveryValue()
+        raise ExtractionUnavailable from None
 
 
 async def extract_time_slot(client, text: str, *, offered=None) -> TimeSlot:
@@ -205,6 +213,11 @@ async def extract_time_slot(client, text: str, *, offered=None) -> TimeSlot:
     """
     try:
         text = caller_text(text)
+    except ValueError:
+        return TimeSlot()
+    if not text:
+        return TimeSlot()
+    try:
         return await _extract_json(
             client,
             _TIME_SYS + "\nReturn ONLY JSON matching this schema: "
@@ -215,11 +228,12 @@ async def extract_time_slot(client, text: str, *, offered=None) -> TimeSlot:
         )
     except Exception:  # noqa: BLE001 -- must not crash the turn or expose caller text.
         _log.warning("time slot extraction failed; re-asking")
-        return TimeSlot()
+        raise ExtractionUnavailable from None
 
 
 __all__ = [
     "DiscoveryValue",
+    "ExtractionUnavailable",
     "TimeSlot",
     "extract_discovery_slot",
     "extract_time_slot",
