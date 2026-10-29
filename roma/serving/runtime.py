@@ -29,6 +29,7 @@ def build_local_speech_app(settings: SpeechServingSettings | None = None) -> Fas
         policy=speech.turn_policy(),
         rejection=speech.batch_rejection(),
         booking_vocabulary=speech.whisper_booking_vocabulary,
+        native_booking_vocabulary=speech.whisper_native_booking_vocabulary,
         timeout_secs=speech.stt_timeout_secs,
         max_audio_secs=min(speech.stt_max_audio_secs, settings.speech_service_max_audio_secs),
     )

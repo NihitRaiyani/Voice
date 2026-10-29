@@ -341,3 +341,74 @@ def test_native_hindi_consent_cannot_book_without_selected_readback(stage):
         assert not result.win and current.appointment_id is None and current.locked_slot is None
         confirm.assert_not_awaited()
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('text', [
+    'हाँ ये सही है कन्फर्म कीजिए', 'हाँ बुक कर दीजिए',
+    'हाँ कन्फर्म कीजिए', 'कन्फर्म कीजिए', 'कंफर्म कीजिये',
+    'कंफर्म कीजिए', 'कन्फर्म कीजिये', 'हाँ, बुक कर दीजिये।',
+    'હા બરાબર છે કન્ફર્મ કરો',
+])
+def test_clear_native_confirmation_command_only_accepts_selected_readback(text):
+    async def run():
+        current = state()
+        extract = AsyncMock(side_effect=AssertionError('Explicit consent needs no provider'))
+        key = str(uuid4())
+        confirm = AsyncMock(return_value=key)
+        result = await advance_turn(current, text, client=object(), now=NOW,
+                                    extract_time=extract, confirm_booking=confirm)
+        assert result.win and current.appointment_id == key
+        extract.assert_not_awaited()
+        confirm.assert_awaited_once_with(SLOT)
+        bare = CallState(booking_required=True, stage='close')
+        unselected = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(bare, text, client=object(), now=NOW,
+                                    extract_time=extraction, confirm_booking=unselected)
+        assert not result.win
+        unselected.assert_not_awaited()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('text', [
+    'हाई', 'हाई ये सही है', 'हाई ये सही है कन्फर्म कीजिए', 'हाई नहीं ये सही है', 'हाई ये सही है लेकिन कल पांच बजे',
+    'हाई ये सही है अहमदाबाद', 'हाई ये सही है?', 'हाई शायद ये सही है',
+    'हाई ये साही', 'हाई ये सही है बदलो', 'હા બરાબર નથી કન્ફર્મ કરો',
+])
+def test_greeting_variant_cannot_hide_revision_negation_or_missing_explicit_clause(text):
+    async def run():
+        current = state()
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, text, client=object(), now=NOW,
+                                    extract_time=extraction, confirm_booking=confirm)
+        assert not result.win
+        confirm.assert_not_awaited()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('mark', ['？','﹖','؟'])
+def test_unicode_question_mark_never_authorizes_a_readback_commit(mark):
+    async def run():
+        current = state()
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, 'कन्फर्म कीजिए' + mark,
+            client=object(), now=NOW, extract_time=extraction, confirm_booking=confirm)
+        assert not result.win
+        confirm.assert_not_awaited()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('text', [
+    'नहीं कंफर्म कीजिए', 'कन्फर्म कीजिये?', 'कंफर्म कीजिए？',
+    'हाँ बुक कर दीजिये कल पाँच बजे', 'हाँ बुक कर दीजिये लेकिन अहमदाबाद',
+    'शायद हाँ बुक कर दीजिये', 'हाँ अज्ञात बुक कर दीजिये',
+    'हाई बुक कर दीजिये', 'ાબરબર છે, કાંરમ કરો.',
+])
+def test_orthographic_commands_cannot_hide_refusal_revision_or_corrupted_input(text):
+    async def run():
+        current = state()
+        confirm = AsyncMock(return_value=str(uuid4()))
+        result = await advance_turn(current, text, client=object(), now=NOW,
+                                    extract_time=extraction, confirm_booking=confirm)
+        assert not result.win and current.appointment_id is None and current.locked_slot is None
+        confirm.assert_not_awaited()
+    asyncio.run(run())

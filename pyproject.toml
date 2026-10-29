@@ -78,6 +78,7 @@ markers = [
 [tool.mypy]
 python_version = "3.11"
 files = [
+    "roma/domain/appointments/literal_time.py",
     "roma/eval/acoustic.py",
     "scripts/measure_acoustic_ttfa.py",
     "roma/api/v1/supervisor_ui.py",

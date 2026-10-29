@@ -8,7 +8,7 @@ module never imports an optional runtime at module import time.
 import math
 from dataclasses import dataclass
 
-from roma.providers.ai.whisper_vocabulary import load_prompt, sample_length
+from roma.providers.ai.whisper_vocabulary import decoder_vocabulary
 
 
 @dataclass(frozen=True)
@@ -59,11 +59,12 @@ def speech_chunks(pcm, scorer, policy=None):
         scorer.reset()
 
 
-def decode_batch(folder, parts, base, policy=None, *, booking_vocabulary=False):
+def decode_batch(folder, parts, base, policy=None, *, booking_vocabulary=False,
+                 native_booking_vocabulary=False):
     if not 1 <= len(parts) <= 2:
         raise ValueError("Whisper batch requires one or two chunks")
     # Validate before accessing the process-global native model holder.
-    prompt = load_prompt(booking_vocabulary)
+    prompt, sample_len = decoder_vocabulary(booking_vocabulary, native_booking_vocabulary, base)
     import mlx.core as mx
     import numpy as np
     from mlx_whisper.audio import N_SAMPLES, log_mel_spectrogram, pad_or_trim
@@ -108,7 +109,7 @@ def decode_batch(folder, parts, base, policy=None, *, booking_vocabulary=False):
             task="transcribe",
             temperature=0,
             without_timestamps=True,
-            sample_len=sample_length(booking_vocabulary),
+            sample_len=sample_len,
             **({"prompt": prompt} if prompt is not None else {}),
         ),
     )

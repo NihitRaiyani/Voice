@@ -54,8 +54,9 @@ def environment(values):
                 os.environ[name] = value
 
 
-def speech_environment(language):
+def speech_environment(language, *, native_booking_vocabulary=False):
     return {'STT_PROVIDER': 'whisper_mlx', 'STT_LANGUAGE': language,
+            'WHISPER_NATIVE_BOOKING_VOCABULARY': str(native_booking_vocabulary).lower(),
             'WHISPER_MLX_MODEL_DIR': str(ROOT / 'var/roma/models/whisper-large-v3-turbo-mlx-4bit'),
             'INDIC_TTS_MANIFEST': str(ROOT / 'var/roma/indic-tts/manifest.json'),
             'INDIC_TTS_PYTHON': str(ROOT / 'var/roma/tts-runtime/bin/python'),
@@ -80,7 +81,7 @@ def voice_args(options, observer=None):
 def check(options):
     from roma.providers.audio.echo import WebRTCEchoCanceller
     from scripts import voice_prototype as prototype
-    with environment(speech_environment(options.language)):
+    with environment(speech_environment(options.language, native_booking_vocabulary=getattr(options, 'native_booking_vocabulary', False))):
         args = voice_args(options)
         cfg, _, tts_cfg = prototype.local_preflight(args)
         from contextlib import AsyncExitStack
@@ -205,7 +206,7 @@ def live(options, store):
                     raise ValueError('Owned Redis readiness failed')
             finally:
                 client.close()
-            values = {**speech_environment(options.language), 'DATABASE_URL': database,
+            values = {**speech_environment(options.language, native_booking_vocabulary=getattr(options, 'native_booking_vocabulary', False)), 'DATABASE_URL': database,
                       'REDIS_URL': f'redis://127.0.0.1:{port}/0', 'ROMA_DATA_DIR': str(root / 'runtime')}
             with environment(values):
                 async def invoke():
@@ -244,6 +245,8 @@ def parser():
     p.add_argument('--output-device', type=int)
     p.add_argument('--yes-ready', action='store_true', help='Supervisor already received an explicit ready indication')
     p.add_argument('--no-rating', action='store_true', help='Collect the actual score separately after microphone closes')
+    p.add_argument('--native-booking-vocabulary', action='store_true',
+                   help='Experimental pinned native-script ASR hints; does not alter consent or models')
     return p
 
 

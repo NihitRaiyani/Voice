@@ -254,3 +254,38 @@ def test_optional_knowledge_never_handles_static_safety_control_booking_or_profi
         await TextConversationService(MockLLMProvider(),knowledge=knowledge).turn(CallState(stage=stage),text,now=NOW,elapsed_secs=elapsed)
         knowledge.answer_turn.assert_not_awaited()
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('text,hour', [
+    ('कल दोपहर तीन बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए।', 15),
+    ('कल शाम पाँच बजे वडोदरा ब्रांच में अपॉइंटमेंट बुक कीजिए।', 17),
+    ('કાલે બપોરે ત્રણ વાગ્યે વડોદરા બ્રાન્ચમાં મુલાકાત બુક કરો.', 15),
+    ('કાલે સાંજે પાંચ વાગ્યે વડોદરા બ્રાન્ચમાં મુલાકાત બુક કરો.', 17),
+])
+def test_explicit_literal_booking_reaches_safe_readback_without_any_llm(text,hour):
+    async def run():
+        provider = Scripted([])
+        state = CallState(call_sid='literal-lab',stage='pivot',branch='Vadodara')
+        trace = await TextConversationService(provider).turn(state,text,now=NOW)
+        assert state.accepted_slot == f'2026-10-13T{hour}:00:00+05:30'
+        assert state.stage == 'close' and trace.final_response
+        assert provider.requests == [] and trace.metrics == () and not trace.booking_committed
+        assert trace.extracted_slots[0]['source'] == 'deterministic-literal'
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('text,branch', [
+    ('कल दोपहर तीन बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए?', 'Vadodara'),
+    ('शायद कल दोपहर तीन बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए', 'Vadodara'),
+    ('कल दोपहर तीन या पांच बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए', 'Vadodara'),
+    ('कल दोपहर तीन बजे वडोदरा ब्रांच में मुलाकात बुक मत कीजिए', 'Vadodara'),
+    ('कल दोपहर तीन बजे अहमदाबाद ब्रांच में मुलाकात बुक कीजिए', 'Vadodara'),
+    ('कल दोपहर तीन बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए', 'Ahmedabad'),
+    ('कल दोपहर तीन बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए और दोबारा बदलो', 'Vadodara'),
+    ('कल दोपहर तीन बजे', 'Vadodara'),
+    ('नहीं कल शाम पांच बजे वडोदरा ब्रांच में रखिए', 'Vadodara'),
+    ('કાલે સાંજે પાંચ વાગ્યે વડોદરા બ્રાન્ચમાં મુલાકાત બુક ન કરો', 'Vadodara'),
+])
+def test_literal_booking_parser_defers_ambiguous_refused_or_wrong_branch_requests(text,branch):
+    from roma.domain.appointments.literal_time import literal_booking_time
+    assert literal_booking_time(text,branch=branch) is None

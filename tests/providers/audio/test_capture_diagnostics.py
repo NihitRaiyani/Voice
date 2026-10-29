@@ -49,10 +49,11 @@ def test_device_health_separates_callback_jitter_adc_gaps_and_native_flags():
     assert health['audio_callback_count'] == 4
     assert health['audio_cb_interval_max_us'] == pytest.approx(45000)
     assert health['portaudio_input_overflows'] == 1
-    assert health['pcm_sequence_gaps'] == 1
+    assert health['pcm_sequence_gaps'] == 0
+    assert health['capture_adc_fullframe_uncertainty_frames'] == 2
     assert health['portaudio_output_underflows'] == 0
-    assert health['active_capture_losses'] == 2
-    assert health['ring_buffer_high_watermark_frames'] == 2
+    assert health['active_capture_losses'] == 1
+    assert health['ring_buffer_high_watermark_frames'] == 3
     json.dumps(health)
 
 
@@ -230,7 +231,7 @@ def test_complete_pcm_survives_adc_source_change_and_transient_resampling_jitter
 
 
 @pytest.mark.parametrize("error", [.020, .040, -.020, .300])
-def test_full_frame_adc_disagreement_remains_fail_closed(error):
+def test_full_frame_adc_disagreement_is_telemetry_without_invented_capture_loss(error):
     from types import SimpleNamespace
 
     from roma.providers.audio.local_device import LocalAudioDevice
@@ -244,10 +245,15 @@ def test_full_frame_adc_disagreement_remains_fail_closed(error):
         device._capture_callback(b'\1\0' * 320, 320,
                                  SimpleNamespace(inputBufferAdcTime=adc, currentTime=adc + .02),
                                  SimpleNamespace(input_overflow=False))
-    with pytest.raises(CaptureDiscontinuity):
-        device.capture.pop(generation)
-    assert device.capture_health['pcm_sequence_gaps'] == 1
-    assert device.capture_health['portaudio_input_overflows'] == 0
+    first, second = device.capture.pop(generation), device.capture.pop(generation)
+    assert first.pcm == second.pcm == b'\1\0' * 320
+    assert second.at - first.at == pytest.approx(.020)
+    health = device.capture_health
+    assert health['pcm_sequence_gaps'] == health['active_capture_losses'] == 0
+    assert health['capture_adc_fullframe_uncertainty_frames'] == 1
+    assert health['capture_adc_fullframe_uncertainty_max_ms'] == pytest.approx(abs(error) * 1000)
+    assert health['portaudio_input_overflows'] == 0
+
 
 
 def test_persistent_subframe_uncertainty_preserves_pcm_but_native_overflow_still_rejects_input():
@@ -362,13 +368,13 @@ def test_observed_native_clock_domain_steps_preserve_complete_pcm(deltas):
 
 
 @pytest.mark.parametrize("adc_delta,current_delta,wall_delta", [
-    (60, 60, 60),  # Actual full-frame callback gap: no independent clock jump.
+    (60, 60, 60),  # Callback/timestamp delay alone does not prove lost PCM.
     (60, 20, 20),  # ADC gap alone: hardware clocks do not agree.
     (60, 60, 80),  # Opposite-sign current/perf discrepancy and large callback gap.
     (60, 60, 1),  # Catch-up callback burst has no reliable wall-clock corroboration.
     (140, 140, 20),  # Common-domain step exceeds the 100ms rebase bound.
 ])
-def test_clock_rebase_does_not_hide_missing_frames_or_unbounded_steps(adc_delta, current_delta, wall_delta):
+def test_uncorroborated_large_clock_steps_are_visible_without_discarding_delivered_pcm(adc_delta, current_delta, wall_delta):
     from types import SimpleNamespace
 
     from roma.providers.audio.local_device import LocalAudioDevice
@@ -386,11 +392,15 @@ def test_clock_rebase_does_not_hide_missing_frames_or_unbounded_steps(adc_delta,
                              SimpleNamespace(inputBufferAdcTime=100 + adc_delta / 1000,
                                              currentTime=100.10 + current_delta / 1000),
                              SimpleNamespace(input_overflow=False))
-    with pytest.raises(CaptureDiscontinuity):
-        device.capture.pop(generation)
+    received = device.capture.pop(generation)
+    assert received.pcm == b'\2\0' * 320
+    assert received.at == pytest.approx(9.94)
     health = device.capture_health
     assert health['capture_adc_clock_rebases'] == 0
-    assert health['pcm_sequence_gaps'] == 1
+    assert health['pcm_sequence_gaps'] == health['active_capture_losses'] == 0
+    assert health['capture_adc_fullframe_uncertainty_frames'] == 1
+    assert health['capture_adc_fullframe_uncertainty_max_ms'] == pytest.approx(adc_delta - 20)
+
 
 
 @pytest.mark.parametrize("fault", ['native', 'invalid', 'capacity'])
@@ -451,7 +461,7 @@ def test_observed_stable_subframe_adc_phase_is_uncertainty_not_repeated_pcm_loss
 
 
 @pytest.mark.parametrize('phase_step', [.007, -.007])
-def test_cumulative_subframe_adc_disagreements_still_fail_at_one_complete_frame(phase_step):
+def test_cumulative_adc_phase_remains_telemetry_without_a_physical_loss_signal(phase_step):
     from types import SimpleNamespace
 
     from roma.providers.audio.local_device import LocalAudioDevice
@@ -466,12 +476,75 @@ def test_cumulative_subframe_adc_disagreements_still_fail_at_one_complete_frame(
             SimpleNamespace(inputBufferAdcTime=100. + index * (.020 + phase_step),
                             currentTime=100.10 + index * .020),
             SimpleNamespace(input_overflow=False))
-        if index < 3:
-            assert device.capture.pop(generation) is not None
-    with pytest.raises(CaptureDiscontinuity):
-        device.capture.pop(generation)
+        assert device.capture.pop(generation) is not None
     health = device.capture_health
     assert health['capture_adc_subframe_uncertainty_frames'] == 2
     assert health['capture_adc_subframe_uncertainty_max_ms'] == pytest.approx(14.)
+    assert health['capture_adc_fullframe_uncertainty_frames'] == 1
+    assert health['capture_adc_fullframe_uncertainty_max_ms'] == pytest.approx(21.)
     assert health['capture_adc_clock_rebases'] == 0
-    assert health['pcm_sequence_gaps'] == health['active_capture_losses'] == 1
+    assert health['pcm_sequence_gaps'] == health['active_capture_losses'] == 0
+
+
+
+def test_observed_adc_phase_13_to_21ms_remains_telemetry_with_complete_pcm():
+    from types import SimpleNamespace
+
+    from roma.providers.audio.local_device import LocalAudioDevice
+    from tests.providers.audio.test_duplex_device import Echo
+
+    now = [10.]
+    device = LocalAudioDevice(duplex=True, echo=Echo(), clock=lambda: now[0])
+    generation = device.capture.activate(0, follow_epochs=True)
+    received = []
+    for index, adc in enumerate([100., 100.033166, 100.061750]):
+        now[0] = 10. + index * .020
+        pcm = bytes([index + 1, 0]) * 320
+        device._capture_callback(pcm, 320,
+            SimpleNamespace(inputBufferAdcTime=adc, currentTime=100.10 + index * .020),
+            SimpleNamespace(input_overflow=False))
+        frame = device.capture.pop(generation)
+        assert frame.pcm == pcm
+        received.append(frame)
+    assert [frame.at for frame in received] == pytest.approx([9.92, 9.94, 9.96])
+    health = device.capture_health
+    assert health['active_capture_losses'] == health['pcm_sequence_gaps'] == 0
+    assert health['capture_adc_subframe_uncertainty_frames'] == 1
+    assert health['capture_adc_fullframe_uncertainty_frames'] == 1
+    assert health['capture_adc_fullframe_uncertainty_max_ms'] == pytest.approx(21.750)
+
+
+@pytest.mark.parametrize('fault', ['native', 'invalid', 'capacity', 'contention'])
+@pytest.mark.parametrize('phase', [.021750, .140])
+def test_large_adc_uncertainty_never_masks_actual_native_or_application_loss(fault, phase):
+    from types import SimpleNamespace
+
+    from roma.providers.audio.local_device import LocalAudioDevice
+    from tests.providers.audio.test_duplex_device import Echo
+
+    now = [10.]
+    device = LocalAudioDevice(duplex=True, echo=Echo(), capture_capacity=1, clock=lambda: now[0])
+    generation = device.capture.activate(0, follow_epochs=True)
+    device._capture_callback(b"\1\0" * 320, 320,
+        SimpleNamespace(inputBufferAdcTime=100., currentTime=101.),
+        SimpleNamespace(input_overflow=False))
+    if fault != 'capacity':
+        assert device.capture.pop(generation) is not None
+    now[0] += .020
+    def capture():
+        device._capture_callback(b"\2\0" * (319 if fault == 'invalid' else 320), 320,
+            SimpleNamespace(inputBufferAdcTime=100.020 + phase, currentTime=101.020),
+            SimpleNamespace(input_overflow=fault == 'native'))
+    if fault == 'contention':
+        with device.capture._lock:
+            capture()
+    else:
+        capture()
+    with pytest.raises(CaptureDiscontinuity):
+        device.capture.pop(generation)
+    health = device.capture_health
+    metric = {'native': 'portaudio_input_overflows', 'invalid': 'invalid_input_blocks',
+              'capacity': 'ring_buffer_capacity_drops', 'contention': 'callback_lock_contentions'}[fault]
+    assert health[metric] == 1
+    assert health['active_capture_losses'] == 1
+    assert health['capture_adc_fullframe_uncertainty_frames'] == 1

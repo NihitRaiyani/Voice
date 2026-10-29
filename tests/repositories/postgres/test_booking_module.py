@@ -451,3 +451,37 @@ def test_simultaneous_different_slots_for_one_call_create_one_appointment(sessio
             assert await session.scalar(select(func.count()).select_from(Appointment)) == 1
 
     _run(run(), session_factory)
+
+
+@pytest.mark.parametrize('utterance,consent', [
+    ('कल शाम पांच बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए','कन्फर्म कीजिए'),
+    ('कल शाम पांच बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए','कंफर्म कीजिए।'),
+    ('कल शाम पांच बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए','कन्फर्म कीजिये।'),
+    ('कल शाम पांच बजे वडोदरा ब्रांच में मुलाकात बुक कीजिए','हाँ, बुक कर दीजिये।'),
+    ('કાલે સાંજે પાંચ વાગ્યે વડોદરા બ્રાન્ચમાં મુલાકાત બુક કરો','હા બરાબર છે કન્ફર્મ કરો'),
+])
+def test_literal_multilingual_booking_commits_and_restores_with_zero_ai_requests(session_factory,redis_url,utterance,consent):
+    class NoAI:
+        async def generate(self,request):
+            raise AssertionError('Literal candidate and strict consent require no AI request')
+            yield LLMChunk('')
+    async def run():
+        _, _, calls = await seed(session_factory)
+        redis = Redis.from_url(redis_url)
+        try:
+            booking = BookingService(PostgresBookingStore(session_factory),RedisAppointmentHolds(redis),now=lambda:NOW)
+            state = CallState(call_sid=calls[0].provider_call_id,stage='pivot')
+            conversation = TextConversationService(NoAI(),booking_session=BookingSession(booking,state))
+            readback = await conversation.turn(state,utterance,now=NOW)
+            assert state.accepted_slot and not state.appointment_id and not readback.booking_committed
+            assert '5:00 PM' in readback.final_response
+            result = await conversation.turn(state,consent,now=NOW)
+            assert result.booking_committed and state.appointment_id and state.locked_slot
+            restored = CallState(call_sid=calls[0].provider_call_id)
+            await BookingSession(booking,restored).restore()
+            assert restored.appointment_id==state.appointment_id and restored.locked_slot==state.locked_slot
+            async with session_factory() as session:
+                assert await session.scalar(select(func.count()).select_from(Appointment))==1
+        finally:
+            await redis.aclose()
+    _run(run(),session_factory)

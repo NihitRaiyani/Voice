@@ -65,6 +65,8 @@ class LocalAudioDevice:
         self._adc_phase_error_max_ms = 0.0
         self._adc_subframe_uncertainty_frames = 0
         self._adc_subframe_uncertainty_max_ms = 0.0
+        self._adc_fullframe_uncertainty_frames = 0
+        self._adc_fullframe_uncertainty_max_ms = 0.0
         self._adc_examples = []
         self._adc_calibration_max_ms = 0.0
         self._adc_clock_rebases = 0
@@ -179,6 +181,8 @@ class LocalAudioDevice:
             "capture_adc_phase_error_max_ms": self._adc_phase_error_max_ms,
             "capture_adc_subframe_uncertainty_frames": self._adc_subframe_uncertainty_frames,
             "capture_adc_subframe_uncertainty_max_ms": self._adc_subframe_uncertainty_max_ms,
+            "capture_adc_fullframe_uncertainty_frames": self._adc_fullframe_uncertainty_frames,
+            "capture_adc_fullframe_uncertainty_max_ms": self._adc_fullframe_uncertainty_max_ms,
             "capture_adc_calibration_max_ms": self._adc_calibration_max_ms,
             "capture_adc_clock_rebases": self._adc_clock_rebases,
             "capture_adc_clock_rebase_max_ms": self._adc_clock_rebase_max_ms,
@@ -260,16 +264,16 @@ class LocalAudioDevice:
                 self._previous_adc_callback = self._callback_count
                 anomalous = abs(phase_error) > 0.005
                 self._adc_anomalies += int(anomalous)
-                # A persistent sub-frame offset is repeated observation of one
-                # timestamp uncertainty, not independent missing PCM blocks. Keep
-                # the delivered-sample clock and the uncompensated offset: later
-                # cumulative disagreement reaching a full frame still rejects.
+                # Timestamp estimates are telemetry, not proof of missing PCM.
+                # Delivered frames own continuity; only native or application
+                # loss signals below may invalidate an admitted utterance.
                 # PortAudio ADC/currentTime share a clock domain. A paired step
                 # against monotonic callback time is not evidence of missing PCM.
                 # Rebase only with independent, bounded common-clock evidence:
                 # consecutive full blocks, paced (10–40ms) callbacks, agreeing
                 # hardware-clock deltas and a same-direction >5ms clock mismatch.
-                # Otherwise retain full-frame rejection, including actual gaps.
+                # Uncorroborated disagreement remains visible without retiming
+                # the delivered sample clock or manufacturing an overflow flag.
                 clock_rebased = (
                     anomalous and not overflow and len(pcm) == frames * 2
                     and consecutive_adc and expected_adc_delta_ms == 20
@@ -284,10 +288,9 @@ class LocalAudioDevice:
                     self._adc_clock_rebases += 1
                     self._adc_clock_rebase_max_ms = max(self._adc_clock_rebase_max_ms, abs(phase_error) * 1000)
                 elif abs(phase_error) >= duration - 1e-9:
-                    overflow = True
-                    self._sequence_gaps += 1
-                    self._input_anchor += phase_error
-                    at += phase_error
+                    self._adc_fullframe_uncertainty_frames += 1
+                    self._adc_fullframe_uncertainty_max_ms = max(
+                        self._adc_fullframe_uncertainty_max_ms, abs(phase_error) * 1000)
                 elif anomalous:
                     self._adc_subframe_uncertainty_frames += 1
                     self._adc_subframe_uncertainty_max_ms = max(

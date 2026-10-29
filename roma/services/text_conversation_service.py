@@ -16,6 +16,7 @@ from pydantic import ConfigDict, Field, ValidationError, field_validator
 from roma.core.prompt_privacy import redact_prompt
 from roma.core.turn_epoch import current_turn_epoch, require_current_epoch
 from roma.core.voice_errors import VoiceErrorCode, voice_boundary
+from roma.domain.appointments.literal_time import literal_booking_time
 from roma.domain.appointments.slots import (
     _DISCOVERY_SYS,
     _TIME_SYS,
@@ -469,6 +470,11 @@ class TextConversationService:
             )  # type: ignore[return-value]
 
         async def time_slot(client: Any, text: str, *, offered: Any = None) -> TimeSlot:
+            literal = literal_booking_time(text, branch=state.branch)
+            if literal is not None:
+                extractions.append({"schema": "TimeSlot", "source": "deterministic-literal",
+                                    "valid": True, "value": literal.model_dump()})
+                return literal
             return await extract(ValidatedTimeSlot, _TIME_SYS, _offer_block(offered) + text)  # type: ignore[return-value]
 
         if self.booking_session is not None and not self._booking_restored:

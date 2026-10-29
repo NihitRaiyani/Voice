@@ -21,7 +21,11 @@ from roma.providers.ai.stt import (
     _STTSetupError,
     _validate_audio,
 )
-from roma.providers.ai.whisper_vocabulary import load_prompt, sample_length
+from roma.providers.ai.whisper_vocabulary import (
+    decoder_vocabulary,
+    native_prompt_details,
+    sample_length,
+)
 
 ARTIFACT_SPEC = (
     Path(__file__).resolve().parents[3] / "benchmarks/asr/whisper-turbo-mlx-artifacts.json"
@@ -66,12 +70,15 @@ class WhisperMLXSTT(_LocalSTT):
         policy: TurnPolicy | None = None,
         rejection: BatchRejectionPolicy | None = None,
         booking_vocabulary: bool = False,
+        native_booking_vocabulary: bool = False,
     ) -> None:
         self.model_id = model_id
         self.policy = policy or TurnPolicy()
         self.rejection = rejection or BatchRejectionPolicy()
         sample_length(booking_vocabulary)
         self.booking_vocabulary = booking_vocabulary
+        native_prompt_details(native_booking_vocabulary, None)
+        self.native_booking_vocabulary = native_booking_vocabulary
         super().__init__(loader or self._load, timeout_secs, max_audio_secs)
 
     def _load(self) -> Inference:
@@ -94,7 +101,6 @@ class WhisperMLXSTT(_LocalSTT):
             ) from None
 
         scorer = SileroFrameProbability()
-        prompt = load_prompt(self.booking_vocabulary)
 
         def infer(audio: bytes, language: str | None) -> STTResult:
             if not _NATIVE_SLOT.acquire(blocking=False):
@@ -108,8 +114,11 @@ class WhisperMLXSTT(_LocalSTT):
                     text = decode_batch(
                         str(folder.resolve()), parts, base, self.rejection,
                         **({"booking_vocabulary": True} if self.booking_vocabulary else {}),
+                        **({"native_booking_vocabulary": True} if self.native_booking_vocabulary else {}),
                     )
                     return STTResult(text, base, error_code="ASR-BATCH-REJECTED" if not text else None)
+                prompt, sample_len = decoder_vocabulary(
+                    self.booking_vocabulary, self.native_booking_vocabulary, base)
                 samples = np.frombuffer(audio, dtype="<i2").astype(np.float32) / 32768.0
                 result = mlx_whisper.transcribe(
                     samples,
@@ -119,7 +128,7 @@ class WhisperMLXSTT(_LocalSTT):
                     temperature=0,
                     condition_on_previous_text=False,
                     without_timestamps=True,
-                    sample_len=sample_length(self.booking_vocabulary),
+                    sample_len=sample_len,
                     verbose=None,
                     **({"initial_prompt": prompt} if prompt is not None else {}),
                 )

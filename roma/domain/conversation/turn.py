@@ -662,6 +662,10 @@ _EXPLICIT_BOOKING_CONSENT = frozenset(
     tuple(tokens(phrase)) for phrase in (
         "yes please confirm it", "yes that is correct confirm it", "yes that is correct",
         "yes please book it", "हाँ पुष्टि कर दीजिए", "હા કન્ફર્મ કરી દો",
+        "हाँ ये सही है कन्फर्म कीजिए", "हाँ बुक कर दीजिए",
+        "हाँ कन्फर्म कीजिए", "कन्फर्म कीजिए", "कंफर्म कीजिये",
+        "कंफर्म कीजिए", "कन्फर्म कीजिये", "हाँ बुक कर दीजिये",
+        "હા બરાબર છે કન્ફર્મ કરો",
     )
 )
 

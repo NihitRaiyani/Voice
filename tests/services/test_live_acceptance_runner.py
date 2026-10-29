@@ -395,3 +395,12 @@ def test_observer_cue_changes_to_three_pm_without_implying_booking():
     assert 'explicitly confirm' in emitted[0] and 'if correct' in emitted[0]
     assert 'ના, કાલે' not in emitted[0]
     assert not state.appointment_id and not state.locked_slot and not state.lead_wants_out
+
+
+def test_native_whisper_vocabulary_requires_explicit_acceptance_cli_opt_in():
+    from scripts import acceptance_live as cli
+    options = cli.parser().parse_args(['--native-booking-vocabulary','--language','gu'])
+    assert options.native_booking_vocabulary is True
+    assert cli.speech_environment('gu',native_booking_vocabulary=True)['WHISPER_NATIVE_BOOKING_VOCABULARY'] == 'true'
+    assert cli.speech_environment('hi')['WHISPER_NATIVE_BOOKING_VOCABULARY'] == 'false'
+    assert cli.speech_environment('gu',native_booking_vocabulary=True)['STT_LANGUAGE'] == 'gu'

@@ -101,7 +101,7 @@ def test_adc_frame_clock_ignores_callback_jitter_and_epochs_do_not_mute_capture(
     asyncio.run(run())
 
 
-def test_actual_adc_gap_rejects_incomplete_input_instead_of_stitching_it():
+def test_adc_timestamp_gap_preserves_complete_delivered_frames_and_reports_uncertainty():
     async def run():
         backend, echo = Backend(), Echo()
         device = LocalAudioDevice(backend=backend, duplex=True, echo=echo)
@@ -113,12 +113,15 @@ def test_actual_adc_gap_rejects_incomplete_input_instead_of_stitching_it():
             backend.callback(b"\1\0" * 320, 320,
                              SimpleNamespace(inputBufferAdcTime=100.0, currentTime=100.02),
                              SimpleNamespace(input_overflow=False))
-            await pending
+            first = await pending
             backend.callback(b"\2\0" * 320, 320,
                              SimpleNamespace(inputBufferAdcTime=100.06, currentTime=100.08),
                              SimpleNamespace(input_overflow=False))
-            with pytest.raises(ValueError, match="overflow"):
-                await anext(source)
+            second = await anext(source)
+            assert second.pcm == b"\3\0" * 320  # Fake AEC transforms the input marker.
+            assert second.at - first.at == pytest.approx(.020)
+            assert device.capture_health['capture_adc_fullframe_uncertainty_frames'] == 1
+            assert device.capture_health['active_capture_losses'] == 0
         finally:
             await source.aclose()
             await device.aclose()
