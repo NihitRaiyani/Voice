@@ -142,13 +142,67 @@ def test_concurrent_or_cancelled_turn_cannot_release_late_audio():
     asyncio.run(run())
 
 
-def test_five_minute_ceiling_rejects_before_any_work():
+@pytest.mark.parametrize("started", [0.0, 212.002])
+@pytest.mark.parametrize("past_secs", [0.0, .001])
+def test_five_minute_ceiling_rejects_before_any_work(started, past_secs):
+    from unittest.mock import AsyncMock
+
     async def run():
         voice = setup()
-        voice.clock = lambda: voice._started + 300
+        voice._started = started
+        voice.clock = lambda: started + 300 + past_secs
+        turn = AsyncMock(wraps=voice.conversation.turn)
+        voice.conversation.turn = turn
+        if started == 212.002 and past_secs == 0:
+            # Subtracting elapsed time first rounds below 300 at this exact
+            # representable deadline; no tiny positive timeout is admissible.
+            assert (started + 300) - started < 300
         with pytest.raises(RuntimeError, match="five-minute"):
             await voice.respond(transcript())
-        assert not voice.store.records
+        turn.assert_not_awaited()
+        assert not voice.store.records and not voice.speaker.played
+        assert voice.attempt == 0 and voice.state.turn_count == 0
+
+    asyncio.run(run())
+
+
+def test_five_minute_ceiling_is_rechecked_after_admission_without_starting_work():
+    from unittest.mock import AsyncMock
+
+    async def run():
+        voice = setup()
+        voice._started = 212.002
+        deadline = voice._started + 300
+        reads = iter([deadline - .25])
+        voice.clock = lambda: next(reads, deadline)
+        turn = AsyncMock(wraps=voice.conversation.turn)
+        voice.conversation.turn = turn
+        with pytest.raises(RuntimeError, match="five-minute"):
+            await voice.respond(transcript())
+        turn.assert_not_awaited()
+        assert not voice.store.records and not voice.speaker.played
+        assert voice.attempt == 0 and voice.state.turn_count == 0
+
+    asyncio.run(run())
+
+
+def test_work_admitted_inside_call_budget_still_times_out_before_playback():
+    async def run():
+        voice = setup()
+        voice._started = 212.002
+        voice.clock = lambda: voice._started + 299.98
+        entered = asyncio.Event()
+
+        async def turn(*args, **kwargs):
+            entered.set()
+            await asyncio.Event().wait()
+
+        voice.conversation.turn = turn
+        with pytest.raises(TimeoutError):
+            await voice.respond(transcript())
+        assert entered.is_set() and not voice.speaker.played
+        assert voice.state.turn_count == 0 and voice.store.records
+        assert voice.store.records[-1][1]['error_code'] == 'CANCELLED'
 
     asyncio.run(run())
 

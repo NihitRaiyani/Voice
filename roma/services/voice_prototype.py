@@ -59,7 +59,7 @@ class VoicePrototype:
         self._filler = None
 
     async def respond(self, transcript, input_timings=None):
-        remaining = 300 - (self.clock() - self._started)
+        remaining = self._started + 300 - self.clock()
         if remaining <= 0:
             raise RuntimeError("Voice session reached its five-minute limit")
         with provider_budget(remaining), log_context(call_id=self.state.call_sid, correlation_id=self.correlation_id,
@@ -83,7 +83,7 @@ class VoicePrototype:
     async def _respond(self, transcript, input_timings=None):
         if self._busy or self._poisoned or self.disconnected:
             raise RuntimeError("Voice session is busy or requires restart")
-        if self.clock() - self._started >= 300:
+        if self.clock() >= self._started + 300:
             raise RuntimeError("Voice session reached its five-minute limit")
         require_current_epoch()
         self._response_epoch = current_turn_epoch()

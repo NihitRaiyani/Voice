@@ -1,0 +1,45 @@
+{
+  "schema": "roma-deadline-boundary-20261029-v1",
+  "base_commit": "4c327d95c658fc87273220bfe12a62eb68fa9692",
+  "failed_workflow": "https://github.com/NihitRaiyani/Voice/actions/runs/40832392586",
+  "source_manifest": {
+    "sha256": "6b445d1c7097978c2d0568f585b95092461fab6dc3eb76120b39061dc4988f43",
+    "paths_count": 716,
+    "paths_reference": "strict-booking-20261029.json:source_manifest.paths",
+    "algorithm": "Same concatenated path/NUL/bytes SHA256 contract and unchanged path set as the referenced receipt."
+  },
+  "root_cause": "At start=212.002 and now=start+300, elapsed-first subtraction leaves 5.684341886080802e-14 seconds. Work could start instead of immediate five-minute rejection. Both admission and inner guard now use the same absolute deadline.",
+  "regression_evidence": {
+    "red_failed": 2,
+    "red_passed": 4,
+    "focused_voice_and_streaming_passed": 75,
+    "net_added_cases": 5,
+    "unchanged_call_limit_seconds": 300,
+    "epsilon_or_limit_relaxation": false,
+    "boundary_no_provider_store_or_playback": true,
+    "inside_budget_stall_still_times_out": true
+  },
+  "verification": {
+    "ci": {
+      "passed": 4402,
+      "warnings": 26,
+      "pytest_seconds": 174.91,
+      "failures": 0,
+      "skips": 0,
+      "exit_code": 0,
+      "log_sha256": "3b8e1757e82c0739ded2ab29138bbf9ff7f87cc00565c3ecba8b887e29f5c2d2"
+    },
+    "test": {
+      "passed": 4402,
+      "warnings": 26,
+      "pytest_seconds": 180.75,
+      "failures": 0,
+      "skips": 0,
+      "exit_code": 0,
+      "log_sha256": "0463cb1d89fd641478f6254b9525d2c8015eb9fd3b7e1c6b1c83391c74d8e258"
+    }
+  },
+  "new_native_or_paid_activity": false,
+  "native_receipt_reference": "strict-booking-20261029.json",
+  "full_gate_passed": false
+}
